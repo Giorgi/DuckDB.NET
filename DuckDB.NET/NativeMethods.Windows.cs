@@ -5,7 +5,7 @@ using System.Text;
 
 namespace DuckDB.NET
 {
-    class NativeMethods
+    public class NativeMethods
     {
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_open")]
         public static extern DuckdbState DuckDbOpen(string path, out IntPtr database);
@@ -20,7 +20,7 @@ namespace DuckDB.NET
         public static extern void DuckdbDisconnect(IntPtr connection);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_query")]
-        public static extern DuckdbState DuckdbQuery(IntPtr connection, string query, out duckdb_result result);
+        public static extern DuckdbState DuckdbQuery(IntPtr connection, string query, out DuckdbResult result);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_result")]
         public static extern void DuckdbDestroyResult(IntPtr result);
@@ -51,7 +51,7 @@ namespace DuckDB.NET
         public static extern double DuckdbValueDouble(IntPtr result, long col, long row);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_varchar")]
-        public static extern string DuckdbValueVarchar(duckdb_result result, long col, long row);
+        public static extern string DuckdbValueVarchar(DuckdbResult result, long col, long row);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_prepare")]
         public static extern DuckdbState DuckdbPrepare(IntPtr connection, string query, out IntPtr preparedStatement);
@@ -87,7 +87,7 @@ namespace DuckDB.NET
         public static extern  DuckdbState DuckdbBindNull(IntPtr preparedStatement, long index);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_execute_prepared")]
-        public static extern  DuckdbState DuckdbExecutePrepared(IntPtr preparedStatement, out duckdb_result result);
+        public static extern  DuckdbState DuckdbExecutePrepared(IntPtr preparedStatement, out DuckdbResult result);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_prepare")]
         public static extern  void DuckdbDestroyPrepare(IntPtr preparedStatement);

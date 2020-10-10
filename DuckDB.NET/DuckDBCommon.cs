@@ -4,13 +4,13 @@ using System.Text;
 
 namespace DuckDB.NET
 {
-    enum DuckdbState
+    public enum DuckdbState
     {
         DuckDBSuccess = 0,
         DuckDBError = 1
     }
 
-    enum DUCKDB_TYPE
+    enum DuckdbType
     {
         DUCKDB_TYPE_INVALID = 0,
         // bool
@@ -41,19 +41,19 @@ namespace DuckDB.NET
         DUCKDB_TYPE_VARCHAR
     }
 
-    struct duckdb_column
+    public struct DuckdbColumn
     {
         IntPtr data;
         bool nullmask;
-        DUCKDB_TYPE type;
+        DuckdbType type;
         string name;
     }
 
-    struct duckdb_result
+    public struct DuckdbResult
     {
         public long column_count;
         public long row_count;
-        public duckdb_column columns;
+        public DuckdbColumn columns;
         public string error_message;
     }
 }
