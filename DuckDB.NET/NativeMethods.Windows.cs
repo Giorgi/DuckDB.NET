@@ -11,13 +11,13 @@ namespace DuckDB.NET
         public static extern DuckdbState DuckDbOpen(string path, out IntPtr database);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_close")]
-        public static extern void DuckdbClose(IntPtr database);
+        public static extern void DuckdbClose(out IntPtr database);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_connect")]
         public static extern DuckdbState DuckdbConnect(IntPtr database, out IntPtr connection);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_disconnect")]
-        public static extern void DuckdbDisconnect(IntPtr connection);
+        public static extern void DuckdbDisconnect(out IntPtr connection);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_query")]
         public static extern DuckdbState DuckdbQuery(IntPtr connection, string query, out DuckdbResult result);
