@@ -23,32 +23,32 @@ namespace DuckDB.NET
         public static extern DuckdbState DuckdbQuery(IntPtr connection, string query, out DuckdbResult result);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_result")]
-        public static extern void DuckdbDestroyResult(IntPtr result);
+        public static extern void DuckdbDestroyResult(out DuckdbResult result);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_column_name")]
         public static extern string DuckdbColumnName(IntPtr result, long col);
 
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_boolean")]
-        public static extern bool DuckdbValueBoolean(IntPtr result, long col, long row);
+        public static extern bool DuckdbValueBoolean(DuckdbResult result, long col, long row);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_int8")]
-        public static extern sbyte DuckdbValueInt8(IntPtr result, long col, long row);
+        public static extern sbyte DuckdbValueInt8(DuckdbResult result, long col, long row);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_int16")]
-        public static extern short DuckdbValueInt16(IntPtr result, long col, long row);
+        public static extern short DuckdbValueInt16(DuckdbResult result, long col, long row);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_int32")]
-        public static extern int DuckdbValueInt32(IntPtr result, long col, long row);
+        public static extern int DuckdbValueInt32(DuckdbResult result, long col, long row);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_int64")]
-        public static extern long DuckdbValueInt64(IntPtr result, long col, long row);
+        public static extern long DuckdbValueInt64(DuckdbResult result, long col, long row);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_float")]
-        public static extern float DuckdbValueFloat(IntPtr result, long col, long row);
+        public static extern float DuckdbValueFloat(DuckdbResult result, long col, long row);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_double")]
-        public static extern double DuckdbValueDouble(IntPtr result, long col, long row);
+        public static extern double DuckdbValueDouble(DuckdbResult result, long col, long row);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_varchar")]
         public static extern string DuckdbValueVarchar(DuckdbResult result, long col, long row);
@@ -90,6 +90,6 @@ namespace DuckDB.NET
         public static extern  DuckdbState DuckdbExecutePrepared(IntPtr preparedStatement, out DuckdbResult result);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_prepare")]
-        public static extern  void DuckdbDestroyPrepare(IntPtr preparedStatement);
+        public static extern  void DuckdbDestroyPrepare(out IntPtr preparedStatement);
     }
 }
