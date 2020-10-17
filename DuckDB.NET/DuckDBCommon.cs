@@ -4,44 +4,44 @@ using System.Text;
 
 namespace DuckDB.NET
 {
-    public enum DuckdbState
+    public enum DuckDBState
     {
         DuckDBSuccess = 0,
         DuckDBError = 1
     }
 
-    enum DuckdbType
+    public enum DuckDBType
     {
-        DUCKDB_TYPE_INVALID = 0,
+        DuckdbTypeInvalid = 0,
         // bool
-        DUCKDB_TYPE_BOOLEAN,
+        DuckdbTypeBoolean,
         // int8_t
-        DUCKDB_TYPE_TINYINT,
+        DuckdbTypeTinyInt,
         // int16_t
-        DUCKDB_TYPE_SMALLINT,
+        DuckdbTypeSmallInt,
         // int32_t
-        DUCKDB_TYPE_INTEGER,
+        DuckdbTypeInteger,
         // int64_t
-        DUCKDB_TYPE_BIGINT,
+        DuckdbTypeBigInt,
         // float
-        DUCKDB_TYPE_FLOAT,
+        DuckdbTypeFloat,
         // double
-        DUCKDB_TYPE_DOUBLE,
+        DuckdbTypeDouble,
         // duckdb_timestamp
-        DUCKDB_TYPE_TIMESTAMP,
+        DuckdbTypeTimestamp,
         // duckdb_date
-        DUCKDB_TYPE_DATE,
+        DuckdbTypeDate,
         // duckdb_time
-        DUCKDB_TYPE_TIME,
+        DuckdbTypeTime,
         // duckdb_interval
-        DUCKDB_TYPE_INTERVAL,
+        DuckdbTypeInterval,
         // duckdb_hugeint
-        DUCKDB_TYPE_HUGEINT,
+        DuckdbTypeHugeInt,
         // const char*
-        DUCKDB_TYPE_VARCHAR
+        DuckdbTypeVarchar
     }
 
-    public struct DuckdbColumn
+    public struct DuckDBColumn
     {
         IntPtr data;
         bool nullmask;
@@ -49,7 +49,7 @@ namespace DuckDB.NET
         string name;
     }
 
-    public struct DuckdbResult
+    public struct DuckDBResult
     {
         public long column_count;
         public long row_count;
