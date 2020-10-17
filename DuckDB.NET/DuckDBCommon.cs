@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Runtime.InteropServices;
 
 namespace DuckDB.NET
 {
@@ -41,19 +41,42 @@ namespace DuckDB.NET
         DuckdbTypeVarchar
     }
 
+    [StructLayout(LayoutKind.Sequential)]
     public struct DuckDBColumn
     {
         IntPtr data;
-        bool nullmask;
-        DuckdbType type;
-        string name;
+        IntPtr nullmask;
+
+        public DuckDBType Type { get; }
+        public string Name { get; }
+
+        public bool NullMask => Marshal.ReadByte(nullmask) != 0;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
     public struct DuckDBResult
     {
-        public long column_count;
-        public long row_count;
-        public DuckdbColumn columns;
-        public string error_message;
+        public long ColumnCount { get; }
+        public long RowCount { get; }
+
+        private IntPtr columns;
+        
+        public string ErrorMessage { get; }
+
+        public IReadOnlyList<DuckDBColumn> Columns
+        {
+            get
+            {
+                var result = new List<DuckDBColumn>();
+
+                for (int i = 0; i < ColumnCount; i++)
+                {
+                    var column = Marshal.PtrToStructure<DuckDBColumn>(columns + Marshal.SizeOf<DuckDBColumn>() * i);
+                    result.Add(column);
+                }
+
+                return result.AsReadOnly();
+            }
+        }
     }
 }
