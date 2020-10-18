@@ -24,7 +24,7 @@ namespace DuckDB.NET
         public static extern void DuckDBDestroyResult(out DuckDBResult result);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_column_name")]
-        public static extern string DuckDBColumnName(IntPtr result, long col);
+        public static extern string DuckDBColumnName(DuckDBResult result, long col);
 
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_boolean")]
