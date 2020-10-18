@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using static DuckDB.NET.NativeMethods;
 
 namespace DuckDB.NET.Samples
@@ -8,41 +9,56 @@ namespace DuckDB.NET.Samples
         static void Main(string[] args)
         {
             var result = DuckDBOpen(null, out var database);
-            result = DuckDBConnect(database, out var connection);
-            result = DuckDBQuery(connection, "CREATE TABLE integers(foo INTEGER, bar INTEGER);", out var queryResult);
-            result = DuckDBQuery(connection, "INSERT INTO integers VALUES (3, 4), (5, 6), (7, NULL);", out queryResult);
-            result = DuckDBQuery(connection, "SELECT foo, bar FROM integers", out queryResult);
+            
+            using (database)
+            {
+                result = DuckDBConnect(database, out var connection);
+                using (connection)
+                {
+                    result = DuckDBQuery(connection, "CREATE TABLE integers(foo INTEGER, bar INTEGER);", out var queryResult);
+                    result = DuckDBQuery(connection, "INSERT INTO integers VALUES (3, 4), (5, 6), (7, NULL);", out queryResult);
+                    result = DuckDBQuery(connection, "SELECT foo, bar FROM integers", out queryResult);
 
-            PrintQueryResults(queryResult);
+                    PrintQueryResults(queryResult);
 
-            result = DuckDBPrepare(connection, "INSERT INTO integers VALUES (?, ?)", out var statement);
+                    result = DuckDBPrepare(connection, "INSERT INTO integers VALUES (?, ?)", out var insertStatement);
 
-            result = DuckDBBindInt32(statement, 1, 42); // the parameter index starts counting at 1!
-            result = DuckDBBindInt32(statement, 2, 43);
+                    using (insertStatement)
+                    {
+                        result = DuckDBBindInt32(insertStatement, 1, 42); // the parameter index starts counting at 1!
+                        result = DuckDBBindInt32(insertStatement, 2, 43);
 
-            result = DuckDBExecutePrepared(statement, out var _);
-            DuckDBDestroyPrepare(out statement);
+                        result = DuckDBExecutePrepared(insertStatement, out var _); 
+                    }
 
-            result = DuckDBPrepare(connection, "SELECT * FROM integers WHERE foo = ?", out statement);
-            result = DuckDBBindInt32(statement, 1, 42);
-            result = DuckDBExecutePrepared(statement, out queryResult);
 
-            PrintQueryResults(queryResult);
+                    result = DuckDBPrepare(connection, "SELECT * FROM integers WHERE foo = ?", out var selectStatement);
+                    
+                    using (selectStatement)
+                    {
+                        result = DuckDBBindInt32(selectStatement, 1, 42);
 
-            // clean up
-            DuckDBDestroyResult(out queryResult);
-            DuckDBDestroyPrepare(out statement);
+                        result = DuckDBExecutePrepared(selectStatement, out queryResult); 
+                    }
 
-            DuckDBDisconnect(out connection);
-            DuckDBClose(out database);
+                    PrintQueryResults(queryResult);
+
+                    // clean up
+                    DuckDBDestroyResult(out queryResult);
+                }
+            }
         }
 
         private static void PrintQueryResults(DuckDBResult queryResult)
         {
-            foreach (var column in queryResult.Columns)
+            for (var index = 0; index < queryResult.Columns.Count; index++)
             {
+                var column = queryResult.Columns[index];
                 Console.Write($"{column.Name} ");
+                
+                Debug.Assert(column.Name == DuckDBColumnName(queryResult, index));
             }
+
             Console.WriteLine();
 
             for (long row = 0; row < queryResult.RowCount; row++)
