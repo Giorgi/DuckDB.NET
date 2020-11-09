@@ -12,13 +12,13 @@ namespace DuckDB.NET
         public static extern void DuckDBClose(out IntPtr database);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_connect")]
-        public static extern DuckDBState DuckDBConnect(DuckDBDatabase database, out DuckDBConnection connection);
+        public static extern DuckDBState DuckDBConnect(DuckDBDatabase database, out DuckDBNativeConnection connection);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_disconnect")]
         public static extern void DuckDBDisconnect(out IntPtr connection);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_query")]
-        public static extern DuckDBState DuckDBQuery(DuckDBConnection connection, string query, out DuckDBResult result);
+        public static extern DuckDBState DuckDBQuery(DuckDBNativeConnection connection, string query, out DuckDBResult result);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_result")]
         public static extern void DuckDBDestroyResult(out DuckDBResult result);
@@ -52,7 +52,7 @@ namespace DuckDB.NET
         public static extern string DuckDBValueVarchar(DuckDBResult result, long col, long row);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_prepare")]
-        public static extern DuckDBState DuckDBPrepare(DuckDBConnection connection, string query, out DuckDBPreparedStatement preparedStatement);
+        public static extern DuckDBState DuckDBPrepare(DuckDBNativeConnection connection, string query, out DuckDBPreparedStatement preparedStatement);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_prepare")]
         public static extern DuckDBState DuckDBParams(DuckDBPreparedStatement preparedStatement, out long numberOfParams);

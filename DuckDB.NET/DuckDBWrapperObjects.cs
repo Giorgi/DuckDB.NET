@@ -18,9 +18,9 @@ namespace DuckDB.NET
         public override bool IsInvalid => handle == IntPtr.Zero;
     }
 
-    public class DuckDBConnection : SafeHandle
+    public class DuckDBNativeConnection : SafeHandle
     {
-        public DuckDBConnection() : base(IntPtr.Zero, true)
+        public DuckDBNativeConnection() : base(IntPtr.Zero, true)
         {
         }
 
