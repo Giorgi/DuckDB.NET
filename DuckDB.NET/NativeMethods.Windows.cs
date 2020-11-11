@@ -54,7 +54,7 @@ namespace DuckDB.NET
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_prepare")]
         public static extern DuckDBState DuckDBPrepare(DuckDBNativeConnection connection, string query, out DuckDBPreparedStatement preparedStatement);
 
-        [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_prepare")]
+        [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_nparams")]
         public static extern DuckDBState DuckDBParams(DuckDBPreparedStatement preparedStatement, out long numberOfParams);
 
         [DllImport("duckdb.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_boolean")]
