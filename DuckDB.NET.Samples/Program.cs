@@ -1,5 +1,8 @@
 ﻿using System;
+using System.Data.Common;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
+using DuckDB.NET.Data;
 using static DuckDB.NET.NativeMethods;
 
 namespace DuckDB.NET.Samples
@@ -8,8 +11,39 @@ namespace DuckDB.NET.Samples
     {
         static void Main(string[] args)
         {
+            AdoNetSamples();
+
+            LowLevelBindingsSample();
+        }
+
+        private static void AdoNetSamples()
+        {
+            using (var duckDBConnection = new DuckDBConnection("Data Source=file.db"))
+            {
+                duckDBConnection.Open();
+
+                var command = duckDBConnection.CreateCommand();
+
+                command.CommandText = "CREATE TABLE integers(foo INTEGER, bar INTEGER);";
+                var executeNonQuery = command.ExecuteNonQuery();
+
+                command.CommandText = "INSERT INTO integers VALUES (3, 4), (5, 6), (7, NULL);";
+                executeNonQuery = command.ExecuteNonQuery();
+
+                command.CommandText = "Select count(*) from integers";
+                var executeScalar = command.ExecuteScalar();
+
+                command.CommandText = "SELECT foo, bar FROM integers";
+                var reader = command.ExecuteReader();
+
+                PrintQueryResults(reader);
+            }
+        }
+
+        private static void LowLevelBindingsSample()
+        {
             var result = DuckDBOpen(null, out var database);
-            
+
             using (database)
             {
                 result = DuckDBConnect(database, out var connection);
@@ -28,17 +62,17 @@ namespace DuckDB.NET.Samples
                         result = DuckDBBindInt32(insertStatement, 1, 42); // the parameter index starts counting at 1!
                         result = DuckDBBindInt32(insertStatement, 2, 43);
 
-                        result = DuckDBExecutePrepared(insertStatement, out var _); 
+                        result = DuckDBExecutePrepared(insertStatement, out var _);
                     }
 
 
                     result = DuckDBPrepare(connection, "SELECT * FROM integers WHERE foo = ?", out var selectStatement);
-                    
+
                     using (selectStatement)
                     {
                         result = DuckDBBindInt32(selectStatement, 1, 42);
 
-                        result = DuckDBExecutePrepared(selectStatement, out queryResult); 
+                        result = DuckDBExecutePrepared(selectStatement, out queryResult);
                     }
 
                     PrintQueryResults(queryResult);
@@ -46,6 +80,29 @@ namespace DuckDB.NET.Samples
                     // clean up
                     DuckDBDestroyResult(out queryResult);
                 }
+            }
+        }
+
+        private static void PrintQueryResults(DbDataReader queryResult)
+        {
+            for (var index = 0; index < queryResult.FieldCount; index++)
+            {
+                var column = queryResult.GetName(index);
+                Console.Write($"{column} ");
+            }
+
+            Console.WriteLine();
+            
+            while (queryResult.Read())
+            {
+                for (int ordinal = 0; ordinal < queryResult.FieldCount; ordinal++)
+                {
+                    var val = queryResult.GetInt32(ordinal);
+                    Console.Write(val);
+                    Console.Write(" ");
+                }
+
+                Console.WriteLine();
             }
         }
 

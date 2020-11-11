@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\DuckDB.NET.Data\DuckDB.NET.Data.csproj" />
     <ProjectReference Include="..\DuckDB.NET\DuckDB.NET.csproj" />
   </ItemGroup>
 
