@@ -2,7 +2,7 @@
 
 [DuckDB](https://duckdb.org/) bindings for C#
 
-Note: The library is in very early stage and constributions are more than wellcome.
+Note: The library is in very early stage and contributions are more than wellcome.
 
 ## Usage
 
