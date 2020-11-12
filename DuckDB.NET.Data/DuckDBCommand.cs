@@ -90,7 +90,7 @@ namespace DuckDB.NET.Data
 
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
         {
-            return new DuckDBDbDataReader(this, behavior);
+            return new DuckDBDataReader(this, behavior);
         }
 
         internal void CloseConnection()

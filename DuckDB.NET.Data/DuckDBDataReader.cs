@@ -7,7 +7,7 @@ using static DuckDB.NET.NativeMethods;
 
 namespace DuckDB.NET.Data
 {
-    public class DuckDBDbDataReader : DbDataReader
+    public class DuckDBDataReader : DbDataReader
     {
         private DuckDbCommand command;
         private CommandBehavior behavior;
@@ -17,7 +17,7 @@ namespace DuckDB.NET.Data
         private int currentRow = -1;
         private bool closed = false;
 
-        public DuckDBDbDataReader(DuckDbCommand command, CommandBehavior behavior)
+        public DuckDBDataReader(DuckDbCommand command, CommandBehavior behavior)
         {
             this.command = command;
             this.behavior = behavior;
