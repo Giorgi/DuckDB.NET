@@ -12,6 +12,10 @@ Using ADO.NET Provider or using low level bindings library for DuckDB. The ADO.N
 
 ### Using ADO.NET Provider
 
+```sh
+PM> Install-Package DuckDB.NET.Data
+```
+
 ```cs
 using (var duckDBConnection = new DuckDBConnection("Data Source=file.db"))
 {
@@ -61,6 +65,10 @@ private static void PrintQueryResults(DbDataReader queryResult)
 For in-memory database use `Data Source=:memory:` connection string.
 
 ### Use low level bindings library
+
+```sh
+PM> Install-Package DuckDB.NET.Bindings
+```
 
 ```cs
 var result = DuckDBOpen(null, out var database);
