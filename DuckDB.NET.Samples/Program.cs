@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Data.Common;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using DuckDB.NET.Data;
-using static DuckDB.NET.NativeMethods;
+using static DuckDB.NET.Windows.NativeMethods;
 
 namespace DuckDB.NET.Samples
 {

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Data;
 using System.Data.Common;
-using static DuckDB.NET.NativeMethods;
 
 namespace DuckDB.NET.Data
 {
@@ -40,7 +39,7 @@ namespace DuckDB.NET.Data
 
         private int ExecuteScalarOrNonQuery()
         {
-            var result = DuckDBQuery(connection.NativeConnection, CommandText, out var queryResult);
+            var result = PlatformIndependentBindings.NativeMethods.DuckDBQuery(connection.NativeConnection, CommandText, out var queryResult);
 
             if (!result.IsSuccess())
             {
@@ -54,7 +53,7 @@ namespace DuckDB.NET.Data
             
             if (queryResult.ColumnCount > 0 && queryResult.RowCount > 0)
             {
-                return DuckDBValueInt32(queryResult, 0, 0);
+                return PlatformIndependentBindings.NativeMethods.DuckDBValueInt32(queryResult, 0, 0);
             }
 
             return 0;

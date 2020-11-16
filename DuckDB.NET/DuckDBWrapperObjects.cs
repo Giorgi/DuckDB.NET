@@ -11,7 +11,7 @@ namespace DuckDB.NET
 
         protected override bool ReleaseHandle()
         {
-            NativeMethods.DuckDBClose(out handle);
+            PlatformIndependentBindings.NativeMethods.DuckDBClose(out handle);
             return true;
         }
 
@@ -26,7 +26,7 @@ namespace DuckDB.NET
 
         protected override bool ReleaseHandle()
         {
-            NativeMethods.DuckDBDisconnect(out handle);
+            PlatformIndependentBindings.NativeMethods.DuckDBDisconnect(out handle);
             return true;
         }
 
@@ -41,7 +41,7 @@ namespace DuckDB.NET
 
         protected override bool ReleaseHandle()
         {
-            NativeMethods.DuckDBDestroyPrepare(out handle);
+            PlatformIndependentBindings.NativeMethods.DuckDBDestroyPrepare(out handle);
             return true;
         }
 

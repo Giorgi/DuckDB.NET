@@ -3,7 +3,6 @@ using System.Collections;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
-using static DuckDB.NET.NativeMethods;
 
 namespace DuckDB.NET.Data
 {
@@ -22,7 +21,7 @@ namespace DuckDB.NET.Data
             this.command = command;
             this.behavior = behavior;
 
-            var state = DuckDBQuery(command.DBNativeConnection, command.CommandText, out queryResult);
+            var state = PlatformIndependentBindings.NativeMethods.DuckDBQuery(command.DBNativeConnection, command.CommandText, out queryResult);
 
             if (state.IsSuccess())
             {
@@ -36,7 +35,7 @@ namespace DuckDB.NET.Data
 
         public override bool GetBoolean(int ordinal)
         {
-            return DuckDBValueBoolean(queryResult, ordinal, currentRow);
+            return PlatformIndependentBindings.NativeMethods.DuckDBValueBoolean(queryResult, ordinal, currentRow);
         }
 
         public override byte GetByte(int ordinal)
@@ -76,7 +75,7 @@ namespace DuckDB.NET.Data
 
         public override double GetDouble(int ordinal)
         {
-            return DuckDBValueDouble(queryResult, ordinal, currentRow);
+            return PlatformIndependentBindings.NativeMethods.DuckDBValueDouble(queryResult, ordinal, currentRow);
         }
 
         public override Type GetFieldType(int ordinal)
@@ -86,7 +85,7 @@ namespace DuckDB.NET.Data
 
         public override float GetFloat(int ordinal)
         {
-            return DuckDBValueFloat(queryResult, ordinal, currentRow);
+            return PlatformIndependentBindings.NativeMethods.DuckDBValueFloat(queryResult, ordinal, currentRow);
         }
 
         public override Guid GetGuid(int ordinal)
@@ -96,17 +95,17 @@ namespace DuckDB.NET.Data
 
         public override short GetInt16(int ordinal)
         {
-            return DuckDBValueInt16(queryResult, ordinal, currentRow);
+            return PlatformIndependentBindings.NativeMethods.DuckDBValueInt16(queryResult, ordinal, currentRow);
         }
 
         public override int GetInt32(int ordinal)
         {
-            return DuckDBValueInt32(queryResult, ordinal, currentRow);
+            return PlatformIndependentBindings.NativeMethods.DuckDBValueInt32(queryResult, ordinal, currentRow);
         }
 
         public override long GetInt64(int ordinal)
         {
-            return DuckDBValueInt64(queryResult, ordinal, currentRow);
+            return PlatformIndependentBindings.NativeMethods.DuckDBValueInt64(queryResult, ordinal, currentRow);
         }
 
         public override string GetName(int ordinal)
@@ -123,7 +122,7 @@ namespace DuckDB.NET.Data
 
         public override string GetString(int ordinal)
         {
-            return DuckDBValueVarchar(queryResult, ordinal, currentRow);
+            return PlatformIndependentBindings.NativeMethods.DuckDBValueVarchar(queryResult, ordinal, currentRow);
         }
 
         public override object GetValue(int ordinal)
@@ -178,7 +177,7 @@ namespace DuckDB.NET.Data
 
         public override void Close()
         {
-            DuckDBDestroyResult(out queryResult);
+            PlatformIndependentBindings.NativeMethods.DuckDBDestroyResult(out queryResult);
 
             if (behavior == CommandBehavior.CloseConnection)
             {

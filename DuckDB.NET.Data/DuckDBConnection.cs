@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Data;
 using System.Data.Common;
-using static DuckDB.NET.NativeMethods;
 
 namespace DuckDB.NET.Data
 {
@@ -50,10 +49,10 @@ namespace DuckDB.NET.Data
 
         public override void Open()
         {
-            var result = DuckDBOpen(inMemory ? null : filename, out duckDBDatabase);
+            var result = PlatformIndependentBindings.NativeMethods.DuckDBOpen(inMemory ? null : filename, out duckDBDatabase);
             if (result.IsSuccess())
             {
-                result = DuckDBConnect(duckDBDatabase, out NativeConnection);
+                result = PlatformIndependentBindings.NativeMethods.DuckDBConnect(duckDBDatabase, out NativeConnection);
 
                 if (!result.IsSuccess())
                 {
