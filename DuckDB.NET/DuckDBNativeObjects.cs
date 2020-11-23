@@ -50,7 +50,7 @@ namespace DuckDB.NET
         public DuckDBType Type { get; }
         public string Name { get; }
 
-        public bool NullMask => Marshal.ReadByte(nullmask) != 0;
+        public bool NullMask(int row) => Marshal.ReadByte(nullmask + row) != 0;
     }
 
     [StructLayout(LayoutKind.Sequential)]

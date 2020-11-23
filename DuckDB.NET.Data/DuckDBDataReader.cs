@@ -137,7 +137,7 @@ namespace DuckDB.NET.Data
 
         public override bool IsDBNull(int ordinal)
         {
-            throw new NotImplementedException();
+            return queryResult.Columns[ordinal].NullMask(currentRow);
         }
 
         public override int FieldCount { get; }
