@@ -51,6 +51,7 @@ namespace DuckDB.NET
         public string Name { get; }
 
         public bool NullMask(int row) => Marshal.ReadByte(nullmask + row) != 0;
+        public IntPtr Data => data;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -60,7 +61,7 @@ namespace DuckDB.NET
         public long RowCount { get; }
 
         private IntPtr columns;
-        
+
         public string ErrorMessage { get; }
 
         public IReadOnlyList<DuckDBColumn> Columns
@@ -78,5 +79,14 @@ namespace DuckDB.NET
                 return result.AsReadOnly();
             }
         }
+    }
+
+    public struct DuckDBDate
+    {
+        public int Year { get; }
+
+        public byte Month { get; }
+
+        public byte Day { get; }
     }
 }

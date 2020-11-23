@@ -3,6 +3,7 @@ using System.Collections;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
+using System.Runtime.InteropServices;
 
 namespace DuckDB.NET.Data
 {
@@ -65,7 +66,8 @@ namespace DuckDB.NET.Data
 
         public override DateTime GetDateTime(int ordinal)
         {
-            throw new NotImplementedException();
+            var date = Marshal.PtrToStructure<DuckDBDate>(queryResult.Columns[ordinal].Data + Marshal.SizeOf<DuckDBDate>() * currentRow);
+            return new DateTime(date.Year, date.Month, date.Day);
         }
 
         public override decimal GetDecimal(int ordinal)
