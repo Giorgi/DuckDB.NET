@@ -52,6 +52,11 @@ namespace DuckDB.NET
 
         public bool NullMask(int row) => Marshal.ReadByte(nullmask + row) != 0;
         public IntPtr Data => data;
+
+        public T ReadAs<T>(int row) where T : struct
+        {
+            return Marshal.PtrToStructure<T>(Data + Marshal.SizeOf<T>() * row);
+        }
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -88,5 +93,23 @@ namespace DuckDB.NET
         public byte Month { get; }
 
         public byte Day { get; }
+    }
+
+    public struct DuckDBTime
+    {
+        public byte Hour { get; }
+
+        public byte Min { get; }
+
+        public byte Sec { get; }
+
+        public short Msec { get; }
+    }
+
+    public struct DuckDBTimestamp
+    {
+        public DuckDBDate Date { get; }
+
+        public DuckDBTime Time { get; }
     }
 }

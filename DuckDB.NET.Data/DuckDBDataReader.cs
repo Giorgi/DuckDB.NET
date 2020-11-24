@@ -4,6 +4,7 @@ using System.Data;
 using System.Data.Common;
 using System.Globalization;
 using System.Linq;
+using System.Numerics;
 using System.Runtime.InteropServices;
 
 namespace DuckDB.NET.Data
@@ -67,10 +68,23 @@ namespace DuckDB.NET.Data
 
         public override DateTime GetDateTime(int ordinal)
         {
-            var date = Marshal.PtrToStructure<DuckDBDate>(queryResult.Columns[ordinal].Data + Marshal.SizeOf<DuckDBDate>() * currentRow);
-            return new DateTime(date.Year, date.Month, date.Day);
+            var column = queryResult.Columns[ordinal];
+            
+            if (column.Type == DuckDBType.DuckdbTypeDate)
+            {
+                var date = column.ReadAs<DuckDBDate>(currentRow);
+                return new DateTime(date.Year, date.Month, date.Day);
+            }
+
+            if (column.Type == DuckDBType.DuckdbTypeTimestamp)
+            {
+                var timestamp = column.ReadAs<DuckDBTimestamp>(currentRow);
+                return new DateTime(timestamp.Date.Year, timestamp.Date.Month, timestamp.Date.Day, timestamp.Time.Hour, timestamp.Time.Min, timestamp.Time.Sec, timestamp.Time.Msec);
+            }
+
+            throw new InvalidOperationException($"{nameof(GetDateTime)} called on {column.Type} column");
         }
-        
+
         public override decimal GetDecimal(int ordinal)
         {
             return decimal.Parse(GetString(ordinal), CultureInfo.InvariantCulture);
@@ -109,6 +123,11 @@ namespace DuckDB.NET.Data
         public override long GetInt64(int ordinal)
         {
             return PlatformIndependentBindings.NativeMethods.DuckDBValueInt64(queryResult, ordinal, currentRow);
+        }
+
+        public BigInteger GetBigDecimal(int ordinal)
+        {
+            return  BigInteger.Parse(PlatformIndependentBindings.NativeMethods.DuckDBValueVarchar(queryResult, ordinal, currentRow));
         }
 
         public override string GetName(int ordinal)
