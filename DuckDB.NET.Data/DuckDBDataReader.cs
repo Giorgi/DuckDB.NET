@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Data;
 using System.Data.Common;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.InteropServices;
 
@@ -69,10 +70,10 @@ namespace DuckDB.NET.Data
             var date = Marshal.PtrToStructure<DuckDBDate>(queryResult.Columns[ordinal].Data + Marshal.SizeOf<DuckDBDate>() * currentRow);
             return new DateTime(date.Year, date.Month, date.Day);
         }
-
+        
         public override decimal GetDecimal(int ordinal)
         {
-            throw new NotImplementedException();
+            return decimal.Parse(GetString(ordinal), CultureInfo.InvariantCulture);
         }
 
         public override double GetDouble(int ordinal)
@@ -92,7 +93,7 @@ namespace DuckDB.NET.Data
 
         public override Guid GetGuid(int ordinal)
         {
-            throw new NotImplementedException();
+            return new Guid(GetString(ordinal));
         }
 
         public override short GetInt16(int ordinal)
