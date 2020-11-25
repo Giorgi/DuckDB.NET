@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Data.Common;
 using System.Diagnostics;
+using System.IO;
 using DuckDB.NET.Data;
 using static DuckDB.NET.Windows.NativeMethods;
 
@@ -17,6 +18,11 @@ namespace DuckDB.NET.Samples
 
         private static void AdoNetSamples()
         {
+            if (File.Exists("file.db"))
+            {
+                File.Delete("file.db");
+            }
+
             using (var duckDBConnection = new DuckDBConnection("Data Source=file.db"))
             {
                 duckDBConnection.Open();
