@@ -5,7 +5,6 @@ using System.Data.Common;
 using System.Globalization;
 using System.Linq;
 using System.Numerics;
-using System.Runtime.InteropServices;
 
 namespace DuckDB.NET.Data
 {
@@ -125,7 +124,7 @@ namespace DuckDB.NET.Data
             return PlatformIndependentBindings.NativeMethods.DuckDBValueInt64(queryResult, ordinal, currentRow);
         }
 
-        public BigInteger GetBigDecimal(int ordinal)
+        public BigInteger GetBigInteger(int ordinal)
         {
             return  BigInteger.Parse(PlatformIndependentBindings.NativeMethods.DuckDBValueVarchar(queryResult, ordinal, currentRow));
         }
