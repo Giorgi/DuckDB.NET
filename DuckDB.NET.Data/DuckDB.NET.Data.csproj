@@ -5,13 +5,23 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <RepositoryUrl>https://github.com/Giorgi/DuckDB.NET</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <Version>0.1.0.0</Version>
+    <Version>0.1.1.0</Version>
+
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(Configuration)'=='Release'">True</ContinuousIntegrationBuild>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
+
     <Authors>Giorgi Dalakishvili</Authors>
     <Company>Giorgi Dalakishvili</Company>
     <Description>DuckDB ADO.NET Provider for C#</Description>
     <PackageProjectUrl>https://github.com/Giorgi/DuckDB.NET</PackageProjectUrl>
     <PackageLicenseExpression></PackageLicenseExpression>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <Copyright>Copyright © 2020 - 2021 Giorgi Dalakishvili</Copyright>
+    <PackageReleaseNotes>Add Linux support</PackageReleaseNotes>
+    <PackageIcon>Logo.jpg</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,6 +33,17 @@
       <Pack>True</Pack>
       <PackagePath></PackagePath>
     </None>
+    <None Include="..\Logo.jpg">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
 </Project>
