@@ -8,7 +8,7 @@ namespace DuckDB.NET.Data
     {
         private string filename;
         private bool inMemory;
-        private bool connectionIsOpen = false;
+        private ConnectionState connectionState = ConnectionState.Closed;
 
         private DuckDBDatabase duckDBDatabase;
         internal DuckDBNativeConnection NativeConnection;
@@ -46,12 +46,12 @@ namespace DuckDB.NET.Data
         {
             NativeConnection.Dispose();
             duckDBDatabase.Dispose();
-            connectionIsOpen = false;
+            connectionState = ConnectionState.Closed;
         }
 
         public override void Open()
         {
-            if (!connectionIsOpen){
+            if (connectionState != ConnectionState.Closed){
                 var result = PlatformIndependentBindings.NativeMethods.DuckDBOpen(inMemory ? null : filename, out duckDBDatabase);
                 if (result.IsSuccess())
                 {
@@ -67,7 +67,11 @@ namespace DuckDB.NET.Data
                 {
                     throw new DuckDBException("DuckDBOpen failed", result);
                 }
-                connectionIsOpen = true;
+                connectionState = ConnectionState.Open;
+            }
+            else
+            {
+                throw new InvalidOperationException("DuckDBConnection is already open.");
             }
         }
 
