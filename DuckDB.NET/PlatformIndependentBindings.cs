@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.InteropServices;
+using DuckDB.NET.Linux;
 using DuckDB.NET.MacOS;
 using DuckDB.NET.Windows;
 
@@ -17,6 +18,11 @@ namespace DuckDB.NET
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
                 NativeMethods = new MacOSBindNativeMethods();
+            }
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                NativeMethods = new LinuxBindNativeMethods();
             }
 
             if (NativeMethods == null)
