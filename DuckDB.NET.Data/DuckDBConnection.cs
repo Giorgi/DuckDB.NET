@@ -8,6 +8,7 @@ namespace DuckDB.NET.Data
     {
         private string filename;
         private bool inMemory;
+        private ConnectionState connectionState = ConnectionState.Closed;
 
         private DuckDBDatabase duckDBDatabase;
         internal DuckDBNativeConnection NativeConnection;
@@ -45,24 +46,32 @@ namespace DuckDB.NET.Data
         {
             NativeConnection.Dispose();
             duckDBDatabase.Dispose();
+            connectionState = ConnectionState.Closed;
         }
 
         public override void Open()
         {
-            var result = PlatformIndependentBindings.NativeMethods.DuckDBOpen(inMemory ? null : filename, out duckDBDatabase);
-            if (result.IsSuccess())
-            {
-                result = PlatformIndependentBindings.NativeMethods.DuckDBConnect(duckDBDatabase, out NativeConnection);
-
-                if (!result.IsSuccess())
+            if (connectionState != ConnectionState.Closed){
+                var result = PlatformIndependentBindings.NativeMethods.DuckDBOpen(inMemory ? null : filename, out duckDBDatabase);
+                if (result.IsSuccess())
                 {
-                    duckDBDatabase.Dispose();
-                    throw new DuckDBException("DuckDBConnect failed", result);
+                    result = PlatformIndependentBindings.NativeMethods.DuckDBConnect(duckDBDatabase, out NativeConnection);
+
+                    if (!result.IsSuccess())
+                    {
+                        duckDBDatabase.Dispose();
+                        throw new DuckDBException("DuckDBConnect failed", result);
+                    }
                 }
+                else
+                {
+                    throw new DuckDBException("DuckDBOpen failed", result);
+                }
+                connectionState = ConnectionState.Open;
             }
             else
             {
-                throw new DuckDBException("DuckDBOpen failed", result);
+                throw new InvalidOperationException("DuckDBConnection is already open.");
             }
         }
 
