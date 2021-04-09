@@ -43,7 +43,7 @@ namespace DuckDB.NET.Data
 
             if (!string.IsNullOrEmpty(queryResult.ErrorMessage))
             {
-                throw new DuckDBException(queryResult.ErrorMessage);
+                throw new DuckDBException(queryResult.ErrorMessage, result);
             }
 
             if (!result.IsSuccess())
