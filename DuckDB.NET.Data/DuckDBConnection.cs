@@ -6,32 +6,36 @@ namespace DuckDB.NET.Data
 {
     public class DuckDBConnection : DbConnection
     {
-        private string filename;
-        private bool inMemory;
+        //private string filename;
+        //private bool inMemory;
         private ConnectionState connectionState = ConnectionState.Closed;
 
-        private DuckDBDatabase duckDBDatabase;
+        private DuckDb pDuckDb;
         internal DuckDBNativeConnection NativeConnection;
 
-        public DuckDBConnection(string connectionString)
+        //public DuckDBConnection(string connectionString)
+        //{
+        //    ConnectionString = connectionString;
+
+        //    if (ConnectionString.StartsWith("Data Source=") || ConnectionString.StartsWith("DataSource="))
+        //    {
+        //        var strings = ConnectionString.Split('=');
+
+        //        if (strings[1] == ":memory:")
+        //        {
+        //            inMemory = true;
+        //        }
+        //        else
+        //        {
+        //            filename = strings[1];
+        //        }
+        //    }
+        //}
+
+        public DuckDBConnection(DuckDb duckDb)
         {
-            ConnectionString = connectionString;
-
-            if (ConnectionString.StartsWith("Data Source=") || ConnectionString.StartsWith("DataSource="))
-            {
-                var strings = ConnectionString.Split('=');
-
-                if (strings[1] == ":memory:")
-                {
-                    inMemory = true;
-                }
-                else
-                {
-                    filename = strings[1];
-                }
-            }
+            pDuckDb = duckDb;
         }
-
         protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
         {
             throw new NotImplementedException();
@@ -50,7 +54,7 @@ namespace DuckDB.NET.Data
             }
 
             NativeConnection.Dispose();
-            duckDBDatabase.Dispose();
+            //duckDBDatabase.Dispose();
             connectionState = ConnectionState.Closed;
         }
 
@@ -61,20 +65,27 @@ namespace DuckDB.NET.Data
                 throw new InvalidOperationException("Connection is already open.");
             }
 
-            var result = PlatformIndependentBindings.NativeMethods.DuckDBOpen(inMemory ? null : filename, out duckDBDatabase);
-            if (result.IsSuccess())
-            {
-                result = PlatformIndependentBindings.NativeMethods.DuckDBConnect(duckDBDatabase, out NativeConnection);
+            //var result = PlatformIndependentBindings.NativeMethods.DuckDBOpen(inMemory ? null : filename, out duckDBDatabase);
+            //if (result.IsSuccess())
+            //{
+            //    result = PlatformIndependentBindings.NativeMethods.DuckDBConnect(duckDBDatabase, out NativeConnection);
 
-                if (!result.IsSuccess())
-                {
-                    duckDBDatabase.Dispose();
-                    throw new DuckDBException("DuckDBConnect failed", result);
-                }
-            }
-            else
+            //    if (!result.IsSuccess())
+            //    {
+            //        duckDBDatabase.Dispose();
+            //        throw new DuckDBException("DuckDBConnect failed", result);
+            //    }
+            //}
+            //else
+            //{
+            //    throw new DuckDBException("DuckDBOpen failed", result);
+            //}
+
+            var result = PlatformIndependentBindings.NativeMethods.DuckDBConnect(pDuckDb.Database, out NativeConnection);
+            if (!result.IsSuccess())
             {
-                throw new DuckDBException("DuckDBOpen failed", result);
+                //duckDBDatabase.Dispose();
+                throw new DuckDBException("DuckDBConnect failed", result);
             }
 
             connectionState = ConnectionState.Open;
