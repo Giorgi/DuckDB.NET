@@ -40,8 +40,19 @@ namespace DuckDB.NET.Samples
 
                 command.CommandText = "SELECT foo, bar FROM integers";
                 var reader = command.ExecuteReader();
-
                 PrintQueryResults(reader);
+
+                try
+                {
+                    command.CommandText = "Not a valid Sql statement";
+                    var causesError = command.ExecuteNonQuery();
+                }
+                catch (DuckDBException e)
+                {
+                    Console.WriteLine(e.Message);
+                }
+                
+        
             }
         }
 

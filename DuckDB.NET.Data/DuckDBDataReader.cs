@@ -25,14 +25,17 @@ namespace DuckDB.NET.Data
 
             var state = PlatformIndependentBindings.NativeMethods.DuckDBQuery(command.DBNativeConnection, command.CommandText, out queryResult);
 
-            if (state.IsSuccess())
+            if (!string.IsNullOrEmpty(queryResult.ErrorMessage))
             {
-                FieldCount = (int)queryResult.ColumnCount;
+                throw new DuckDBException(queryResult.ErrorMessage, state);
             }
-            else
+
+            if (!state.IsSuccess())
             {
                 throw new DuckDBException("DuckDBQuery failed", state);
             }
+
+            FieldCount = (int)queryResult.ColumnCount;
         }
 
         public override bool GetBoolean(int ordinal)

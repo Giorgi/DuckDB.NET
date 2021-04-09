@@ -41,16 +41,16 @@ namespace DuckDB.NET.Data
         {
             var result = PlatformIndependentBindings.NativeMethods.DuckDBQuery(connection.NativeConnection, CommandText, out var queryResult);
 
+            if (!string.IsNullOrEmpty(queryResult.ErrorMessage))
+            {
+                throw new DuckDBException(queryResult.ErrorMessage, result);
+            }
+
             if (!result.IsSuccess())
             {
                 throw new DuckDBException("DuckDBQuery failed", result);
             }
 
-            if (!string.IsNullOrEmpty(queryResult.ErrorMessage))
-            {
-                throw new DuckDBException(queryResult.ErrorMessage);
-            }
-            
             if (queryResult.ColumnCount > 0 && queryResult.RowCount > 0)
             {
                 return PlatformIndependentBindings.NativeMethods.DuckDBValueInt32(queryResult, 0, 0);
