@@ -44,6 +44,11 @@ namespace DuckDB.NET.Data
 
         public override void Close()
         {
+            if (connectionState == ConnectionState.Closed)
+            {
+                throw new InvalidOperationException("Connection is already closed.");
+            }
+
             NativeConnection.Dispose();
             duckDBDatabase.Dispose();
             connectionState = ConnectionState.Closed;
@@ -51,35 +56,35 @@ namespace DuckDB.NET.Data
 
         public override void Open()
         {
-            if (connectionState != ConnectionState.Closed){
-                var result = PlatformIndependentBindings.NativeMethods.DuckDBOpen(inMemory ? null : filename, out duckDBDatabase);
-                if (result.IsSuccess())
-                {
-                    result = PlatformIndependentBindings.NativeMethods.DuckDBConnect(duckDBDatabase, out NativeConnection);
+            if (connectionState == ConnectionState.Open)
+            {
+                throw new InvalidOperationException("Connection is already open.");
+            }
 
-                    if (!result.IsSuccess())
-                    {
-                        duckDBDatabase.Dispose();
-                        throw new DuckDBException("DuckDBConnect failed", result);
-                    }
-                }
-                else
+            var result = PlatformIndependentBindings.NativeMethods.DuckDBOpen(inMemory ? null : filename, out duckDBDatabase);
+            if (result.IsSuccess())
+            {
+                result = PlatformIndependentBindings.NativeMethods.DuckDBConnect(duckDBDatabase, out NativeConnection);
+
+                if (!result.IsSuccess())
                 {
-                    throw new DuckDBException("DuckDBOpen failed", result);
+                    duckDBDatabase.Dispose();
+                    throw new DuckDBException("DuckDBConnect failed", result);
                 }
-                connectionState = ConnectionState.Open;
             }
             else
             {
-                throw new InvalidOperationException("DuckDBConnection is already open.");
+                throw new DuckDBException("DuckDBOpen failed", result);
             }
+
+            connectionState = ConnectionState.Open;
         }
 
         public override string ConnectionString { get; set; }
 
         public override string Database { get; }
 
-        public override ConnectionState State { get; }
+        public override ConnectionState State => connectionState;
 
         public override string DataSource { get; }
 
