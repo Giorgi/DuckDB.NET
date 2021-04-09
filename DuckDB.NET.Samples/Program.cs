@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using DuckDB.NET.Data;
 using static DuckDB.NET.Windows.NativeMethods;
+using Dapper;
 
 namespace DuckDB.NET.Samples
 {
@@ -51,8 +52,10 @@ namespace DuckDB.NET.Samples
                 {
                     Console.WriteLine(e.Message);
                 }
-                
-        
+
+                //sending a dapper queury
+                duckDBConnection.Execute("CREATE TABLE integers2(foo INTEGER, bar INTEGER);");
+
             }
         }
 
