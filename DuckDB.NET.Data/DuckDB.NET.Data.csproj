@@ -22,6 +22,7 @@
     <Copyright>Copyright © 2020 - 2021 Giorgi Dalakishvili</Copyright>
     <PackageReleaseNotes>Add Linux support</PackageReleaseNotes>
     <PackageIcon>Logo.jpg</PackageIcon>
+    <LangVersion>default</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
