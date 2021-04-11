@@ -10,8 +10,8 @@ namespace DuckDB.NET.Data
 {
     public class DuckDBDataReader : DbDataReader
     {
-        private DuckDbCommand command;
-        private CommandBehavior behavior;
+        private readonly DuckDbCommand command;
+        private readonly CommandBehavior behavior;
 
         private DuckDBResult queryResult;
 
@@ -35,6 +35,7 @@ namespace DuckDB.NET.Data
                 throw new DuckDBException("DuckDBQuery failed", state);
             }
 
+            HasRows = queryResult.RowCount > 0;
             FieldCount = (int)queryResult.ColumnCount;
         }
 
