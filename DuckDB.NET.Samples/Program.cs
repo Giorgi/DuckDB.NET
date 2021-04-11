@@ -24,38 +24,34 @@ namespace DuckDB.NET.Samples
                 File.Delete("file.db");
             }
 
-            using (var duckDBConnection = new DuckDBConnection("Data Source=file.db"))
+            using var duckDBConnection = new DuckDBConnection("Data Source=file.db");
+            duckDBConnection.Open();
+
+            var command = duckDBConnection.CreateCommand();
+
+            command.CommandText = "CREATE TABLE integers(foo INTEGER, bar INTEGER);";
+            var executeNonQuery = command.ExecuteNonQuery();
+
+            command.CommandText = "INSERT INTO integers VALUES (3, 4), (5, 6), (7, NULL);";
+            executeNonQuery = command.ExecuteNonQuery();
+
+            command.CommandText = "Select count(*) from integers";
+            var executeScalar = command.ExecuteScalar();
+
+            command.CommandText = "SELECT foo, bar FROM integers";
+            var reader = command.ExecuteReader();
+            PrintQueryResults(reader);
+
+            var results = duckDBConnection.Query<FooBar>("SELECT foo, bar FROM integers");
+
+            try
             {
-                duckDBConnection.Open();
-
-                var command = duckDBConnection.CreateCommand();
-
-                command.CommandText = "CREATE TABLE integers(foo INTEGER, bar INTEGER);";
-                var executeNonQuery = command.ExecuteNonQuery();
-
-                command.CommandText = "INSERT INTO integers VALUES (3, 4), (5, 6), (7, NULL);";
-                executeNonQuery = command.ExecuteNonQuery();
-
-                command.CommandText = "Select count(*) from integers";
-                var executeScalar = command.ExecuteScalar();
-
-                command.CommandText = "SELECT foo, bar FROM integers";
-                var reader = command.ExecuteReader();
-                PrintQueryResults(reader);
-
-                try
-                {
-                    command.CommandText = "Not a valid Sql statement";
-                    var causesError = command.ExecuteNonQuery();
-                }
-                catch (DuckDBException e)
-                {
-                    Console.WriteLine(e.Message);
-                }
-
-                //sending a dapper queury
-                duckDBConnection.Execute("CREATE TABLE integers2(foo INTEGER, bar INTEGER);");
-
+                command.CommandText = "Not a valid Sql statement";
+                var causesError = command.ExecuteNonQuery();
+            }
+            catch (DuckDBException e)
+            {
+                Console.WriteLine(e.Message);
             }
         }
 
@@ -149,5 +145,11 @@ namespace DuckDB.NET.Samples
                 Console.WriteLine();
             }
         }
+    }
+
+    class FooBar
+    {
+        public int Foo { get; set; }
+        public int Bar { get; set; }
     }
 }
