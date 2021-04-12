@@ -2,6 +2,8 @@
 
 [DuckDB](https://duckdb.org/) bindings for C#
 
+![Project Icon](Logo.jpg "GraphQLinq Project Icon")
+
 Note: The library is in very early stage and contributions are more than wellcome.
 
 ## Usage
@@ -13,7 +15,7 @@ Using ADO.NET Provider or using low level bindings library for DuckDB. The ADO.N
 ### Using ADO.NET Provider
 
 ```sh
-PM> Install-Package DuckDB.NET.Data
+dotnet add package DuckDB.NET.Data
 ```
 
 ```cs
@@ -62,12 +64,20 @@ private static void PrintQueryResults(DbDataReader queryResult)
 }
 ```
 
-For in-memory database use `Data Source=:memory:` connection string.
+You can also use Dapper to query data:
+
+```cs
+var item = duckDBConnection.Query<FooBar>("SELECT foo, bar FROM integers");
+```
+
+### In-Memory database
+
+For in-memory database use `Data Source=:memory:` connection string. When using in-memory database no data is persisted on disk.
 
 ### Use low level bindings library
 
 ```sh
-PM> Install-Package DuckDB.NET.Bindings
+dotnet add package DuckDB.NET.Bindings
 ```
 
 ```cs
