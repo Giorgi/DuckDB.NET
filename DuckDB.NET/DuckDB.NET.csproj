@@ -5,13 +5,13 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageId>DuckDB.NET.Bindings</PackageId>
     <Authors>Giorgi Dalakishvili</Authors>
-    <Company />
+    <Company>Giorgi Dalakishvili</Company>
     <Product>DuckDB.NET.Bindings</Product>
     <Description>DuckDB Bindings for C#</Description>
     <RepositoryUrl>https://github.com/Giorgi/DuckDB.NET</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://github.com/Giorgi/DuckDB.NET</PackageProjectUrl>
-    <Version>0.1.1.0</Version>
+    <Version>0.1.2.0</Version>
 
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(Configuration)'=='Release'">True</ContinuousIntegrationBuild>
@@ -22,7 +22,7 @@
     <PackageLicenseExpression></PackageLicenseExpression>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     <PackageIcon>Logo.jpg</PackageIcon>
-    <PackageReleaseNotes>Add Linux support</PackageReleaseNotes>
+    <PackageReleaseNotes>Implement GetValue, GetFieldType and HasRows</PackageReleaseNotes>
     <Copyright>Copyright © 2020 - 2021 Giorgi Dalakishvili</Copyright>
   </PropertyGroup>
 

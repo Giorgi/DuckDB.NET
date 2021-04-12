@@ -5,7 +5,7 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <RepositoryUrl>https://github.com/Giorgi/DuckDB.NET</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <Version>0.1.1.0</Version>
+    <Version>0.1.2.0</Version>
 
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(Configuration)'=='Release'">True</ContinuousIntegrationBuild>
@@ -20,7 +20,7 @@
     <PackageLicenseExpression></PackageLicenseExpression>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     <Copyright>Copyright © 2020 - 2021 Giorgi Dalakishvili</Copyright>
-    <PackageReleaseNotes>Add Linux support</PackageReleaseNotes>
+    <PackageReleaseNotes>Implement GetValue, GetFieldType and HasRows</PackageReleaseNotes>
     <PackageIcon>Logo.jpg</PackageIcon>
     <LangVersion>default</LangVersion>
   </PropertyGroup>
