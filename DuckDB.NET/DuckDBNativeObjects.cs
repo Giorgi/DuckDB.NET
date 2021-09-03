@@ -64,6 +64,7 @@ namespace DuckDB.NET
     {
         public long ColumnCount { get; }
         public long RowCount { get; }
+        public long RowsChanged { get; }
 
         private IntPtr columns;
 

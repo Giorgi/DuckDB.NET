@@ -57,7 +57,6 @@ namespace DuckDB.NET.Data
             }
 
             return 0;
-
         }
 
         public override void Prepare()
