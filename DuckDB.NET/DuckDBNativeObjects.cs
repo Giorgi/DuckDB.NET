@@ -49,6 +49,7 @@ namespace DuckDB.NET
 
         public DuckDBType Type { get; }
         public string Name { get; }
+        IntPtr internal_data;
 
         public bool NullMask(int row) => Marshal.ReadByte(nullmask + row) != 0;
         public IntPtr Data => data;
@@ -69,6 +70,7 @@ namespace DuckDB.NET
         private IntPtr columns;
 
         public string ErrorMessage { get; }
+        IntPtr internal_data;
 
         public IReadOnlyList<DuckDBColumn> Columns
         {
