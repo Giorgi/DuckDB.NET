@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Data;
 using System.Data.Common;
+using System.Runtime.InteropServices;
 
 namespace DuckDB.NET.Data
 {
@@ -39,7 +40,9 @@ namespace DuckDB.NET.Data
 
         private int ExecuteScalarOrNonQuery()
         {
-            var result = PlatformIndependentBindings.NativeMethods.DuckDBQuery(connection.NativeConnection, CommandText, out var queryResult);
+            using var unmanagedString = CommandText.ToUnmanagedString();
+            
+            var result = PlatformIndependentBindings.NativeMethods.DuckDBQuery(connection.NativeConnection, unmanagedString, out var queryResult);
 
             if (!string.IsNullOrEmpty(queryResult.ErrorMessage))
             {

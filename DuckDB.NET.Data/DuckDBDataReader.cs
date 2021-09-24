@@ -5,6 +5,8 @@ using System.Data.Common;
 using System.Globalization;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.InteropServices;
+using System.Text;
 
 namespace DuckDB.NET.Data
 {
@@ -23,8 +25,9 @@ namespace DuckDB.NET.Data
             this.command = command;
             this.behavior = behavior;
 
-            var state = PlatformIndependentBindings.NativeMethods.DuckDBQuery(command.DBNativeConnection, command.CommandText, out queryResult);
-
+            using var unmanagedString = command.CommandText.ToUnmanagedString();
+            var state = PlatformIndependentBindings.NativeMethods.DuckDBQuery(command.DBNativeConnection, unmanagedString, out queryResult);
+            
             if (!string.IsNullOrEmpty(queryResult.ErrorMessage))
             {
                 throw new DuckDBException(queryResult.ErrorMessage, state);
@@ -146,7 +149,7 @@ namespace DuckDB.NET.Data
 
         public BigInteger GetBigInteger(int ordinal)
         {
-            return BigInteger.Parse(PlatformIndependentBindings.NativeMethods.DuckDBValueVarchar(queryResult, ordinal, currentRow));
+            return BigInteger.Parse(GetString(ordinal));
         }
 
         public override string GetName(int ordinal)
@@ -163,7 +166,9 @@ namespace DuckDB.NET.Data
 
         public override string GetString(int ordinal)
         {
-            return PlatformIndependentBindings.NativeMethods.DuckDBValueVarchar(queryResult, ordinal, currentRow);
+            var unmanagedString = PlatformIndependentBindings.NativeMethods.DuckDBValueVarchar(queryResult, ordinal, currentRow);
+
+            return unmanagedString.ToManagedString();
         }
 
         public override object GetValue(int ordinal)

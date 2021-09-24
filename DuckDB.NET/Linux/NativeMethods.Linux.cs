@@ -25,7 +25,7 @@ namespace DuckDB.NET.Linux
             NativeMethods.DuckDBDisconnect(out connection);
         }
 
-        public DuckDBState DuckDBQuery(DuckDBNativeConnection connection, string query, out DuckDBResult result)
+        public DuckDBState DuckDBQuery(DuckDBNativeConnection connection, SafeUnmanagedMemoryHandle query, out DuckDBResult result)
         {
             return NativeMethods.DuckDBQuery(connection, query, out result);
         }
@@ -75,7 +75,7 @@ namespace DuckDB.NET.Linux
             return NativeMethods.DuckDBValueDouble(result, col, row);
         }
 
-        public string DuckDBValueVarchar(DuckDBResult result, long col, long row)
+        public IntPtr DuckDBValueVarchar(DuckDBResult result, long col, long row)
         {
             return NativeMethods.DuckDBValueVarchar(result, col, row);
         }
@@ -144,93 +144,107 @@ namespace DuckDB.NET.Linux
         {
             NativeMethods.DuckDBDestroyPrepare(out preparedStatement);
         }
+
+        /// <inheritdoc />
+        public void DuckDBFree(IntPtr ptr)
+        {
+            NativeMethods.DuckDBFree(ptr);
+        }
     }
 
     public class NativeMethods
     {
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_open")]
+        private const string DuckDbLibrary = "libduckdb.so";
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_open")]
         public static extern DuckDBState DuckDBOpen(string path, out DuckDBDatabase database);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_close")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_close")]
         public static extern void DuckDBClose(out IntPtr database);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_connect")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_connect")]
         public static extern DuckDBState DuckDBConnect(DuckDBDatabase database, out DuckDBNativeConnection connection);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_disconnect")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_disconnect")]
         public static extern void DuckDBDisconnect(out IntPtr connection);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_query")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_query")]
         public static extern DuckDBState DuckDBQuery(DuckDBNativeConnection connection, string query, out DuckDBResult result);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_result")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_query")]
+        public static extern DuckDBState DuckDBQuery(DuckDBNativeConnection connection, SafeUnmanagedMemoryHandle query, out DuckDBResult result);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_result")]
         public static extern void DuckDBDestroyResult(out DuckDBResult result);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_column_name")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_column_name")]
         public static extern string DuckDBColumnName(DuckDBResult result, long col);
 
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_boolean")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_boolean")]
         public static extern bool DuckDBValueBoolean(DuckDBResult result, long col, long row);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_int8")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_int8")]
         public static extern sbyte DuckDBValueInt8(DuckDBResult result, long col, long row);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_int16")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_int16")]
         public static extern short DuckDBValueInt16(DuckDBResult result, long col, long row);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_int32")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_int32")]
         public static extern int DuckDBValueInt32(DuckDBResult result, long col, long row);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_int64")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_int64")]
         public static extern long DuckDBValueInt64(DuckDBResult result, long col, long row);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_float")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_float")]
         public static extern float DuckDBValueFloat(DuckDBResult result, long col, long row);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_double")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_double")]
         public static extern double DuckDBValueDouble(DuckDBResult result, long col, long row);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_varchar")]
-        public static extern string DuckDBValueVarchar(DuckDBResult result, long col, long row);
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_varchar")]
+        public static extern IntPtr DuckDBValueVarchar(DuckDBResult result, long col, long row);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_prepare")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_prepare")]
         public static extern DuckDBState DuckDBPrepare(DuckDBNativeConnection connection, string query, out DuckDBPreparedStatement preparedStatement);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_nparams")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_nparams")]
         public static extern DuckDBState DuckDBParams(DuckDBPreparedStatement preparedStatement, out long numberOfParams);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_boolean")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_boolean")]
         public static extern DuckDBState DuckDBBindBoolean(DuckDBPreparedStatement preparedStatement, long index, bool val);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_int8")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_int8")]
         public static extern DuckDBState DuckDBBindInt8(DuckDBPreparedStatement preparedStatement, long index, sbyte val);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_int16")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_int16")]
         public static extern DuckDBState DuckDBBindInt16(DuckDBPreparedStatement preparedStatement, long index, short val);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_int32")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_int32")]
         public static extern DuckDBState DuckDBBindInt32(DuckDBPreparedStatement preparedStatement, long index, int val);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_int64")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_int64")]
         public static extern DuckDBState DuckDBBindInt64(DuckDBPreparedStatement preparedStatement, long index, long val);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_float")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_float")]
         public static extern DuckDBState DuckDBBindFloat(DuckDBPreparedStatement preparedStatement, long index, float val);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_double")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_double")]
         public static extern DuckDBState DuckDBBindDouble(DuckDBPreparedStatement preparedStatement, long index, double val);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_varchar")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_varchar")]
         public static extern DuckDBState DuckDBBindVarchar(DuckDBPreparedStatement preparedStatement, long index, string val);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_null")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_null")]
         public static extern DuckDBState DuckDBBindNull(DuckDBPreparedStatement preparedStatement, long index);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_execute_prepared")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_execute_prepared")]
         public static extern DuckDBState DuckDBExecutePrepared(DuckDBPreparedStatement preparedStatement, out DuckDBResult result);
 
-        [DllImport("libduckdb.so", CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_prepare")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_prepare")]
         public static extern void DuckDBDestroyPrepare(out IntPtr preparedStatement);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_free")]
+        public static extern void DuckDBFree(IntPtr ptr);
     }
 }

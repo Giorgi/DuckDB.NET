@@ -12,7 +12,7 @@ namespace DuckDB.NET
 
         void DuckDBDisconnect(out IntPtr connection);
 
-        DuckDBState DuckDBQuery(DuckDBNativeConnection connection, string query, out DuckDBResult result);
+        DuckDBState DuckDBQuery(DuckDBNativeConnection connection, SafeUnmanagedMemoryHandle query, out DuckDBResult result);
 
         void DuckDBDestroyResult(out DuckDBResult result);
 
@@ -32,7 +32,7 @@ namespace DuckDB.NET
 
         double DuckDBValueDouble(DuckDBResult result, long col, long row);
 
-        string DuckDBValueVarchar(DuckDBResult result, long col, long row);
+        IntPtr DuckDBValueVarchar(DuckDBResult result, long col, long row);
 
         DuckDBState DuckDBPrepare(DuckDBNativeConnection connection, string query, out DuckDBPreparedStatement preparedStatement);
 
@@ -59,5 +59,7 @@ namespace DuckDB.NET
         DuckDBState DuckDBExecutePrepared(DuckDBPreparedStatement preparedStatement, out DuckDBResult result);
 
         void DuckDBDestroyPrepare(out IntPtr preparedStatement);
+
+        void DuckDBFree(IntPtr ptr);
     }
 }
