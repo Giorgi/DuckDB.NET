@@ -23,6 +23,14 @@ namespace DuckDB.NET
         DuckdbTypeInteger,
         // int64_t
         DuckdbTypeBigInt,
+        // uint8_t
+        DuckdbTypeUnsignedTinyInt,
+        // uint16_t
+        DuckdbTypeUnsignedSmallInt,
+        // uint32_t
+        DuckdbTypeUnsignedInteger,
+        // uint64_t
+        DuckdbTypeUnsignedBigInt,
         // float
         DuckdbTypeFloat,
         // double
@@ -38,7 +46,9 @@ namespace DuckDB.NET
         // duckdb_hugeint
         DuckdbTypeHugeInt,
         // const char*
-        DuckdbTypeVarchar
+        DuckdbTypeVarchar,
+        // duckdb_blob
+        DuckdbTypeBlob
     }
 
     [StructLayout(LayoutKind.Sequential)]
