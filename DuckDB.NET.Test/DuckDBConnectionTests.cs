@@ -6,6 +6,7 @@ using Dapper;
 using FluentAssertions;
 using System.Linq;
 using DuckDB.NET.Test.Helpers;
+using System.Diagnostics;
 
 namespace DuckDB.NET.Test
 {
@@ -104,7 +105,8 @@ namespace DuckDB.NET.Test
             //it's hammer time baby!
             for(int i = 0; i< taskCount; i++)
             {
-                tasks[i] = Task.Run(async () => await insertionsWithRandomDelay(i));
+                var index = i;
+                tasks[i] = Task.Run(async () => await insertionsWithRandomDelay(index));
             }
 
             await Task.WhenAll(tasks);
@@ -125,6 +127,65 @@ namespace DuckDB.NET.Test
 
             //dispose here to make sure there isn't a connection still attached
             foreach(var f in files)
+            {
+                f.Dispose();
+            }
+        }
+
+        [TestMethod]
+        [TestCategory("Long Running")]
+        public async Task ConnectionSpeed()
+        {
+            const int taskCount = 5;
+            const int fileCount = taskCount * 5;
+            const int operationCount = 300;
+            const int totalOperations = taskCount * operationCount;
+
+            var files = new DisposableFile[fileCount];
+            
+            for (int i = 0;i < fileCount; i++)
+            {
+                files[i] = TestHelper.GetDisposableFile("db", i);
+            }
+
+            var connectionStrings = files
+                .Select(f => $"DataSource={f.FileName}")
+                .ToArray();
+
+            //open and close files with some overlap
+            var openAndClose = new Func<int, Task>(async ti =>
+            {
+                var rnd = new Random(ti);
+
+                for (int i = 0; i < operationCount; i++)
+                {
+                    var cs = connectionStrings[rnd.Next(fileCount)];
+                    await using var duckDBConnection = new DuckDBConnection(cs);
+                    await duckDBConnection.OpenAsync();
+                }
+            });
+
+            var tasks = new Task[taskCount];
+
+            var stopwatch = Stopwatch.StartNew();
+
+            //it's hammer time baby!
+            for (int i = 0; i < taskCount; i++)
+            {
+                var index = i;
+                tasks[i] = Task.Run(async () => await openAndClose(index));
+            }
+
+            await Task.WhenAll(tasks);
+
+            var elapsed = stopwatch.Elapsed.TotalSeconds;
+
+            var operationsPerSec = totalOperations / elapsed;
+
+            Console.WriteLine($"Operations Per Second:{operationsPerSec:0.0}");
+
+            //dispose here to make sure there isn't a connection still attached
+            foreach (var f in files)
             {
                 f.Dispose();
             }
