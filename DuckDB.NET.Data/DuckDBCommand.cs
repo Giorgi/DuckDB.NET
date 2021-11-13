@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DuckDB.NET.Data.Internal;
+using System;
 using System.Data;
 using System.Data.Common;
 using System.Runtime.InteropServices;
