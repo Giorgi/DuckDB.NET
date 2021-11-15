@@ -64,9 +64,9 @@ namespace DuckDB.NET.Test
         {
             //with 1 task per file, should be good mix of reusing connections
             //and disposing of them
-            const int fileCount = 10;
-            const int taskCount = 10;
-            const int insertionCount = 500;
+            const int fileCount = 20;
+            const int taskCount = 20;
+            const int insertionCount = 1000;
             const int totalInsertions = taskCount * insertionCount;
             
             var files = new DisposableFile[fileCount];
@@ -128,6 +128,8 @@ namespace DuckDB.NET.Test
                 var insertions = await duckDBConnection.QuerySingleAsync<int>("SELECT COUNT(*) FROM INSERTIONS;");
                 insertions.Should().BeGreaterThan(0);
                 insertionCountPostRun += insertions;
+
+                Console.WriteLine($"{insertions:0} Insertions for {cs}");
             }
 
             insertionCountPostRun.Should().Be(totalInsertions, $"Insertions don't add up?");

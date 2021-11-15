@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 
@@ -11,8 +12,8 @@ namespace DuckDB.NET.Data.Internal
     {
         public static readonly ConnectionManager Default = new ConnectionManager();
 
-        private static Dictionary<string, FileRef> connectionCache =
-            new Dictionary<string, FileRef>(StringComparer.OrdinalIgnoreCase);
+        private static ConcurrentDictionary<string, FileRef> connectionCache =
+            new ConcurrentDictionary<string, FileRef>(StringComparer.OrdinalIgnoreCase);
 
         internal ConnectionReference GetConnectionReference(string connectionString)
         {
@@ -24,39 +25,28 @@ namespace DuckDB.NET.Data.Internal
             //that is also in the cache
             do
             {
-                lock (connectionCache)
+                fileRef = connectionCache.GetOrAdd(filename, fn =>
                 {
-                    if (!connectionCache.TryGetValue(filename, out fileRef))
-                    {
-                        //if it is created as new, lock acquisition should be instant so
-                        //just acquire it in the cache lock
-                        fileRef = new FileRef(filename);
-                        connectionCache.Add(filename, fileRef);
-                        Monitor.Enter(fileRef);
-                        break;
-                    }
-                }
+                    fileRef = new FileRef(filename);
+                    return fileRef;
+                });
 
-                //was in the cache, lock the file
                 Monitor.Enter(fileRef);
 
                 //Need to make sure what we have locked is still in the cache
-                lock (connectionCache)
-                {
-                    if (connectionCache.TryGetValue(filename, out FileRef existingFileRef))
-                    {
-                        if (existingFileRef == fileRef)
-                        {
-                            //file in the cache matches what is locked, we are good!
-                            break;
-                        }
-                    }
+                var existingFileRef = connectionCache.GetOrAdd(filename, fileRef);
 
-                    //try the whole thing again
-                    Monitor.Exit(fileRef);
-                    fileRef = null;
+                if (existingFileRef == fileRef)
+                {
+                    //file in the cache matches what is locked, we are good!
+                    break;
                 }
-            } while (fileRef == null);
+                    
+                //exit lock and try the whole thing again
+                Monitor.Exit(fileRef);
+                fileRef = null;
+            }
+            while (fileRef == null);
 
             //now connect what needs to be connected
             try
@@ -115,9 +105,9 @@ namespace DuckDB.NET.Data.Internal
                     fileRef.Database.Dispose();
                     fileRef.Database = null;
 
-                    lock (connectionCache)
+                    if (!connectionCache.TryRemove(fileRef.FileName, out _))
                     {
-                        connectionCache.Remove(fileRef.FileName);
+                        throw new InvalidOperationException($"Internal Error: tried to remove {fileRef.FileName} from cache but it wasn't there!");
                     }
                 }
             }
