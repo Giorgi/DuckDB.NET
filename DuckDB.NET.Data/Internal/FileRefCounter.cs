@@ -1,4 +1,7 @@
-﻿namespace DuckDB.NET.Data.Internal
+﻿using System;
+using System.IO;
+
+namespace DuckDB.NET.Data.Internal
 {
     /// <summary>
     /// Holds the connection count and DuckDBDatabase structure for a FileName
@@ -14,5 +17,7 @@
         }
 
         public string FileName { get; private set; }
+
+        public override string ToString() => $"{Path.GetFileName(FileName)}";
     }
 }

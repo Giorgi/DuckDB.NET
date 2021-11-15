@@ -13,5 +13,7 @@
 
         public FileRefCounter FileRefCounter { get; private set; }
         public DuckDBNativeConnection NativeConnection { get; private set; }
+
+        public override string ToString() => FileRefCounter?.ToString();
     }
 }

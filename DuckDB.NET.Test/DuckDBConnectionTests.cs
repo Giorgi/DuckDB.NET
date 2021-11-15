@@ -60,18 +60,20 @@ namespace DuckDB.NET.Test
         /// <returns></returns>
         [TestMethod]
         [TestCategory("Long Running")]
-        public async Task ThreadingDisposal()
+        public async Task MultithreadedStress()
         {
-            const int taskCount = 3;
-            const int insertionCount = 300;
+            const int fileCount = 10;
+            const int taskCount = 10;
+            const int insertionCount = 500;
             const int totalInsertions = taskCount * insertionCount;
-
-            //setup several DB's
-            using var db1 = TestHelper.GetDisposableFile("db", 1);
-            using var db2 = TestHelper.GetDisposableFile("db", 2);
-
-            var files = new[] { db1, db2 };
+                        
+            var files = new DisposableFile[fileCount];
             
+            for(int i = 0; i < fileCount; i++)
+            {
+                files[i] = TestHelper.GetDisposableFile("db", i);
+            }
+
             var connectionStrings = files.Select(f=>$"DataSource={f.FileName}").ToArray();
 
             foreach(var cs in connectionStrings)
@@ -120,6 +122,7 @@ namespace DuckDB.NET.Test
                 await duckDBConnection.OpenAsync();
 
                 var insertions = await duckDBConnection.QuerySingleAsync<int>("SELECT COUNT(*) FROM INSERTIONS;");
+                insertions.Should().BeGreaterThan(0);
                 insertionCountPostRun += insertions;
             }
 
