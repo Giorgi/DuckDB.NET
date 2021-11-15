@@ -12,7 +12,7 @@
   <ItemGroup>
     <ProjectReference Include="..\DuckDB.NET.Data\DuckDB.NET.Data.csproj" />
     <ProjectReference Include="..\DuckDB.NET\DuckDB.NET.csproj" />
-  </ItemGroup>
+  </ItemGroup> 
 
   <ItemGroup>
     <None Update="duckdb.dll">
