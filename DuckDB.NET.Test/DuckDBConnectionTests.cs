@@ -60,13 +60,15 @@ namespace DuckDB.NET.Test
         /// <returns></returns>
         [TestMethod]
         [TestCategory("Long Running")]
-        public async Task MultithreadedStress()
+        public async Task MultiThreadedStress()
         {
+            //with 1 task per file, should be good mix of reusing connections
+            //and disposing of them
             const int fileCount = 10;
             const int taskCount = 10;
             const int insertionCount = 500;
             const int totalInsertions = taskCount * insertionCount;
-                        
+            
             var files = new DisposableFile[fileCount];
             
             for(int i = 0; i < fileCount; i++)
@@ -91,6 +93,8 @@ namespace DuckDB.NET.Test
                 
                 for(int i = 0; i < insertionCount; i++)
                 {
+                    //pick a random connection string for each test and jitter delays
+
                     await Task.Delay(TimeSpan.FromMilliseconds(rnd.Next(0, 10)));
 
                     var cs = connectionStrings[rnd.Next(connectionStrings.Length)];
@@ -113,7 +117,7 @@ namespace DuckDB.NET.Test
 
             await Task.WhenAll(tasks);
 
-            //sanity check of insertions and verification connections all closed
+            //sanity check of insertions
             int insertionCountPostRun = 0;
 
             foreach (var cs in connectionStrings)

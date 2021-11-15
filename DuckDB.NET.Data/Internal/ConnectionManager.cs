@@ -11,14 +11,14 @@ namespace DuckDB.NET.Data.Internal
     {
         public static readonly ConnectionManager Default = new ConnectionManager();
 
-        private static Dictionary<string, FileRefCounter> connectionCache =
-            new Dictionary<string, FileRefCounter>(StringComparer.OrdinalIgnoreCase);
+        private static Dictionary<string, FileRef> connectionCache =
+            new Dictionary<string, FileRef>(StringComparer.OrdinalIgnoreCase);
 
         internal ConnectionReference GetConnectionReference(string connectionString)
         {
             string filename = GetFileName(connectionString);
 
-            FileRefCounter fileRef = null;
+            FileRef fileRef = null;
 
             //need to loop until we have a locked fileRef
             //that is also in the cache
@@ -30,7 +30,7 @@ namespace DuckDB.NET.Data.Internal
                     {
                         //if it is created as new, lock acquisition should be instant so
                         //just acquire it in the cache lock
-                        fileRef = new FileRefCounter(filename);
+                        fileRef = new FileRef(filename);
                         connectionCache.Add(filename, fileRef);
                         Monitor.Enter(fileRef);
                         break;
@@ -43,7 +43,7 @@ namespace DuckDB.NET.Data.Internal
                 //Need to make sure what we have locked is still in the cache
                 lock (connectionCache)
                 {
-                    if (connectionCache.TryGetValue(filename, out FileRefCounter existingFileRef))
+                    if (connectionCache.TryGetValue(filename, out FileRef existingFileRef))
                     {
                         if (existingFileRef == fileRef)
                         {
@@ -78,7 +78,7 @@ namespace DuckDB.NET.Data.Internal
 
                 if (resultConnect.IsSuccess())
                 {
-                    Interlocked.Increment(ref fileRef.ConnectionCount);
+                    fileRef.Increment();
                 }
                 else
                 {
@@ -103,7 +103,7 @@ namespace DuckDB.NET.Data.Internal
 
                 nativeConnection.Dispose();
 
-                var current = Interlocked.Decrement(ref fileRef.ConnectionCount);
+                var current = fileRef.Decrement();
 
                 if (current < 0)
                 {

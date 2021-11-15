@@ -5,13 +5,13 @@
     /// </summary>
     internal class ConnectionReference
     {
-        public ConnectionReference(FileRefCounter fileRefCounter, DuckDBNativeConnection nativeConnection)
+        public ConnectionReference(FileRef fileRefCounter, DuckDBNativeConnection nativeConnection)
         {
             FileRefCounter = fileRefCounter;
             NativeConnection = nativeConnection;
         }
 
-        public FileRefCounter FileRefCounter { get; private set; }
+        public FileRef FileRefCounter { get; private set; }
         public DuckDBNativeConnection NativeConnection { get; private set; }
 
         public override string ToString() => FileRefCounter?.ToString();
