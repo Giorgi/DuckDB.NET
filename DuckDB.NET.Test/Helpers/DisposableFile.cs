@@ -7,11 +7,13 @@ namespace DuckDB.NET.Test.Helpers
     {
         private bool disposed;
 
+        public string ConnectionString { get; private set; }
         public string FileName { get; private set; }
 
         public DisposableFile(string filename)
         {
             FileName = filename;
+            ConnectionString = $"DataSource={FileName}";
         }
 
         public void Dispose()
