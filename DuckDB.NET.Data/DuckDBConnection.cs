@@ -37,11 +37,12 @@ namespace DuckDB.NET.Data
 
         public override void Close()
         {
-            if (connectionState == ConnectionState.Open)
+            if (connectionState == ConnectionState.Closed)
             {
-                connectionManager.ReturnConnectionReference(connectionReference);
-                connectionState = ConnectionState.Closed;
+                throw new InvalidOperationException("Connection is already closed.");
             }
+
+            Dispose(true);
         }
 
         public override void Open()
@@ -70,7 +71,11 @@ namespace DuckDB.NET.Data
         {
             if (disposing)
             {
-                Close();
+                if (connectionState == ConnectionState.Open)
+                {
+                    connectionManager.ReturnConnectionReference(connectionReference);
+                    connectionState = ConnectionState.Closed;
+                }
             }
 
             base.Dispose(disposing);
