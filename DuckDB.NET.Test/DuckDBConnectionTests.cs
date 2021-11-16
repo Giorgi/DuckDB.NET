@@ -5,7 +5,6 @@ using FluentAssertions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace DuckDB.NET.Test
@@ -22,17 +21,8 @@ namespace DuckDB.NET.Test
             const int operationCount = 300;
             const int totalOperations = taskCount * operationCount;
 
-            var files = new DisposableFile[fileCount];
-
-            for (int i = 0; i < fileCount; i++)
-            {
-                files[i] = TestHelper.GetDisposableFile("db", i);
-            }
-
-            var connectionStrings = files
-                .Select(f => $"DataSource={f.FileName}")
-                .ToArray();
-
+            using var files = new DisposableFileList(fileCount, "db");
+            
             //open and close files with some overlap
             var openAndClose = new Func<int, Task>(async ti =>
             {
@@ -40,7 +30,7 @@ namespace DuckDB.NET.Test
 
                 for (int i = 0; i < operationCount; i++)
                 {
-                    var cs = connectionStrings[rnd.Next(fileCount)];
+                    var cs = files[rnd.Next(fileCount)].ConnectionString;
                     await using var duckDBConnection = new DuckDBConnection(cs);
                     await duckDBConnection.OpenAsync();
                 }
@@ -66,10 +56,7 @@ namespace DuckDB.NET.Test
             Console.WriteLine($"Operations Per Second:{operationsPerSec:0.0}");
 
             //dispose here to make sure there isn't a connection still attached
-            foreach (var f in files)
-            {
-                f.Dispose();
-            }
+            files.Dispose();
         }
 
         [TestMethod]
@@ -77,7 +64,7 @@ namespace DuckDB.NET.Test
         [ExpectedException(typeof(InvalidOperationException), "Did not throw expected exception")]
         public async Task ExceptionOnDoubleClose()
         {
-            using var dbInfo = TestHelper.GetDisposableFile("db");
+            using var dbInfo = DisposableFile.GenerateInTemp("db");
             await using var duckDBConnection = new DuckDBConnection(dbInfo.ConnectionString);
             await duckDBConnection.OpenAsync();
 
@@ -90,7 +77,7 @@ namespace DuckDB.NET.Test
         [ExpectedException(typeof(InvalidOperationException), "Did not throw expected exception")]
         public async Task ExceptionOnDisposeThenClose()
         {
-            using var dbInfo = TestHelper.GetDisposableFile("db");
+            using var dbInfo = DisposableFile.GenerateInTemp("db");
             await using var duckDBConnection = new DuckDBConnection(dbInfo.ConnectionString);
             await duckDBConnection.OpenAsync();
 
@@ -113,18 +100,11 @@ namespace DuckDB.NET.Test
             const int insertionCount = 1000;
             const int totalInsertions = taskCount * insertionCount;
 
-            var files = new DisposableFile[fileCount];
+            var files = new DisposableFileList(fileCount, "db");
 
-            for (int i = 0; i < fileCount; i++)
+            foreach (var f in files)
             {
-                files[i] = TestHelper.GetDisposableFile("db", i);
-            }
-
-            var connectionStrings = files.Select(f => $"DataSource={f.FileName}").ToArray();
-
-            foreach (var cs in connectionStrings)
-            {
-                await using var duckDBConnection = new DuckDBConnection(cs);
+                await using var duckDBConnection = new DuckDBConnection(f.ConnectionString);
                 await duckDBConnection.OpenAsync();
 
                 var createTable = "CREATE TABLE INSERTIONS(TASK_ID INTEGER, INSERTION_INDEX INTEGER);";
@@ -141,7 +121,7 @@ namespace DuckDB.NET.Test
 
                     await Task.Delay(TimeSpan.FromMilliseconds(rnd.Next(0, 10)));
 
-                    var cs = connectionStrings[rnd.Next(connectionStrings.Length)];
+                    var cs = files[rnd.Next(files.Count)].ConnectionString;
                     await using var duckDBConnection = new DuckDBConnection(cs);
                     await duckDBConnection.OpenAsync();
 
@@ -164,8 +144,9 @@ namespace DuckDB.NET.Test
             //sanity check of insertions
             int insertionCountPostRun = 0;
 
-            foreach (var cs in connectionStrings)
+            foreach (var f in files)
             {
+                var cs = f.ConnectionString;
                 await using var duckDBConnection = new DuckDBConnection(cs);
                 await duckDBConnection.OpenAsync();
 
@@ -179,17 +160,14 @@ namespace DuckDB.NET.Test
             insertionCountPostRun.Should().Be(totalInsertions, $"Insertions don't add up?");
 
             //dispose here to make sure there isn't a connection still attached
-            foreach (var f in files)
-            {
-                f.Dispose();
-            }
+            files.Dispose();
         }
 
         [TestMethod]
         [TestCategory("Baseline")]
         public async Task NoExceptionOnDoubleDispose()
         {
-            using var dbInfo = TestHelper.GetDisposableFile("db");
+            using var dbInfo = DisposableFile.GenerateInTemp("db");
             await using var duckDBConnection = new DuckDBConnection(dbInfo.ConnectionString);
             await duckDBConnection.OpenAsync();
 
@@ -201,7 +179,7 @@ namespace DuckDB.NET.Test
         [TestCategory("Baseline")]
         public async Task NoExceptionCloseThenDispose()
         {
-            using var dbInfo = TestHelper.GetDisposableFile("db");
+            using var dbInfo = DisposableFile.GenerateInTemp("db");
             await using var duckDBConnection = new DuckDBConnection(dbInfo.ConnectionString);
             await duckDBConnection.OpenAsync();
 
@@ -213,17 +191,17 @@ namespace DuckDB.NET.Test
         [TestMethod]
         public async Task SingleThreadedOpenAndCloseOfSameFile()
         {
-            using var db1 = TestHelper.GetDisposableFile("db", 1);
-            var connectionString = $"Data Source={db1.FileName}";
+            using var db1 = DisposableFile.GenerateInTemp("db", 1);
+            var cs = db1.ConnectionString;
 
-            await using var duckDBConnection = new DuckDBConnection(connectionString);
+            await using var duckDBConnection = new DuckDBConnection(cs);
             await duckDBConnection.OpenAsync();
 
             var createTable = "CREATE TABLE INSERTIONS(TASK_ID INTEGER, INSERTION_INDEX INTEGER);";
             await duckDBConnection.ExecuteAsync(createTable);
 
-            await using var dd1 = new DuckDBConnection(connectionString);
-            await using var dd2 = new DuckDBConnection(connectionString);
+            await using var dd1 = new DuckDBConnection(cs);
+            await using var dd2 = new DuckDBConnection(cs);
 
             const int reps = 10;
 
