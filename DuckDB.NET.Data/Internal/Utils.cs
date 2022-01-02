@@ -13,6 +13,11 @@ namespace DuckDB.NET.Data.Internal
 
         internal static string ToManagedString(this IntPtr unmanagedString)
         {
+            if (unmanagedString == IntPtr.Zero)
+            {
+                return "";
+            }
+
             var length = 0;
 
             while (Marshal.ReadByte(unmanagedString, length) != 0)
