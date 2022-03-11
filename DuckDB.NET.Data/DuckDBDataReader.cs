@@ -75,21 +75,8 @@ namespace DuckDB.NET.Data
 
         public override DateTime GetDateTime(int ordinal)
         {
-            var column = queryResult.Columns[ordinal];
-
-            if (column.Type == DuckDBType.DuckdbTypeDate)
-            {
-                var date = column.ReadAs<DuckDBDate>(currentRow);
-                return new DateTime(date.Year, date.Month, date.Day);
-            }
-
-            if (column.Type == DuckDBType.DuckdbTypeTimestamp)
-            {
-                var timestamp = column.ReadAs<DuckDBTimestamp>(currentRow);
-                return new DateTime(timestamp.Date.Year, timestamp.Date.Month, timestamp.Date.Day, timestamp.Time.Hour, timestamp.Time.Min, timestamp.Time.Sec, timestamp.Time.Msec);
-            }
-
-            throw new InvalidOperationException($"{nameof(GetDateTime)} called on {column.Type} column");
+            var text = GetString(ordinal);
+            return DateTime.Parse(text, null, DateTimeStyles.RoundtripKind);
         }
 
         public override decimal GetDecimal(int ordinal)
