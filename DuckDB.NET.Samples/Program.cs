@@ -112,7 +112,7 @@ namespace DuckDB.NET.Samples
             {
                 for (int ordinal = 0; ordinal < queryResult.FieldCount; ordinal++)
                 {
-                    var val = queryResult.GetInt32(ordinal);
+                    var val = queryResult.GetValue(ordinal);
                     Console.Write(val);
                     Console.Write(" ");
                 }
