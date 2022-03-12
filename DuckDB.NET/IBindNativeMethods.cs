@@ -14,7 +14,7 @@ namespace DuckDB.NET
 
         DuckDBState DuckDBQuery(DuckDBNativeConnection connection, SafeUnmanagedMemoryHandle query, out DuckDBResult result);
 
-        void DuckDBDestroyResult(out DuckDBResult result);
+        void DuckDBDestroyResult(ref DuckDBResult result);
 
         string DuckDBColumnName(DuckDBResult result, long col);
 

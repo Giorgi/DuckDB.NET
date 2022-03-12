@@ -227,7 +227,7 @@ namespace DuckDB.NET.Data
 
         public override void Close()
         {
-            PlatformIndependentBindings.NativeMethods.DuckDBDestroyResult(out queryResult);
+            PlatformIndependentBindings.NativeMethods.DuckDBDestroyResult(ref queryResult);
 
             if (behavior == CommandBehavior.CloseConnection)
             {

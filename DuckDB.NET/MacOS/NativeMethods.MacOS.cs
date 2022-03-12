@@ -30,9 +30,9 @@ namespace DuckDB.NET.MacOS
             return NativeMethods.DuckDBQuery(connection, query, out result);
         }
 
-        public void DuckDBDestroyResult(out DuckDBResult result)
+        public void DuckDBDestroyResult(ref DuckDBResult result)
         {
-            NativeMethods.DuckDBDestroyResult(out result);
+            NativeMethods.DuckDBDestroyResult(ref result);
         }
 
         public string DuckDBColumnName(DuckDBResult result, long col)
@@ -175,7 +175,7 @@ namespace DuckDB.NET.MacOS
         public static extern DuckDBState DuckDBQuery(DuckDBNativeConnection connection, SafeUnmanagedMemoryHandle query, out DuckDBResult result);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_result")]
-        public static extern void DuckDBDestroyResult(out DuckDBResult result);
+        public static extern void DuckDBDestroyResult(ref DuckDBResult result);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_column_name")]
         public static extern string DuckDBColumnName(DuckDBResult result, long col);
