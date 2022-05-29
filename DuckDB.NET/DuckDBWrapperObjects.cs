@@ -1,4 +1,5 @@
 ﻿using System;
+
 using System.Runtime.InteropServices;
 
 namespace DuckDB.NET
@@ -58,6 +59,21 @@ namespace DuckDB.NET
         protected override bool ReleaseHandle()
         {
             NativeMethods.Configure.DuckDBDestroyConfig(out handle);
+            return true;
+        }
+
+        public override bool IsInvalid => handle == IntPtr.Zero;
+    }
+
+    public class DuckDBAppender : SafeHandle
+    {
+        public DuckDBAppender() : base(IntPtr.Zero, true)
+        {
+        }
+
+        protected override bool ReleaseHandle()
+        {
+            NativeMethods.Appender.DuckDBDestroyAppender(out handle);
             return true;
         }
 
