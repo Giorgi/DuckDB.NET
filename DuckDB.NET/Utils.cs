@@ -2,16 +2,16 @@
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace DuckDB.NET.Data.Internal
+namespace DuckDB.NET
 {
-    static class Utils
+    public static class Utils
     {
-        internal static bool IsSuccess(this DuckDBState duckDBState)
+        public static bool IsSuccess(this DuckDBState duckDBState)
         {
             return duckDBState == DuckDBState.DuckDBSuccess;
         }
 
-        internal static string ToManagedString(this IntPtr unmanagedString)
+        public static string ToManagedString(this IntPtr unmanagedString, bool freeWhenCopied = true)
         {
             if (unmanagedString == IntPtr.Zero)
             {
@@ -34,12 +34,15 @@ namespace DuckDB.NET.Data.Internal
 
             Marshal.Copy(unmanagedString, byteArray, 0, length);
 
-            PlatformIndependentBindings.NativeMethods.DuckDBFree(unmanagedString);
+            if (freeWhenCopied)
+            {
+                PlatformIndependentBindings.NativeMethods.DuckDBFree(unmanagedString);
+            }
 
             return Encoding.UTF8.GetString(byteArray, 0, length);
         }
 
-        internal static SafeUnmanagedMemoryHandle ToUnmanagedString(this string managedString)
+        public static SafeUnmanagedMemoryHandle ToUnmanagedString(this string managedString)
         {
             int len = Encoding.UTF8.GetByteCount(managedString);
 
