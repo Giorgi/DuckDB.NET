@@ -11,7 +11,7 @@ namespace DuckDB.NET
             return duckDBState == DuckDBState.DuckDBSuccess;
         }
 
-        public static string ToManagedString(this IntPtr unmanagedString)
+        public static string ToManagedString(this IntPtr unmanagedString, bool freeWhenCopied = true)
         {
             if (unmanagedString == IntPtr.Zero)
             {
@@ -34,7 +34,10 @@ namespace DuckDB.NET
 
             Marshal.Copy(unmanagedString, byteArray, 0, length);
 
-            PlatformIndependentBindings.NativeMethods.DuckDBFree(unmanagedString);
+            if (freeWhenCopied)
+            {
+                PlatformIndependentBindings.NativeMethods.DuckDBFree(unmanagedString);
+            }
 
             return Encoding.UTF8.GetString(byteArray, 0, length);
         }
