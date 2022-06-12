@@ -132,7 +132,7 @@ namespace DuckDB.NET.Samples
                 var column = queryResult.Columns[index];
                 Console.Write($"{column.Name} ");
                 
-                Debug.Assert(column.Name == DuckDBColumnName(queryResult, index));
+                Debug.Assert(column.Name == DuckDBColumnName(queryResult, index).ToManagedString(false));
             }
 
             Console.WriteLine();

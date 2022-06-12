@@ -37,7 +37,7 @@ namespace DuckDB.NET.Linux
 
         public string DuckDBColumnName(DuckDBResult result, long col)
         {
-            return NativeMethods.DuckDBColumnName(result, col);
+            return NativeMethods.DuckDBColumnName(result, col).ToManagedString(false);
         }
 
         public bool DuckDBValueBoolean(DuckDBResult result, long col, long row)
@@ -178,7 +178,7 @@ namespace DuckDB.NET.Linux
         public static extern void DuckDBDestroyResult([In, Out] DuckDBResult result);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_column_name")]
-        public static extern string DuckDBColumnName([In, Out] DuckDBResult result, long col);
+        public static extern IntPtr DuckDBColumnName([In, Out] DuckDBResult result, long col);
 
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_boolean")]
