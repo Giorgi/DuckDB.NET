@@ -64,11 +64,15 @@ namespace DuckDB.NET.Samples
                 result = DuckDBConnect(database, out var connection);
                 using (connection)
                 {
-                    result = DuckDBQuery(connection, "CREATE TABLE integers(foo INTEGER, bar INTEGER);", out var queryResult);
-                    result = DuckDBQuery(connection, "INSERT INTO integers VALUES (3, 4), (5, 6), (7, NULL);", out queryResult);
-                    result = DuckDBQuery(connection, "SELECT foo, bar FROM integers", out queryResult);
+                    var queryResult = new DuckDBResult();
+                    result = DuckDBQuery(connection, "CREATE TABLE integers(foo INTEGER, bar INTEGER);", null);
+                    result = DuckDBQuery(connection, "INSERT INTO integers VALUES (3, 4), (5, 6), (7, NULL);", null);
+                    result = DuckDBQuery(connection, "SELECT foo, bar FROM integers", queryResult);
 
                     PrintQueryResults(queryResult);
+
+                    // clean up
+                    DuckDBDestroyResult(queryResult);
 
                     result = DuckDBPrepare(connection, "INSERT INTO integers VALUES (?, ?)", out var insertStatement);
 
@@ -77,7 +81,7 @@ namespace DuckDB.NET.Samples
                         result = DuckDBBindInt32(insertStatement, 1, 42); // the parameter index starts counting at 1!
                         result = DuckDBBindInt32(insertStatement, 2, 43);
 
-                        result = DuckDBExecutePrepared(insertStatement, out var _);
+                        result = DuckDBExecutePrepared(insertStatement, null);
                     }
 
 
@@ -87,13 +91,13 @@ namespace DuckDB.NET.Samples
                     {
                         result = DuckDBBindInt32(selectStatement, 1, 42);
 
-                        result = DuckDBExecutePrepared(selectStatement, out queryResult);
+                        result = DuckDBExecutePrepared(selectStatement, queryResult);
                     }
 
                     PrintQueryResults(queryResult);
 
                     // clean up
-                    DuckDBDestroyResult(out queryResult);
+                    DuckDBDestroyResult(queryResult);
                 }
             }
         }

@@ -27,7 +27,8 @@ namespace DuckDB.NET.Data
             this.behavior = behavior;
 
             using var unmanagedString = command.CommandText.ToUnmanagedString();
-            var state = PlatformIndependentBindings.NativeMethods.DuckDBQuery(command.DBNativeConnection, unmanagedString, out queryResult);
+            queryResult = new DuckDBResult();
+            var state = PlatformIndependentBindings.NativeMethods.DuckDBQuery(command.DBNativeConnection, unmanagedString, queryResult);
             
             if (!string.IsNullOrEmpty(queryResult.ErrorMessage))
             {
@@ -227,7 +228,7 @@ namespace DuckDB.NET.Data
 
         public override void Close()
         {
-            PlatformIndependentBindings.NativeMethods.DuckDBDestroyResult(ref queryResult);
+            PlatformIndependentBindings.NativeMethods.DuckDBDestroyResult(queryResult);
 
             if (behavior == CommandBehavior.CloseConnection)
             {
