@@ -52,51 +52,20 @@ namespace DuckDB.NET
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct DuckDBColumn
-    {
-        IntPtr data;
-        IntPtr nullmask;
-
-        public DuckDBType Type { get; }
-        public string Name { get; }
-        IntPtr internal_data;
-
-        public bool NullMask(int row) => Marshal.ReadByte(nullmask + row) != 0;
-        public IntPtr Data => data;
-
-        public T ReadAs<T>(int row) where T : struct
-        {
-            return Marshal.PtrToStructure<T>(Data + Marshal.SizeOf<T>() * row);
-        }
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
     public class DuckDBResult
     {
-        public long ColumnCount { get; }
-        public long RowCount { get; }
-        public long RowsChanged { get; }
-
+        // Deprecated
+        private long ColumnCount;
+        // Deprecated
+        private long RowCount;
+        // Deprecated
+        private long RowsChanged;
+        // Deprecated
         private IntPtr columns;
+        // Deprecated
+        private string ErrorMessage;
 
-        public string ErrorMessage { get; }
-        IntPtr internal_data;
-
-        public IReadOnlyList<DuckDBColumn> Columns
-        {
-            get
-            {
-                var result = new List<DuckDBColumn>();
-
-                for (int i = 0; i < ColumnCount; i++)
-                {
-                    var column = Marshal.PtrToStructure<DuckDBColumn>(columns + Marshal.SizeOf<DuckDBColumn>() * i);
-                    result.Add(column);
-                }
-
-                return result.AsReadOnly();
-            }
-        }
+        private IntPtr internal_data;
     }
 
     public struct DuckDBDate

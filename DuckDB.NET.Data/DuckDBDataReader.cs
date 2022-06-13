@@ -29,10 +29,11 @@ namespace DuckDB.NET.Data
             using var unmanagedString = command.CommandText.ToUnmanagedString();
             queryResult = new DuckDBResult();
             var state = PlatformIndependentBindings.NativeMethods.DuckDBQuery(command.DBNativeConnection, unmanagedString, queryResult);
-            
-            if (!string.IsNullOrEmpty(queryResult.ErrorMessage))
+
+            var errorMessage = PlatformIndependentBindings.NativeMethods.DuckDBResultError(queryResult);
+            if (!string.IsNullOrEmpty(errorMessage))
             {
-                throw new DuckDBException(queryResult.ErrorMessage, state);
+                throw new DuckDBException(errorMessage, state);
             }
 
             if (!state.IsSuccess())
@@ -40,8 +41,8 @@ namespace DuckDB.NET.Data
                 throw new DuckDBException("DuckDBQuery failed", state);
             }
 
-            HasRows = queryResult.RowCount > 0;
-            FieldCount = (int)queryResult.ColumnCount;
+            HasRows = PlatformIndependentBindings.NativeMethods.DuckDBRowCount(queryResult) > 0;
+            FieldCount = (int)PlatformIndependentBindings.NativeMethods.DuckDBColumnCount(queryResult);
         }
 
         public override bool GetBoolean(int ordinal)
@@ -71,7 +72,7 @@ namespace DuckDB.NET.Data
 
         public override string GetDataTypeName(int ordinal)
         {
-            return queryResult.Columns[ordinal].Type.ToString();
+            return PlatformIndependentBindings.NativeMethods.DuckDBColumnType(queryResult, ordinal).ToString();
         }
 
         public override DateTime GetDateTime(int ordinal)
@@ -92,7 +93,7 @@ namespace DuckDB.NET.Data
 
         public override Type GetFieldType(int ordinal)
         {
-            return queryResult.Columns[ordinal].Type switch
+            return PlatformIndependentBindings.NativeMethods.DuckDBColumnType(queryResult, ordinal) switch
             {
                 DuckDBType.DuckdbTypeInvalid => throw new DuckDBException("Invalid type"),
                 DuckDBType.DuckdbTypeBoolean => typeof(bool),
@@ -143,14 +144,20 @@ namespace DuckDB.NET.Data
 
         public override string GetName(int ordinal)
         {
-            return queryResult.Columns[ordinal].Name;
+            return PlatformIndependentBindings.NativeMethods.DuckDBColumnName(queryResult, ordinal);
         }
 
         public override int GetOrdinal(string name)
         {
-            var index = queryResult.Columns.ToList().FindIndex(c => c.Name == name);
+            var columnCount = PlatformIndependentBindings.NativeMethods.DuckDBColumnCount(queryResult);
+            for (var i = 0; i < columnCount; i++)
+            {
+                var columnName = PlatformIndependentBindings.NativeMethods.DuckDBColumnName(queryResult, i);
+                if (name == columnName)
+                    return i;
+            }
 
-            return index;
+            throw new DuckDBException($"Column with name {name} was not found.");
         }
 
         public override string GetString(int ordinal)
@@ -162,7 +169,7 @@ namespace DuckDB.NET.Data
 
         public override object GetValue(int ordinal)
         {
-            return queryResult.Columns[ordinal].Type switch
+            return PlatformIndependentBindings.NativeMethods.DuckDBColumnType(queryResult, ordinal) switch
             {
                 DuckDBType.DuckdbTypeInvalid => throw new DuckDBException("Invalid type"),
                 DuckDBType.DuckdbTypeBoolean => GetBoolean(ordinal),
@@ -188,7 +195,8 @@ namespace DuckDB.NET.Data
 
         public override bool IsDBNull(int ordinal)
         {
-            return queryResult.Columns[ordinal].NullMask(currentRow);
+            var nullMask = PlatformIndependentBindings.NativeMethods.DuckDBNullmaskData(queryResult, ordinal);
+            return Marshal.ReadByte(nullMask, currentRow) != 0;
         }
 
         public override int FieldCount { get; }
@@ -210,7 +218,8 @@ namespace DuckDB.NET.Data
 
         public override bool Read()
         {
-            if (currentRow + 1 < queryResult.RowCount)
+            var rowCount = PlatformIndependentBindings.NativeMethods.DuckDBRowCount(queryResult);
+            if (currentRow + 1 < rowCount)
             {
                 currentRow++;
                 return true;

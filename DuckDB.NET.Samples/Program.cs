@@ -127,19 +127,19 @@ namespace DuckDB.NET.Samples
 
         private static void PrintQueryResults(DuckDBResult queryResult)
         {
-            for (var index = 0; index < queryResult.Columns.Count; index++)
+            var columnCount = DuckDBColumnCount(queryResult);
+            for (var index = 0; index < columnCount; index++)
             {
-                var column = queryResult.Columns[index];
-                Console.Write($"{column.Name} ");
-                
-                Debug.Assert(column.Name == DuckDBColumnName(queryResult, index).ToManagedString(false));
+                var columnName = DuckDBColumnName(queryResult, index).ToManagedString(false);
+                Console.Write($"{columnName} ");
             }
 
             Console.WriteLine();
 
-            for (long row = 0; row < queryResult.RowCount; row++)
+            var rowCount = DuckDBRowCount(queryResult);
+            for (long row = 0; row < rowCount; row++)
             {
-                for (long column = 0; column < queryResult.ColumnCount; column++)
+                for (long column = 0; column < columnCount; column++)
                 {
                     var val = DuckDBValueInt32(queryResult, column, row);
                     Console.Write(val);
