@@ -1,0 +1,100 @@
+on: push
+
+env:
+  DUCKDB_GIT_TAG: '662041e2b43283bfcfeed984af7c3eaa85fb4996'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, windows-2022, macos-12]
+        arch: ['amd64']
+        dotnet-version: ['6.0']
+      fail-fast: false
+ 
+    name: Build library (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+ 
+    - name: Get native libaries from cache
+      id: cache-native
+      uses: actions/cache@v3
+      with:
+        path: native
+        key: duckdb-${{ matrix.os }}-${{ matrix.arch }}-${{ env.DUCKDB_GIT_TAG }}
+
+    - name: Checkout DuckDB
+      if: steps.cache-native.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+      with:
+        repository: 'duckdb/duckdb'
+        ref: ${{ env.DUCKDB_GIT_TAG }}
+        path: 'duckdb'
+
+    - name: Setup build dependencies (Linux)
+      if: steps.cache-native.outputs.cache-hit != 'true' && runner.os == 'Linux'
+      run: sudo apt-get install ninja-build g++
+ 
+    - name: Setup build dependencies (MacOS)
+      if: steps.cache-native.outputs.cache-hit != 'true' && runner.os == 'MacOS'
+      run: brew install ninja
+ 
+    - name: Setup build dependencies (Windows)
+      if: steps.cache-native.outputs.cache-hit != 'true' && runner.os == 'Windows'
+      run: |
+        choco install ninja
+        $installationPath = & vswhere -prerelease -legacy -latest -property installationPath
+        $Command = Join-Path $installationPath "Common7\Tools\vsdevcmd.bat"
+        & "${env:COMSPEC}" /s /c "`"$Command`" -arch=amd64 -no_logo && set" | Foreach-Object {
+          echo $_ >> $env:GITHUB_ENV
+        }
+
+    - name: Build DuckDB
+      if: steps.cache-native.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p build
+        cmake -S duckdb -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_SHELL=OFF -DBUILD_UNITTESTS=OFF
+        cmake --build build
+ 
+    - name: Move artifacts to cache (Linux)
+      if: steps.cache-native.outputs.cache-hit != 'true' && runner.os == 'Linux'
+      run: | 
+        mkdir -p native
+        mv build/src/libduckdb.so native
+ 
+    - name: Move artifacts to cache (MacOS)
+      if: steps.cache-native.outputs.cache-hit != 'true' && runner.os == 'MacOS'
+      run: | 
+        mkdir -p native
+        mv build/src/libduckdb.dylib native
+ 
+    - name: Move artifacts to cache (Windows)
+      if: steps.cache-native.outputs.cache-hit != 'true' && runner.os == 'Windows'
+      run: | 
+        mkdir -p native
+        mv build/src/duckdb.dll native
+ 
+    - name: Setup .NET Core SDK ${{ matrix.dotnet-version }}
+      uses: actions/setup-dotnet@v2
+      with:
+        dotnet-version: ${{ matrix.dotnet-version }}
+ 
+    - name: Build
+      run: dotnet build --configuration Release
+
+    - name: Run tests (Linux)
+      if: runner.os == 'Linux'
+      run: LD_LIBRARY_PATH=$GITHUB_WORKSPACE/native dotnet test --configuration Release --verbosity normal
+
+    - name: Run tests (MacOS)
+      if: runner.os == 'MacOS'
+      run: DYLD_FALLBACK_LIBRARY_PATH=$GITHUB_WORKSPACE/native dotnet test --configuration Release --verbosity normal
+
+    - name: Run tests (Windows)
+      if: runner.os == 'Windows'
+      env:
+        PATH: ${{ github.workspace }}/native
+      run: dotnet test --configuration Release --verbosity normal
+
