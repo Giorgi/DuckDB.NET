@@ -42,8 +42,8 @@ namespace DuckDB.NET.Data
         private int ExecuteScalarOrNonQuery()
         {
             using var unmanagedString = CommandText.ToUnmanagedString();
-            
-            var result = PlatformIndependentBindings.NativeMethods.DuckDBQuery(connection.NativeConnection, unmanagedString, out var queryResult);
+            var queryResult = new DuckDBResult();
+            var result = PlatformIndependentBindings.NativeMethods.DuckDBQuery(connection.NativeConnection, unmanagedString, queryResult);
 
             if (!string.IsNullOrEmpty(queryResult.ErrorMessage))
             {

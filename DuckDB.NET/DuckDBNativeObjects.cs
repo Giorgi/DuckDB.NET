@@ -71,7 +71,7 @@ namespace DuckDB.NET
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct DuckDBResult
+    public class DuckDBResult
     {
         public long ColumnCount { get; }
         public long RowCount { get; }
