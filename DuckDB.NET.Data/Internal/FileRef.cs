@@ -8,25 +8,24 @@ namespace DuckDB.NET.Data.Internal
     internal class FileRef
     {
         public DuckDBDatabase Database;
-
-        private long connectionCount;
-
+        
         public FileRef(string filename)
         {
             FileName = filename;
         }
 
-        public long ConnectionCount { get; } //don't need a long, but it is slightly faster on 64 bit systems
-        public string FileName { get; private set; }
-
+        public string FileName { get; }
+        
+        public long ConnectionCount { get; private set; } //don't need a long, but it is slightly faster on 64 bit systems
+        
         public long Decrement()
         {
-            return --connectionCount;
+            return --ConnectionCount;
         }
 
         public long Increment()
         {
-            return ++connectionCount;
+            return ++ConnectionCount;
         }
 
         public override string ToString() => $"{Path.GetFileName(FileName)}";

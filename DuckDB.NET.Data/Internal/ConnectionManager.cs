@@ -12,8 +12,7 @@ namespace DuckDB.NET.Data.Internal
     {
         public static readonly ConnectionManager Default = new ConnectionManager();
 
-        private static ConcurrentDictionary<string, FileRef> connectionCache =
-            new ConcurrentDictionary<string, FileRef>(StringComparer.OrdinalIgnoreCase);
+        private static readonly ConcurrentDictionary<string, FileRef> ConnectionCache = new(StringComparer.OrdinalIgnoreCase);
 
         internal ConnectionReference GetConnectionReference(string connectionString)
         {
@@ -25,7 +24,7 @@ namespace DuckDB.NET.Data.Internal
             //that is also in the cache
             do
             {
-                fileRef = connectionCache.GetOrAdd(filename, fn =>
+                fileRef = ConnectionCache.GetOrAdd(filename, fn =>
                 {
                     fileRef = new FileRef(filename);
                     return fileRef;
@@ -34,7 +33,7 @@ namespace DuckDB.NET.Data.Internal
                 Monitor.Enter(fileRef);
 
                 //Need to make sure what we have locked is still in the cache
-                var existingFileRef = connectionCache.GetOrAdd(filename, fileRef);
+                var existingFileRef = ConnectionCache.GetOrAdd(filename, fileRef);
 
                 if (existingFileRef == fileRef)
                 {
@@ -105,7 +104,7 @@ namespace DuckDB.NET.Data.Internal
                     fileRef.Database.Dispose();
                     fileRef.Database = null;
 
-                    if (!connectionCache.TryRemove(fileRef.FileName, out _))
+                    if (!ConnectionCache.TryRemove(fileRef.FileName, out _))
                     {
                         throw new InvalidOperationException($"Internal Error: tried to remove {fileRef.FileName} from cache but it wasn't there!");
                     }
