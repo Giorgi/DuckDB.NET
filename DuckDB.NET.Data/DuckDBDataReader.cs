@@ -169,6 +169,11 @@ namespace DuckDB.NET.Data
 
         public override object GetValue(int ordinal)
         {
+            if (IsDBNull(ordinal))
+            {
+                return DBNull.Value;
+            }
+
             return PlatformIndependentBindings.NativeMethods.DuckDBColumnType(queryResult, ordinal) switch
             {
                 DuckDBType.DuckdbTypeInvalid => throw new DuckDBException("Invalid type"),
@@ -184,6 +189,7 @@ namespace DuckDB.NET.Data
                 DuckDBType.DuckdbTypeInterval => throw new NotImplementedException(),
                 DuckDBType.DuckdbTypeHugeInt => GetBigInteger(ordinal),
                 DuckDBType.DuckdbTypeVarchar => GetString(ordinal),
+                DuckDBType.DuckdbTypeDecimal => GetDecimal(ordinal),
                 _ => throw new ArgumentException("Unrecognised type")
             };
         }

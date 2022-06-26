@@ -48,7 +48,8 @@ namespace DuckDB.NET
         // const char*
         DuckdbTypeVarchar,
         // duckdb_blob
-        DuckdbTypeBlob
+        DuckdbTypeBlob,
+        DuckdbTypeDecimal,
     }
 
     [StructLayout(LayoutKind.Sequential)]
