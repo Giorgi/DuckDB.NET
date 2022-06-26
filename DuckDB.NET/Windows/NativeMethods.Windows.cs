@@ -10,6 +10,11 @@ namespace DuckDB.NET.Windows
             return NativeMethods.DuckDBOpen(path, out database);
         }
 
+        public DuckDBState DuckDBOpen(string path, out DuckDBDatabase database, out IntPtr error)
+        {
+            return NativeMethods.DuckDBOpen(path, out database, IntPtr.Zero, out error);
+        }
+
         public void DuckDBClose(out IntPtr database)
         {
             NativeMethods.DuckDBClose(out database);
@@ -193,6 +198,9 @@ namespace DuckDB.NET.Windows
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_open")]
         public static extern DuckDBState DuckDBOpen(string path, out DuckDBDatabase database);
+        
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_open_ext")]
+        public static extern DuckDBState DuckDBOpen(string path, out DuckDBDatabase database, IntPtr config, out IntPtr error);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_close")]
         public static extern void DuckDBClose(out IntPtr database);

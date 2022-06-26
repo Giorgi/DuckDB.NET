@@ -55,11 +55,11 @@ namespace DuckDB.NET.Data.Internal
                     var inMemory = filename == string.Empty;
                     var filenameForDll = inMemory ? null : filename;
 
-                    var resultOpen = PlatformIndependentBindings.NativeMethods.DuckDBOpen(filenameForDll, out fileRef.Database);
+                    var resultOpen = PlatformIndependentBindings.NativeMethods.DuckDBOpen(filenameForDll, out fileRef.Database, out var error);
 
                     if (!resultOpen.IsSuccess())
                     {
-                        throw new DuckDBException("DuckDBOpen failed", resultOpen);
+                        throw new DuckDBException($"DuckDBOpen failed: {error.ToManagedString()}", resultOpen);
                     }
                 }
 

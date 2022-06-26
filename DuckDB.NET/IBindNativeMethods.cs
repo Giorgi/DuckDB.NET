@@ -10,6 +10,8 @@ namespace DuckDB.NET
 
         DuckDBState DuckDBOpen(string path, out DuckDBDatabase database);
 
+        DuckDBState DuckDBOpen(string path, out DuckDBDatabase database, out IntPtr error);
+
         void DuckDBClose(out IntPtr database);
 
         DuckDBState DuckDBConnect(DuckDBDatabase database, out DuckDBNativeConnection connection);
