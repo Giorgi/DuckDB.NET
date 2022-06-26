@@ -54,15 +54,19 @@ namespace DuckDB.NET
     [StructLayout(LayoutKind.Sequential)]
     public class DuckDBResult
     {
-        // Deprecated
+        [Obsolete]
         private long ColumnCount;
-        // Deprecated
+
+        [Obsolete]
         private long RowCount;
-        // Deprecated
+
+        [Obsolete]
         private long RowsChanged;
-        // Deprecated
+
+        [Obsolete]
         private IntPtr columns;
-        // Deprecated
+
+        [Obsolete]
         private string ErrorMessage;
 
         private IntPtr internal_data;
