@@ -4,6 +4,10 @@ namespace DuckDB.NET
 {
     public interface IBindNativeMethods
     {
+        //Grouped according to https://duckdb.org/docs/api/c/overview
+
+        #region Startup
+
         DuckDBState DuckDBOpen(string path, out DuckDBDatabase database);
 
         void DuckDBClose(out IntPtr database);
@@ -11,6 +15,10 @@ namespace DuckDB.NET
         DuckDBState DuckDBConnect(DuckDBDatabase database, out DuckDBNativeConnection connection);
 
         void DuckDBDisconnect(out IntPtr connection);
+
+        #endregion
+
+        #region Query
 
         DuckDBState DuckDBQuery(DuckDBNativeConnection connection, SafeUnmanagedMemoryHandle query, DuckDBResult result);
 
@@ -32,6 +40,10 @@ namespace DuckDB.NET
 
         string DuckDBResultError(DuckDBResult result);
 
+        #endregion
+
+        #region Types
+
         bool DuckDBValueBoolean(DuckDBResult result, long col, long row);
 
         sbyte DuckDBValueInt8(DuckDBResult result, long col, long row);
@@ -47,6 +59,10 @@ namespace DuckDB.NET
         double DuckDBValueDouble(DuckDBResult result, long col, long row);
 
         IntPtr DuckDBValueVarchar(DuckDBResult result, long col, long row);
+
+        #endregion
+
+        #region Prepared Statements
 
         DuckDBState DuckDBPrepare(DuckDBNativeConnection connection, string query, out DuckDBPreparedStatement preparedStatement);
 
@@ -74,6 +90,12 @@ namespace DuckDB.NET
 
         void DuckDBDestroyPrepare(out IntPtr preparedStatement);
 
+        #endregion
+
+        #region Helpers
+
         void DuckDBFree(IntPtr ptr);
+        
+        #endregion
     }
 }
