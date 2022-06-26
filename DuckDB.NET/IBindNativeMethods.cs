@@ -18,6 +18,20 @@ namespace DuckDB.NET
 
         string DuckDBColumnName(DuckDBResult result, long col);
 
+        DuckDBType DuckDBColumnType(DuckDBResult result, long col);
+
+        long DuckDBColumnCount(DuckDBResult result);
+
+        long DuckDBRowCount(DuckDBResult result);
+
+        long DuckDBRowsChanged(DuckDBResult result);
+
+        IntPtr DuckDBColumnData(DuckDBResult result, long col);
+
+        IntPtr DuckDBNullmaskData(DuckDBResult result, long col);
+
+        string DuckDBResultError(DuckDBResult result);
+
         bool DuckDBValueBoolean(DuckDBResult result, long col, long row);
 
         sbyte DuckDBValueInt8(DuckDBResult result, long col, long row);

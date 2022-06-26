@@ -37,7 +37,42 @@ namespace DuckDB.NET.Linux
 
         public string DuckDBColumnName(DuckDBResult result, long col)
         {
-            return NativeMethods.DuckDBColumnName(result, col);
+            return NativeMethods.DuckDBColumnName(result, col).ToManagedString(false);
+        }
+
+        public DuckDBType DuckDBColumnType(DuckDBResult result, long col)
+        {
+            return NativeMethods.DuckDBColumnType(result, col);
+        }
+
+        public long DuckDBColumnCount(DuckDBResult result)
+        {
+            return NativeMethods.DuckDBColumnCount(result);
+        }
+
+        public long DuckDBRowCount(DuckDBResult result)
+        {
+            return NativeMethods.DuckDBRowCount(result);
+        }
+
+        public long DuckDBRowsChanged(DuckDBResult result)
+        {
+            return NativeMethods.DuckDBRowsChanged(result);
+        }
+
+        public IntPtr DuckDBColumnData(DuckDBResult result, long col)
+        {
+            return NativeMethods.DuckDBColumnData(result, col);
+        }
+
+        public IntPtr DuckDBNullmaskData(DuckDBResult result, long col)
+        {
+            return NativeMethods.DuckDBNullmaskData(result, col);
+        }
+
+        public string DuckDBResultError(DuckDBResult result)
+        {
+            return NativeMethods.DuckDBResultError(result).ToManagedString(false);
         }
 
         public bool DuckDBValueBoolean(DuckDBResult result, long col, long row)
@@ -178,8 +213,28 @@ namespace DuckDB.NET.Linux
         public static extern void DuckDBDestroyResult([In, Out] DuckDBResult result);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_column_name")]
-        public static extern string DuckDBColumnName([In, Out] DuckDBResult result, long col);
+        public static extern IntPtr DuckDBColumnName([In, Out] DuckDBResult result, long col);
 
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_column_type")]
+        public static extern DuckDBType DuckDBColumnType(DuckDBResult result, long col);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_column_count")]
+        public static extern long DuckDBColumnCount(DuckDBResult result);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_row_count")]
+        public static extern long DuckDBRowCount(DuckDBResult result);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_rows_changed")]
+        public static extern long DuckDBRowsChanged(DuckDBResult result);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_column_data")]
+        public static extern IntPtr DuckDBColumnData(DuckDBResult result, long col);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_nullmask_data")]
+        public static extern IntPtr DuckDBNullmaskData(DuckDBResult result, long col);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_result_error")]
+        public static extern IntPtr DuckDBResultError(DuckDBResult result);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_boolean")]
         public static extern bool DuckDBValueBoolean([In, Out] DuckDBResult result, long col, long row);
