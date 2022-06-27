@@ -1,204 +1,19 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace DuckDB.NET.Windows
+namespace DuckDB.NET
 {
-    class WindowsBindNativeMethods : IBindNativeMethods
-    {
-        public DuckDBState DuckDBOpen(string path, out DuckDBDatabase database)
-        {
-            return NativeMethods.DuckDBOpen(path, out database);
-        }
-
-        public DuckDBState DuckDBOpen(string path, out DuckDBDatabase database, out IntPtr error)
-        {
-            return NativeMethods.DuckDBOpen(path, out database, IntPtr.Zero, out error);
-        }
-
-        public void DuckDBClose(out IntPtr database)
-        {
-            NativeMethods.DuckDBClose(out database);
-        }
-
-        public DuckDBState DuckDBConnect(DuckDBDatabase database, out DuckDBNativeConnection connection)
-        {
-            return NativeMethods.DuckDBConnect(database, out connection);
-        }
-
-        public void DuckDBDisconnect(out IntPtr connection)
-        {
-            NativeMethods.DuckDBDisconnect(out connection);
-        }
-
-        public DuckDBState DuckDBQuery(DuckDBNativeConnection connection, SafeUnmanagedMemoryHandle query, DuckDBResult result)
-        {
-            return NativeMethods.DuckDBQuery(connection, query, result);
-        }
-
-        public void DuckDBDestroyResult(DuckDBResult result)
-        {
-            NativeMethods.DuckDBDestroyResult(result);
-        }
-
-        public string DuckDBColumnName(DuckDBResult result, long col)
-        {
-            return NativeMethods.DuckDBColumnName(result, col).ToManagedString(false);
-        }
-
-        public DuckDBType DuckDBColumnType(DuckDBResult result, long col)
-        {
-            return NativeMethods.DuckDBColumnType(result, col);
-        }
-
-        public long DuckDBColumnCount(DuckDBResult result)
-        {
-            return NativeMethods.DuckDBColumnCount(result);
-        }
-
-        public long DuckDBRowCount(DuckDBResult result)
-        {
-            return NativeMethods.DuckDBRowCount(result);
-        }
-
-        public long DuckDBRowsChanged(DuckDBResult result)
-        {
-            return NativeMethods.DuckDBRowsChanged(result);
-        }
-
-        public IntPtr DuckDBColumnData(DuckDBResult result, long col)
-        {
-            return NativeMethods.DuckDBColumnData(result, col);
-        }
-
-        public IntPtr DuckDBNullmaskData(DuckDBResult result, long col)
-        {
-            return NativeMethods.DuckDBNullmaskData(result, col);
-        }
-
-        public string DuckDBResultError(DuckDBResult result)
-        {
-            return NativeMethods.DuckDBResultError(result).ToManagedString(false);
-        }
-
-        public bool DuckDBValueBoolean(DuckDBResult result, long col, long row)
-        {
-            return NativeMethods.DuckDBValueBoolean(result, col, row);
-        }
-
-        public sbyte DuckDBValueInt8(DuckDBResult result, long col, long row)
-        {
-            return NativeMethods.DuckDBValueInt8(result, col, row);
-        }
-
-        public short DuckDBValueInt16(DuckDBResult result, long col, long row)
-        {
-            return NativeMethods.DuckDBValueInt16(result, col, row);
-        }
-
-        public int DuckDBValueInt32(DuckDBResult result, long col, long row)
-        {
-            return NativeMethods.DuckDBValueInt32(result, col, row);
-        }
-
-        public long DuckDBValueInt64(DuckDBResult result, long col, long row)
-        {
-            return NativeMethods.DuckDBValueInt64(result, col, row);
-        }
-
-        public float DuckDBValueFloat(DuckDBResult result, long col, long row)
-        {
-            return NativeMethods.DuckDBValueFloat(result, col, row);
-        }
-
-        public double DuckDBValueDouble(DuckDBResult result, long col, long row)
-        {
-            return NativeMethods.DuckDBValueDouble(result, col, row);
-        }
-        
-        public IntPtr DuckDBValueVarchar(DuckDBResult result, long col, long row)
-        {
-            return NativeMethods.DuckDBValueVarchar(result, col, row);
-        }
-
-        public DuckDBState DuckDBPrepare(DuckDBNativeConnection connection, string query, out DuckDBPreparedStatement preparedStatement)
-        {
-            return NativeMethods.DuckDBPrepare(connection, query, out preparedStatement);
-        }
-
-        public DuckDBState DuckDBParams(DuckDBPreparedStatement preparedStatement, out long numberOfParams)
-        {
-            return NativeMethods.DuckDBParams(preparedStatement, out numberOfParams);
-        }
-
-        public DuckDBState DuckDBBindBoolean(DuckDBPreparedStatement preparedStatement, long index, bool val)
-        {
-            return NativeMethods.DuckDBBindBoolean(preparedStatement, index, val);
-        }
-
-        public DuckDBState DuckDBBindInt8(DuckDBPreparedStatement preparedStatement, long index, sbyte val)
-        {
-            return NativeMethods.DuckDBBindInt8(preparedStatement, index, val);
-        }
-
-        public DuckDBState DuckDBBindInt16(DuckDBPreparedStatement preparedStatement, long index, short val)
-        {
-            return NativeMethods.DuckDBBindInt16(preparedStatement, index, val);
-        }
-
-        public DuckDBState DuckDBBindInt32(DuckDBPreparedStatement preparedStatement, long index, int val)
-        {
-            return NativeMethods.DuckDBBindInt32(preparedStatement, index, val);
-        }
-
-        public DuckDBState DuckDBBindInt64(DuckDBPreparedStatement preparedStatement, long index, long val)
-        {
-            return NativeMethods.DuckDBBindInt64(preparedStatement, index, val);
-        }
-
-        public DuckDBState DuckDBBindFloat(DuckDBPreparedStatement preparedStatement, long index, float val)
-        {
-            return NativeMethods.DuckDBBindFloat(preparedStatement, index, val);
-        }
-
-        public DuckDBState DuckDBBindDouble(DuckDBPreparedStatement preparedStatement, long index, double val)
-        {
-            return NativeMethods.DuckDBBindDouble(preparedStatement, index, val);
-        }
-
-        public DuckDBState DuckDBBindVarchar(DuckDBPreparedStatement preparedStatement, long index, string val)
-        {
-            return NativeMethods.DuckDBBindVarchar(preparedStatement, index, val);
-        }
-
-        public DuckDBState DuckDBBindNull(DuckDBPreparedStatement preparedStatement, long index)
-        {
-            return NativeMethods.DuckDBBindNull(preparedStatement, index);
-        }
-
-        public DuckDBState DuckDBExecutePrepared(DuckDBPreparedStatement preparedStatement, DuckDBResult result)
-        {
-            return NativeMethods.DuckDBExecutePrepared(preparedStatement, result);
-        }
-
-        public void DuckDBDestroyPrepare(out IntPtr preparedStatement)
-        {
-            NativeMethods.DuckDBDestroyPrepare(out preparedStatement);
-        }
-
-        /// <inheritdoc />
-        public void DuckDBFree(IntPtr ptr)
-        {
-            NativeMethods.DuckDBFree(ptr);
-        }
-    }
-
     public class NativeMethods
     {
-        private const string DuckDbLibrary = "duckdb.dll";
+        private const string DuckDbLibrary = "duckdb";
+
+        //Grouped according to https://duckdb.org/docs/api/c/overview
+
+        #region Startup
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_open")]
         public static extern DuckDBState DuckDBOpen(string path, out DuckDBDatabase database);
-        
+
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_open_ext")]
         public static extern DuckDBState DuckDBOpen(string path, out DuckDBDatabase database, IntPtr config, out IntPtr error);
 
@@ -210,6 +25,10 @@ namespace DuckDB.NET.Windows
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_disconnect")]
         public static extern void DuckDBDisconnect(out IntPtr connection);
+
+        #endregion
+
+        #region Query
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_query")]
         public static extern DuckDBState DuckDBQuery(DuckDBNativeConnection connection, string query, [In, Out] DuckDBResult result);
@@ -244,6 +63,10 @@ namespace DuckDB.NET.Windows
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_result_error")]
         public static extern IntPtr DuckDBResultError([In, Out] DuckDBResult result);
 
+        #endregion
+
+        #region Types
+
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_boolean")]
         public static extern bool DuckDBValueBoolean([In, Out] DuckDBResult result, long col, long row);
 
@@ -264,9 +87,13 @@ namespace DuckDB.NET.Windows
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_double")]
         public static extern double DuckDBValueDouble([In, Out] DuckDBResult result, long col, long row);
-        
+
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_varchar")]
         public static extern IntPtr DuckDBValueVarchar([In, Out] DuckDBResult result, long col, long row);
+
+        #endregion
+
+        #region Prepared Statements
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_prepare")]
         public static extern DuckDBState DuckDBPrepare(DuckDBNativeConnection connection, string query, out DuckDBPreparedStatement preparedStatement);
@@ -307,7 +134,13 @@ namespace DuckDB.NET.Windows
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_prepare")]
         public static extern void DuckDBDestroyPrepare(out IntPtr preparedStatement);
 
+        #endregion
+
+        #region Helpers
+
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_free")]
-        public static extern void DuckDBFree(IntPtr ptr);
+        public static extern void DuckDBFree(IntPtr ptr); 
+        
+        #endregion
     }
 }

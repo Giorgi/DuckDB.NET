@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Threading;
 
 namespace DuckDB.NET.Data.Internal
@@ -55,7 +54,7 @@ namespace DuckDB.NET.Data.Internal
                     var inMemory = filename == string.Empty;
                     var filenameForDll = inMemory ? null : filename;
 
-                    var resultOpen = PlatformIndependentBindings.NativeMethods.DuckDBOpen(filenameForDll, out fileRef.Database, out var error);
+                    var resultOpen = NativeMethods.DuckDBOpen(filenameForDll, out fileRef.Database, IntPtr.Zero, out var error);
 
                     if (!resultOpen.IsSuccess())
                     {
@@ -63,7 +62,7 @@ namespace DuckDB.NET.Data.Internal
                     }
                 }
 
-                var resultConnect = PlatformIndependentBindings.NativeMethods.DuckDBConnect(fileRef.Database, out DuckDBNativeConnection nativeConnection);
+                var resultConnect = NativeMethods.DuckDBConnect(fileRef.Database, out var nativeConnection);
 
                 if (resultConnect.IsSuccess())
                 {
