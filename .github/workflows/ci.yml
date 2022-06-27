@@ -1,7 +1,7 @@
 on: push
 
 env:
-  DUCKDB_GIT_TAG: '662041e2b43283bfcfeed984af7c3eaa85fb4996'
+  DUCKDB_GIT_TAG: 'v0.3.4'
 
 jobs:
   build:
