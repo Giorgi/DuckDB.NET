@@ -2,18 +2,17 @@ using Dapper;
 using DuckDB.NET.Data;
 using DuckDB.NET.Test.Helpers;
 using FluentAssertions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Xunit;
 
 namespace DuckDB.NET.Test
 {
-    [TestClass]
     public class DuckDBConnectionTests
     {
-        [TestMethod]
-        [TestCategory("Long Running")]
+        [Fact]
+        [Trait("Category", "Long Running")]
         public async Task ConnectionSpeed()
         {
             const int taskCount = 5;
@@ -22,7 +21,7 @@ namespace DuckDB.NET.Test
             const int totalOperations = taskCount * operationCount;
 
             using var files = new DisposableFileList(fileCount, "db");
-            
+
             //open and close files with some overlap
             var openAndClose = new Func<int, Task>(async ti =>
             {
@@ -59,9 +58,8 @@ namespace DuckDB.NET.Test
             files.Dispose();
         }
 
-        [TestMethod]
-        [TestCategory("Baseline")]
-        [ExpectedException(typeof(InvalidOperationException), "Did not throw expected exception")]
+        [Fact]
+        [Trait("Category", "Baseline")]
         public async Task ExceptionOnDoubleClose()
         {
             using var dbInfo = DisposableFile.GenerateInTemp("db");
@@ -69,12 +67,12 @@ namespace DuckDB.NET.Test
             await duckDBConnection.OpenAsync();
 
             await duckDBConnection.CloseAsync();
-            await duckDBConnection.CloseAsync();
+            await duckDBConnection.Invoking(async connection => await connection.CloseAsync())
+                    .Should().ThrowAsync<InvalidOperationException>();
         }
 
-        [TestMethod]
-        [TestCategory("Baseline")]
-        [ExpectedException(typeof(InvalidOperationException), "Did not throw expected exception")]
+        [Fact]
+        [Trait("Category","Baseline")]
         public async Task ExceptionOnDisposeThenClose()
         {
             using var dbInfo = DisposableFile.GenerateInTemp("db");
@@ -82,15 +80,16 @@ namespace DuckDB.NET.Test
             await duckDBConnection.OpenAsync();
 
             await duckDBConnection.DisposeAsync();
-            await duckDBConnection.CloseAsync();
+            await duckDBConnection.Invoking(async connection => await connection.CloseAsync())
+                .Should().ThrowAsync<InvalidOperationException>();
         }
 
         /// <summary>
         /// Spin up set of tasks to randomly create connections, insert data, and close connections.
         /// </summary>
         /// <returns></returns>
-        [TestMethod]
-        [TestCategory("Long Running")]
+        [Fact]
+        [Trait("Category", "Long Running")]
         public async Task MultiThreadedStress()
         {
             //with 1 task per file, should be good mix of reusing connections
@@ -163,8 +162,8 @@ namespace DuckDB.NET.Test
             files.Dispose();
         }
 
-        [TestMethod]
-        [TestCategory("Baseline")]
+        [Fact]
+        [Trait("Category", "Baseline")]
         public async Task NoExceptionOnDoubleDispose()
         {
             using var dbInfo = DisposableFile.GenerateInTemp("db");
@@ -175,8 +174,8 @@ namespace DuckDB.NET.Test
             await duckDBConnection.DisposeAsync();
         }
 
-        [TestMethod]
-        [TestCategory("Baseline")]
+        [Fact]
+        [Trait("Category", "Baseline")]
         public async Task NoExceptionCloseThenDispose()
         {
             using var dbInfo = DisposableFile.GenerateInTemp("db");
@@ -187,8 +186,8 @@ namespace DuckDB.NET.Test
             await duckDBConnection.DisposeAsync();
         }
 
-        [TestCategory("Baseline")]
-        [TestMethod]
+        [Fact]
+        [Trait("Category", "Baseline")]
         public async Task SingleThreadedOpenAndCloseOfSameFile()
         {
             using var db1 = DisposableFile.GenerateInTemp("db", 1);

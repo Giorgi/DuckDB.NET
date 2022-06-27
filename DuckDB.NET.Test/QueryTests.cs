@@ -1,13 +1,12 @@
 using FluentAssertions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Xunit;
 
 namespace DuckDB.NET.Test
 {
-    [TestClass]
     public class QueryTests
     {
-        [TestMethod]
-        public void Test()
+        [Fact]
+        public void QueryTest()
         {
             var result = NativeMethods.Startup.DuckDBOpen(null, out var database);
             result.Should().Be(DuckDBState.DuckDBSuccess);
