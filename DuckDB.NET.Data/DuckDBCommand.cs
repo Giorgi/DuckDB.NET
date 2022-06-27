@@ -44,13 +44,16 @@ namespace DuckDB.NET.Data
             var result = NativeMethods.Query.DuckDBQuery(connection.NativeConnection, unmanagedString, queryResult);
 
             var errorMessage = NativeMethods.Query.DuckDBResultError(queryResult).ToManagedString(false);
+            
             if (!string.IsNullOrEmpty(errorMessage))
             {
+                NativeMethods.Query.DuckDBDestroyResult(queryResult);
                 throw new DuckDBException(errorMessage, result);
             }
 
             if (!result.IsSuccess())
             {
+                NativeMethods.Query.DuckDBDestroyResult(queryResult);
                 throw new DuckDBException("DuckDBQuery failed", result);
             }
 
