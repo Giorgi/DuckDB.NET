@@ -41,9 +41,9 @@ namespace DuckDB.NET.Data
         {
             using var unmanagedString = CommandText.ToUnmanagedString();
             var queryResult = new DuckDBResult();
-            var result = NativeMethods.DuckDBQuery(connection.NativeConnection, unmanagedString, queryResult);
+            var result = NativeMethods.Query.DuckDBQuery(connection.NativeConnection, unmanagedString, queryResult);
 
-            var errorMessage = NativeMethods.DuckDBResultError(queryResult).ToManagedString(false);
+            var errorMessage = NativeMethods.Query.DuckDBResultError(queryResult).ToManagedString(false);
             if (!string.IsNullOrEmpty(errorMessage))
             {
                 throw new DuckDBException(errorMessage, result);
@@ -54,11 +54,11 @@ namespace DuckDB.NET.Data
                 throw new DuckDBException("DuckDBQuery failed", result);
             }
 
-            var rowCount = NativeMethods.DuckDBRowCount(queryResult);
-            var columnCount = NativeMethods.DuckDBColumnCount(queryResult);
+            var rowCount = NativeMethods.Query.DuckDBRowCount(queryResult);
+            var columnCount = NativeMethods.Query.DuckDBColumnCount(queryResult);
             if (columnCount > 0 && rowCount > 0)
             {
-                return NativeMethods.DuckDBValueInt32(queryResult, 0, 0);
+                return NativeMethods.Types.DuckDBValueInt32(queryResult, 0, 0);
             }
 
             return 0;

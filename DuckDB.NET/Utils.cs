@@ -36,7 +36,7 @@ namespace DuckDB.NET
 
             if (freeWhenCopied)
             {
-                NativeMethods.DuckDBFree(unmanagedString);
+                NativeMethods.Helpers.DuckDBFree(unmanagedString);
             }
 
             return Encoding.UTF8.GetString(byteArray, 0, length);

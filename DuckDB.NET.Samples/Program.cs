@@ -56,47 +56,47 @@ namespace DuckDB.NET.Samples
 
         private static void LowLevelBindingsSample()
         {
-            var result = DuckDBOpen(null, out var database);
+            var result = Startup.DuckDBOpen(null, out var database);
 
             using (database)
             {
-                result = DuckDBConnect(database, out var connection);
+                result = Startup.DuckDBConnect(database, out var connection);
                 using (connection)
                 {
                     var queryResult = new DuckDBResult();
-                    result = DuckDBQuery(connection, "CREATE TABLE integers(foo INTEGER, bar INTEGER);", null);
-                    result = DuckDBQuery(connection, "INSERT INTO integers VALUES (3, 4), (5, 6), (7, NULL);", null);
-                    result = DuckDBQuery(connection, "SELECT foo, bar FROM integers", queryResult);
+                    result = Query.DuckDBQuery(connection, "CREATE TABLE integers(foo INTEGER, bar INTEGER);", null);
+                    result = Query.DuckDBQuery(connection, "INSERT INTO integers VALUES (3, 4), (5, 6), (7, NULL);", null);
+                    result = Query.DuckDBQuery(connection, "SELECT foo, bar FROM integers", queryResult);
 
                     PrintQueryResults(queryResult);
 
                     // clean up
-                    DuckDBDestroyResult(queryResult);
+                    Query.DuckDBDestroyResult(queryResult);
 
-                    result = DuckDBPrepare(connection, "INSERT INTO integers VALUES (?, ?)", out var insertStatement);
+                    result = PreparedStatements.DuckDBPrepare(connection, "INSERT INTO integers VALUES (?, ?)", out var insertStatement);
 
                     using (insertStatement)
                     {
-                        result = DuckDBBindInt32(insertStatement, 1, 42); // the parameter index starts counting at 1!
-                        result = DuckDBBindInt32(insertStatement, 2, 43);
+                        result = PreparedStatements.DuckDBBindInt32(insertStatement, 1, 42); // the parameter index starts counting at 1!
+                        result = PreparedStatements.DuckDBBindInt32(insertStatement, 2, 43);
 
-                        result = DuckDBExecutePrepared(insertStatement, null);
+                        result = PreparedStatements.DuckDBExecutePrepared(insertStatement, null);
                     }
 
 
-                    result = DuckDBPrepare(connection, "SELECT * FROM integers WHERE foo = ?", out var selectStatement);
+                    result = PreparedStatements.DuckDBPrepare(connection, "SELECT * FROM integers WHERE foo = ?", out var selectStatement);
 
                     using (selectStatement)
                     {
-                        result = DuckDBBindInt32(selectStatement, 1, 42);
+                        result = PreparedStatements.DuckDBBindInt32(selectStatement, 1, 42);
 
-                        result = DuckDBExecutePrepared(selectStatement, queryResult);
+                        result = PreparedStatements.DuckDBExecutePrepared(selectStatement, queryResult);
                     }
 
                     PrintQueryResults(queryResult);
 
                     // clean up
-                    DuckDBDestroyResult(queryResult);
+                    Query.DuckDBDestroyResult(queryResult);
                 }
             }
         }
@@ -126,21 +126,21 @@ namespace DuckDB.NET.Samples
 
         private static void PrintQueryResults(DuckDBResult queryResult)
         {
-            var columnCount = DuckDBColumnCount(queryResult);
+            var columnCount = Query.DuckDBColumnCount(queryResult);
             for (var index = 0; index < columnCount; index++)
             {
-                var columnName = DuckDBColumnName(queryResult, index).ToManagedString(false);
+                var columnName = Query.DuckDBColumnName(queryResult, index).ToManagedString(false);
                 Console.Write($"{columnName} ");
             }
 
             Console.WriteLine();
 
-            var rowCount = DuckDBRowCount(queryResult);
+            var rowCount = Query.DuckDBRowCount(queryResult);
             for (long row = 0; row < rowCount; row++)
             {
                 for (long column = 0; column < columnCount; column++)
                 {
-                    var val = DuckDBValueInt32(queryResult, column, row);
+                    var val = Types.DuckDBValueInt32(queryResult, column, row);
                     Console.Write(val);
                     Console.Write(" ");
                 }

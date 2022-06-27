@@ -9,42 +9,42 @@ namespace DuckDB.NET.Test
         [TestMethod]
         public void Test()
         {
-            var result = NativeMethods.DuckDBOpen(null, out var database);
+            var result = NativeMethods.Startup.DuckDBOpen(null, out var database);
             result.Should().Be(DuckDBState.DuckDBSuccess);
 
-            result = NativeMethods.DuckDBConnect(database, out var connection);
+            result = NativeMethods.Startup.DuckDBConnect(database, out var connection);
             result.Should().Be(DuckDBState.DuckDBSuccess);
 
             using (database)
             using (connection)
             {
                 var table = "CREATE TABLE test(a INTEGER, b BOOLEAN);";
-                result = NativeMethods.DuckDBQuery(connection, table.ToUnmanagedString(), null);
+                result = NativeMethods.Query.DuckDBQuery(connection, table.ToUnmanagedString(), null);
                 result.Should().Be(DuckDBState.DuckDBSuccess);
 
 
                 var queryResult = new DuckDBResult();
                 var insert = "INSERT INTO test VALUES (1, TRUE), (2, FALSE), (3, TRUE);";
-                result = NativeMethods.DuckDBQuery(connection, insert.ToUnmanagedString(), queryResult);
+                result = NativeMethods.Query.DuckDBQuery(connection, insert.ToUnmanagedString(), queryResult);
                 result.Should().Be(DuckDBState.DuckDBSuccess);
 
-                var rowsChanged = NativeMethods.DuckDBRowsChanged(queryResult);
+                var rowsChanged = NativeMethods.Query.DuckDBRowsChanged(queryResult);
                 rowsChanged.Should().Be(3);
 
-                NativeMethods.DuckDBDestroyResult(queryResult);
+                NativeMethods.Query.DuckDBDestroyResult(queryResult);
 
 
                 var query = "SELECT * FROM test;";
-                result = NativeMethods.DuckDBQuery(connection, query.ToUnmanagedString(), queryResult);
+                result = NativeMethods.Query.DuckDBQuery(connection, query.ToUnmanagedString(), queryResult);
                 result.Should().Be(DuckDBState.DuckDBSuccess);
 
-                var rowCount = NativeMethods.DuckDBRowCount(queryResult);
+                var rowCount = NativeMethods.Query.DuckDBRowCount(queryResult);
                 rowCount.Should().Be(3);
 
-                var columnCount = NativeMethods.DuckDBColumnCount(queryResult);
+                var columnCount = NativeMethods.Query.DuckDBColumnCount(queryResult);
                 columnCount.Should().Be(2);
 
-                NativeMethods.DuckDBDestroyResult(queryResult);
+                NativeMethods.Query.DuckDBDestroyResult(queryResult);
             }
         }
     }

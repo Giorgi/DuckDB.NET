@@ -54,7 +54,7 @@ namespace DuckDB.NET.Data.Internal
                     var inMemory = filename == string.Empty;
                     var filenameForDll = inMemory ? null : filename;
 
-                    var resultOpen = NativeMethods.DuckDBOpen(filenameForDll, out fileRef.Database, IntPtr.Zero, out var error);
+                    var resultOpen = NativeMethods.Startup.DuckDBOpen(filenameForDll, out fileRef.Database, IntPtr.Zero, out var error);
 
                     if (!resultOpen.IsSuccess())
                     {
@@ -62,7 +62,7 @@ namespace DuckDB.NET.Data.Internal
                     }
                 }
 
-                var resultConnect = NativeMethods.DuckDBConnect(fileRef.Database, out var nativeConnection);
+                var resultConnect = NativeMethods.Startup.DuckDBConnect(fileRef.Database, out var nativeConnection);
 
                 if (resultConnect.IsSuccess())
                 {
