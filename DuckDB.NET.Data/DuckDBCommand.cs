@@ -24,7 +24,7 @@ namespace DuckDB.NET.Data
 
         public override void Cancel()
         {
-            
+
         }
 
         public override int ExecuteNonQuery()
@@ -43,18 +43,12 @@ namespace DuckDB.NET.Data
             var queryResult = new DuckDBResult();
             var result = NativeMethods.Query.DuckDBQuery(connection.NativeConnection, unmanagedString, queryResult);
 
-            var errorMessage = NativeMethods.Query.DuckDBResultError(queryResult).ToManagedString(false);
-            
-            if (!string.IsNullOrEmpty(errorMessage))
-            {
-                NativeMethods.Query.DuckDBDestroyResult(queryResult);
-                throw new DuckDBException(errorMessage, result);
-            }
-
             if (!result.IsSuccess())
             {
+                var errorMessage = NativeMethods.Query.DuckDBResultError(queryResult).ToManagedString(false);
+
                 NativeMethods.Query.DuckDBDestroyResult(queryResult);
-                throw new DuckDBException("DuckDBQuery failed", result);
+                throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, result);
             }
 
             var rowCount = NativeMethods.Query.DuckDBRowCount(queryResult);

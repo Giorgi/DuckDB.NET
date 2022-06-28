@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Data.Common;
 using System.IO;
+using System.Linq;
 using DuckDB.NET.Data;
 using static DuckDB.NET.NativeMethods;
 using Dapper;
@@ -11,9 +12,34 @@ namespace DuckDB.NET.Samples
     {
         static void Main(string[] args)
         {
+            DapperSample();
+
             AdoNetSamples();
 
             LowLevelBindingsSample();
+        }
+
+        private static void DapperSample()
+        {
+            var connectionString = "Data Source=:memory:";
+            using (var cn = new DuckDBConnection(connectionString))
+            {
+                cn.Open();
+
+                cn.Execute("CREATE TABLE test (id INTEGER, name VARCHAR)");
+
+                var query = cn.Query<Row>("SELECT * FROM test");
+                Console.WriteLine("Initial count: {0}", query.Count());
+
+                cn.Execute("INSERT INTO test (id,name) VALUES (123,'test')");
+
+                query = cn.Query<Row>("SELECT * FROM test");
+
+                foreach (var q in query)
+                {
+                    Console.WriteLine($"{q.Id} {q.Name}");
+                }
+            }
         }
 
         private static void AdoNetSamples()
@@ -115,6 +141,11 @@ namespace DuckDB.NET.Samples
             {
                 for (int ordinal = 0; ordinal < queryResult.FieldCount; ordinal++)
                 {
+                    if (queryResult.IsDBNull(ordinal))
+                    {
+                        Console.WriteLine("NULL");
+                        continue;
+                    }
                     var val = queryResult.GetValue(ordinal);
                     Console.Write(val);
                     Console.Write(" ");
@@ -154,5 +185,11 @@ namespace DuckDB.NET.Samples
     {
         public int Foo { get; set; }
         public int Bar { get; set; }
+    }
+
+    class Row
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
     }
 }
