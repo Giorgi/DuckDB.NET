@@ -79,7 +79,7 @@ namespace DuckDB.NET.Data
 
         internal DuckDBNativeConnection DBNativeConnection => connection.NativeConnection;
 
-        protected override DbParameterCollection DbParameterCollection { get; }
+        protected override DbParameterCollection DbParameterCollection { get; } = new DuckDbDbParameterCollection();
         protected override DbTransaction DbTransaction { get; set; }
         public override bool DesignTimeVisible { get; set; }
 
