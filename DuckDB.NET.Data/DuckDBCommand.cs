@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Data;
 using System.Data.Common;
+using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Data
 {
@@ -29,11 +30,14 @@ namespace DuckDB.NET.Data
 
         public override int ExecuteNonQuery()
         {
+            EnsureConnectionOpen();
             return ExecuteScalarOrNonQuery();
         }
 
         public override object ExecuteScalar()
         {
+            EnsureConnectionOpen();
+            
             using var reader = ExecuteReader();
             if (!reader.Read())
                 return null;
@@ -93,12 +97,19 @@ namespace DuckDB.NET.Data
 
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
         {
+            EnsureConnectionOpen();
             return new DuckDBDataReader(this, behavior);
         }
 
         internal void CloseConnection()
         {
             Connection.Close();
+        }
+
+        private void EnsureConnectionOpen([CallerMemberName]string operation = "")
+        {
+            if (connection.State != ConnectionState.Open)
+                throw new InvalidOperationException($"{operation} requires an open connection");
         }
     }
 }
