@@ -31,21 +31,7 @@ namespace DuckDB.NET.Data
         public override int ExecuteNonQuery()
         {
             EnsureConnectionOpen();
-            return ExecuteScalarOrNonQuery();
-        }
-
-        public override object ExecuteScalar()
-        {
-            EnsureConnectionOpen();
             
-            using var reader = ExecuteReader();
-            if (!reader.Read())
-                return null;
-            return reader.GetValue(0);
-        }
-
-        private int ExecuteScalarOrNonQuery()
-        {
             using var unmanagedString = CommandText.ToUnmanagedString();
             var queryResult = new DuckDBResult();
             var result = NativeMethods.Query.DuckDBQuery(connection.NativeConnection, unmanagedString, queryResult);
@@ -58,14 +44,17 @@ namespace DuckDB.NET.Data
                 throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, result);
             }
 
-            var rowCount = NativeMethods.Query.DuckDBRowCount(queryResult);
-            var columnCount = NativeMethods.Query.DuckDBColumnCount(queryResult);
-            if (columnCount > 0 && rowCount > 0)
-            {
-                return NativeMethods.Types.DuckDBValueInt32(queryResult, 0, 0);
-            }
+            return (int)NativeMethods.Query.DuckDBRowsChanged(queryResult);
+        }
 
-            return 0;
+        public override object ExecuteScalar()
+        {
+            EnsureConnectionOpen();
+            
+            using var reader = ExecuteReader();
+            if (!reader.Read())
+                return null;
+            return reader.GetValue(0);
         }
 
         public override void Prepare()
