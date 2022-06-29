@@ -34,7 +34,10 @@ namespace DuckDB.NET.Data
 
         public override object ExecuteScalar()
         {
-            return ExecuteScalarOrNonQuery();
+            using var reader = ExecuteReader();
+            if (!reader.Read())
+                return null;
+            return reader.GetValue(0);
         }
 
         private int ExecuteScalarOrNonQuery()
