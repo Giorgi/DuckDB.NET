@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Data;
 using System.Data.Common;
+using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Data
 {
@@ -29,16 +30,8 @@ namespace DuckDB.NET.Data
 
         public override int ExecuteNonQuery()
         {
-            return ExecuteScalarOrNonQuery();
-        }
-
-        public override object ExecuteScalar()
-        {
-            return ExecuteScalarOrNonQuery();
-        }
-
-        private int ExecuteScalarOrNonQuery()
-        {
+            EnsureConnectionOpen();
+            
             using var unmanagedString = CommandText.ToUnmanagedString();
             var queryResult = new DuckDBResult();
             var result = NativeMethods.Query.DuckDBQuery(connection.NativeConnection, unmanagedString, queryResult);
@@ -51,14 +44,17 @@ namespace DuckDB.NET.Data
                 throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, result);
             }
 
-            var rowCount = NativeMethods.Query.DuckDBRowCount(queryResult);
-            var columnCount = NativeMethods.Query.DuckDBColumnCount(queryResult);
-            if (columnCount > 0 && rowCount > 0)
-            {
-                return NativeMethods.Types.DuckDBValueInt32(queryResult, 0, 0);
-            }
+            return (int)NativeMethods.Query.DuckDBRowsChanged(queryResult);
+        }
 
-            return 0;
+        public override object ExecuteScalar()
+        {
+            EnsureConnectionOpen();
+            
+            using var reader = ExecuteReader();
+            if (!reader.Read())
+                return null;
+            return reader.GetValue(0);
         }
 
         public override void Prepare()
@@ -90,12 +86,19 @@ namespace DuckDB.NET.Data
 
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
         {
+            EnsureConnectionOpen();
             return new DuckDBDataReader(this, behavior);
         }
 
         internal void CloseConnection()
         {
             Connection.Close();
+        }
+
+        private void EnsureConnectionOpen([CallerMemberName]string operation = "")
+        {
+            if (connection.State != ConnectionState.Open)
+                throw new InvalidOperationException($"{operation} requires an open connection");
         }
     }
 }

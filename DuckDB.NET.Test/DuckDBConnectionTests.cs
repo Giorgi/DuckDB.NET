@@ -3,6 +3,7 @@ using DuckDB.NET.Data;
 using DuckDB.NET.Test.Helpers;
 using FluentAssertions;
 using System;
+using System.Data;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Xunit;
@@ -225,6 +226,27 @@ namespace DuckDB.NET.Test
             var expectedInsertions = 2 * reps;
             var insertions = await duckDBConnection.QuerySingleAsync<int>("SELECT COUNT(*) FROM INSERTIONS;");
             insertions.Should().Be(expectedInsertions);
+        }
+
+        [Fact]
+        public void QueryAgainstClosedConnection()
+        {
+            var connection = new DuckDBConnection("DataSource=:memory:");
+            connection.State.Should().Be(ConnectionState.Closed);
+
+            connection.Invoking(con =>
+            {
+                var command = con.CreateCommand();
+                command.CommandText = "SELECT 42;";
+                command.ExecuteScalar();
+            }).Should().ThrowExactly<DuckDBException>();
+            
+            connection.Open();
+            connection.State.Should().Be(ConnectionState.Open);
+            
+            var command = connection.CreateCommand();
+            command.CommandText = "SELECT 42;";
+            command.ExecuteScalar().Should().Be(42);
         }
     }
 }
