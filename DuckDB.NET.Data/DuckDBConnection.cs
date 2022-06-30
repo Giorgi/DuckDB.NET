@@ -8,9 +8,9 @@ namespace DuckDB.NET.Data
 {
     public class DuckDBConnection : DbConnection
     {
-        private ConnectionManager connectionManager = ConnectionManager.Default;
-        private ConnectionReference connectionReference;
-        private ConnectionState connectionState = ConnectionState.Closed;
+        private readonly ConnectionManager _connectionManager = ConnectionManager.Default;
+        private ConnectionReference _connectionReference;
+        private ConnectionState _connectionState = ConnectionState.Closed;
 
         internal DbTransaction? Transaction { get; set; }
 
@@ -25,13 +25,11 @@ namespace DuckDB.NET.Data
 
         public override string DataSource { get; }
 
-        public DuckDBNativeConnection NativeConnection => connectionReference.NativeConnection;
+        public DuckDBNativeConnection NativeConnection => _connectionReference.NativeConnection;
 
         public override string ServerVersion { get; }
 
-        public override ConnectionState State => connectionState;
-
-        internal ConnectionManager ConnectionManager => connectionManager;
+        public override ConnectionState State => _connectionState;
 
         public override void ChangeDatabase(string databaseName)
         {
@@ -40,7 +38,7 @@ namespace DuckDB.NET.Data
 
         public override void Close()
         {
-            if (connectionState == ConnectionState.Closed)
+            if (_connectionState == ConnectionState.Closed)
             {
                 throw new InvalidOperationException("Connection is already closed.");
             }
@@ -50,14 +48,14 @@ namespace DuckDB.NET.Data
 
         public override void Open()
         {
-            if (connectionState == ConnectionState.Open)
+            if (_connectionState == ConnectionState.Open)
             {
                 throw new InvalidOperationException("Connection is already open.");
             }
 
-            connectionReference = connectionManager.GetConnectionReference(ConnectionString);
+            _connectionReference = _connectionManager.GetConnectionReference(ConnectionString);
 
-            connectionState = ConnectionState.Open;
+            _connectionState = ConnectionState.Open;
         }
 
         protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
@@ -77,10 +75,10 @@ namespace DuckDB.NET.Data
         {
             if (disposing)
             {
-                if (connectionState == ConnectionState.Open)
+                if (_connectionState == ConnectionState.Open)
                 {
-                    connectionManager.ReturnConnectionReference(connectionReference);
-                    connectionState = ConnectionState.Closed;
+                    _connectionManager.ReturnConnectionReference(_connectionReference);
+                    _connectionState = ConnectionState.Closed;
                 }
             }
 

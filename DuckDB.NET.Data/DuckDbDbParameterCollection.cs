@@ -4,7 +4,7 @@ using System.Data.Common;
 
 namespace DuckDB.NET.Data;
 
-class DuckDbDbParameterCollection : DbParameterCollection
+internal class DuckDbDbParameterCollection : DbParameterCollection
 {
     public override int Add(object value)
     {
