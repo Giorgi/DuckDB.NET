@@ -2,6 +2,7 @@
 using System;
 using System.Data;
 using System.Data.Common;
+using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Data
 {
@@ -10,6 +11,8 @@ namespace DuckDB.NET.Data
         private ConnectionManager connectionManager = ConnectionManager.Default;
         private ConnectionReference connectionReference;
         private ConnectionState connectionState = ConnectionState.Closed;
+
+        internal DbTransaction? Transaction { get; set; }
 
         public DuckDBConnection(string connectionString)
         {
@@ -59,7 +62,10 @@ namespace DuckDB.NET.Data
 
         protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
         {
-            throw new NotImplementedException();
+            EnsureConnectionOpen();
+            if (Transaction != null)
+                throw new InvalidOperationException("Already in a transaction.");
+            return Transaction = new DuckDBTransaction(this, isolationLevel);
         }
 
         protected override DbCommand CreateDbCommand()
@@ -79,6 +85,12 @@ namespace DuckDB.NET.Data
             }
 
             base.Dispose(disposing);
+        }
+        
+        private void EnsureConnectionOpen([CallerMemberName]string operation = "")
+        {
+            if (State != ConnectionState.Open)
+                throw new InvalidOperationException($"{operation} requires an open connection");
         }
     }
 }
