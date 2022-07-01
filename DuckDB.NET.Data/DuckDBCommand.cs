@@ -7,7 +7,7 @@ namespace DuckDB.NET.Data
 {
     public class DuckDbCommand : DbCommand
     {
-        private DuckDBConnection _connection;
+        private DuckDBConnection connection;
 
         public DuckDbCommand()
         {
@@ -34,7 +34,7 @@ namespace DuckDB.NET.Data
             
             using var unmanagedString = CommandText.ToUnmanagedString();
             var queryResult = new DuckDBResult();
-            var result = NativeMethods.Query.DuckDBQuery(_connection.NativeConnection, unmanagedString, queryResult);
+            var result = NativeMethods.Query.DuckDBQuery(connection.NativeConnection, unmanagedString, queryResult);
 
             if (!result.IsSuccess())
             {
@@ -69,11 +69,11 @@ namespace DuckDB.NET.Data
 
         protected override DbConnection DbConnection
         {
-            get => _connection;
-            set => _connection = (DuckDBConnection)value;
+            get => connection;
+            set => connection = (DuckDBConnection)value;
         }
 
-        internal DuckDBNativeConnection DBNativeConnection => _connection.NativeConnection;
+        internal DuckDBNativeConnection DBNativeConnection => connection.NativeConnection;
 
         protected override DbParameterCollection DbParameterCollection { get; } = new DuckDbDbParameterCollection();
         protected override DbTransaction DbTransaction { get; set; }
@@ -97,7 +97,7 @@ namespace DuckDB.NET.Data
 
         private void EnsureConnectionOpen([CallerMemberName]string operation = "")
         {
-            if (_connection.State != ConnectionState.Open)
+            if (connection.State != ConnectionState.Open)
                 throw new InvalidOperationException($"{operation} requires an open connection");
         }
     }
