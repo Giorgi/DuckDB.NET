@@ -17,7 +17,7 @@ namespace DuckDB.NET.Data
             _connection = connection;
             IsolationLevel = isolationLevel;
 
-            if (isolationLevel != IsolationLevel.Serializable && isolationLevel != IsolationLevel.Unspecified)
+            if (isolationLevel != IsolationLevel.Snapshot && isolationLevel != IsolationLevel.Unspecified)
                 throw new ArgumentException($"Unsupported isolation level: {isolationLevel}", nameof(isolationLevel));
 
             _connection.ExecuteNonQuery("BEGIN TRANSACTION;");
