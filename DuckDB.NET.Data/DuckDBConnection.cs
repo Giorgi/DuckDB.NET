@@ -31,8 +31,6 @@ namespace DuckDB.NET.Data
 
         public override ConnectionState State => connectionState;
 
-        internal ConnectionManager ConnectionManager => connectionManager;
-
         public override void ChangeDatabase(string databaseName)
         {
             throw new NotImplementedException();
@@ -64,7 +62,9 @@ namespace DuckDB.NET.Data
         {
             EnsureConnectionOpen();
             if (Transaction != null)
+            {
                 throw new InvalidOperationException("Already in a transaction.");
+            }
             return Transaction = new DuckDBTransaction(this, isolationLevel);
         }
 
@@ -90,7 +90,9 @@ namespace DuckDB.NET.Data
         private void EnsureConnectionOpen([CallerMemberName]string operation = "")
         {
             if (State != ConnectionState.Open)
+            {
                 throw new InvalidOperationException($"{operation} requires an open connection");
+            }
         }
     }
 }

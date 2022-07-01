@@ -7,9 +7,11 @@ namespace DuckDB.NET.Data
 {
     internal class DuckDBTransaction : DbTransaction
     {
-        private readonly DuckDBConnection connection;
-        protected override DbConnection DbConnection => connection;
         private bool finished = false;
+        private readonly DuckDBConnection connection;
+        
+        protected override DbConnection DbConnection => connection;
+        
         public override IsolationLevel IsolationLevel { get; }
 
         public DuckDBTransaction(DuckDBConnection connection, IsolationLevel isolationLevel)
@@ -18,21 +20,24 @@ namespace DuckDB.NET.Data
             IsolationLevel = isolationLevel;
 
             if (isolationLevel != IsolationLevel.Snapshot && isolationLevel != IsolationLevel.Unspecified)
+            {
                 throw new ArgumentException($"Unsupported isolation level: {isolationLevel}", nameof(isolationLevel));
+            }
 
             this.connection.ExecuteNonQuery("BEGIN TRANSACTION;");
         }
 
-        public override void Commit()
-            => FinishTransaction("COMMIT;");
+        public override void Commit() => FinishTransaction("COMMIT;");
 
-        public override void Rollback()
-            => FinishTransaction("ROLLBACK");
+        public override void Rollback() => FinishTransaction("ROLLBACK");
 
         private void FinishTransaction(string finalizer)
         {
             if (finished)
+            {
                 throw new InvalidOperationException("Transaction has already been finished.");
+            }
+
             connection.ExecuteNonQuery(finalizer);
             connection.Transaction = null;
             finished = true;
@@ -42,9 +47,11 @@ namespace DuckDB.NET.Data
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
-            
+
             if (disposing && !finished && connection.IsOpen())
+            {
                 Rollback();
+            }
         }
     }
 }
