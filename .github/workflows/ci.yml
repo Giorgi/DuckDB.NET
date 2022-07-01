@@ -1,4 +1,4 @@
-on: push
+on: [push, pull_request]
 
 env:
   DUCKDB_GIT_TAG: 'v0.3.4'
