@@ -31,6 +31,8 @@ namespace DuckDB.NET.Data
 
         private void FinishTransaction(string finalizer)
         {
+            if (_finished)
+                throw new InvalidOperationException("Transaction has already been finished.");
             _connection.ExecuteNonQuery(finalizer);
             _connection.Transaction = null;
             _finished = true;

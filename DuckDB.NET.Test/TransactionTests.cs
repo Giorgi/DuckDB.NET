@@ -61,5 +61,61 @@ namespace DuckDB.NET.Test
                     .Should().Throw<InvalidOperationException>();
             }
         }
+
+        [Fact]
+        public void CommitTransactionTwiceTest()
+        {
+            using var connection = new DuckDBConnection("DataSource=:memory:");
+            connection.Open();
+
+            using (var transaction = connection.BeginTransaction())
+            {
+                transaction.Commit();
+                transaction.Invoking(tr => tr.Commit())
+                    .Should().Throw<InvalidOperationException>();
+            }
+        }
+        
+        [Fact]
+        public void RollbackAndCommitTransactionTest()
+        {
+            using var connection = new DuckDBConnection("DataSource=:memory:");
+            connection.Open();
+
+            using (var transaction = connection.BeginTransaction())
+            {
+                transaction.Rollback();
+                transaction.Invoking(tr => tr.Commit())
+                    .Should().Throw<InvalidOperationException>();
+            }
+        }
+        
+        [Fact]
+        public void RollbackTransactionTwiceTest()
+        {
+            using var connection = new DuckDBConnection("DataSource=:memory:");
+            connection.Open();
+
+            using (var transaction = connection.BeginTransaction())
+            {
+                transaction.Rollback();
+                transaction.Invoking(tr => tr.Rollback())
+                    .Should().Throw<InvalidOperationException>();
+            }
+        }
+        
+        [Fact]
+        public void CommitAndRollbackTransactionTest()
+        {
+            using var connection = new DuckDBConnection("DataSource=:memory:");
+            connection.Open();
+
+            using (var transaction = connection.BeginTransaction())
+            {
+                transaction.Commit();
+                transaction.Invoking(tr => tr.Rollback())
+                    .Should().Throw<InvalidOperationException>();
+            }
+        }
     }
 }
