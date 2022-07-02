@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Threading;
+using DuckDB.NET.Data.ConnectionString;
 
 namespace DuckDB.NET.Data.Internal
 {
@@ -13,9 +14,9 @@ namespace DuckDB.NET.Data.Internal
 
         private static readonly ConcurrentDictionary<string, FileRef> ConnectionCache = new(StringComparer.OrdinalIgnoreCase);
 
-        internal ConnectionReference GetConnectionReference(string connectionString)
+        internal ConnectionReference GetConnectionReference(IDuckDBConnectionString connectionString)
         {
-            string filename = GetFileName(connectionString);
+            var filename = connectionString.DataSource;
 
             FileRef fileRef = null;
 
@@ -109,32 +110,6 @@ namespace DuckDB.NET.Data.Internal
                     }
                 }
             }
-        }
-                
-        private string GetFileName(string connectionString)
-        {
-            string filename = null;
-
-            if (connectionString.StartsWith("Data Source=") || connectionString.StartsWith("DataSource="))
-            {
-                var strings = connectionString.Split('=');
-
-                if (strings[1] == ":memory:")
-                {
-                    filename = "";
-                }
-                else
-                {
-                    filename = strings[1];
-                }
-            }
-
-            if (filename == null)
-            {
-                throw new InvalidOperationException($"ConnectionString '{connectionString}' is not valid");
-            }
-
-            return filename;
         }
     }
 }
