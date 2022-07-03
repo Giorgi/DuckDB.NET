@@ -14,11 +14,16 @@ namespace DuckDB.NET.Data.ConnectionString
                 .ToDictionary(pair => pair[0].Trim(), pair => pair[1].Trim());
 
             var dataSource = GetDataSource(properties);
+            
             if (string.IsNullOrEmpty(dataSource))
+            {
                 throw new InvalidOperationException($"Connection string '{connectionString}' is not valid.");
+            }
 
             if (dataSource.Equals(DuckDBConnectionStringBuilder.InMemoryDataSource, StringComparison.OrdinalIgnoreCase))
+            {
                 dataSource = string.Empty;
+            }
             
             return new DuckDBConnectionString(dataSource);
         }
@@ -28,7 +33,9 @@ namespace DuckDB.NET.Data.ConnectionString
             foreach (var key in DuckDBConnectionStringBuilder.DataSourceKeys)
             {
                 if (properties.TryGetValue(key, out var dataSource))
+                {
                     return dataSource;
+                }
             }
             return null;
         }
