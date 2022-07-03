@@ -15,7 +15,7 @@ namespace DuckDB.NET
             public static extern DuckDBState DuckDBOpen(string path, out DuckDBDatabase database);
 
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_open_ext")]
-            public static extern DuckDBState DuckDBOpen(string path, out DuckDBDatabase database, IntPtr config, out IntPtr error);
+            public static extern DuckDBState DuckDBOpen(string path, out DuckDBDatabase database, DuckDBConfig config, out IntPtr error);
 
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_close")]
             public static extern void DuckDBClose(out IntPtr database);
@@ -25,6 +25,24 @@ namespace DuckDB.NET
 
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_disconnect")]
             public static extern void DuckDBDisconnect(out IntPtr connection);
+        }
+
+        public static class Configure
+        {
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_config")]
+            public static extern DuckDBState DuckDBCreateConfig(out DuckDBConfig config);
+
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_config_count")]
+            public static extern int DuckDBConfigCount();
+
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_config_flag")]
+            public static extern DuckDBState DuckDBGetConfigFlag(int index, out IntPtr name, out IntPtr description);
+
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_set_config")]
+            public static extern DuckDBState DuckDBSetConfig(DuckDBConfig config, string name, string option);
+
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_config")]
+            public static extern void DuckDBDestroyConfig(out IntPtr config);
         }
         
         public static class Query

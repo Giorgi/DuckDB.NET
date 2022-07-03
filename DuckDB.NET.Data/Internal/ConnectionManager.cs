@@ -55,7 +55,7 @@ namespace DuckDB.NET.Data.Internal
                     var inMemory = filename == string.Empty;
                     var filenameForDll = inMemory ? null : filename;
 
-                    var resultOpen = NativeMethods.Startup.DuckDBOpen(filenameForDll, out fileRef.Database, IntPtr.Zero, out var error);
+                    var resultOpen = NativeMethods.Startup.DuckDBOpen(filenameForDll, out fileRef.Database, new DuckDBConfig(), out var error);
 
                     if (!resultOpen.IsSuccess())
                     {
