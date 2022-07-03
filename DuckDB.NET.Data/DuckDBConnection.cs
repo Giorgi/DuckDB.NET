@@ -3,6 +3,7 @@ using System;
 using System.Data;
 using System.Data.Common;
 using System.Runtime.CompilerServices;
+using DuckDB.NET.Data.ConnectionString;
 
 namespace DuckDB.NET.Data
 {
@@ -53,7 +54,9 @@ namespace DuckDB.NET.Data
                 throw new InvalidOperationException("Connection is already open.");
             }
 
-            connectionReference = connectionManager.GetConnectionReference(ConnectionString);
+            var connectionString = DuckDBConnectionStringParser.Parse(ConnectionString);
+
+            connectionReference = connectionManager.GetConnectionReference(connectionString);
 
             connectionState = ConnectionState.Open;
         }
