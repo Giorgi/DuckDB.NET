@@ -20,6 +20,7 @@ namespace DuckDB.NET.Test
         [InlineData("Data Source    =:memory:")]
         [InlineData("DataSource=:Memory:")]
         [InlineData("Data Source=:Memory:")]
+        [InlineData(DuckDBConnectionStringBuilder.InMemoryConnectionString)]
         public void ExplicitConnectionStringTest(string connectionString)
         {
             using var connection = new DuckDBConnection(connectionString);
@@ -41,14 +42,11 @@ namespace DuckDB.NET.Test
         {
             var builder = new DuckDBConnectionStringBuilder
             {
-                DataSource = DuckDBConnectionStringBuilder.InMemory
+                DataSource = DuckDBConnectionStringBuilder.InMemoryDataSource
             };
 
             using var connection = new DuckDBConnection(builder.ToString());
             connection.Open();
-
-            using var connection2 = new DuckDBConnection(builder);
-            connection2.Open();
         }
     }
 }

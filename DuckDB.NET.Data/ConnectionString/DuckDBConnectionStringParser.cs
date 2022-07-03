@@ -6,32 +6,31 @@ namespace DuckDB.NET.Data.ConnectionString
 {
     internal static class DuckDBConnectionStringParser
     {
-        private static readonly HashSet<string> DataSourceKeys 
-            = new HashSet<string>(new []{"Data Source", "DataSource"}, StringComparer.OrdinalIgnoreCase);
-        
-        public static IDuckDBConnectionString Parse(string connectionString)
+        public static DuckDBConnectionString Parse(string connectionString)
         {
-            return new DuckDBConnectionString(GetFileName(connectionString));
+            var properties = connectionString
+                .Split(new[] {';'}, StringSplitOptions.RemoveEmptyEntries)
+                .Select(pair => pair.Split(new[] {'='}, StringSplitOptions.RemoveEmptyEntries))
+                .ToDictionary(pair => pair[0].Trim(), pair => pair[1].Trim());
+
+            var dataSource = GetDataSource(properties);
+            if (string.IsNullOrEmpty(dataSource))
+                throw new InvalidOperationException($"Connection string '{connectionString}' is not valid.");
+
+            if (dataSource.Equals(DuckDBConnectionStringBuilder.InMemoryDataSource, StringComparison.OrdinalIgnoreCase))
+                dataSource = string.Empty;
+            
+            return new DuckDBConnectionString(dataSource);
         }
-        
-        private static string GetFileName(string connectionString)
+
+        private static string GetDataSource(IReadOnlyDictionary<string, string> properties)
         {
-            var connectionStringParts = connectionString.Split('=').Select(x => x.Trim()).ToArray();
-            if (connectionStringParts.Length != 2)
+            foreach (var key in DuckDBConnectionStringBuilder.DataSourceKeys)
             {
-                throw new InvalidOperationException($"ConnectionString '{connectionString}' is not valid");
+                if (properties.TryGetValue(key, out var dataSource))
+                    return dataSource;
             }
-
-            if (!DataSourceKeys.Contains(connectionStringParts[0]))
-            {
-                throw new InvalidOperationException($"ConnectionString '{connectionString}' is not valid");
-            }
-
-            return IsInMemoryDataSource(connectionStringParts[1])
-                ? string.Empty
-                : connectionStringParts[1];
+            return null;
         }
-        
-        private static bool IsInMemoryDataSource(string dataSource) => dataSource.Equals(DuckDBConnectionStringBuilder.InMemory, StringComparison.OrdinalIgnoreCase);
     }
 }

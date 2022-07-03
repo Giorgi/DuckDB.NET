@@ -1,22 +1,21 @@
-using System;
-using DuckDB.NET.Data.ConnectionString;
+using System.Data.Common;
 
 namespace DuckDB.NET.Data
 {
-    public class DuckDBConnectionStringBuilder : IDuckDBConnectionString
+    public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
     {
-        public const string InMemory = ":memory:";
+        public const string InMemoryDataSource = ":memory:";
+        public const string InMemoryConnectionString = "DataSource=:memory:";
         
-        public string DataSource { get; set; }
+        internal static readonly string[] DataSourceKeys = {"Data Source", "DataSource"};
+        private const string DataSourceKey = "DataSource";
 
-        public override string ToString()
+        private string dataSource = null;
+        
+        public string DataSource
         {
-            if (string.IsNullOrEmpty(DataSource))
-            {
-                throw new InvalidCastException("DataSource must be specified.");
-            }
-
-            return $"DataSource = {DataSource}";
+            get => dataSource;
+            set => this[DataSourceKey] = dataSource = value;
         }
     }
 }

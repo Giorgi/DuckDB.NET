@@ -1,11 +1,6 @@
 namespace DuckDB.NET.Data.ConnectionString
 {
-    internal interface IDuckDBConnectionString
-    {
-        string DataSource { get; }
-    }
-
-    internal class DuckDBConnectionString : IDuckDBConnectionString
+    internal class DuckDBConnectionString
     {
         public string DataSource { get; }
 

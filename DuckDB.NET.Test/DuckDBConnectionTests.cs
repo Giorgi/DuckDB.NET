@@ -239,7 +239,7 @@ namespace DuckDB.NET.Test
                 var command = con.CreateCommand();
                 command.CommandText = "SELECT 42;";
                 command.ExecuteScalar();
-            }).Should().ThrowExactly<DuckDBException>();
+            }).Should().ThrowExactly<InvalidOperationException>();
             
             connection.Open();
             connection.State.Should().Be(ConnectionState.Open);

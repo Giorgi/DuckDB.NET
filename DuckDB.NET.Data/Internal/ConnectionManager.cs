@@ -14,7 +14,7 @@ namespace DuckDB.NET.Data.Internal
 
         private static readonly ConcurrentDictionary<string, FileRef> ConnectionCache = new(StringComparer.OrdinalIgnoreCase);
 
-        internal ConnectionReference GetConnectionReference(IDuckDBConnectionString connectionString)
+        internal ConnectionReference GetConnectionReference(DuckDBConnectionString connectionString)
         {
             var filename = connectionString.DataSource;
 

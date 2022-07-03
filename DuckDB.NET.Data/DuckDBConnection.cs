@@ -12,19 +12,12 @@ namespace DuckDB.NET.Data
         private ConnectionManager connectionManager = ConnectionManager.Default;
         private ConnectionReference connectionReference;
         private ConnectionState connectionState = ConnectionState.Closed;
-        private readonly DuckDBConnectionStringBuilder? connectionStringBuilder = null; 
 
         internal DbTransaction? Transaction { get; set; }
 
         public DuckDBConnection(string connectionString)
         {
             ConnectionString = connectionString;
-        }
-
-        public DuckDBConnection(DuckDBConnectionStringBuilder builder)
-        {
-            connectionStringBuilder = builder;
-            ConnectionString = builder.ToString();
         }
 
         public override string ConnectionString { get; set; }
@@ -61,7 +54,7 @@ namespace DuckDB.NET.Data
                 throw new InvalidOperationException("Connection is already open.");
             }
 
-            var connectionString = connectionStringBuilder ?? DuckDBConnectionStringParser.Parse(ConnectionString);
+            var connectionString = DuckDBConnectionStringParser.Parse(ConnectionString);
 
             connectionReference = connectionManager.GetConnectionReference(connectionString);
 
