@@ -149,12 +149,6 @@ namespace DuckDB.NET
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_prepare")]
             public static extern void DuckDBDestroyPrepare(out IntPtr preparedStatement);
         }
-        
-        public static class Helpers
-        {
-            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_free")]
-            public static extern void DuckDBFree(IntPtr ptr);
-        }
 
         public static class Appender
         {
@@ -169,6 +163,9 @@ namespace DuckDB.NET
 
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_appender_end_row")]
             public static extern DuckDBState DuckDBAppenderEndRow(DuckDBAppender appender);
+
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_appender_destroy")]
+            public static extern DuckDBState DuckDBDestroyAppender(out IntPtr appender);
 
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_append_bool")]
             public static extern DuckDBState DuckDBAppendBool(DuckDBAppender appender, bool val);
@@ -208,9 +205,12 @@ namespace DuckDB.NET
 
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_append_null")]
             public static extern DuckDBState DuckDBAppendNull(DuckDBAppender appender);
+        }
 
-            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_appender_destroy")]
-            public static extern DuckDBState DuckDBDestroyAppender(out IntPtr appender);
+        public static class Helpers
+        {
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_free")]
+            public static extern void DuckDBFree(IntPtr ptr);
         }
     }
 }
