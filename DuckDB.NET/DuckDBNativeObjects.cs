@@ -68,7 +68,7 @@ namespace DuckDB.NET
         private IntPtr columns;
 
         [Obsolete]
-        private string ErrorMessage;
+        private IntPtr ErrorMessage;
 
         private IntPtr internal_data;
     }
