@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageId>DuckDB.NET.Bindings.Data</PackageId>
+    <PackageId>DuckDB.NET.Data</PackageId>
     <Authors>Giorgi Dalakishvili</Authors>
     <Company>Giorgi Dalakishvili</Company>
     <Product>DuckDB.NET.Bindings.Data</Product>
