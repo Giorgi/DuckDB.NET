@@ -8,7 +8,7 @@
 [![](https://img.shields.io/nuget/dt/DuckDB.NET.Data.svg?label=DuckDB.NET.Data&style=for-the-badge&logo=NuGet)](https://www.nuget.org/packages/DuckDB.NET.Data/)
 [![](https://img.shields.io/nuget/dt/DuckDB.NET.Bindings.svg?label=DuckDB.NET.Bindings&style=for-the-badge&logo=NuGet)](https://www.nuget.org/packages/DuckDB.NET.Bindings/)
 
-![Project Icon](Logo.jpg "GraphQLinq Project Icon")
+![Project Icon](Logo.jpg "DuckDB.NET Project Icon")
 
 Note: The library is in early stage and contributions are more than wellcome.
 
