@@ -17,13 +17,13 @@ namespace DuckDB.NET.Test
             using (database)
             using (connection)
             {
-                var table = "CREATE TABLE test(a INTEGER, b BOOLEAN);";
+                var table = "CREATE TABLE queryTest(a INTEGER, b BOOLEAN);";
                 result = NativeMethods.Query.DuckDBQuery(connection, table.ToUnmanagedString(), null);
                 result.Should().Be(DuckDBState.DuckDBSuccess);
 
 
                 var queryResult = new DuckDBResult();
-                var insert = "INSERT INTO test VALUES (1, TRUE), (2, FALSE), (3, TRUE);";
+                var insert = "INSERT INTO queryTest VALUES (1, TRUE), (2, FALSE), (3, TRUE);";
                 result = NativeMethods.Query.DuckDBQuery(connection, insert.ToUnmanagedString(), queryResult);
                 result.Should().Be(DuckDBState.DuckDBSuccess);
 
@@ -33,7 +33,7 @@ namespace DuckDB.NET.Test
                 NativeMethods.Query.DuckDBDestroyResult(queryResult);
 
 
-                var query = "SELECT * FROM test;";
+                var query = "SELECT * FROM queryTest;";
                 result = NativeMethods.Query.DuckDBQuery(connection, query.ToUnmanagedString(), queryResult);
                 result.Should().Be(DuckDBState.DuckDBSuccess);
 

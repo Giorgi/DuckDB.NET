@@ -40,18 +40,18 @@ namespace DuckDB.NET.Test
             connection.Open();
 
             var command = connection.CreateCommand();
-            command.CommandText = "CREATE TABLE users (id INTEGER, name TEXT);";
+            command.CommandText = "CREATE TABLE scalarUsers (id INTEGER, name TEXT);";
             command.ExecuteNonQuery();
 
-            command.CommandText = "INSERT INTO users VALUES (1, 'user1'), (2, 'user2'), (3, 'user3');";
+            command.CommandText = "INSERT INTO scalarUsers VALUES (1, 'user1'), (2, 'user2'), (3, 'user3');";
             var affectedRows = command.ExecuteNonQuery();
             affectedRows.Should().Be(3);
 
-            command.CommandText = "SELECT name FROM users LIMIT 1;";
+            command.CommandText = "SELECT name FROM scalarUsers LIMIT 1;";
             var scalar = command.ExecuteScalar();
             scalar.Should().Be("user1");
             
-            command.CommandText = "SELECT name, id FROM users WHERE id = 1;";
+            command.CommandText = "SELECT name, id FROM scalarUsers WHERE id = 1;";
             scalar = command.ExecuteScalar();
             scalar.Should().Be("user1");
         }

@@ -18,11 +18,11 @@ namespace DuckDB.NET.Test
              using (database)
              using (connection)
              {
-                 var table = "CREATE TABLE test(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR);";
+                 var table = "CREATE TABLE appenderTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR);";
                  result = NativeMethods.Query.DuckDBQuery(connection, table.ToUnmanagedString(), null);
                  result.Should().Be(DuckDBState.DuckDBSuccess);
 
-                 result = NativeMethods.Appender.DuckDBAppenderCreate(connection, null, "test", out var appender);
+                 result = NativeMethods.Appender.DuckDBAppenderCreate(connection, null, "appenderTest", out var appender);
                  result.Should().Be(DuckDBState.DuckDBSuccess);
 
                  var rows = 10;
@@ -47,7 +47,7 @@ namespace DuckDB.NET.Test
                  }
 
                  var queryResult = new DuckDBResult();
-                 var query = "SELECT * FROM test";
+                 var query = "SELECT * FROM appenderTest";
                  result = NativeMethods.Query.DuckDBQuery(connection, query.ToUnmanagedString(), queryResult);
                  result.Should().Be(DuckDBState.DuckDBSuccess);
 
