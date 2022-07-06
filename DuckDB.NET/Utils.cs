@@ -18,7 +18,7 @@ namespace DuckDB.NET
                 return "";
             }
 
-            var result = Marshal.PtrToStringAnsi(unmanagedString);
+            var result = Marshal.PtrToStringUTF8(unmanagedString);
 
             if (freeWhenCopied)
             {
