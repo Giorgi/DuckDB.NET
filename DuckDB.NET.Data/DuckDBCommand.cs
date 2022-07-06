@@ -57,9 +57,7 @@ namespace DuckDB.NET.Data
             EnsureConnectionOpen();
             
             using var reader = ExecuteReader();
-            if (!reader.Read())
-                return null;
-            return reader.GetValue(0);
+            return reader.Read() ? reader.GetValue(0) : null;
         }
 
         public override void Prepare()
@@ -103,7 +101,9 @@ namespace DuckDB.NET.Data
         private void EnsureConnectionOpen([CallerMemberName]string operation = "")
         {
             if (connection.State != ConnectionState.Open)
+            {
                 throw new InvalidOperationException($"{operation} requires an open connection");
+            }
         }
     }
 }

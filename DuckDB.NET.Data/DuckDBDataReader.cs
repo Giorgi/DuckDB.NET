@@ -13,7 +13,7 @@ namespace DuckDB.NET.Data
         private readonly DuckDbCommand command;
         private readonly CommandBehavior behavior;
 
-        private DuckDBResult queryResult;
+        private readonly DuckDBResult queryResult;
 
         private int currentRow = -1;
         private bool closed = false;
@@ -25,17 +25,14 @@ namespace DuckDB.NET.Data
 
             using var unmanagedString = command.CommandText.ToUnmanagedString();
             queryResult = new DuckDBResult();
-            var state = NativeMethods.Query.DuckDBQuery(command.DBNativeConnection, unmanagedString, queryResult);
 
-            var errorMessage = NativeMethods.Query.DuckDBResultError(queryResult).ToManagedString(false);
-            if (!string.IsNullOrEmpty(errorMessage))
-            {
-                throw new DuckDBException(errorMessage, state);
-            }
+            var result = NativeMethods.Query.DuckDBQuery(command.DBNativeConnection, unmanagedString, queryResult);
 
-            if (!state.IsSuccess())
+            if (!result.IsSuccess())
             {
-                throw new DuckDBException("DuckDBQuery failed", state);
+                var errorMessage = NativeMethods.Query.DuckDBResultError(queryResult).ToManagedString(false);
+                NativeMethods.Query.DuckDBDestroyResult(queryResult);
+                throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, result);
             }
 
             HasRows = NativeMethods.Query.DuckDBRowCount(queryResult) > 0;
@@ -152,7 +149,9 @@ namespace DuckDB.NET.Data
             {
                 var columnName = NativeMethods.Query.DuckDBColumnName(queryResult, i).ToManagedString(false);
                 if (name == columnName)
+                {
                     return i;
+                }
             }
 
             throw new DuckDBException($"Column with name {name} was not found.");
