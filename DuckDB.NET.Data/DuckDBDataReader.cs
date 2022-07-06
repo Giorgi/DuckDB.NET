@@ -105,7 +105,8 @@ namespace DuckDB.NET.Data
                 DuckDBType.DuckdbTypeInterval => throw new NotImplementedException(),
                 DuckDBType.DuckdbTypeHugeInt => typeof(BigInteger),
                 DuckDBType.DuckdbTypeVarchar => typeof(string),
-                _ => throw new ArgumentException("Unrecognised type")
+                DuckDBType.DuckdbTypeDecimal => typeof(Decimal),
+                var typ => throw new ArgumentException($"Unrecognised type {typ} in column {ordinal+1}")
             };
         }
 
