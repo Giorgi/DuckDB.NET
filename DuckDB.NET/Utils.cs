@@ -18,28 +18,14 @@ namespace DuckDB.NET
                 return "";
             }
 
-            var length = 0;
-
-            while (Marshal.ReadByte(unmanagedString, length) != 0)
-            {
-                length++;
-            }
-
-            if (length == 0)
-            {
-                return string.Empty;
-            }
-
-            var byteArray = new byte[length];
-
-            Marshal.Copy(unmanagedString, byteArray, 0, length);
+            var result = Marshal.PtrToStringAnsi(unmanagedString);
 
             if (freeWhenCopied)
             {
                 NativeMethods.Helpers.DuckDBFree(unmanagedString);
             }
 
-            return Encoding.UTF8.GetString(byteArray, 0, length);
+            return result;
         }
 
         public static SafeUnmanagedMemoryHandle ToUnmanagedString(this string managedString)
