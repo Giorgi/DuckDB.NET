@@ -34,17 +34,22 @@ namespace DuckDB.NET.Data
             
             using var unmanagedString = CommandText.ToUnmanagedString();
             var queryResult = new DuckDBResult();
-            var result = NativeMethods.Query.DuckDBQuery(connection.NativeConnection, unmanagedString, queryResult);
-
-            if (!result.IsSuccess())
+            try
             {
-                var errorMessage = NativeMethods.Query.DuckDBResultError(queryResult).ToManagedString(false);
+                var result = NativeMethods.Query.DuckDBQuery(connection.NativeConnection, unmanagedString, queryResult);
 
-                NativeMethods.Query.DuckDBDestroyResult(queryResult);
-                throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, result);
+                if (!result.IsSuccess())
+                {
+                    var errorMessage = NativeMethods.Query.DuckDBResultError(queryResult).ToManagedString(false);
+                    throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, result);
+                }
+
+                return (int)NativeMethods.Query.DuckDBRowsChanged(queryResult);
             }
-
-            return (int)NativeMethods.Query.DuckDBRowsChanged(queryResult);
+            finally
+            {
+                NativeMethods.Query.DuckDBDestroyResult(queryResult);
+            }
         }
 
         public override object ExecuteScalar()
