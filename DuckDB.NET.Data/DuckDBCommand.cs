@@ -34,7 +34,8 @@ namespace DuckDB.NET.Data
             
             using var unmanagedString = CommandText.ToUnmanagedString();
             var queryResult = new DuckDBResult();
-            try {
+            try
+            {
                 var result = NativeMethods.Query.DuckDBQuery(connection.NativeConnection, unmanagedString, queryResult);
 
                 if (!result.IsSuccess())
@@ -45,7 +46,8 @@ namespace DuckDB.NET.Data
 
                 return (int)NativeMethods.Query.DuckDBRowsChanged(queryResult);
             }
-            finally {
+            finally
+            {
                 NativeMethods.Query.DuckDBDestroyResult(queryResult);
             }
         }
