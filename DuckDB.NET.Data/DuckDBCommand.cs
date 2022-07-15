@@ -8,6 +8,13 @@ namespace DuckDB.NET.Data
     public class DuckDbCommand : DbCommand
     {
         private DuckDBConnection connection;
+        private readonly DuckDBDbParameterCollection parameters = new DuckDBDbParameterCollection();
+        
+        internal DuckDBNativeConnection DBNativeConnection => connection.NativeConnection;
+
+        protected override DbParameterCollection DbParameterCollection => parameters;
+        protected override DbTransaction DbTransaction { get; set; }
+        public override bool DesignTimeVisible { get; set; }
 
         public DuckDbCommand()
         {
@@ -31,25 +38,8 @@ namespace DuckDB.NET.Data
         public override int ExecuteNonQuery()
         {
             EnsureConnectionOpen();
-            
-            using var unmanagedString = CommandText.ToUnmanagedString();
-            var queryResult = new DuckDBResult();
-            try
-            {
-                var result = NativeMethods.Query.DuckDBQuery(connection.NativeConnection, unmanagedString, queryResult);
-
-                if (!result.IsSuccess())
-                {
-                    var errorMessage = NativeMethods.Query.DuckDBResultError(queryResult).ToManagedString(false);
-                    throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, result);
-                }
-
-                return (int)NativeMethods.Query.DuckDBRowsChanged(queryResult);
-            }
-            finally
-            {
-                NativeMethods.Query.DuckDBDestroyResult(queryResult);
-            }
+            using var queryResult = DuckDBStatementExecutor.Execute(connection.NativeConnection, CommandText, parameters);
+            return (int)NativeMethods.Query.DuckDBRowsChanged(queryResult.NativeHandle);
         }
 
         public override object ExecuteScalar()
@@ -75,22 +65,13 @@ namespace DuckDB.NET.Data
             get => connection;
             set => connection = (DuckDBConnection)value;
         }
-
-        internal DuckDBNativeConnection DBNativeConnection => connection.NativeConnection;
-
-        protected override DbParameterCollection DbParameterCollection { get; } = new DuckDBDbParameterCollection();
-        protected override DbTransaction DbTransaction { get; set; }
-        public override bool DesignTimeVisible { get; set; }
-
-        protected override DbParameter CreateDbParameter()
-        {
-            throw new NotImplementedException();
-        }
+        
+        protected override DbParameter CreateDbParameter() => new DuckDBParameter();
 
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
         {
             EnsureConnectionOpen();
-            return new DuckDBDataReader(this, behavior);
+            return new DuckDBDataReader(this, behavior, parameters);
         }
 
         internal void CloseConnection()
