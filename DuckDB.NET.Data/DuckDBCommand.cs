@@ -9,13 +9,34 @@ namespace DuckDB.NET.Data
     {
         private DuckDBConnection connection;
         private readonly DuckDBDbParameterCollection parameters = new DuckDBDbParameterCollection();
-        
-        internal DuckDBNativeConnection DBNativeConnection => connection.NativeConnection;
+
+        private PreparedStatement preparedStatement = null;
+        private string commandText;
 
         protected override DbParameterCollection DbParameterCollection => parameters;
         protected override DbTransaction DbTransaction { get; set; }
         public override bool DesignTimeVisible { get; set; }
 
+        public override string CommandText
+        {
+            get => commandText;
+            set
+            {
+                commandText = value;
+                preparedStatement?.Dispose();
+            }
+        }
+        
+        public override int CommandTimeout { get; set; }
+        public override CommandType CommandType { get; set; }
+        public override UpdateRowSource UpdatedRowSource { get; set; }
+
+        protected override DbConnection DbConnection
+        {
+            get => connection;
+            set => connection = (DuckDBConnection)value;
+        }
+        
         public DuckDbCommand()
         {
         }
@@ -38,7 +59,10 @@ namespace DuckDB.NET.Data
         public override int ExecuteNonQuery()
         {
             EnsureConnectionOpen();
-            using var queryResult = DuckDBStatementExecutor.Execute(connection.NativeConnection, CommandText, parameters);
+            
+            Prepare();
+
+            using var queryResult = preparedStatement.Execute(parameters);
             return (int)NativeMethods.Query.DuckDBRowsChanged(queryResult.NativeHandle);
         }
 
@@ -52,26 +76,29 @@ namespace DuckDB.NET.Data
 
         public override void Prepare()
         {
-            throw new NotImplementedException();
+            preparedStatement = PreparedStatement.Prepare(connection.NativeConnection, CommandText);
         }
 
-        public override string CommandText { get; set; }
-        public override int CommandTimeout { get; set; }
-        public override CommandType CommandType { get; set; }
-        public override UpdateRowSource UpdatedRowSource { get; set; }
-
-        protected override DbConnection DbConnection
-        {
-            get => connection;
-            set => connection = (DuckDBConnection)value;
-        }
-        
         protected override DbParameter CreateDbParameter() => new DuckDBParameter();
 
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
         {
             EnsureConnectionOpen();
-            return new DuckDBDataReader(this, behavior, parameters);
+            
+            Prepare();
+
+            DuckDBQueryResult queryResult = null;
+            try
+            {
+                queryResult = preparedStatement.Execute(parameters);
+                var reader = new DuckDBDataReader(this, queryResult, behavior);
+                queryResult = null;
+                return reader;
+            }
+            finally
+            {
+                queryResult?.Dispose();
+            }
         }
 
         internal void CloseConnection()

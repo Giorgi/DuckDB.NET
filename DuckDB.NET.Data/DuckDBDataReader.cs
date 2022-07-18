@@ -18,12 +18,11 @@ namespace DuckDB.NET.Data
         private int currentRow = -1;
         private bool closed = false;
 
-        internal DuckDBDataReader(DuckDbCommand command, CommandBehavior behavior, DuckDBDbParameterCollection parameterCollection)
+        internal DuckDBDataReader(DuckDbCommand command, DuckDBQueryResult queryResult, CommandBehavior behavior)
         {
             this.command = command;
             this.behavior = behavior;
-
-            queryResult = DuckDBStatementExecutor.Execute(command.DBNativeConnection, command.CommandText, parameterCollection);
+            this.queryResult = queryResult;
 
             HasRows = NativeMethods.Query.DuckDBRowCount(queryResult.NativeHandle) > 0;
             FieldCount = (int)NativeMethods.Query.DuckDBColumnCount(queryResult.NativeHandle);
@@ -230,7 +229,9 @@ namespace DuckDB.NET.Data
 
         public override void Close()
         {
-            NativeMethods.Query.DuckDBDestroyResult(queryResult.NativeHandle);
+            if (closed) return;
+            
+            queryResult.Dispose();
 
             if (behavior == CommandBehavior.CloseConnection)
             {
@@ -238,13 +239,6 @@ namespace DuckDB.NET.Data
             }
 
             closed = true;
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            base.Dispose(disposing);
-            
-            queryResult.Dispose();
         }
     }
 }

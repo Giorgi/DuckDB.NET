@@ -1,3 +1,4 @@
+using System;
 using Dapper;
 using DuckDB.NET.Data;
 using DuckDB.NET.Test.Helpers;
@@ -129,6 +130,6 @@ public class ParameterCollectionTests
         connection.Execute("CREATE TABLE DapperParametersObjectBindingFaileTest (a INTEGER, b TEXT);");
 
         connection.Invoking(con => con.Execute(queryStatement, new {param1 = 1, param2 = "hello"}))
-            .Should().ThrowExactly<DuckDBException>();
+            .Should().ThrowExactly<InvalidOperationException>();
     }
 }

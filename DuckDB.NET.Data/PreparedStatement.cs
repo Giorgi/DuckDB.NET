@@ -1,53 +1,75 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 
 namespace DuckDB.NET.Data;
 
-internal static class DuckDBStatementExecutor
+internal sealed class PreparedStatement : IDisposable
 {
-    private static readonly Dictionary<Type, Func<DuckDBPreparedStatement, long, object, DuckDBState>> Binders =
-        new Dictionary<Type, Func<DuckDBPreparedStatement, long, object, DuckDBState>>
+    private static readonly Dictionary<DbType, Func<DuckDBPreparedStatement, long, object, DuckDBState>> Binders =
+        new Dictionary<DbType, Func<DuckDBPreparedStatement, long, object, DuckDBState>>
         {
-            {typeof(bool), BindBoolean},
-            {typeof(sbyte), BindInt8},
-            {typeof(short), BindInt16},
-            {typeof(int), BindInt32},
-            {typeof(long), BindInt64},
-            {typeof(float), BindFloat},
-            {typeof(double), BindDouble},
-            {typeof(string), BindString},
+            {DbType.Boolean, BindBoolean},
+            {DbType.SByte, BindInt8},
+            {DbType.Int16, BindInt16},
+            {DbType.Int32, BindInt32},
+            {DbType.Int64, BindInt64},
+            {DbType.Single, BindFloat},
+            {DbType.Double, BindDouble},
+            {DbType.String, BindString},
         };
+    
+    private readonly DuckDBPreparedStatement statement;
 
-    public static DuckDBQueryResult Execute(DuckDBNativeConnection connection, string query, DuckDBDbParameterCollection parameterCollection)
+    private PreparedStatement(DuckDBPreparedStatement statement)
+    {
+        this.statement = statement;
+    }
+
+    public static PreparedStatement Prepare(DuckDBNativeConnection connection, string query)
     {
         using var unmanagedQuery = query.ToUnmanagedString();
-        var queryResult = new DuckDBResult();
         DuckDBPreparedStatement preparedStatement = null;
         try
         {
-            var result = NativeMethods.PreparedStatements.DuckDBPrepare(connection, unmanagedQuery, out preparedStatement);
-            if (!result.IsSuccess())
+            var status = NativeMethods.PreparedStatements.DuckDBPrepare(connection, unmanagedQuery, out preparedStatement);
+            if (!status.IsSuccess())
             {
                 var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(preparedStatement).ToManagedString(false);
-                throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, result);
+                throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, status);
             }
 
-            BindParameters(preparedStatement, parameterCollection);
-            
-            result = NativeMethods.PreparedStatements.DuckDBExecutePrepared(preparedStatement, queryResult);
-            if (!result.IsSuccess())
-            {
-                var errorMessage = NativeMethods.Query.DuckDBResultError(queryResult).ToManagedString(false);
-                throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, result);
-            }
-
-            var tmp = queryResult;
-            queryResult = null;
-            return new DuckDBQueryResult(tmp);
+            var result = new PreparedStatement(preparedStatement);
+            preparedStatement = null;
+            return result;
         }
         finally
         {
             preparedStatement?.Dispose();
+        }
+    }
+
+    public DuckDBQueryResult Execute(DuckDBDbParameterCollection parameterCollection)
+    {
+        var queryResult = new DuckDBResult();
+        try
+        {
+            BindParameters(statement, parameterCollection);
+
+            var status = NativeMethods.PreparedStatements.DuckDBExecutePrepared(statement, queryResult);
+            if (!status.IsSuccess())
+            {
+                var errorMessage = NativeMethods.Query.DuckDBResultError(queryResult).ToManagedString(false);
+                throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage,
+                    status);
+            }
+
+            var result = new DuckDBQueryResult(queryResult);
+            queryResult = null;
+            return result;
+        }
+        finally
+        {
             if (queryResult != null)
                 NativeMethods.Query.DuckDBDestroyResult(queryResult);
         }
@@ -55,15 +77,13 @@ internal static class DuckDBStatementExecutor
 
     private static void BindParameters(DuckDBPreparedStatement preparedStatement, DuckDBDbParameterCollection parameterCollection)
     {
-        if (parameterCollection == null || parameterCollection.Count == 0) return;
-
         var expectedParameters = NativeMethods.PreparedStatements.DuckDBParams(preparedStatement);
         if (expectedParameters != parameterCollection.Count)
             throw new InvalidOperationException($"Invalid number of parameters. Expected {expectedParameters}, got {parameterCollection.Count}");
         
         for (var i = 0; i < parameterCollection.Count; ++i)
         {
-            var param = (DuckDBParameter)parameterCollection[i];
+            var param = parameterCollection[i];
             BindParameter(preparedStatement, i + 1, param);
         }
     }
@@ -75,10 +95,8 @@ internal static class DuckDBStatementExecutor
             NativeMethods.PreparedStatements.DuckDBBindNull(preparedStatement, index);
             return;
         }
-
-        var paramType = parameter.Value.GetType();
-        if (!Binders.TryGetValue(paramType, out var binder))
-            throw new InvalidOperationException($"Unable to bind value of type {paramType.FullName}.");
+        if (!Binders.TryGetValue(parameter.DbType, out var binder))
+            throw new InvalidOperationException($"Unable to bind value of type {parameter.DbType}.");
         var result = binder(preparedStatement, index, parameter.Value);
         if (!result.IsSuccess())
         {
@@ -112,5 +130,10 @@ internal static class DuckDBStatementExecutor
     {
         using var unmanagedString = ((string) value).ToUnmanagedString();
         return NativeMethods.PreparedStatements.DuckDBBindVarchar(preparedStatement, index, unmanagedString);
+    }
+
+    public void Dispose()
+    {
+        statement?.Dispose();
     }
 }

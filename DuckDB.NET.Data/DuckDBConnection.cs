@@ -13,7 +13,7 @@ namespace DuckDB.NET.Data
         private ConnectionReference connectionReference;
         private ConnectionState connectionState = ConnectionState.Closed;
 
-        internal DbTransaction? Transaction { get; set; }
+        internal DbTransaction Transaction { get; set; }
 
         public DuckDBConnection(string connectionString)
         {

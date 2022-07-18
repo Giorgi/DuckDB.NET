@@ -10,6 +10,18 @@ internal class DuckDBDbParameterCollection : DbParameterCollection
 {
     private readonly List<DuckDBParameter> parameters = new List<DuckDBParameter>();
 
+    public new DuckDBParameter this[int index]
+    {
+        get => parameters[index];
+        set => parameters[index] = value;
+    }
+
+    public new DuckDBParameter this[string parameterName]
+    {
+        get => this[IndexOfSafe(parameterName)];
+        set => this[IndexOfSafe(parameterName)] = value;
+    }
+    
     public override int Count => parameters.Count;
     public override object SyncRoot => ((ICollection)parameters).SyncRoot;
     
@@ -29,6 +41,21 @@ internal class DuckDBDbParameterCollection : DbParameterCollection
 
     public override void Remove(object value) => parameters.Remove((DuckDBParameter) value);
 
+    public int Add(DuckDBParameter value)
+    {
+        parameters.Add(value);
+        return parameters.Count - 1;
+    }
+    
+    public bool Contains(DuckDBParameter value) => parameters.Contains(value);
+
+    public int IndexOf(DuckDBParameter value) => parameters.IndexOf(value);
+
+    public void Insert(int index, DuckDBParameter value) => parameters.Insert(index, value);
+
+    public void Remove(DuckDBParameter value) => parameters.Remove(value);
+
+    
     public override void RemoveAt(int index) => parameters.RemoveAt(index);
 
     public override void RemoveAt(string parameterName)
@@ -47,20 +74,16 @@ internal class DuckDBDbParameterCollection : DbParameterCollection
     }
 
     public override int IndexOf(string parameterName)
-    {
-        for (var i = 0; i < parameters.Count; ++i)
-        {
-            if (parameters[i].ParameterName.Equals(parameterName, StringComparison.Ordinal))
-                return i;
-        }
-        return -1;
-    }
+        => parameters.FindIndex(p => p.ParameterName.Equals(parameterName, StringComparison.Ordinal));
 
     public override bool Contains(string value)
         => IndexOf(value) != -1;
 
     public override void CopyTo(Array array, int index)
         => parameters.CopyTo((DuckDBParameter[])array, index);
+    
+    public void CopyTo(DuckDBParameter[] array, int index)
+        => parameters.CopyTo(array, index);
 
     public override IEnumerator GetEnumerator() => parameters.GetEnumerator();
 
@@ -73,7 +96,10 @@ internal class DuckDBDbParameterCollection : DbParameterCollection
     }
 
     public override void AddRange(Array values)
-        => parameters.AddRange(values.Cast<DuckDBParameter>());
+        => AddRange(values.Cast<DuckDBParameter>());
+    
+    public void AddRange(IEnumerable<DuckDBParameter> values)
+        => parameters.AddRange(values);
 
     private int IndexOfSafe(string parameterName)
     {
