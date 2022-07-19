@@ -23,7 +23,7 @@ public class ParameterCollectionTests
         command.Parameters.Add(new DuckDBParameter("test", 42));
         command.CommandText = query;
         var scalar = command.ExecuteScalar();
-        scalar.Should().Be("42");
+        scalar.Should().Be(42);
     }
 
     [Theory]
