@@ -29,24 +29,17 @@ internal sealed class PreparedStatement : IDisposable
     public static PreparedStatement Prepare(DuckDBNativeConnection connection, string query)
     {
         using var unmanagedQuery = query.ToUnmanagedString();
-        DuckDBPreparedStatement preparedStatement = null;
-        try
-        {
-            var status = NativeMethods.PreparedStatements.DuckDBPrepare(connection, unmanagedQuery, out preparedStatement);
-            if (!status.IsSuccess())
-            {
-                var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(preparedStatement).ToManagedString(false);
-                throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, status);
-            }
 
-            var result = new PreparedStatement(preparedStatement);
-            preparedStatement = null;
-            return result;
-        }
-        finally
+        var status = NativeMethods.PreparedStatements.DuckDBPrepare(connection, unmanagedQuery, out var preparedStatement);
+        if (!status.IsSuccess())
         {
-            preparedStatement?.Dispose();
+            var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(preparedStatement).ToManagedString(false);
+            preparedStatement.Dispose();
+            throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, status);
         }
+
+        var result = new PreparedStatement(preparedStatement);
+        return result;
     }
 
     public DuckDBQueryResult Execute(DuckDBDbParameterCollection parameterCollection)
@@ -95,8 +88,12 @@ internal sealed class PreparedStatement : IDisposable
             NativeMethods.PreparedStatements.DuckDBBindNull(preparedStatement, index);
             return;
         }
+
         if (!Binders.TryGetValue(parameter.DbType, out var binder))
+        {
             throw new InvalidOperationException($"Unable to bind value of type {parameter.DbType}.");
+        }
+
         var result = binder(preparedStatement, index, parameter.Value);
         if (!result.IsSuccess())
         {

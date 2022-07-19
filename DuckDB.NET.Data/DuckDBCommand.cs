@@ -13,9 +13,13 @@ namespace DuckDB.NET.Data
         private PreparedStatement preparedStatement = null;
         private string commandText;
 
-        protected override DbParameterCollection DbParameterCollection => parameters;
-        protected override DbTransaction DbTransaction { get; set; }
         public override bool DesignTimeVisible { get; set; }
+        protected override DbTransaction DbTransaction { get; set; }
+        protected override DbParameterCollection DbParameterCollection => parameters;
+
+        public override int CommandTimeout { get; set; }
+        public override CommandType CommandType { get; set; }
+        public override UpdateRowSource UpdatedRowSource { get; set; }
 
         public override string CommandText
         {
@@ -24,19 +28,16 @@ namespace DuckDB.NET.Data
             {
                 commandText = value;
                 preparedStatement?.Dispose();
+                preparedStatement = null;
             }
         }
-        
-        public override int CommandTimeout { get; set; }
-        public override CommandType CommandType { get; set; }
-        public override UpdateRowSource UpdatedRowSource { get; set; }
 
         protected override DbConnection DbConnection
         {
             get => connection;
             set => connection = (DuckDBConnection)value;
         }
-        
+
         public DuckDbCommand()
         {
         }
@@ -59,7 +60,7 @@ namespace DuckDB.NET.Data
         public override int ExecuteNonQuery()
         {
             EnsureConnectionOpen();
-            
+
             Prepare();
 
             using var queryResult = preparedStatement.Execute(parameters);
@@ -69,14 +70,14 @@ namespace DuckDB.NET.Data
         public override object ExecuteScalar()
         {
             EnsureConnectionOpen();
-            
+
             using var reader = ExecuteReader();
             return reader.Read() ? reader.GetValue(0) : null;
         }
 
         public override void Prepare()
         {
-            preparedStatement = PreparedStatement.Prepare(connection.NativeConnection, CommandText);
+            preparedStatement ??= PreparedStatement.Prepare(connection.NativeConnection, CommandText);
         }
 
         protected override DbParameter CreateDbParameter() => new DuckDBParameter();
@@ -84,7 +85,7 @@ namespace DuckDB.NET.Data
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
         {
             EnsureConnectionOpen();
-            
+
             Prepare();
 
             DuckDBQueryResult queryResult = null;
@@ -101,12 +102,17 @@ namespace DuckDB.NET.Data
             }
         }
 
+        protected override void Dispose(bool disposing)
+        {
+            preparedStatement?.Dispose();
+        }
+
         internal void CloseConnection()
         {
             Connection.Close();
         }
 
-        private void EnsureConnectionOpen([CallerMemberName]string operation = "")
+        private void EnsureConnectionOpen([CallerMemberName] string operation = "")
         {
             if (connection.State != ConnectionState.Open)
             {

@@ -26,7 +26,7 @@ namespace DuckDB.NET.Data
 
         public override string DataSource { get; }
 
-        public DuckDBNativeConnection NativeConnection => connectionReference.NativeConnection;
+        internal DuckDBNativeConnection NativeConnection => connectionReference.NativeConnection;
 
         public override string ServerVersion { get; }
 
