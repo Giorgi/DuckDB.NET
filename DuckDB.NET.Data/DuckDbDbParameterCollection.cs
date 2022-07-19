@@ -1,96 +1,111 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Data.Common;
+using System.Linq;
 
 namespace DuckDB.NET.Data;
 
-class DuckDBDbParameterCollection : DbParameterCollection
+internal class DuckDBDbParameterCollection : DbParameterCollection
 {
+    private readonly List<DuckDBParameter> parameters = new List<DuckDBParameter>();
+
+    public new DuckDBParameter this[int index]
+    {
+        get => parameters[index];
+        set => parameters[index] = value;
+    }
+
+    public new DuckDBParameter this[string parameterName]
+    {
+        get => this[IndexOfSafe(parameterName)];
+        set => this[IndexOfSafe(parameterName)] = value;
+    }
+    
+    public override int Count => parameters.Count;
+    public override object SyncRoot => ((ICollection)parameters).SyncRoot;
+    
     public override int Add(object value)
     {
-        throw new NotImplementedException();
+        parameters.Add((DuckDBParameter)value);
+        return parameters.Count - 1;
     }
 
-    public override void Clear()
-    {
-        
-    }
+    public override void Clear() => parameters.Clear();
 
-    public override bool Contains(object value)
-    {
-        throw new NotImplementedException();
-    }
+    public override bool Contains(object value) => parameters.Contains((DuckDBParameter) value);
 
-    public override int IndexOf(object value)
-    {
-        throw new NotImplementedException();
-    }
+    public override int IndexOf(object value) => parameters.IndexOf((DuckDBParameter) value);
 
-    public override void Insert(int index, object value)
-    {
-        throw new NotImplementedException();
-    }
+    public override void Insert(int index, object value) => parameters.Insert(index, (DuckDBParameter) value);
 
-    public override void Remove(object value)
-    {
-        throw new NotImplementedException();
-    }
+    public override void Remove(object value) => parameters.Remove((DuckDBParameter) value);
 
-    public override void RemoveAt(int index)
+    public int Add(DuckDBParameter value)
     {
-        throw new NotImplementedException();
+        parameters.Add(value);
+        return parameters.Count - 1;
     }
+    
+    public bool Contains(DuckDBParameter value) => parameters.Contains(value);
+
+    public int IndexOf(DuckDBParameter value) => parameters.IndexOf(value);
+
+    public void Insert(int index, DuckDBParameter value) => parameters.Insert(index, value);
+
+    public void Remove(DuckDBParameter value) => parameters.Remove(value);
+
+    
+    public override void RemoveAt(int index) => parameters.RemoveAt(index);
 
     public override void RemoveAt(string parameterName)
     {
-        throw new NotImplementedException();
+        var index = IndexOfSafe(parameterName);
+        parameters.RemoveAt(index);
     }
 
     protected override void SetParameter(int index, DbParameter value)
-    {
-        throw new NotImplementedException();
-    }
+        => parameters[index] = (DuckDBParameter)value;
 
     protected override void SetParameter(string parameterName, DbParameter value)
     {
-        throw new NotImplementedException();
+        var index = IndexOfSafe(parameterName);
+        parameters[index] = (DuckDBParameter)value;
     }
-
-    public override int Count { get; }
-    public override object SyncRoot { get; }
 
     public override int IndexOf(string parameterName)
-    {
-        throw new NotImplementedException();
-    }
+        => parameters.FindIndex(p => p.ParameterName.Equals(parameterName, StringComparison.Ordinal));
 
     public override bool Contains(string value)
-    {
-        throw new NotImplementedException();
-    }
+        => IndexOf(value) != -1;
 
     public override void CopyTo(Array array, int index)
-    {
-        throw new NotImplementedException();
-    }
+        => parameters.CopyTo((DuckDBParameter[])array, index);
+    
+    public void CopyTo(DuckDBParameter[] array, int index)
+        => parameters.CopyTo(array, index);
 
-    public override IEnumerator GetEnumerator()
-    {
-        throw new NotImplementedException();
-    }
+    public override IEnumerator GetEnumerator() => parameters.GetEnumerator();
 
-    protected override DbParameter GetParameter(int index)
-    {
-        throw new NotImplementedException();
-    }
+    protected override DbParameter GetParameter(int index) => parameters[index];
 
     protected override DbParameter GetParameter(string parameterName)
     {
-        throw new NotImplementedException();
+        var index = IndexOf(parameterName);
+        return parameters[index];
     }
 
     public override void AddRange(Array values)
+        => AddRange(values.Cast<DuckDBParameter>());
+    
+    public void AddRange(IEnumerable<DuckDBParameter> values)
+        => parameters.AddRange(values);
+
+    private int IndexOfSafe(string parameterName)
     {
-        throw new NotImplementedException();
+        var index = IndexOf(parameterName);
+        if (index == -1)
+            throw new IndexOutOfRangeException($"Parameter '{parameterName}' not found");
+        return index;
     }
 }

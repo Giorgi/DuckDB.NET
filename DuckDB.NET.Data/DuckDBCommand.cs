@@ -8,7 +8,35 @@ namespace DuckDB.NET.Data
     public class DuckDbCommand : DbCommand
     {
         private DuckDBConnection connection;
+        private readonly DuckDBDbParameterCollection parameters = new DuckDBDbParameterCollection();
 
+        private PreparedStatement preparedStatement = null;
+        private string commandText;
+
+        protected override DbParameterCollection DbParameterCollection => parameters;
+        protected override DbTransaction DbTransaction { get; set; }
+        public override bool DesignTimeVisible { get; set; }
+
+        public override string CommandText
+        {
+            get => commandText;
+            set
+            {
+                commandText = value;
+                preparedStatement?.Dispose();
+            }
+        }
+        
+        public override int CommandTimeout { get; set; }
+        public override CommandType CommandType { get; set; }
+        public override UpdateRowSource UpdatedRowSource { get; set; }
+
+        protected override DbConnection DbConnection
+        {
+            get => connection;
+            set => connection = (DuckDBConnection)value;
+        }
+        
         public DuckDbCommand()
         {
         }
@@ -32,24 +60,10 @@ namespace DuckDB.NET.Data
         {
             EnsureConnectionOpen();
             
-            using var unmanagedString = CommandText.ToUnmanagedString();
-            var queryResult = new DuckDBResult();
-            try
-            {
-                var result = NativeMethods.Query.DuckDBQuery(connection.NativeConnection, unmanagedString, queryResult);
+            Prepare();
 
-                if (!result.IsSuccess())
-                {
-                    var errorMessage = NativeMethods.Query.DuckDBResultError(queryResult).ToManagedString(false);
-                    throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, result);
-                }
-
-                return (int)NativeMethods.Query.DuckDBRowsChanged(queryResult);
-            }
-            finally
-            {
-                NativeMethods.Query.DuckDBDestroyResult(queryResult);
-            }
+            using var queryResult = preparedStatement.Execute(parameters);
+            return (int)NativeMethods.Query.DuckDBRowsChanged(queryResult.NativeHandle);
         }
 
         public override object ExecuteScalar()
@@ -62,35 +76,29 @@ namespace DuckDB.NET.Data
 
         public override void Prepare()
         {
-            throw new NotImplementedException();
+            preparedStatement = PreparedStatement.Prepare(connection.NativeConnection, CommandText);
         }
 
-        public override string CommandText { get; set; }
-        public override int CommandTimeout { get; set; }
-        public override CommandType CommandType { get; set; }
-        public override UpdateRowSource UpdatedRowSource { get; set; }
-
-        protected override DbConnection DbConnection
-        {
-            get => connection;
-            set => connection = (DuckDBConnection)value;
-        }
-
-        internal DuckDBNativeConnection DBNativeConnection => connection.NativeConnection;
-
-        protected override DbParameterCollection DbParameterCollection { get; } = new DuckDBDbParameterCollection();
-        protected override DbTransaction DbTransaction { get; set; }
-        public override bool DesignTimeVisible { get; set; }
-
-        protected override DbParameter CreateDbParameter()
-        {
-            throw new NotImplementedException();
-        }
+        protected override DbParameter CreateDbParameter() => new DuckDBParameter();
 
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
         {
             EnsureConnectionOpen();
-            return new DuckDBDataReader(this, behavior);
+            
+            Prepare();
+
+            DuckDBQueryResult queryResult = null;
+            try
+            {
+                queryResult = preparedStatement.Execute(parameters);
+                var reader = new DuckDBDataReader(this, queryResult, behavior);
+                queryResult = null;
+                return reader;
+            }
+            finally
+            {
+                queryResult?.Dispose();
+            }
         }
 
         internal void CloseConnection()
