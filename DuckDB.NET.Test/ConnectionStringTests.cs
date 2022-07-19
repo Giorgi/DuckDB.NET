@@ -8,7 +8,7 @@ namespace DuckDB.NET.Test
     public class ConnectionStringTests
     {
         [Theory]
-        [InlineData("DataSource=:memory:")]
+        [InlineData(DuckDBConnectionStringBuilder.InMemoryConnectionString)]
         [InlineData("DataSource = :memory:")]
         [InlineData("Data Source=:memory:")]
         [InlineData("Data Source = :memory:")]
@@ -20,7 +20,6 @@ namespace DuckDB.NET.Test
         [InlineData("Data Source    =:memory:")]
         [InlineData("DataSource=:Memory:")]
         [InlineData("Data Source=:Memory:")]
-        [InlineData(DuckDBConnectionStringBuilder.InMemoryConnectionString)]
         public void ExplicitConnectionStringTest(string connectionString)
         {
             using var connection = new DuckDBConnection(connectionString);
