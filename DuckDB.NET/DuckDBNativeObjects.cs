@@ -53,7 +53,7 @@ namespace DuckDB.NET
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    public class DuckDBResult
+    public class DuckDBResult: IDisposable
     {
         [Obsolete]
         private long ColumnCount;
@@ -71,6 +71,11 @@ namespace DuckDB.NET
         private IntPtr ErrorMessage;
 
         private IntPtr internal_data;
+        
+        public void Dispose()
+        {
+            NativeMethods.Query.DuckDBDestroyResult(this);
+        }
     }
 
     public struct DuckDBDate

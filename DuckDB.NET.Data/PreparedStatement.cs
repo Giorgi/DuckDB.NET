@@ -41,29 +41,20 @@ internal sealed class PreparedStatement : IDisposable
         return result;
     }
 
-    public DuckDBQueryResult Execute(DuckDBDbParameterCollection parameterCollection)
+    public DuckDBResult Execute(DuckDBDbParameterCollection parameterCollection)
     {
         var queryResult = new DuckDBResult();
-        try
-        {
-            BindParameters(statement, parameterCollection);
+        BindParameters(statement, parameterCollection);
 
-            var status = NativeMethods.PreparedStatements.DuckDBExecutePrepared(statement, queryResult);
-            if (!status.IsSuccess())
-            {
-                var errorMessage = NativeMethods.Query.DuckDBResultError(queryResult).ToManagedString(false);
-                throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, status);
-            }
-
-            var result = new DuckDBQueryResult(queryResult);
-            queryResult = null;
-            return result;
-        }
-        finally
+        var status = NativeMethods.PreparedStatements.DuckDBExecutePrepared(statement, queryResult);
+        if (!status.IsSuccess())
         {
-            if (queryResult != null)
-                NativeMethods.Query.DuckDBDestroyResult(queryResult);
+            var errorMessage = NativeMethods.Query.DuckDBResultError(queryResult).ToManagedString(false);
+            queryResult.Dispose();
+            throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, status);
         }
+
+        return queryResult;
     }
 
     private static void BindParameters(DuckDBPreparedStatement preparedStatement, DuckDBDbParameterCollection parameterCollection)

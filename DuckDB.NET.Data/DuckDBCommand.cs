@@ -64,7 +64,7 @@ namespace DuckDB.NET.Data
             PrepareIfNeeded();
 
             using var queryResult = preparedStatement.Execute(parameters);
-            return (int)NativeMethods.Query.DuckDBRowsChanged(queryResult.NativeHandle);
+            return (int)NativeMethods.Query.DuckDBRowsChanged(queryResult);
         }
 
         public override object ExecuteScalar()
@@ -81,18 +81,10 @@ namespace DuckDB.NET.Data
 
             PrepareIfNeeded();
 
-            DuckDBQueryResult queryResult = null;
-            try
-            {
-                queryResult = preparedStatement.Execute(parameters);
-                var reader = new DuckDBDataReader(this, queryResult, behavior);
-                queryResult = null;
-                return reader;
-            }
-            finally
-            {
-                queryResult?.Dispose();
-            }
+            var queryResult = preparedStatement.Execute(parameters);
+            var reader = new DuckDBDataReader(this, queryResult, behavior);
+
+            return reader;
         }
 
         public override void Prepare() => PrepareIfNeeded();
