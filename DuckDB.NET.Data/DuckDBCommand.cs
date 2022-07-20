@@ -8,17 +8,19 @@ namespace DuckDB.NET.Data
     public class DuckDbCommand : DbCommand
     {
         private DuckDBConnection connection;
-        private readonly DuckDBDbParameterCollection parameters = new();
+        private readonly DuckDBParameterCollection parameters = new();
 
         private string commandText;
         private PreparedStatement preparedStatement;
 
-        public override bool DesignTimeVisible { get; set; }
         protected override DbTransaction DbTransaction { get; set; }
         protected override DbParameterCollection DbParameterCollection => parameters;
 
+        public new virtual DuckDBParameterCollection Parameters => parameters;
+
         public override int CommandTimeout { get; set; }
         public override CommandType CommandType { get; set; }
+        public override bool DesignTimeVisible { get; set; }
         public override UpdateRowSource UpdatedRowSource { get; set; }
 
         public override string CommandText

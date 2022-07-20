@@ -6,7 +6,7 @@ using System.Linq;
 
 namespace DuckDB.NET.Data;
 
-internal class DuckDBDbParameterCollection : DbParameterCollection
+public class DuckDBParameterCollection : DbParameterCollection
 {
     private readonly List<DuckDBParameter> parameters = new();
 

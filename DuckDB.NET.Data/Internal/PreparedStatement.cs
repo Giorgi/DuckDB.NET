@@ -41,7 +41,7 @@ internal sealed class PreparedStatement : IDisposable
         return result;
     }
 
-    public DuckDBResult Execute(DuckDBDbParameterCollection parameterCollection)
+    public DuckDBResult Execute(DuckDBParameterCollection parameterCollection)
     {
         var queryResult = new DuckDBResult();
         BindParameters(statement, parameterCollection);
@@ -57,7 +57,7 @@ internal sealed class PreparedStatement : IDisposable
         return queryResult;
     }
 
-    private static void BindParameters(DuckDBPreparedStatement preparedStatement, DuckDBDbParameterCollection parameterCollection)
+    private static void BindParameters(DuckDBPreparedStatement preparedStatement, DuckDBParameterCollection parameterCollection)
     {
         var expectedParameters = NativeMethods.PreparedStatements.DuckDBParams(preparedStatement);
         if (expectedParameters != parameterCollection.Count)

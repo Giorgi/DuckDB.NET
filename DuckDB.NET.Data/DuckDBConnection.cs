@@ -73,7 +73,16 @@ namespace DuckDB.NET.Data
 
         protected override DbCommand CreateDbCommand()
         {
-            return new DuckDbCommand { Connection = this };
+            return CreateCommand();
+        }
+
+        public new virtual DuckDbCommand CreateCommand()
+        {
+            return new DuckDbCommand
+            {
+                Connection = this,
+                Transaction = Transaction
+            };
         }
 
         protected override void Dispose(bool disposing)
