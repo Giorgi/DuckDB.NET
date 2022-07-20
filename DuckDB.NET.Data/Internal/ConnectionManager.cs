@@ -10,7 +10,7 @@ namespace DuckDB.NET.Data.Internal
     /// </summary>
     internal class ConnectionManager
     {
-        public static readonly ConnectionManager Default = new ConnectionManager();
+        public static readonly ConnectionManager Default = new();
 
         private static readonly ConcurrentDictionary<string, FileRef> ConnectionCache = new(StringComparer.OrdinalIgnoreCase);
 

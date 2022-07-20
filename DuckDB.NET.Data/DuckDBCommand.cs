@@ -8,10 +8,10 @@ namespace DuckDB.NET.Data
     public class DuckDbCommand : DbCommand
     {
         private DuckDBConnection connection;
-        private readonly DuckDBDbParameterCollection parameters = new DuckDBDbParameterCollection();
+        private readonly DuckDBDbParameterCollection parameters = new();
 
-        private PreparedStatement preparedStatement = null;
         private string commandText;
+        private PreparedStatement preparedStatement;
 
         public override bool DesignTimeVisible { get; set; }
         protected override DbTransaction DbTransaction { get; set; }
@@ -61,7 +61,7 @@ namespace DuckDB.NET.Data
         {
             EnsureConnectionOpen();
 
-            Prepare();
+            PrepareIfNeeded();
 
             using var queryResult = preparedStatement.Execute(parameters);
             return (int)NativeMethods.Query.DuckDBRowsChanged(queryResult.NativeHandle);
@@ -75,18 +75,11 @@ namespace DuckDB.NET.Data
             return reader.Read() ? reader.GetValue(0) : null;
         }
 
-        public override void Prepare()
-        {
-            preparedStatement ??= PreparedStatement.Prepare(connection.NativeConnection, CommandText);
-        }
-
-        protected override DbParameter CreateDbParameter() => new DuckDBParameter();
-
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
         {
             EnsureConnectionOpen();
 
-            Prepare();
+            PrepareIfNeeded();
 
             DuckDBQueryResult queryResult = null;
             try
@@ -102,9 +95,18 @@ namespace DuckDB.NET.Data
             }
         }
 
+        public override void Prepare() => PrepareIfNeeded();
+
+        protected override DbParameter CreateDbParameter() => new DuckDBParameter();
+
         protected override void Dispose(bool disposing)
         {
             preparedStatement?.Dispose();
+        }
+
+        private void PrepareIfNeeded()
+        {
+            preparedStatement ??= PreparedStatement.Prepare(connection.NativeConnection, CommandText);
         }
 
         internal void CloseConnection()

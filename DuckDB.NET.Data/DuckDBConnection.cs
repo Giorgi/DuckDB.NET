@@ -9,7 +9,7 @@ namespace DuckDB.NET.Data
 {
     public class DuckDBConnection : DbConnection
     {
-        private ConnectionManager connectionManager = ConnectionManager.Default;
+        private readonly ConnectionManager connectionManager = ConnectionManager.Default;
         private ConnectionReference connectionReference;
         private ConnectionState connectionState = ConnectionState.Closed;
 

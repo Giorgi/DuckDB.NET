@@ -6,7 +6,7 @@ namespace DuckDB.NET.Data.Internal;
 
 internal static class DbTypeMap
 {
-    private static readonly Dictionary<Type, DbType> typeMap = new Dictionary<Type, DbType>()
+    private static readonly Dictionary<Type, DbType> TypeMap = new()
     {
         {typeof(bool), DbType.Boolean},
         {typeof(sbyte), DbType.SByte},
@@ -22,10 +22,16 @@ internal static class DbTypeMap
     public static DbType GetDbTypeForValue(object value)
     {
         if (value == null)
+        {
             throw new ArgumentNullException(nameof(value));
+        }
+        
         var type = value.GetType();
-        if (typeMap.TryGetValue(type, out var dbType))
+        
+        if (TypeMap.TryGetValue(type, out var dbType))
+        {
             return dbType;
+        }
         throw new InvalidOperationException($"Values of type {type.FullName} are not supported.");
     }
 }

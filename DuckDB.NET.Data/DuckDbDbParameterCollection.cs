@@ -8,7 +8,7 @@ namespace DuckDB.NET.Data;
 
 internal class DuckDBDbParameterCollection : DbParameterCollection
 {
-    private readonly List<DuckDBParameter> parameters = new List<DuckDBParameter>();
+    private readonly List<DuckDBParameter> parameters = new();
 
     public new DuckDBParameter this[int index]
     {
