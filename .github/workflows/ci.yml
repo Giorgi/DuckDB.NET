@@ -86,15 +86,15 @@ jobs:
 
     - name: Run tests (Linux)
       if: runner.os == 'Linux'
-      run: LD_LIBRARY_PATH=$GITHUB_WORKSPACE/native dotnet test --configuration Release --verbosity normal
+      run: LD_LIBRARY_PATH=$GITHUB_WORKSPACE/native dotnet test --configuration Release --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
 
     - name: Run tests (MacOS)
       if: runner.os == 'MacOS'
-      run: DYLD_FALLBACK_LIBRARY_PATH=$GITHUB_WORKSPACE/native dotnet test --configuration Release --verbosity normal
+      run: DYLD_FALLBACK_LIBRARY_PATH=$GITHUB_WORKSPACE/native dotnet test --configuration Release --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
 
     - name: Run tests (Windows)
       if: runner.os == 'Windows'
       env:
         PATH: ${{ github.workspace }}/native
-      run: dotnet test --configuration Release --verbosity normal
+      run: dotnet test --configuration Release --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
 
