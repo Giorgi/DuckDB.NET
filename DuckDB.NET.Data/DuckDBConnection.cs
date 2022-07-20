@@ -9,11 +9,11 @@ namespace DuckDB.NET.Data
 {
     public class DuckDBConnection : DbConnection
     {
-        private ConnectionManager connectionManager = ConnectionManager.Default;
+        private readonly ConnectionManager connectionManager = ConnectionManager.Default;
         private ConnectionReference connectionReference;
         private ConnectionState connectionState = ConnectionState.Closed;
 
-        internal DbTransaction? Transaction { get; set; }
+        internal DbTransaction Transaction { get; set; }
 
         public DuckDBConnection(string connectionString)
         {
@@ -26,7 +26,7 @@ namespace DuckDB.NET.Data
 
         public override string DataSource { get; }
 
-        public DuckDBNativeConnection NativeConnection => connectionReference.NativeConnection;
+        internal DuckDBNativeConnection NativeConnection => connectionReference.NativeConnection;
 
         public override string ServerVersion { get; }
 

@@ -8,6 +8,35 @@ namespace DuckDB.NET.Data
     public class DuckDbCommand : DbCommand
     {
         private DuckDBConnection connection;
+        private readonly DuckDBDbParameterCollection parameters = new();
+
+        private string commandText;
+        private PreparedStatement preparedStatement;
+
+        public override bool DesignTimeVisible { get; set; }
+        protected override DbTransaction DbTransaction { get; set; }
+        protected override DbParameterCollection DbParameterCollection => parameters;
+
+        public override int CommandTimeout { get; set; }
+        public override CommandType CommandType { get; set; }
+        public override UpdateRowSource UpdatedRowSource { get; set; }
+
+        public override string CommandText
+        {
+            get => commandText;
+            set
+            {
+                commandText = value;
+                preparedStatement?.Dispose();
+                preparedStatement = null;
+            }
+        }
+
+        protected override DbConnection DbConnection
+        {
+            get => connection;
+            set => connection = (DuckDBConnection)value;
+        }
 
         public DuckDbCommand()
         {
@@ -31,66 +60,45 @@ namespace DuckDB.NET.Data
         public override int ExecuteNonQuery()
         {
             EnsureConnectionOpen();
-            
-            using var unmanagedString = CommandText.ToUnmanagedString();
-            var queryResult = new DuckDBResult();
-            try
-            {
-                var result = NativeMethods.Query.DuckDBQuery(connection.NativeConnection, unmanagedString, queryResult);
 
-                if (!result.IsSuccess())
-                {
-                    var errorMessage = NativeMethods.Query.DuckDBResultError(queryResult).ToManagedString(false);
-                    throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, result);
-                }
+            PrepareIfNeeded();
 
-                return (int)NativeMethods.Query.DuckDBRowsChanged(queryResult);
-            }
-            finally
-            {
-                NativeMethods.Query.DuckDBDestroyResult(queryResult);
-            }
+            using var queryResult = preparedStatement.Execute(parameters);
+            return (int)NativeMethods.Query.DuckDBRowsChanged(queryResult);
         }
 
         public override object ExecuteScalar()
         {
             EnsureConnectionOpen();
-            
+
             using var reader = ExecuteReader();
             return reader.Read() ? reader.GetValue(0) : null;
-        }
-
-        public override void Prepare()
-        {
-            throw new NotImplementedException();
-        }
-
-        public override string CommandText { get; set; }
-        public override int CommandTimeout { get; set; }
-        public override CommandType CommandType { get; set; }
-        public override UpdateRowSource UpdatedRowSource { get; set; }
-
-        protected override DbConnection DbConnection
-        {
-            get => connection;
-            set => connection = (DuckDBConnection)value;
-        }
-
-        internal DuckDBNativeConnection DBNativeConnection => connection.NativeConnection;
-
-        protected override DbParameterCollection DbParameterCollection { get; } = new DuckDBDbParameterCollection();
-        protected override DbTransaction DbTransaction { get; set; }
-        public override bool DesignTimeVisible { get; set; }
-
-        protected override DbParameter CreateDbParameter()
-        {
-            throw new NotImplementedException();
         }
 
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
         {
             EnsureConnectionOpen();
-            return new DuckDBDataReader(this, behavior);
+
+            PrepareIfNeeded();
+
+            var queryResult = preparedStatement.Execute(parameters);
+            var reader = new DuckDBDataReader(this, queryResult, behavior);
+
+            return reader;
+        }
+
+        public override void Prepare() => PrepareIfNeeded();
+
+        protected override DbParameter CreateDbParameter() => new DuckDBParameter();
+
+        protected override void Dispose(bool disposing)
+        {
+            preparedStatement?.Dispose();
+        }
+
+        private void PrepareIfNeeded()
+        {
+            preparedStatement ??= PreparedStatement.Prepare(connection.NativeConnection, CommandText);
         }
 
         internal void CloseConnection()
@@ -98,7 +106,7 @@ namespace DuckDB.NET.Data
             Connection.Close();
         }
 
-        private void EnsureConnectionOpen([CallerMemberName]string operation = "")
+        private void EnsureConnectionOpen([CallerMemberName] string operation = "")
         {
             if (connection.State != ConnectionState.Open)
             {
