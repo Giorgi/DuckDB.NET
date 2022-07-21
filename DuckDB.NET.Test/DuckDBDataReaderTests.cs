@@ -1,4 +1,5 @@
-﻿using System.Data;
+﻿using System;
+using System.Data;
 using DuckDB.NET.Data;
 using FluentAssertions;
 using Xunit;
@@ -45,16 +46,16 @@ public class DuckDBDataReaderTests
     }
 
     [Fact]
-    public void IndexerValues()
+    public void ReaderValues()
     {
         using var connection = new DuckDBConnection("DataSource=:memory:");
         connection.Open();
 
         var duckDbCommand = connection.CreateCommand();
-        duckDbCommand.CommandText = "CREATE TABLE IndexerValuesTests (key INTEGER, value decimal, State Boolean)";
+        duckDbCommand.CommandText = "CREATE TABLE IndexerValuesTests (key INTEGER, value decimal, State Boolean, ErrorCode Integer)";
         duckDbCommand.ExecuteNonQuery();
 
-        duckDbCommand.CommandText = "Insert Into IndexerValuesTests values (1, 2.4, true)";
+        duckDbCommand.CommandText = "Insert Into IndexerValuesTests values (1, 2.4, true, null)";
         duckDbCommand.ExecuteNonQuery();
 
         duckDbCommand.CommandText = "select * from IndexerValuesTests";
@@ -62,8 +63,10 @@ public class DuckDBDataReaderTests
 
         reader.Read();
 
+        reader.HasRows.Should().BeTrue();
         reader[0].Should().Be(reader["key"]);
         reader[1].Should().Be(reader.GetDecimal(1));
         reader.GetValue(2).Should().Be(reader.GetBoolean(2));
+        reader[3].Should().Be(DBNull.Value);
     }
 }
