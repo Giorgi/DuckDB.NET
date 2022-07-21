@@ -98,3 +98,20 @@ jobs:
         PATH: ${{ github.workspace }}/native
       run: dotnet test --configuration Release --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
 
+    - name: Coveralls Parallel
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.github_token }}
+        flag-name: run-${{ matrix.os }}
+        path-to-lcov: DuckDB.NET.Test/coverage.info
+        parallel: true
+
+  finish:
+      needs: build
+      runs-on: ubuntu-latest
+      steps:
+      - name: Coveralls Finished
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.github_token }}
+          parallel-finished: true
