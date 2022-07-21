@@ -26,6 +26,41 @@ public class ParameterCollectionTests
         scalar.Should().Be(42);
     }
 
+    [Fact]
+    public void BindNullValueTest()
+    {
+        using var connection = new DuckDBConnection("DataSource=:memory:");
+        connection.Open();
+
+        var command = new DuckDbCommand("Select ?", connection);
+        command.Parameters.Add(new DuckDBParameter());
+        
+        var scalar = command.ExecuteScalar();
+        scalar.Should().Be(DBNull.Value);
+    }
+
+    [Fact]
+    public void ParameterCountMismatchTest()
+    {
+        using var connection = new DuckDBConnection("DataSource=:memory:");
+        connection.Open();
+
+        var command = new DuckDbCommand("Select ?", connection);
+
+        command.Invoking(dbCommand => dbCommand.ExecuteScalar()).Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void PrepareCommandErrorTest()
+    {
+        using var connection = new DuckDBConnection("DataSource=:memory:");
+        connection.Open();
+
+        var command = new DuckDbCommand("Select ? from nowhere", connection);
+
+        command.Invoking(dbCommand => dbCommand.Prepare()).Should().Throw<DuckDBException>();
+    }
+
     [Theory]
     [InlineData("INSERT INTO ParametersTestKeyValue (KEY, VALUE) VALUES (?, ?)")]
     [InlineData("INSERT INTO ParametersTestKeyValue (KEY, VALUE) VALUES (?1, ?2)")]

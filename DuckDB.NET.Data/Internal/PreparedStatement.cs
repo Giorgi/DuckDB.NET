@@ -122,6 +122,6 @@ internal sealed class PreparedStatement : IDisposable
 
     public void Dispose()
     {
-        statement?.Dispose();
+        statement.Dispose();
     }
 }
