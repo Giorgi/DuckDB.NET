@@ -97,6 +97,29 @@ public class ParameterCollectionTests
         dataReader.GetInt32(3).Should().Be(24);
     }
 
+    [Fact]
+    public void DuckDBParameterCollectionTests()
+    {
+        var parameters = new DuckDBParameterCollection();
+        var duckDBParameterDouble = new DuckDBParameter(2.5);
+        parameters.Add(duckDBParameterDouble);
+
+        parameters.Contains(duckDBParameterDouble).Should().BeTrue();
+        parameters.IndexOf(duckDBParameterDouble).Should().Be(0);
+        parameters.Remove(duckDBParameterDouble);
+        parameters.Contains(duckDBParameterDouble).Should().BeFalse();
+
+        parameters.Add(duckDBParameterDouble);
+
+        var duckDBParameterLong = new DuckDBParameter("param0", 5L);
+        parameters[0] = duckDBParameterLong;
+        parameters.Contains(duckDBParameterLong).Should().BeTrue();
+
+        var duckDBParameterFloat = new DuckDBParameter("param1",2f);
+        parameters["param0"] = duckDBParameterFloat;
+        parameters["param1"].Should().Be(duckDBParameterFloat);
+    }
+
     [Theory]
     [InlineData("INSERT INTO ParametersTestKeyValue (KEY, VALUE) VALUES (?, ?)")]
     [InlineData("INSERT INTO ParametersTestKeyValue (KEY, VALUE) VALUES (?1, ?2)")]
