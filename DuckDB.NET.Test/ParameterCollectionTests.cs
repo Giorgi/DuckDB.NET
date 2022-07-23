@@ -118,6 +118,9 @@ public class ParameterCollectionTests
         var duckDBParameterFloat = new DuckDBParameter("param1",2f);
         parameters["param0"] = duckDBParameterFloat;
         parameters["param1"].Should().Be(duckDBParameterFloat);
+
+        parameters.RemoveAt("param1");
+        parameters.Count.Should().Be(0);
     }
 
     [Theory]
