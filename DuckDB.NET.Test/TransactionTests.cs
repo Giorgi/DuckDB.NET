@@ -1,4 +1,5 @@
 using System;
+using System.Data;
 using DuckDB.NET.Data;
 using FluentAssertions;
 using Xunit;
@@ -19,8 +20,10 @@ namespace DuckDB.NET.Test
             command.ExecuteNonQuery();
 
             object rowsInTable;
-            using (var transaction = connection.BeginTransaction())
+            using (var transaction = connection.BeginTransaction(IsolationLevel.Snapshot))
             {
+                transaction.IsolationLevel.Should().Be(IsolationLevel.Snapshot);
+
                 command.CommandText = "INSERT INTO transactionUsers VALUES (1, 'user1'), (2, 'user2')";
                 command.ExecuteNonQuery();
 
@@ -29,11 +32,11 @@ namespace DuckDB.NET.Test
                 rowsInTable.Should().Be(2);
                 transaction.Commit();
             }
-            
+
             command.CommandText = "SELECT count(*) FROM transactionUsers";
             rowsInTable = command.ExecuteScalar();
             rowsInTable.Should().Be(2);
-            
+
             using (connection.BeginTransaction())
             {
                 command.CommandText = "INSERT INTO transactionUsers VALUES (3, 'user3'), (4, 'user4')";
@@ -43,7 +46,7 @@ namespace DuckDB.NET.Test
                 rowsInTable = command.ExecuteScalar();
                 rowsInTable.Should().Be(4);
             }
-            
+
             command.CommandText = "SELECT count(*) FROM transactionUsers";
             rowsInTable = command.ExecuteScalar();
             rowsInTable.Should().Be(2);
@@ -75,7 +78,7 @@ namespace DuckDB.NET.Test
                     .Should().Throw<InvalidOperationException>();
             }
         }
-        
+
         [Fact]
         public void RollbackAndCommitTransactionTest()
         {
@@ -89,7 +92,7 @@ namespace DuckDB.NET.Test
                     .Should().Throw<InvalidOperationException>();
             }
         }
-        
+
         [Fact]
         public void RollbackTransactionTwiceTest()
         {
@@ -103,7 +106,7 @@ namespace DuckDB.NET.Test
                     .Should().Throw<InvalidOperationException>();
             }
         }
-        
+
         [Fact]
         public void CommitAndRollbackTransactionTest()
         {
@@ -116,6 +119,17 @@ namespace DuckDB.NET.Test
                 transaction.Invoking(tr => tr.Rollback())
                     .Should().Throw<InvalidOperationException>();
             }
+        }
+
+        [Fact]
+        public void TransactionInvalidStateTest()
+        {
+            using var connection = new DuckDBConnection("DataSource=:memory:");
+            connection.Invoking(connection => connection.BeginTransaction()).Should().Throw<InvalidOperationException>();
+            connection.Open();
+
+            connection.Invoking(connection => connection.BeginTransaction(IsolationLevel.Serializable)).Should()
+                .Throw<ArgumentException>();
         }
     }
 }

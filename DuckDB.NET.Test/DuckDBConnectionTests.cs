@@ -248,5 +248,14 @@ namespace DuckDB.NET.Test
             command.CommandText = "SELECT 42;";
             command.ExecuteScalar().Should().Be(42);
         }
+
+        [Fact]
+        public void OpenConnectionTwiceError()
+        {
+            var connection = new DuckDBConnection("DataSource=:memory:");
+
+            connection.Open();
+            connection.Invoking(connection => connection.Open()).Should().Throw<InvalidOperationException>();
+        }
     }
 }
