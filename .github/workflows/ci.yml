@@ -1,6 +1,14 @@
 name: "Build"
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - '**.md'
+  pull_request:
+    paths-ignore:
+      - '**.md'
 
 env:
   DUCKDB_GIT_TAG: 'v0.4.0'
