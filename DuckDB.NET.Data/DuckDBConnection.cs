@@ -13,7 +13,7 @@ namespace DuckDB.NET.Data
         private ConnectionReference connectionReference;
         private ConnectionState connectionState = ConnectionState.Closed;
 
-        internal DbTransaction Transaction { get; set; }
+        internal DuckDBTransaction Transaction { get; set; }
 
         public DuckDBConnection(string connectionString)
         {
@@ -29,7 +29,7 @@ namespace DuckDB.NET.Data
         internal DuckDBNativeConnection NativeConnection => connectionReference.NativeConnection;
 
         public override string ServerVersion { get; }
-
+        
         public override ConnectionState State => connectionState;
 
         public override void ChangeDatabase(string databaseName)
@@ -63,11 +63,22 @@ namespace DuckDB.NET.Data
 
         protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
         {
+            return BeginTransaction(isolationLevel);
+        }
+
+        public new DuckDBTransaction BeginTransaction()
+        {
+            return BeginTransaction(IsolationLevel.Unspecified);
+        }
+
+        private new DuckDBTransaction BeginTransaction(IsolationLevel isolationLevel)
+        {
             EnsureConnectionOpen();
             if (Transaction != null)
             {
                 throw new InvalidOperationException("Already in a transaction.");
             }
+
             return Transaction = new DuckDBTransaction(this, isolationLevel);
         }
 

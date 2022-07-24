@@ -5,7 +5,7 @@ using DuckDB.NET.Data.Extensions;
 
 namespace DuckDB.NET.Data
 {
-    internal class DuckDBTransaction : DbTransaction
+    public class DuckDBTransaction : DbTransaction
     {
         private bool finished = false;
         private readonly DuckDBConnection connection;

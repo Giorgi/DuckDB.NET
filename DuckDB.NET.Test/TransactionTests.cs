@@ -23,6 +23,7 @@ namespace DuckDB.NET.Test
             using (var transaction = connection.BeginTransaction(IsolationLevel.Snapshot))
             {
                 transaction.IsolationLevel.Should().Be(IsolationLevel.Snapshot);
+                transaction.Connection.Should().Be(connection);
 
                 command.CommandText = "INSERT INTO transactionUsers VALUES (1, 'user1'), (2, 'user2')";
                 command.ExecuteNonQuery();
