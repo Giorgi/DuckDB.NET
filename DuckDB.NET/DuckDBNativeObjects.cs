@@ -78,31 +78,51 @@ namespace DuckDB.NET
         }
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DuckDBDateStruct
+    {
+        public int Year { get; set; }
+
+        public byte Month { get; set; }
+
+        public byte Day { get; set; }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     public struct DuckDBDate
     {
-        public int Year { get; }
-
-        public byte Month { get; }
-
-        public byte Day { get; }
+        public int Days { get; set; }
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DuckDBTimeStruct
+    {
+        public byte Hour { get; set; }
+
+        public byte Min { get; set; }
+
+        public byte Sec { get; set; }
+
+        public int Msec { get; set; }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     public struct DuckDBTime
     {
-        public byte Hour { get; }
-
-        public byte Min { get; }
-
-        public byte Sec { get; }
-
-        public short Msec { get; }
+        public long Micros { get; set; }
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DuckDBTimestampStruct
+    {
+        public DuckDBDateStruct Date { get; set; }
+        public DuckDBTimeStruct Time { get; set; }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     public struct DuckDBTimestamp
     {
-        public DuckDBDate Date { get; }
-
-        public DuckDBTime Time { get; }
+        public long Micros { get; set; }
     }
 
     [StructLayout(LayoutKind.Sequential)]

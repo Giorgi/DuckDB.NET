@@ -6,6 +6,7 @@ using System.Globalization;
 using System.IO;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using DuckDB.NET.Data.Types;
 
 namespace DuckDB.NET.Data
 {
@@ -61,10 +62,7 @@ namespace DuckDB.NET.Data
         }
 
         public override DateTime GetDateTime(int ordinal)
-        {
-            var text = GetString(ordinal);
-            return DateTime.Parse(text, null, DateTimeStyles.RoundtripKind);
-        }
+            => Types.DuckDBTimestamp.Load(queryResult, ordinal, currentRow);
 
         public override decimal GetDecimal(int ordinal)
         {

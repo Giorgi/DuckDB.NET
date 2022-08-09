@@ -109,6 +109,15 @@ namespace DuckDB.NET
 
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_blob")]
             public static extern DuckDBBlob DuckDBValueBlob([In, Out] DuckDBResult result, long col, long row);
+            
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_date")]
+            public static extern DuckDBDate DuckDbValueDate([In, Out] DuckDBResult result, long col, long row);
+            
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_time")]
+            public static extern DuckDBTime DuckDbValueTime([In, Out] DuckDBResult result, long col, long row);
+            
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_timestamp")]
+            public static extern DuckDBTimestamp DuckDbValueTimestamp([In, Out] DuckDBResult result, long col, long row);
         }
 
         public static class PreparedStatements
@@ -124,7 +133,10 @@ namespace DuckDB.NET
             
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_nparams")]
             public static extern long DuckDBParams(DuckDBPreparedStatement preparedStatement);
-
+            
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_param_type")]
+            public static extern DuckDBType DuckDBParamType(DuckDBPreparedStatement preparedStatement, long index);
+            
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_boolean")]
             public static extern DuckDBState DuckDBBindBoolean(DuckDBPreparedStatement preparedStatement, long index, bool val);
 
@@ -155,6 +167,15 @@ namespace DuckDB.NET
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_null")]
             public static extern DuckDBState DuckDBBindNull(DuckDBPreparedStatement preparedStatement, long index);
 
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_date")]
+            public static extern DuckDBState DuckDBBindDate(DuckDBPreparedStatement preparedStatement, long index, DuckDBDate val);
+            
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_time")]
+            public static extern DuckDBState DuckDBBindTime(DuckDBPreparedStatement preparedStatement, long index, DuckDBTime val);
+            
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_timestamp")]
+            public static extern DuckDBState DuckDBBindTimestamp(DuckDBPreparedStatement preparedStatement, long index, DuckDBTimestamp val);
+            
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_execute_prepared")]
             public static extern DuckDBState DuckDBExecutePrepared(DuckDBPreparedStatement preparedStatement, [In, Out] DuckDBResult result);
 
@@ -223,6 +244,27 @@ namespace DuckDB.NET
         {
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_free")]
             public static extern void DuckDBFree(IntPtr ptr);
+        }
+
+        public static class DateTime
+        {
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_from_date")]
+            public static extern DuckDBDateStruct DuckDBFromDate(DuckDBDate date);
+            
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_to_date")]
+            public static extern DuckDBDate DuckDBToDate(DuckDBDateStruct dateStruct);
+            
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_from_time")]
+            public static extern DuckDBTimeStruct DuckDBFromTime(DuckDBTime date);
+            
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_to_time")]
+            public static extern DuckDBTime DuckDBToTime(DuckDBTimeStruct dateStruct);
+            
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_from_timestamp")]
+            public static extern DuckDBTimestampStruct DuckDBFromTimestamp(DuckDBTimestamp date);
+            
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_to_timestamp")]
+            public static extern DuckDBTimestamp DuckDBToTimestamp(DuckDBTimestampStruct dateStruct);
         }
     }
 }

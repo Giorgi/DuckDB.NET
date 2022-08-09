@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using DuckDB.NET.Data.Types;
 
 namespace DuckDB.NET.Data;
 
@@ -80,12 +81,21 @@ internal sealed class PreparedStatement : IDisposable
             return;
         }
 
-        if (!Binders.TryGetValue(parameter.DbType, out var binder))
+        DuckDBState result;
+        if (parameter.Value is IDuckDBParameterValue parameterValue)
         {
-            throw new InvalidOperationException($"Unable to bind value of type {parameter.DbType}.");
+            result = parameterValue.Bind(preparedStatement, index);
+        }
+        else
+        {
+            if (!Binders.TryGetValue(parameter.DbType, out var binder))
+            {
+                throw new InvalidOperationException($"Unable to bind value of type {parameter.DbType}.");
+            }
+            
+            result = binder(preparedStatement, index, parameter.Value);
         }
 
-        var result = binder(preparedStatement, index, parameter.Value);
         if (!result.IsSuccess())
         {
             var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(preparedStatement).ToManagedString(false);
