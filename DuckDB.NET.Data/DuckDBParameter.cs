@@ -2,6 +2,7 @@ using System;
 using System.Data;
 using System.Data.Common;
 using DuckDB.NET.Data.Internal;
+using DuckDB.NET.Data.Types;
 
 namespace DuckDB.NET.Data;
 
@@ -48,7 +49,7 @@ public class DuckDBParameter : DbParameter
 
     }
 
-    public DuckDBParameter(string name, DbType type, object value)
+    private DuckDBParameter(string name, DbType type, object value)
     {
         parameterName = name;
         dbType = type;
@@ -204,6 +205,16 @@ public class DuckDBParameter : DbParameter
 
     public DuckDBParameter(string name, string value)
         : this(name, DbType.String, value)
+    {
+    }
+
+    public DuckDBParameter(string name, DateTime value)
+        : this(name, DbType.DateTime, Types.DuckDBTimestamp.FromDateTime(value))
+    {
+    }
+    
+    public DuckDBParameter(DateTime value)
+        : this(DbType.DateTime, Types.DuckDBTimestamp.FromDateTime(value))
     {
     }
 
