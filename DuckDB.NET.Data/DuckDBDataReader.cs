@@ -68,8 +68,21 @@ namespace DuckDB.NET.Data
 
         public override DateTime GetDateTime(int ordinal)
         {
-            var text = GetString(ordinal);
-            return DateTime.Parse(text, null, DateTimeStyles.RoundtripKind);
+            var timestampStruct = NativeMethods.Types.DuckDbValueTimestamp(queryResult, ordinal, currentRow);
+            var timestamp = NativeMethods.DateTime.DuckDBFromTimestamp(timestampStruct);
+            return timestamp.ToDateTime();
+        }
+
+        public DuckDBDateOnly GetDateOnly(int ordinal)
+        {
+            var date = NativeMethods.Types.DuckDbValueDate(queryResult, ordinal, currentRow);
+            return NativeMethods.DateTime.DuckDBFromDate(date);
+        }
+
+        public DuckDBTimeOnly GetTimeOnly(int ordinal)
+        {
+            var time = NativeMethods.Types.DuckDbValueTime(queryResult, ordinal, currentRow);
+            return NativeMethods.DateTime.DuckDBFromTime(time);
         }
 
         public override decimal GetDecimal(int ordinal)
@@ -107,9 +120,9 @@ namespace DuckDB.NET.Data
                 DuckDBType.DuckdbTypeFloat => typeof(float),
                 DuckDBType.DuckdbTypeDouble => typeof(double),
                 DuckDBType.DuckdbTypeTimestamp => typeof(DateTime),
-                DuckDBType.DuckdbTypeDate => typeof(DateTime),
-                DuckDBType.DuckdbTypeTime => typeof(DateTime),
                 DuckDBType.DuckdbTypeInterval => typeof(DuckDBInterval),
+                DuckDBType.DuckdbTypeDate => typeof(DuckDBDateOnly),
+                DuckDBType.DuckdbTypeTime => typeof(DuckDBTimeOnly),
                 DuckDBType.DuckdbTypeHugeInt => typeof(BigInteger),
                 DuckDBType.DuckdbTypeVarchar => typeof(string),
                 DuckDBType.DuckdbTypeDecimal => typeof(decimal),
@@ -212,9 +225,9 @@ namespace DuckDB.NET.Data
                 DuckDBType.DuckdbTypeFloat => GetFloat(ordinal),
                 DuckDBType.DuckdbTypeDouble => GetDouble(ordinal),
                 DuckDBType.DuckdbTypeTimestamp => GetDateTime(ordinal),
-                DuckDBType.DuckdbTypeDate => GetDateTime(ordinal),
-                DuckDBType.DuckdbTypeTime => GetDateTime(ordinal),
                 DuckDBType.DuckdbTypeInterval => GetDuckDBInterval(ordinal),
+                DuckDBType.DuckdbTypeDate => GetDateOnly(ordinal),
+                DuckDBType.DuckdbTypeTime => GetTimeOnly(ordinal),
                 DuckDBType.DuckdbTypeHugeInt => GetBigInteger(ordinal),
                 DuckDBType.DuckdbTypeVarchar => GetString(ordinal),
                 DuckDBType.DuckdbTypeDecimal => GetDecimal(ordinal),

@@ -127,6 +127,15 @@ namespace DuckDB.NET
 
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_blob")]
             public static extern DuckDBBlob DuckDBValueBlob([In, Out] DuckDBResult result, long col, long row);
+            
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_date")]
+            public static extern DuckDBDate DuckDbValueDate([In, Out] DuckDBResult result, long col, long row);
+            
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_time")]
+            public static extern DuckDBTime DuckDbValueTime([In, Out] DuckDBResult result, long col, long row);
+            
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_timestamp")]
+            public static extern DuckDBTimestampStruct DuckDbValueTimestamp([In, Out] DuckDBResult result, long col, long row);
         }
 
         public static class PreparedStatements
@@ -194,6 +203,15 @@ namespace DuckDB.NET
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_null")]
             public static extern DuckDBState DuckDBBindNull(DuckDBPreparedStatement preparedStatement, long index);
 
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_date")]
+            public static extern DuckDBState DuckDBBindDate(DuckDBPreparedStatement preparedStatement, long index, DuckDBDate val);
+            
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_time")]
+            public static extern DuckDBState DuckDBBindTime(DuckDBPreparedStatement preparedStatement, long index, DuckDBTime val);
+            
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_timestamp")]
+            public static extern DuckDBState DuckDBBindTimestamp(DuckDBPreparedStatement preparedStatement, long index, DuckDBTimestampStruct val);
+            
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_execute_prepared")]
             public static extern DuckDBState DuckDBExecutePrepared(DuckDBPreparedStatement preparedStatement, [In, Out] DuckDBResult result);
         }
@@ -259,6 +277,27 @@ namespace DuckDB.NET
         {
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_free")]
             public static extern void DuckDBFree(IntPtr ptr);
+        }
+
+        public static class DateTime
+        {
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_from_date")]
+            public static extern DuckDBDateOnly DuckDBFromDate(DuckDBDate date);
+            
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_to_date")]
+            public static extern DuckDBDate DuckDBToDate(DuckDBDateOnly dateStruct);
+            
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_from_time")]
+            public static extern DuckDBTimeOnly DuckDBFromTime(DuckDBTime date);
+            
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_to_time")]
+            public static extern DuckDBTime DuckDBToTime(DuckDBTimeOnly dateStruct);
+            
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_from_timestamp")]
+            public static extern DuckDBTimestamp DuckDBFromTimestamp(DuckDBTimestampStruct date);
+            
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_to_timestamp")]
+            public static extern DuckDBTimestampStruct DuckDBToTimestamp(DuckDBTimestamp dateStruct);
         }
     }
 }
