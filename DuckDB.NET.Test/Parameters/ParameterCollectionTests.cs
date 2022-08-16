@@ -7,7 +7,7 @@ using DuckDB.NET.Test.Helpers;
 using FluentAssertions;
 using Xunit;
 
-namespace DuckDB.NET.Test;
+namespace DuckDB.NET.Test.Parameters;
 
 public class ParameterCollectionTests
 {

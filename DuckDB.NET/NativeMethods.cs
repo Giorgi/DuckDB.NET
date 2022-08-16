@@ -98,6 +98,19 @@ namespace DuckDB.NET
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_int64")]
             public static extern long DuckDBValueInt64([In, Out] DuckDBResult result, long col, long row);
 
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_uint8")]
+            public static extern byte DuckDBValueUInt8([In, Out] DuckDBResult result, long col, long row);
+
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_uint16")]
+            public static extern ushort DuckDBValueUInt16([In, Out] DuckDBResult result, long col, long row);
+
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_uint32")]
+            public static extern uint DuckDBValueUInt32([In, Out] DuckDBResult result, long col, long row);
+
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_uint64")]
+            public static extern ulong DuckDBValueUInt64([In, Out] DuckDBResult result, long col, long row);
+
+            
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_float")]
             public static extern float DuckDBValueFloat([In, Out] DuckDBResult result, long col, long row);
 
@@ -137,6 +150,19 @@ namespace DuckDB.NET
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_int64")]
             public static extern DuckDBState DuckDBBindInt64(DuckDBPreparedStatement preparedStatement, long index, long val);
 
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_uint8")]
+            public static extern DuckDBState DuckDBBindUInt8(DuckDBPreparedStatement preparedStatement, long index, byte val);
+
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_uint16")]
+            public static extern DuckDBState DuckDBBindUInt16(DuckDBPreparedStatement preparedStatement, long index, ushort val);
+
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_uint32")]
+            public static extern DuckDBState DuckDBBindUInt32(DuckDBPreparedStatement preparedStatement, long index, uint val);
+
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_uint64")]
+            public static extern DuckDBState DuckDBBindUInt64(DuckDBPreparedStatement preparedStatement, long index, ulong val);
+
+            
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_float")]
             public static extern DuckDBState DuckDBBindFloat(DuckDBPreparedStatement preparedStatement, long index, float val);
 

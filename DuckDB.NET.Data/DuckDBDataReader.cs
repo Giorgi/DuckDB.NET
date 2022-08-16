@@ -35,7 +35,12 @@ namespace DuckDB.NET.Data
 
         public override byte GetByte(int ordinal)
         {
-            throw new NotImplementedException();
+            return NativeMethods.Types.DuckDBValueUInt8(queryResult, ordinal, currentRow);
+        }
+        
+        public sbyte GetSByte(int ordinal)
+        {
+            return NativeMethods.Types.DuckDBValueInt8(queryResult, ordinal, currentRow);
         }
 
         public override long GetBytes(int ordinal, long dataOffset, byte[] buffer, int bufferOffset, int length)
@@ -45,12 +50,12 @@ namespace DuckDB.NET.Data
 
         public override char GetChar(int ordinal)
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
 
         public override long GetChars(int ordinal, long dataOffset, char[] buffer, int bufferOffset, int length)
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
 
         public override string GetDataTypeName(int ordinal)
@@ -80,9 +85,14 @@ namespace DuckDB.NET.Data
             {
                 DuckDBType.DuckdbTypeInvalid => throw new DuckDBException("Invalid type"),
                 DuckDBType.DuckdbTypeBoolean => typeof(bool),
+                DuckDBType.DuckdbTypeTinyInt => typeof(sbyte),
                 DuckDBType.DuckdbTypeSmallInt => typeof(short),
                 DuckDBType.DuckdbTypeInteger => typeof(int),
                 DuckDBType.DuckdbTypeBigInt => typeof(long),
+                DuckDBType.DuckdbTypeUnsignedTinyInt => typeof(byte),
+                DuckDBType.DuckdbTypeUnsignedSmallInt => typeof(ushort),
+                DuckDBType.DuckdbTypeUnsignedInteger => typeof(uint),
+                DuckDBType.DuckdbTypeUnsignedBigInt => typeof(ulong),
                 DuckDBType.DuckdbTypeFloat => typeof(float),
                 DuckDBType.DuckdbTypeDouble => typeof(double),
                 DuckDBType.DuckdbTypeTimestamp => typeof(DateTime),
@@ -91,8 +101,8 @@ namespace DuckDB.NET.Data
                 DuckDBType.DuckdbTypeInterval => throw new NotImplementedException(),
                 DuckDBType.DuckdbTypeHugeInt => typeof(BigInteger),
                 DuckDBType.DuckdbTypeVarchar => typeof(string),
-                DuckDBType.DuckdbTypeDecimal => typeof(Decimal),
-                var typ => throw new ArgumentException($"Unrecognised type {typ} in column {ordinal+1}")
+                DuckDBType.DuckdbTypeDecimal => typeof(decimal),
+                var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type}) in column {ordinal+1}")
             };
         }
 
@@ -119,6 +129,21 @@ namespace DuckDB.NET.Data
         public override long GetInt64(int ordinal)
         {
             return NativeMethods.Types.DuckDBValueInt64(queryResult, ordinal, currentRow);
+        }
+        
+        public ushort GetUInt16(int ordinal)
+        {
+            return NativeMethods.Types.DuckDBValueUInt16(queryResult, ordinal, currentRow);
+        }
+
+        public uint GetUInt32(int ordinal)
+        {
+            return NativeMethods.Types.DuckDBValueUInt32(queryResult, ordinal, currentRow);
+        }
+
+        public ulong GetUInt64(int ordinal)
+        {
+            return NativeMethods.Types.DuckDBValueUInt64(queryResult, ordinal, currentRow);
         }
 
         public BigInteger GetBigInteger(int ordinal)
@@ -159,14 +184,18 @@ namespace DuckDB.NET.Data
             {
                 return DBNull.Value;
             }
-
             return NativeMethods.Query.DuckDBColumnType(queryResult, ordinal) switch
             {
                 DuckDBType.DuckdbTypeInvalid => throw new DuckDBException("Invalid type"),
                 DuckDBType.DuckdbTypeBoolean => GetBoolean(ordinal),
+                DuckDBType.DuckdbTypeTinyInt => GetSByte(ordinal),
                 DuckDBType.DuckdbTypeSmallInt => GetInt16(ordinal),
                 DuckDBType.DuckdbTypeInteger => GetInt32(ordinal),
                 DuckDBType.DuckdbTypeBigInt => GetInt64(ordinal),
+                DuckDBType.DuckdbTypeUnsignedTinyInt => GetByte(ordinal),
+                DuckDBType.DuckdbTypeUnsignedSmallInt => GetUInt16(ordinal),
+                DuckDBType.DuckdbTypeUnsignedInteger => GetUInt32(ordinal),
+                DuckDBType.DuckdbTypeUnsignedBigInt => GetUInt64(ordinal),
                 DuckDBType.DuckdbTypeFloat => GetFloat(ordinal),
                 DuckDBType.DuckdbTypeDouble => GetDouble(ordinal),
                 DuckDBType.DuckdbTypeTimestamp => GetDateTime(ordinal),
@@ -176,7 +205,7 @@ namespace DuckDB.NET.Data
                 DuckDBType.DuckdbTypeHugeInt => GetBigInteger(ordinal),
                 DuckDBType.DuckdbTypeVarchar => GetString(ordinal),
                 DuckDBType.DuckdbTypeDecimal => GetDecimal(ordinal),
-                _ => throw new ArgumentException("Unrecognised type")
+                var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type}) in column {ordinal+1}")
             };
         }
 
