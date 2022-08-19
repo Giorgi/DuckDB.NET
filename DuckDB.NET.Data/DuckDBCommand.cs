@@ -77,6 +77,16 @@ namespace DuckDB.NET.Data
             return reader.Read() ? reader.GetValue(0) : null;
         }
 
+        public new DuckDBDataReader ExecuteReader()
+        {
+            return (DuckDBDataReader) base.ExecuteReader();
+        }
+
+        public new DuckDBDataReader ExecuteReader(CommandBehavior behavior)
+        {
+            return (DuckDBDataReader) base.ExecuteReader(behavior);
+        }
+
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
         {
             EnsureConnectionOpen();
