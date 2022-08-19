@@ -104,4 +104,17 @@ namespace DuckDB.NET
 
         public DuckDBTime Time { get; }
     }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DuckDBBlob : IDisposable
+    {
+        public IntPtr Data { get; }
+
+        public long Size { get;}
+
+        public void Dispose()
+        {
+            NativeMethods.Helpers.DuckDBFree(Data);
+        }
+    }
 }

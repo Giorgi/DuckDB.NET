@@ -3,6 +3,7 @@ using System.Collections;
 using System.Data;
 using System.Data.Common;
 using System.Globalization;
+using System.IO;
 using System.Numerics;
 using System.Runtime.InteropServices;
 
@@ -183,6 +184,12 @@ namespace DuckDB.NET.Data
         public override int GetValues(object[] values)
         {
             throw new NotImplementedException();
+        }
+
+        public override Stream GetStream(int ordinal)
+        {
+            var blob = NativeMethods.Types.DuckDBValueBlob(queryResult, ordinal, currentRow);
+            return new DuckDBStream(blob);
         }
 
         public override bool IsDBNull(int ordinal)

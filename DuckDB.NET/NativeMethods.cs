@@ -106,6 +106,9 @@ namespace DuckDB.NET
 
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_varchar")]
             public static extern IntPtr DuckDBValueVarchar([In, Out] DuckDBResult result, long col, long row);
+
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_blob")]
+            public static extern DuckDBBlob DuckDBValueBlob([In, Out] DuckDBResult result, long col, long row);
         }
 
         public static class PreparedStatements
