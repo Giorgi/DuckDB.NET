@@ -27,6 +27,7 @@ namespace DuckDB.NET.Data
 
             HasRows = NativeMethods.Query.DuckDBRowCount(queryResult) > 0;
             FieldCount = (int)NativeMethods.Query.DuckDBColumnCount(queryResult);
+            RecordsAffected = (int) NativeMethods.Query.DuckDBRowsChanged(queryResult);
         }
 
         public override bool GetBoolean(int ordinal)
@@ -183,7 +184,12 @@ namespace DuckDB.NET.Data
 
         public override int GetValues(object[] values)
         {
-            throw new NotImplementedException();
+            for (var i = 0; i < FieldCount; i++)
+            {
+                values[i] = GetValue(i);
+            }
+
+            return FieldCount;
         }
 
         public override Stream GetStream(int ordinal)
