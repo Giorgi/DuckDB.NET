@@ -23,7 +23,6 @@ internal static class DbTypeMap
         {typeof(ushort), DbType.UInt16},
         {typeof(uint), DbType.UInt32},
         {typeof(ulong), DbType.UInt64},
-        {typeof(float), DbType.Single}
     };
 
 
