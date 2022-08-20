@@ -15,7 +15,15 @@ internal static class DbTypeMap
         {typeof(long), DbType.Int64},
         {typeof(float), DbType.Single},
         {typeof(double), DbType.Double},
-        {typeof(string), DbType.String}
+        {typeof(string), DbType.String},
+        {typeof(Guid), DbType.Guid},
+        {typeof(decimal), DbType.Currency},
+        {typeof(byte), DbType.SByte},
+        {typeof(short), DbType.Int16},
+        {typeof(ushort), DbType.UInt16},
+        {typeof(uint), DbType.UInt32},
+        {typeof(ulong), DbType.UInt64},
+        {typeof(float), DbType.Single}
     };
 
 
