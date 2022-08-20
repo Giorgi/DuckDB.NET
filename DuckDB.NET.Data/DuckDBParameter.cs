@@ -1,3 +1,4 @@
+using System;
 using System.Data;
 using System.Data.Common;
 using DuckDB.NET.Data.Internal;
@@ -66,6 +67,16 @@ public class DuckDBParameter : DbParameter
         this.value = value;
     }
 
+    public DuckDBParameter(Guid value)
+        : this(DbType.Guid, value)
+    {
+    }
+    
+    public DuckDBParameter(decimal value)
+        : this(DbType.Currency, value)
+    {
+    }
+    
     public DuckDBParameter(bool value)
         : this(DbType.Boolean, value)
     {
@@ -90,6 +101,26 @@ public class DuckDBParameter : DbParameter
         : this(DbType.Int64, value)
     {
     }
+    
+    public DuckDBParameter(byte value)
+        : this(DbType.Byte, value)
+    {
+    }
+
+    public DuckDBParameter(ushort value)
+        : this(DbType.UInt16, value)
+    {
+    }
+
+    public DuckDBParameter(uint value)
+        : this(DbType.UInt32, value)
+    {
+    }
+
+    public DuckDBParameter(ulong value)
+        : this(DbType.UInt64, value)
+    {
+    }
 
     public DuckDBParameter(float value)
         : this(DbType.Single, value)
@@ -106,6 +137,16 @@ public class DuckDBParameter : DbParameter
     {
     }
 
+    public DuckDBParameter(string name, Guid value)
+        : this(name, DbType.Guid, value)
+    {
+    }
+    
+    public DuckDBParameter(string name, decimal value)
+        : this(name, DbType.Currency, value)
+    {
+    }
+    
     public DuckDBParameter(string name, bool value)
         : this(name, DbType.Boolean, value)
     {
@@ -128,6 +169,26 @@ public class DuckDBParameter : DbParameter
 
     public DuckDBParameter(string name, long value)
         : this(name, DbType.Int64, value)
+    {
+    }
+    
+    public DuckDBParameter(string name, byte value)
+        : this(name, DbType.Byte, value)
+    {
+    }
+
+    public DuckDBParameter(string name, ushort value)
+        : this(name, DbType.UInt16, value)
+    {
+    }
+
+    public DuckDBParameter(string name, uint value)
+        : this(name, DbType.UInt32, value)
+    {
+    }
+
+    public DuckDBParameter(string name, ulong value)
+        : this(name, DbType.UInt64, value)
     {
     }
 

@@ -8,11 +8,17 @@ internal sealed class PreparedStatement : IDisposable
 {
     private static readonly Dictionary<DbType, Func<DuckDBPreparedStatement, long, object, DuckDBState>> Binders = new()
     {
+        { DbType.Guid, BindObject },
+        { DbType.Currency, BindObject },
         { DbType.Boolean, BindBoolean },
         { DbType.SByte, BindInt8 },
         { DbType.Int16, BindInt16 },
         { DbType.Int32, BindInt32 },
         { DbType.Int64, BindInt64 },
+        { DbType.Byte, BindUInt8 },
+        { DbType.UInt16, BindUInt16 },
+        { DbType.UInt32, BindUInt32 },
+        { DbType.UInt64, BindUInt64 },
         { DbType.Single, BindFloat },
         { DbType.Double, BindDouble },
         { DbType.String, BindString },
@@ -93,6 +99,9 @@ internal sealed class PreparedStatement : IDisposable
         }
     }
 
+    private static DuckDBState BindObject(DuckDBPreparedStatement preparedStatement, long index, object value)
+        => BindString(preparedStatement, index, value.ToString());
+    
     private static DuckDBState BindBoolean(DuckDBPreparedStatement preparedStatement, long index, object value)
         => NativeMethods.PreparedStatements.DuckDBBindBoolean(preparedStatement, index, (bool)value);
 
@@ -108,6 +117,19 @@ internal sealed class PreparedStatement : IDisposable
     private static DuckDBState BindInt64(DuckDBPreparedStatement preparedStatement, long index, object value)
         => NativeMethods.PreparedStatements.DuckDBBindInt64(preparedStatement, index, (long)value);
 
+    private static DuckDBState BindUInt8(DuckDBPreparedStatement preparedStatement, long index, object value)
+        => NativeMethods.PreparedStatements.DuckDBBindUInt8(preparedStatement, index, (byte)value);
+
+    private static DuckDBState BindUInt16(DuckDBPreparedStatement preparedStatement, long index, object value)
+        => NativeMethods.PreparedStatements.DuckDBBindUInt16(preparedStatement, index, (ushort)value);
+
+    private static DuckDBState BindUInt32(DuckDBPreparedStatement preparedStatement, long index, object value)
+        => NativeMethods.PreparedStatements.DuckDBBindUInt32(preparedStatement, index, (uint)value);
+
+    private static DuckDBState BindUInt64(DuckDBPreparedStatement preparedStatement, long index, object value)
+        => NativeMethods.PreparedStatements.DuckDBBindUInt64(preparedStatement, index, (ulong)value);
+
+    
     private static DuckDBState BindFloat(DuckDBPreparedStatement preparedStatement, long index, object value)
         => NativeMethods.PreparedStatements.DuckDBBindFloat(preparedStatement, index, (float)value);
 
