@@ -104,6 +104,7 @@ namespace DuckDB.NET.Data
                 DuckDBType.DuckdbTypeHugeInt => typeof(BigInteger),
                 DuckDBType.DuckdbTypeVarchar => typeof(string),
                 DuckDBType.DuckdbTypeDecimal => typeof(decimal),
+                DuckDBType.DuckdbTypeBlob => typeof(Stream),
                 var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type}) in column {ordinal+1}")
             };
         }
@@ -132,7 +133,7 @@ namespace DuckDB.NET.Data
         {
             return NativeMethods.Types.DuckDBValueInt64(queryResult, ordinal, currentRow);
         }
-        
+
         public ushort GetUInt16(int ordinal)
         {
             return NativeMethods.Types.DuckDBValueUInt16(queryResult, ordinal, currentRow);
@@ -186,6 +187,7 @@ namespace DuckDB.NET.Data
             {
                 return DBNull.Value;
             }
+            
             return NativeMethods.Query.DuckDBColumnType(queryResult, ordinal) switch
             {
                 DuckDBType.DuckdbTypeInvalid => throw new DuckDBException("Invalid type"),
@@ -207,6 +209,7 @@ namespace DuckDB.NET.Data
                 DuckDBType.DuckdbTypeHugeInt => GetBigInteger(ordinal),
                 DuckDBType.DuckdbTypeVarchar => GetString(ordinal),
                 DuckDBType.DuckdbTypeDecimal => GetDecimal(ordinal),
+                DuckDBType.DuckdbTypeBlob => GetStream(ordinal),
                 var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type}) in column {ordinal+1}")
             };
         }
