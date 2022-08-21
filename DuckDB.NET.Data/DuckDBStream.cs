@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace DuckDB.NET.Data;
@@ -24,16 +23,18 @@ class DuckDBStream : Stream
     {
         var bytesToRead = (int)Math.Min(count, Length - position);
 
-        unchecked
+        if (bytesToRead > 0)
         {
-            var source = position <= int.MaxValue ? IntPtr.Add(blob.Data, (int)position) : new IntPtr(blob.Data.ToInt64() + position);
+            unchecked
+            {
+                var source = position <= int.MaxValue ? IntPtr.Add(blob.Data, (int)position) : new IntPtr(blob.Data.ToInt64() + position);
 
-            Marshal.Copy(source, buffer, offset, bytesToRead);
+                Marshal.Copy(source, buffer, offset, bytesToRead);
 
-            position += bytesToRead;
-
-            return bytesToRead;
+                position += bytesToRead;
+            }
         }
+        return bytesToRead;
     }
 
     public override long Seek(long offset, SeekOrigin origin)

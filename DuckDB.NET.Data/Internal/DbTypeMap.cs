@@ -24,6 +24,7 @@ internal static class DbTypeMap
         {typeof(uint), DbType.UInt32},
         {typeof(ulong), DbType.UInt64},
         {typeof(BigInteger), DbType.VarNumeric},
+        {typeof(byte[]), DbType.Binary},
     };
 
 
@@ -33,9 +34,9 @@ internal static class DbTypeMap
         {
             throw new ArgumentNullException(nameof(value));
         }
-        
+
         var type = value.GetType();
-        
+
         if (TypeMap.TryGetValue(type, out var dbType))
         {
             return dbType;

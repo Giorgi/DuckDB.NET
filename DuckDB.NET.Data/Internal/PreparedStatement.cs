@@ -24,6 +24,7 @@ internal sealed class PreparedStatement : IDisposable
         { DbType.Double, BindDouble },
         { DbType.String, BindString },
         { DbType.VarNumeric, BindHugeInt },
+        { DbType.Binary, BindBlob },
     };
 
     private readonly DuckDBPreparedStatement statement;
@@ -146,6 +147,12 @@ internal sealed class PreparedStatement : IDisposable
 
     private static DuckDBState BindHugeInt(DuckDBPreparedStatement preparedStatement, long index, object value) => 
         NativeMethods.PreparedStatements.DuckDBBindHugeInt(preparedStatement, index, new DuckDBHugeInt((BigInteger) value));
+
+    private static DuckDBState BindBlob(DuckDBPreparedStatement preparedStatement, long index, object value)
+    {
+        var bytes = (byte[])value;
+        return NativeMethods.PreparedStatements.DuckDBBindBlob(preparedStatement, index, bytes, bytes.LongLength);
+    }
 
     public void Dispose()
     {

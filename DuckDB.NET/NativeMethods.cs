@@ -131,7 +131,10 @@ namespace DuckDB.NET
             
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_prepare")]
             public static extern DuckDBState DuckDBPrepare(DuckDBNativeConnection connection, SafeUnmanagedMemoryHandle query, out DuckDBPreparedStatement preparedStatement);
-            
+
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_prepare")]
+            public static extern void DuckDBDestroyPrepare(out IntPtr preparedStatement);
+
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_prepare_error")]
             public static extern IntPtr DuckDBPrepareError(DuckDBPreparedStatement preparedStatement);
             
@@ -153,6 +156,9 @@ namespace DuckDB.NET
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_int64")]
             public static extern DuckDBState DuckDBBindInt64(DuckDBPreparedStatement preparedStatement, long index, long val);
 
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_hugeint")]
+            public static extern DuckDBState DuckDBBindHugeInt(DuckDBPreparedStatement preparedStatement, long index, DuckDBHugeInt val);
+
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_uint8")]
             public static extern DuckDBState DuckDBBindUInt8(DuckDBPreparedStatement preparedStatement, long index, byte val);
 
@@ -165,7 +171,6 @@ namespace DuckDB.NET
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_uint64")]
             public static extern DuckDBState DuckDBBindUInt64(DuckDBPreparedStatement preparedStatement, long index, ulong val);
 
-            
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_float")]
             public static extern DuckDBState DuckDBBindFloat(DuckDBPreparedStatement preparedStatement, long index, float val);
 
@@ -177,18 +182,15 @@ namespace DuckDB.NET
             
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_varchar")]
             public static extern DuckDBState DuckDBBindVarchar(DuckDBPreparedStatement preparedStatement, long index, SafeUnmanagedMemoryHandle val);
-
-            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_hugeint")]
-            public static extern DuckDBState DuckDBBindHugeInt(DuckDBPreparedStatement preparedStatement, long index, DuckDBHugeInt val);
+            
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_blob")]
+            public static extern DuckDBState DuckDBBindBlob(DuckDBPreparedStatement preparedStatement, long index, [In] byte[] data, long length);
 
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_null")]
             public static extern DuckDBState DuckDBBindNull(DuckDBPreparedStatement preparedStatement, long index);
 
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_execute_prepared")]
             public static extern DuckDBState DuckDBExecutePrepared(DuckDBPreparedStatement preparedStatement, [In, Out] DuckDBResult result);
-
-            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_prepare")]
-            public static extern void DuckDBDestroyPrepare(out IntPtr preparedStatement);
         }
 
         public static class Appender
