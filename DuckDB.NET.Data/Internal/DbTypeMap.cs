@@ -19,7 +19,7 @@ internal static class DbTypeMap
         {typeof(string), DbType.String},
         {typeof(Guid), DbType.Guid},
         {typeof(decimal), DbType.Currency},
-        {typeof(byte), DbType.SByte},
+        {typeof(byte), DbType.Byte},
         {typeof(ushort), DbType.UInt16},
         {typeof(uint), DbType.UInt32},
         {typeof(ulong), DbType.UInt64},
