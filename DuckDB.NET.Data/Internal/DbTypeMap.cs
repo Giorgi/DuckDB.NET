@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Numerics;
 
 namespace DuckDB.NET.Data.Internal;
 
@@ -22,6 +23,7 @@ internal static class DbTypeMap
         {typeof(ushort), DbType.UInt16},
         {typeof(uint), DbType.UInt32},
         {typeof(ulong), DbType.UInt64},
+        {typeof(BigInteger), DbType.VarNumeric},
     };
 
 

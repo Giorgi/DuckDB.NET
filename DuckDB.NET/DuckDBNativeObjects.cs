@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Runtime.InteropServices;
 
 namespace DuckDB.NET
@@ -53,7 +54,7 @@ namespace DuckDB.NET
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    public class DuckDBResult: IDisposable
+    public class DuckDBResult : IDisposable
     {
         [Obsolete]
         private long ColumnCount;
@@ -71,7 +72,7 @@ namespace DuckDB.NET
         private IntPtr ErrorMessage;
 
         private IntPtr internal_data;
-        
+
         public void Dispose()
         {
             NativeMethods.Query.DuckDBDestroyResult(this);
@@ -110,11 +111,53 @@ namespace DuckDB.NET
     {
         public IntPtr Data { get; }
 
-        public long Size { get;}
+        public long Size { get; }
 
         public void Dispose()
         {
             NativeMethods.Helpers.DuckDBFree(Data);
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DuckDBHugeInt
+    {
+        private static readonly BigInteger Base = BigInteger.Pow(2, 64);
+
+        public static BigInteger HugeIntMinValue { get; } = BigInteger.Parse("-170141183460469231731687303715884105727");
+        public static BigInteger HugeIntMaxValue { get; } = BigInteger.Parse("170141183460469231731687303715884105727");
+
+        public DuckDBHugeInt(BigInteger value)
+        {
+            if (value < HugeIntMinValue || value > HugeIntMaxValue)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), $"value must be between {HugeIntMinValue} and {HugeIntMaxValue}");
+            }
+
+            var upper = (long)BigInteger.DivRem(value, Base, out var rem);
+
+            if (rem < 0)
+            {
+                rem += Base;
+                upper -= 1;
+            }
+
+            Upper = upper;
+            Lower = (ulong)rem;
+        }
+
+        public DuckDBHugeInt(ulong lower, long upper)
+        {
+            Lower = lower;
+            Upper = upper;
+        }
+
+        public ulong Lower { get; }
+        public long Upper { get; }
+
+        public BigInteger ToBigInteger()
+        {
+            return Upper * BigInteger.Pow(2, 64) + Lower;
         }
     }
 }

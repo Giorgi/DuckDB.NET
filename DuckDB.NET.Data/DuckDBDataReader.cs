@@ -18,6 +18,7 @@ namespace DuckDB.NET.Data
 
         private int currentRow = -1;
         private bool closed = false;
+        private readonly long rowCount;
 
         internal DuckDBDataReader(DuckDbCommand command, DuckDBResult queryResult, CommandBehavior behavior)
         {
@@ -25,9 +26,9 @@ namespace DuckDB.NET.Data
             this.behavior = behavior;
             this.queryResult = queryResult;
 
-            HasRows = NativeMethods.Query.DuckDBRowCount(queryResult) > 0;
+            rowCount = NativeMethods.Query.DuckDBRowCount(queryResult);
             FieldCount = (int)NativeMethods.Query.DuckDBColumnCount(queryResult);
-            RecordsAffected = (int) NativeMethods.Query.DuckDBRowsChanged(queryResult);
+            RecordsAffected = (int)NativeMethods.Query.DuckDBRowsChanged(queryResult);
         }
 
         public override bool GetBoolean(int ordinal)
@@ -39,7 +40,7 @@ namespace DuckDB.NET.Data
         {
             return NativeMethods.Types.DuckDBValueUInt8(queryResult, ordinal, currentRow);
         }
-        
+
         public sbyte GetSByte(int ordinal)
         {
             return NativeMethods.Types.DuckDBValueInt8(queryResult, ordinal, currentRow);
@@ -105,7 +106,7 @@ namespace DuckDB.NET.Data
                 DuckDBType.DuckdbTypeVarchar => typeof(string),
                 DuckDBType.DuckdbTypeDecimal => typeof(decimal),
                 DuckDBType.DuckdbTypeBlob => typeof(Stream),
-                var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type}) in column {ordinal+1}")
+                var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type}) in column {ordinal + 1}")
             };
         }
 
@@ -187,7 +188,7 @@ namespace DuckDB.NET.Data
             {
                 return DBNull.Value;
             }
-            
+
             return NativeMethods.Query.DuckDBColumnType(queryResult, ordinal) switch
             {
                 DuckDBType.DuckdbTypeInvalid => throw new DuckDBException("Invalid type"),
@@ -210,7 +211,7 @@ namespace DuckDB.NET.Data
                 DuckDBType.DuckdbTypeVarchar => GetString(ordinal),
                 DuckDBType.DuckdbTypeDecimal => GetDecimal(ordinal),
                 DuckDBType.DuckdbTypeBlob => GetStream(ordinal),
-                var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type}) in column {ordinal+1}")
+                var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type}) in column {ordinal + 1}")
             };
         }
 
@@ -244,7 +245,7 @@ namespace DuckDB.NET.Data
 
         public override int RecordsAffected { get; }
 
-        public override bool HasRows { get; }
+        public override bool HasRows => rowCount > 0;
 
         public override bool IsClosed => closed;
 
@@ -255,7 +256,6 @@ namespace DuckDB.NET.Data
 
         public override bool Read()
         {
-            var rowCount = NativeMethods.Query.DuckDBRowCount(queryResult);
             if (currentRow + 1 < rowCount)
             {
                 currentRow++;
@@ -275,7 +275,7 @@ namespace DuckDB.NET.Data
         public override void Close()
         {
             if (closed) return;
-            
+
             queryResult.Dispose();
 
             if (behavior == CommandBehavior.CloseConnection)

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Numerics;
 
 namespace DuckDB.NET.Data;
 
@@ -22,6 +23,7 @@ internal sealed class PreparedStatement : IDisposable
         { DbType.Single, BindFloat },
         { DbType.Double, BindDouble },
         { DbType.String, BindString },
+        { DbType.VarNumeric, BindHugeInt },
     };
 
     private readonly DuckDBPreparedStatement statement;
@@ -141,6 +143,9 @@ internal sealed class PreparedStatement : IDisposable
         using var unmanagedString = ((string)value).ToUnmanagedString();
         return NativeMethods.PreparedStatements.DuckDBBindVarchar(preparedStatement, index, unmanagedString);
     }
+
+    private static DuckDBState BindHugeInt(DuckDBPreparedStatement preparedStatement, long index, object value) => 
+        NativeMethods.PreparedStatements.DuckDBBindHugeInt(preparedStatement, index, new DuckDBHugeInt((BigInteger) value));
 
     public void Dispose()
     {
