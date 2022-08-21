@@ -46,6 +46,8 @@ public class IntegerParametersTests
             var value = getValue(reader);
 
             value.Should().Be(expectedValue);
+            
+            reader.GetFieldType(0).Should().Be(typeof(TValue));
         }
         finally
         {
