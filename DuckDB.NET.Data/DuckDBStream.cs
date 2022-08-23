@@ -39,18 +39,6 @@ class DuckDBStream : Stream
 
     public override long Seek(long offset, SeekOrigin origin)
     {
-        if (offset == 0)
-        {
-            position = origin switch
-            {
-                SeekOrigin.Begin => 0,
-                SeekOrigin.End => Length,
-                _ => position
-            };
-
-            return Position;
-        }
-
         var startingPoint = origin switch
         {
             SeekOrigin.Current => position,

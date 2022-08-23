@@ -25,6 +25,8 @@ public class BlobParameterTests
         using (var stream = reader.GetStream(0))
         {
             stream.Length.Should().Be(4);
+            stream.CanWrite.Should().Be(false);
+
             using (var streamReader = new StreamReader(stream, leaveOpen: true))
             {
                 var text = streamReader.ReadToEnd();
@@ -86,6 +88,11 @@ public class BlobParameterTests
 
                 stream.Position = 7;
                 streamReader.ReadLine().Should().Be("H");
+
+                stream.Seek(0, SeekOrigin.Begin).Should().Be(0);
+                stream.Seek(0, SeekOrigin.End).Should().Be(stream.Length);
+                stream.Position = 5;
+                stream.Seek(0, SeekOrigin.Current).Should().Be(stream.Position);
 
                 stream.Invoking(s => s.Seek(stream.Length+1, SeekOrigin.Current)).Should().Throw<InvalidOperationException>();
             }
