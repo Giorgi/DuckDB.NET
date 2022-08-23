@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Numerics;
 using DuckDB.NET.Data;
@@ -54,6 +55,44 @@ public class BlobParameterTests
     }
 
     [Fact]
+    public void SeekTest()
+    {
+        using var connection = new DuckDBConnection("DataSource=:memory:");
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = "SELECT 'ABCDEFGH'::BLOB;";
+        command.ExecuteNonQuery();
+
+        var reader = command.ExecuteReader();
+        reader.Read();
+
+        using (var stream = reader.GetStream(0))
+        {
+            stream.CanSeek.Should().Be(true);
+            using (var streamReader = new StreamReader(stream, leaveOpen: true))
+            {
+                stream.Seek(2, SeekOrigin.Begin);
+                var text = streamReader.ReadToEnd();
+                text.Should().Be("CDEFGH");
+
+                stream.Seek(-4, SeekOrigin.End);
+                streamReader.ReadLine().Should().Be("EFGH");
+
+                stream.Seek(-4, SeekOrigin.End);
+                stream.Seek(2, SeekOrigin.Current);
+
+                streamReader.ReadLine().Should().Be("GH");
+
+                stream.Position = 7;
+                streamReader.ReadLine().Should().Be("H");
+
+                stream.Invoking(s => s.Seek(stream.Length+1, SeekOrigin.Current)).Should().Throw<InvalidOperationException>();
+            }
+        }
+    }
+
+    [Fact]
     public void BindValueTest()
     {
         using var connection = new DuckDBConnection("DataSource=:memory:");
@@ -73,7 +112,7 @@ public class BlobParameterTests
 
         var reader = command.ExecuteReader();
         reader.Read();
-        
+
         using (var stream = reader.GetStream(1))
         {
             stream.Length.Should().Be(2);

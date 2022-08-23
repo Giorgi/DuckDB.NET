@@ -39,7 +39,35 @@ class DuckDBStream : Stream
 
     public override long Seek(long offset, SeekOrigin origin)
     {
-        throw new NotSupportedException();
+        if (offset == 0)
+        {
+            position = origin switch
+            {
+                SeekOrigin.Begin => 0,
+                SeekOrigin.End => Length,
+                _ => position
+            };
+
+            return Position;
+        }
+
+        var startingPoint = origin switch
+        {
+            SeekOrigin.Current => position,
+            SeekOrigin.End => Length,
+            SeekOrigin.Begin => 0,
+        };
+
+        var newPosition = startingPoint + offset;
+
+        if (newPosition < 0 || newPosition > Length)
+        {
+            throw new InvalidOperationException("Cannot seek outside of stream");
+        }
+
+        position = newPosition;
+
+        return Position;
     }
 
     public override void SetLength(long value)
@@ -53,7 +81,7 @@ class DuckDBStream : Stream
     }
 
     public override bool CanRead => true;
-    public override bool CanSeek => false;
+    public override bool CanSeek => true;
     public override bool CanWrite => false;
 
     public override long Length => blob.Size;
@@ -61,7 +89,7 @@ class DuckDBStream : Stream
     public override long Position
     {
         get => position;
-        set => throw new NotSupportedException();
+        set => Seek(value, SeekOrigin.Begin);
     }
 
     public override void Close()
