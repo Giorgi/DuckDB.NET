@@ -69,4 +69,39 @@ public class DuckDBDataReaderTests
         reader.GetValue(2).Should().Be(reader.GetBoolean(2));
         reader[3].Should().Be(DBNull.Value);
     }
+
+    [Fact]
+    public void ReadIntervalValues()
+    {
+        using var connection = new DuckDBConnection("DataSource=:memory:");
+        connection.Open();
+
+        var duckDbCommand = connection.CreateCommand();
+        duckDbCommand.CommandText = "SELECT INTERVAL 1 YEAR;";
+
+        var reader = duckDbCommand.ExecuteReader();
+        reader.Read();
+        reader.GetFieldType(0).Should().Be(typeof(DuckDBInterval));
+        reader.GetDataTypeName(0).Should().Be("DuckdbTypeInterval");
+        
+        var interval = reader.GetFieldValue<DuckDBInterval>(0);
+
+        interval.Months.Should().Be(12);
+
+        duckDbCommand.CommandText = "SELECT INTERVAL '28' DAYS;";
+        reader = duckDbCommand.ExecuteReader();
+        reader.Read();
+
+        interval = reader.GetFieldValue<DuckDBInterval>(0);
+
+        interval.Days.Should().Be(28);
+
+        duckDbCommand.CommandText = "SELECT INTERVAL 30 SECONDS;";
+        reader = duckDbCommand.ExecuteReader();
+        reader.Read();
+
+        interval = reader.GetFieldValue<DuckDBInterval>(0);
+
+        interval.Micros.Should().Be(30_000_000);
+    }
 }

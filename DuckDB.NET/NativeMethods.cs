@@ -117,6 +117,9 @@ namespace DuckDB.NET
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_double")]
             public static extern double DuckDBValueDouble([In, Out] DuckDBResult result, long col, long row);
 
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_interval")]
+            public static extern DuckDBInterval DuckDBValueInterval([In, Out] DuckDBResult result, long col, long row);
+
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_varchar")]
             public static extern IntPtr DuckDBValueVarchar([In, Out] DuckDBResult result, long col, long row);
 

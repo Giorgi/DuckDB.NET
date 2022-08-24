@@ -160,4 +160,12 @@ namespace DuckDB.NET
             return Upper * BigInteger.Pow(2, 64) + Lower;
         }
     }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DuckDBInterval
+    {
+        public int Months { get; }
+        public int Days { get; }
+        public ulong Micros { get; }
+    }
 }

@@ -101,7 +101,7 @@ namespace DuckDB.NET.Data
                 DuckDBType.DuckdbTypeTimestamp => typeof(DateTime),
                 DuckDBType.DuckdbTypeDate => typeof(DateTime),
                 DuckDBType.DuckdbTypeTime => typeof(DateTime),
-                DuckDBType.DuckdbTypeInterval => throw new NotImplementedException(),
+                DuckDBType.DuckdbTypeInterval => typeof(DuckDBInterval),
                 DuckDBType.DuckdbTypeHugeInt => typeof(BigInteger),
                 DuckDBType.DuckdbTypeVarchar => typeof(string),
                 DuckDBType.DuckdbTypeDecimal => typeof(decimal),
@@ -206,13 +206,18 @@ namespace DuckDB.NET.Data
                 DuckDBType.DuckdbTypeTimestamp => GetDateTime(ordinal),
                 DuckDBType.DuckdbTypeDate => GetDateTime(ordinal),
                 DuckDBType.DuckdbTypeTime => GetDateTime(ordinal),
-                DuckDBType.DuckdbTypeInterval => throw new NotImplementedException(),
+                DuckDBType.DuckdbTypeInterval => GetDuckDBInterval(ordinal),
                 DuckDBType.DuckdbTypeHugeInt => GetBigInteger(ordinal),
                 DuckDBType.DuckdbTypeVarchar => GetString(ordinal),
                 DuckDBType.DuckdbTypeDecimal => GetDecimal(ordinal),
                 DuckDBType.DuckdbTypeBlob => GetStream(ordinal),
                 var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type}) in column {ordinal + 1}")
             };
+        }
+
+        private DuckDBInterval GetDuckDBInterval(int ordinal)
+        {
+            return NativeMethods.Types.DuckDBValueInterval(queryResult, ordinal, currentRow);
         }
 
         public override int GetValues(object[] values)
