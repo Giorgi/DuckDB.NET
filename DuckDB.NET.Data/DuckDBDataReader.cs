@@ -274,7 +274,7 @@ namespace DuckDB.NET.Data
 
         public override IEnumerator GetEnumerator()
         {
-            throw new NotImplementedException();
+            return new DbEnumerator(this, behavior == CommandBehavior.CloseConnection);
         }
 
         public override void Close()

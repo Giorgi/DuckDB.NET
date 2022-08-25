@@ -68,6 +68,31 @@ public class DuckDBDataReaderTests
         reader[1].Should().Be(reader.GetDecimal(1));
         reader.GetValue(2).Should().Be(reader.GetBoolean(2));
         reader[3].Should().Be(DBNull.Value);
+
+        reader.GetFieldType(1).Should().Be(typeof(decimal));
+        reader.GetFieldType(2).Should().Be(typeof(bool));
+    }
+
+    [Fact]
+    public void ReaderEnumerator()
+    {
+        using var connection = new DuckDBConnection("DataSource=:memory:");
+        connection.Open();
+
+        var duckDbCommand = connection.CreateCommand();
+
+        duckDbCommand.CommandText = "select 2 union select 4";
+        var reader = duckDbCommand.ExecuteReader(CommandBehavior.CloseConnection);
+
+        var enumerator = reader.GetEnumerator();
+        
+        enumerator.MoveNext().Should().Be(true);
+
+        (enumerator.Current as IDataRecord).GetInt32(0).Should().Be(2);
+        enumerator.MoveNext().Should().Be(true);
+
+        (enumerator.Current as IDataRecord).GetInt32(0).Should().Be(4);
+        enumerator.MoveNext().Should().Be(false);
     }
 
     [Fact]
