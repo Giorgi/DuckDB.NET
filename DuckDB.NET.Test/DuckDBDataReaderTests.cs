@@ -68,6 +68,10 @@ public class DuckDBDataReaderTests
         reader[1].Should().Be(reader.GetDecimal(1));
         reader.GetValue(2).Should().Be(reader.GetBoolean(2));
         reader[3].Should().Be(DBNull.Value);
+        
+        var values = new object[4];
+        reader.GetValues(values);
+        values.Should().BeEquivalentTo(new object[] { 1, 2.4, true, DBNull.Value });
 
         reader.GetFieldType(1).Should().Be(typeof(decimal));
         reader.GetFieldType(2).Should().Be(typeof(bool));
@@ -85,7 +89,7 @@ public class DuckDBDataReaderTests
         var reader = duckDbCommand.ExecuteReader(CommandBehavior.CloseConnection);
 
         var enumerator = reader.GetEnumerator();
-        
+
         enumerator.MoveNext().Should().Be(true);
 
         (enumerator.Current as IDataRecord).GetInt32(0).Should().Be(2);
@@ -108,7 +112,7 @@ public class DuckDBDataReaderTests
         reader.Read();
         reader.GetFieldType(0).Should().Be(typeof(DuckDBInterval));
         reader.GetDataTypeName(0).Should().Be("DuckdbTypeInterval");
-        
+
         var interval = reader.GetFieldValue<DuckDBInterval>(0);
 
         interval.Months.Should().Be(12);

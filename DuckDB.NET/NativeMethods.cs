@@ -98,6 +98,9 @@ namespace DuckDB.NET
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_int64")]
             public static extern long DuckDBValueInt64([In, Out] DuckDBResult result, long col, long row);
 
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_decimal")]
+            public static extern DuckDBDecimal DuckDBValueDecimal([In, Out] DuckDBResult result, long col, long row);
+
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_uint8")]
             public static extern byte DuckDBValueUInt8([In, Out] DuckDBResult result, long col, long row);
 
@@ -110,7 +113,6 @@ namespace DuckDB.NET
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_uint64")]
             public static extern ulong DuckDBValueUInt64([In, Out] DuckDBResult result, long col, long row);
 
-            
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_float")]
             public static extern float DuckDBValueFloat([In, Out] DuckDBResult result, long col, long row);
 

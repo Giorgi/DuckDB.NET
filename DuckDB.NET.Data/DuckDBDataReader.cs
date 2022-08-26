@@ -74,7 +74,15 @@ namespace DuckDB.NET.Data
 
         public override decimal GetDecimal(int ordinal)
         {
-            return decimal.Parse(GetString(ordinal), CultureInfo.InvariantCulture);
+            var duckDBDecimal = NativeMethods.Types.DuckDBValueDecimal(queryResult, ordinal, currentRow);
+            var @decimal = decimal.Parse(GetString(ordinal), CultureInfo.InvariantCulture);
+            
+            for (int i = 0; i < duckDBDecimal.Scale; i++)
+            {
+                @decimal /= 10;
+            }
+            
+            return @decimal;
         }
 
         public override double GetDouble(int ordinal)

@@ -162,6 +162,15 @@ namespace DuckDB.NET
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    public struct DuckDBDecimal
+    {
+        public byte Width { get; }
+        public byte Scale { get; }
+
+        public DuckDBHugeInt Value { get; }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     public struct DuckDBInterval
     {
         public int Months { get; }
