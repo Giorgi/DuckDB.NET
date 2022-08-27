@@ -129,13 +129,13 @@ namespace DuckDB.NET
             public static extern DuckDBBlob DuckDBValueBlob([In, Out] DuckDBResult result, long col, long row);
             
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_date")]
-            public static extern DuckDBDate DuckDbValueDate([In, Out] DuckDBResult result, long col, long row);
+            public static extern DuckDBDate DuckDBValueDate([In, Out] DuckDBResult result, long col, long row);
             
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_time")]
-            public static extern DuckDBTime DuckDbValueTime([In, Out] DuckDBResult result, long col, long row);
+            public static extern DuckDBTime DuckDBValueTime([In, Out] DuckDBResult result, long col, long row);
             
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_timestamp")]
-            public static extern DuckDBTimestampStruct DuckDbValueTimestamp([In, Out] DuckDBResult result, long col, long row);
+            public static extern DuckDBTimestampStruct DuckDBValueTimestamp([In, Out] DuckDBResult result, long col, long row);
         }
 
         public static class PreparedStatements

@@ -68,20 +68,20 @@ namespace DuckDB.NET.Data
 
         public override DateTime GetDateTime(int ordinal)
         {
-            var timestampStruct = NativeMethods.Types.DuckDbValueTimestamp(queryResult, ordinal, currentRow);
+            var timestampStruct = NativeMethods.Types.DuckDBValueTimestamp(queryResult, ordinal, currentRow);
             var timestamp = NativeMethods.DateTime.DuckDBFromTimestamp(timestampStruct);
             return timestamp.ToDateTime();
         }
 
         public DuckDBDateOnly GetDateOnly(int ordinal)
         {
-            var date = NativeMethods.Types.DuckDbValueDate(queryResult, ordinal, currentRow);
+            var date = NativeMethods.Types.DuckDBValueDate(queryResult, ordinal, currentRow);
             return NativeMethods.DateTime.DuckDBFromDate(date);
         }
 
         public DuckDBTimeOnly GetTimeOnly(int ordinal)
         {
-            var time = NativeMethods.Types.DuckDbValueTime(queryResult, ordinal, currentRow);
+            var time = NativeMethods.Types.DuckDBValueTime(queryResult, ordinal, currentRow);
             return NativeMethods.DateTime.DuckDBFromTime(time);
         }
 
