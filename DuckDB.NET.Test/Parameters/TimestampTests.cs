@@ -71,4 +71,47 @@ public class TimestampTests
 
         receivedTime.Should().Be(expectedValue);
     }
+    
+    [Theory]
+    [InlineData(1992, 09, 20, 12, 15, 17, 350)]
+    [InlineData(2022, 05, 04, 12, 17, 15, 450)]
+    [InlineData(2022, 04, 05, 18, 15, 17, 125)]
+    public void InsertAndQueryTest(int year, int mon, int day, byte hour, byte minute, byte second, int millisecond)
+    {
+        using var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
+        connection.Open();
+        
+        var expectedValue = new DateTime(year, mon, day, hour, minute, second, millisecond);
+
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "CREATE TABLE TimestampTestTable (a INTEGER, b TIMESTAMP);";
+        cmd.ExecuteNonQuery();
+
+        cmd.CommandText = "INSERT INTO TimestampTestTable (a, b) VALUES (42, ?);";
+        cmd.Parameters.Add(new DuckDBParameter(expectedValue));
+        cmd.ExecuteNonQuery();
+        
+        cmd.Parameters.Clear();
+        cmd.CommandText = "SELECT * FROM TimestampTestTable LIMIT 1;";
+
+        var reader = cmd.ExecuteReader();
+        reader.Read();
+
+        reader.GetFieldType(1).Should().Be(typeof(DateTime));
+
+        var dateTime = reader.GetDateTime(1);
+
+        dateTime.Year.Should().Be(year);
+        dateTime.Month.Should().Be(mon);
+        dateTime.Day.Should().Be(day);
+        dateTime.Hour.Should().Be(hour);
+        dateTime.Minute.Should().Be(minute);
+        dateTime.Second.Should().Be(second);
+        dateTime.Millisecond.Should().Be(millisecond);
+
+        expectedValue.Should().Be(dateTime);
+
+        cmd.CommandText = "DROP TABLE TimestampTestTable;";
+        cmd.ExecuteNonQuery();
+    }
 }
