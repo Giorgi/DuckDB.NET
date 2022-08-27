@@ -25,6 +25,9 @@ internal static class DbTypeMap
         {typeof(ulong), DbType.UInt64},
         {typeof(BigInteger), DbType.VarNumeric},
         {typeof(byte[]), DbType.Binary},
+        {typeof(DateTime), DbType.DateTime},
+        {typeof(DuckDBDateOnly), DbType.Date},
+        {typeof(DuckDBTimeOnly), DbType.Time},
     };
 
 

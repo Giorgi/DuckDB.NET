@@ -1,4 +1,3 @@
-using System;
 using System.Data;
 using System.Data.Common;
 using DuckDB.NET.Data.Internal;

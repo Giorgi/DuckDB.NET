@@ -25,6 +25,9 @@ internal sealed class PreparedStatement : IDisposable
         { DbType.String, BindString },
         { DbType.VarNumeric, BindHugeInt },
         { DbType.Binary, BindBlob },
+        { DbType.Date, BindDateOnly },
+        { DbType.Time, BindTimeOnly },
+        { DbType.DateTime, BindTimestamp }
     };
 
     private readonly DuckDBPreparedStatement statement;
@@ -93,8 +96,9 @@ internal sealed class PreparedStatement : IDisposable
         {
             throw new InvalidOperationException($"Unable to bind value of type {parameter.DbType}.");
         }
-
+            
         var result = binder(preparedStatement, index, parameter.Value);
+
         if (!result.IsSuccess())
         {
             var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(preparedStatement).ToManagedString(false);
@@ -152,6 +156,25 @@ internal sealed class PreparedStatement : IDisposable
     {
         var bytes = (byte[])value;
         return NativeMethods.PreparedStatements.DuckDBBindBlob(preparedStatement, index, bytes, bytes.LongLength);
+    }
+    
+    private static DuckDBState BindDateOnly(DuckDBPreparedStatement preparedStatement, long index, object value)
+    {
+        var date = NativeMethods.DateTime.DuckDBToDate((DuckDBDateOnly)value);
+        return NativeMethods.PreparedStatements.DuckDBBindDate(preparedStatement, index, date);
+    }
+    
+    private static DuckDBState BindTimeOnly(DuckDBPreparedStatement preparedStatement, long index, object value)
+    {
+        var time = NativeMethods.DateTime.DuckDBToTime((DuckDBTimeOnly)value);
+        return NativeMethods.PreparedStatements.DuckDBBindTime(preparedStatement, index, time);
+    }
+    
+    private static DuckDBState BindTimestamp(DuckDBPreparedStatement preparedStatement, long index, object value)
+    {
+        var timestamp = DuckDBTimestamp.FromDateTime((DateTime) value);
+        var timestampStruct = NativeMethods.DateTime.DuckDBToTimestamp(timestamp);
+        return NativeMethods.PreparedStatements.DuckDBBindTimestamp(preparedStatement, index, timestampStruct);
     }
 
     public void Dispose()
