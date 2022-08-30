@@ -41,7 +41,7 @@ namespace DuckDB.NET.Data
             return NativeMethods.Types.DuckDBValueUInt8(queryResult, ordinal, currentRow);
         }
 
-        public sbyte GetSByte(int ordinal)
+        private sbyte GetSByte(int ordinal)
         {
             return NativeMethods.Types.DuckDBValueInt8(queryResult, ordinal, currentRow);
         }
@@ -73,13 +73,13 @@ namespace DuckDB.NET.Data
             return timestamp.ToDateTime();
         }
 
-        public DuckDBDateOnly GetDateOnly(int ordinal)
+        private DuckDBDateOnly GetDateOnly(int ordinal)
         {
             var date = NativeMethods.Types.DuckDBValueDate(queryResult, ordinal, currentRow);
             return NativeMethods.DateTime.DuckDBFromDate(date);
         }
 
-        public DuckDBTimeOnly GetTimeOnly(int ordinal)
+        private DuckDBTimeOnly GetTimeOnly(int ordinal)
         {
             var time = NativeMethods.Types.DuckDBValueTime(queryResult, ordinal, currentRow);
             return NativeMethods.DateTime.DuckDBFromTime(time);
@@ -156,22 +156,22 @@ namespace DuckDB.NET.Data
             return NativeMethods.Types.DuckDBValueInt64(queryResult, ordinal, currentRow);
         }
 
-        public ushort GetUInt16(int ordinal)
+        private ushort GetUInt16(int ordinal)
         {
             return NativeMethods.Types.DuckDBValueUInt16(queryResult, ordinal, currentRow);
         }
-
-        public uint GetUInt32(int ordinal)
+        
+        private uint GetUInt32(int ordinal)
         {
             return NativeMethods.Types.DuckDBValueUInt32(queryResult, ordinal, currentRow);
         }
-
-        public ulong GetUInt64(int ordinal)
+        
+        private ulong GetUInt64(int ordinal)
         {
             return NativeMethods.Types.DuckDBValueUInt64(queryResult, ordinal, currentRow);
         }
 
-        public BigInteger GetBigInteger(int ordinal)
+        private BigInteger GetBigInteger(int ordinal)
         {
             return BigInteger.Parse(GetString(ordinal));
         }

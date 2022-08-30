@@ -22,7 +22,7 @@ public class HugeIntParameterTests
 
         var reader = command.ExecuteReader();
         reader.Read();
-        var receivedValue = reader.GetBigInteger(0);
+        var receivedValue = reader.GetFieldValue<BigInteger>(0);
         receivedValue.Should().Be(125);
 
         reader.GetFieldType(0).Should().Be(typeof(BigInteger));
@@ -50,7 +50,7 @@ public class HugeIntParameterTests
         var reader = command.ExecuteReader();
         reader.Read();
         
-        var receivedValue = reader.GetBigInteger(1);
+        var receivedValue = reader.GetFieldValue<BigInteger>(1);
         receivedValue.Should().Be(value);
     }
 }

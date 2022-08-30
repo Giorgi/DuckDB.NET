@@ -92,7 +92,7 @@ public class DateTests
         cmd.ExecuteNonQuery();
 
         cmd.CommandText = "INSERT INTO DateOnlyTestTable (a, b) VALUES (42, ?);";
-        cmd.Parameters.Add(new DuckDBParameter(new DuckDBDateOnly {Year = year, Month = mon, Day = day}));
+        cmd.Parameters.Add(new DuckDBParameter(new DuckDBDateOnly (year,mon,day)));
         cmd.ExecuteNonQuery();
         
         cmd.Parameters.Clear();
@@ -103,7 +103,7 @@ public class DateTests
 
         reader.GetFieldType(1).Should().Be(typeof(DuckDBDateOnly));
 
-        var dateOnly = reader.GetDateOnly(1);
+        var dateOnly = reader.GetFieldValue<DuckDBDateOnly>(1);
 
         dateOnly.Year.Should().Be(year);
         dateOnly.Month.Should().Be(mon);

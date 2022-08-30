@@ -78,8 +78,8 @@ public class IntegerParametersTests
         using var connection = new DuckDBConnection("DataSource=:memory:");
         connection.Open();
         
-        TestSimple(connection, "TINYINT", value, r => r.GetSByte(0));
-        TestBind(connection, value, new DuckDBParameter(value), r => r.GetSByte(0));
+        TestSimple(connection, "TINYINT", value, r => r.GetFieldValue<sbyte>(0));
+        TestBind(connection, value, new DuckDBParameter(value), r => r.GetFieldValue<sbyte>(0));
     }
     
     [Theory]
@@ -91,8 +91,8 @@ public class IntegerParametersTests
         using var connection = new DuckDBConnection("DataSource=:memory:");
         connection.Open();
         
-        TestSimple(connection, "USMALLINT", value, r => r.GetUInt16(0));
-        TestBind(connection, value, new DuckDBParameter(value), r => r.GetUInt16(0));
+        TestSimple(connection, "USMALLINT", value, r => r.GetFieldValue<ushort>(0));
+        TestBind(connection, value, new DuckDBParameter(value), r => r.GetFieldValue<ushort>(0));
     }
     
     [Theory]
@@ -117,8 +117,8 @@ public class IntegerParametersTests
         using var connection = new DuckDBConnection("DataSource=:memory:");
         connection.Open();
         
-        TestSimple(connection, "UINTEGER", value, r => r.GetUInt32(0));
-        TestBind(connection, value, new DuckDBParameter(value), r => r.GetUInt32(0));
+        TestSimple(connection, "UINTEGER", value, r => r.GetFieldValue<uint>(0));
+        TestBind(connection, value, new DuckDBParameter(value), r => r.GetFieldValue<uint>(0));
     }
     
     [Theory]
@@ -143,8 +143,8 @@ public class IntegerParametersTests
         using var connection = new DuckDBConnection("DataSource=:memory:");
         connection.Open();
         
-        TestSimple(connection, "UBIGINT", value, r => r.GetUInt64(0));
-        TestBind(connection, value, new DuckDBParameter(value), r => r.GetUInt64(0));
+        TestSimple(connection, "UBIGINT", value, r => r.GetFieldValue<ulong>(0));
+        TestBind(connection, value, new DuckDBParameter(value), r => r.GetFieldValue<ulong>(0));
     }
     
     [Theory]

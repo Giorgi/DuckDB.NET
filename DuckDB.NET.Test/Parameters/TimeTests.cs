@@ -111,7 +111,7 @@ public class TimeTests
 
         reader.GetFieldType(1).Should().Be(typeof(DuckDBTimeOnly));
 
-        var timeOnly = reader.GetTimeOnly(1);
+        var timeOnly = reader.GetFieldValue<DuckDBTimeOnly>(1);
 
         timeOnly.Hour.Should().Be(hour);
         timeOnly.Min.Should().Be(minute);

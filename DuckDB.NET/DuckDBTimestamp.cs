@@ -6,12 +6,11 @@ namespace DuckDB.NET
     [StructLayout(LayoutKind.Sequential)]
     public struct DuckDBTimestamp
     {
-        public DuckDBDateOnly Date { get; set; }
-        public DuckDBTimeOnly Time { get; set; }
-        
-        public DateTime ToDateTime()
-        {
-            return new DateTime(
+        public DuckDBDateOnly Date { get; private set; }
+        public DuckDBTimeOnly Time { get; private set; }
+
+        public DateTime ToDateTime() =>
+            new DateTime(
                 Date.Year,
                 Date.Month,
                 Date.Day,
@@ -20,11 +19,11 @@ namespace DuckDB.NET
                 Time.Sec,
                 Time.Msec
             );
-        }
 
         public static DuckDBTimestamp FromDateTime(DateTime dateTime)
         {
-            return new DuckDBTimestamp {
+            return new DuckDBTimestamp
+            {
                 Date = DuckDBDateOnly.FromDateTime(dateTime),
                 Time = DuckDBTimeOnly.FromDateTime(dateTime)
             };
