@@ -34,7 +34,7 @@ namespace DuckDB.NET.Data
 
         public override void ChangeDatabase(string databaseName)
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
 
         public override void Close()
