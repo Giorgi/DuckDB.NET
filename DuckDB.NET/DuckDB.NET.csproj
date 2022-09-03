@@ -12,7 +12,7 @@
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://github.com/Giorgi/DuckDB.NET</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.4.0.1</Version>
+    <Version>0.4.0.10</Version>
 
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(Configuration)'=='Release'">True</ContinuousIntegrationBuild>
@@ -23,10 +23,10 @@
     <PackageLicenseExpression></PackageLicenseExpression>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     <PackageIcon>Logo.jpg</PackageIcon>
-    <PackageReleaseNotes>Added Configuration and Appender.</PackageReleaseNotes>
+    <PackageReleaseNotes>Added types for Interval, HugeInt, Blob and other native DuckDB types.</PackageReleaseNotes>
     <Copyright>Copyright © 2020 - 2022 Giorgi Dalakishvili</Copyright>
-    <AssemblyVersion>0.4.0.1</AssemblyVersion>
-    <FileVersion>0.4.0.1</FileVersion>
+    <AssemblyVersion>0.4.0.10</AssemblyVersion>
+    <FileVersion>0.4.0.10</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
