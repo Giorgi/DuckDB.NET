@@ -76,6 +76,32 @@ private static void PrintQueryResults(DbDataReader queryResult)
 }
 ```
 
+#### Parameterized queries and DuckDB native types.
+
+Starting from version 0.4.0.10, DuckDB.NET.Data supports executing parameterized queries and reading all built-in native duckdb types:
+
+```cs
+using var connection = new DuckDBConnection("DataSource=:memory:");
+connection.Open();
+
+var command = connection.CreateCommand();
+command.CommandText = "SELECT * from integers where foo > ?;";
+command.Parameters.Add(new new DuckDBParameter(3));
+
+using var reader = command.ExecuteReader();
+```
+
+To read DuckDB specific native types use `DuckDBDataReader.GetFieldValue<T>` method. The following table shows the mapping between DuckDB native type and DuckDB.NET.Data .Net type:
+
+| DuckDB Type  | .Net Type |
+| ------------- | ------------- |
+| INTERVAL   | DuckDBInterval  |
+| DATE  | DuckDBDateOnly  |
+| TIME  | DuckDBTimeOnly  |
+| HUGEINT  | BigInteger  |
+
+### Dapper
+
 You can also use Dapper to query data:
 
 ```cs

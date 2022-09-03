@@ -17,7 +17,7 @@ public class IntegerParametersTests
         var scalar = command.ExecuteScalar();
         scalar.Should().Be(expectedValue);
 
-        var reader = (DuckDBDataReader)command.ExecuteReader();
+        var reader = command.ExecuteReader();
         reader.Read();
         var value = getValue(reader);
 
@@ -41,7 +41,7 @@ public class IntegerParametersTests
             var scalar = command.ExecuteScalar();
             scalar.Should().Be(expectedValue);
 
-            var reader = (DuckDBDataReader) command.ExecuteReader();
+            var reader = command.ExecuteReader();
             reader.Read();
             var value = getValue(reader);
 
