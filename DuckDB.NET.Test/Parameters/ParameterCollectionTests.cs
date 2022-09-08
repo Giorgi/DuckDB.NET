@@ -139,11 +139,14 @@ public class ParameterCollectionTests
         var command = connection.CreateCommand();
         command.CommandText = "CREATE TABLE ParametersTestKeyValue (KEY INTEGER, VALUE TEXT)";
         command.ExecuteNonQuery();
+        command.CommandText = "INSERT INTO ParametersTestKeyValue (KEY, VALUE) VALUES (42, 'test string');";
+        command.ExecuteNonQuery();
 
         command.CommandText = queryStatement;
         command.Parameters.Add(new DuckDBParameter("param1", 42));
         command.Parameters.Add(new DuckDBParameter("param2", "hello"));
-        command.ExecuteNonQuery();
+        var affectedRows = command.ExecuteNonQuery();
+        affectedRows.Should().NotBe(0);
     }
 
     [Theory]
@@ -159,6 +162,8 @@ public class ParameterCollectionTests
 
         var command = connection.CreateCommand();
         command.CommandText = "CREATE TABLE ParametersTestInvalidOrderKeyValue (KEY INTEGER, VALUE TEXT)";
+        command.ExecuteNonQuery();
+        command.CommandText = "INSERT INTO ParametersTestInvalidOrderKeyValue (KEY, VALUE) VALUES (42, 'test string');";
         command.ExecuteNonQuery();
 
         command.CommandText = queryStatement;
