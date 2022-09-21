@@ -27,6 +27,23 @@ public class ParameterCollectionTests
         var scalar = command.ExecuteScalar();
         scalar.Should().Be(42);
     }
+    
+    [Theory]
+    [InlineData("SELECT ?1;")]
+    [InlineData("SELECT ?;")]
+    [InlineData("SELECT $1;")]
+    public void BindSingleValueNullTest(string query)
+    {
+        using var connection = new DuckDBConnection("DataSource=:memory:");
+        connection.Open();
+
+        var command = connection.CreateCommand();
+
+        command.Parameters.Add(new DuckDBParameter("test", null));
+        command.CommandText = query;
+        var scalar = command.ExecuteScalar();
+        scalar.Should().Be(DBNull.Value);
+    }
 
     [Fact]
     public void BindNullValueTest()
@@ -215,6 +232,21 @@ public class ParameterCollectionTests
         dp.Add("param1", "test");
 
         connection.Execute(queryStatement, dp);
+    }
+    
+    [Theory]
+    [InlineData("SELECT ?1;")]
+    [InlineData("SELECT ?;")]
+    [InlineData("SELECT $1;")]
+    public void BindSingleValueDapperNullTest(string query)
+    {
+        using var connection = new DuckDBConnection("DataSource=:memory:");
+        connection.Open();
+
+        var parameters = new DynamicParameters();
+        parameters.Add("test", null);
+        var scalar = connection.QuerySingle<long?>(query, parameters);
+        scalar.Should().BeNull();
     }
 
     [Theory]

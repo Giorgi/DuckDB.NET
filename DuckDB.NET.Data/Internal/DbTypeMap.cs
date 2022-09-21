@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Numerics;
+using DuckDB.NET.Data.Extensions;
 
 namespace DuckDB.NET.Data.Internal;
 
@@ -33,9 +34,9 @@ internal static class DbTypeMap
 
     public static DbType GetDbTypeForValue(object value)
     {
-        if (value == null)
+        if (value.IsNull())
         {
-            throw new ArgumentNullException(nameof(value));
+            return DbType.Object;
         }
 
         var type = value.GetType();
