@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Numerics;
+using DuckDB.NET.Data.Extensions;
 
 namespace DuckDB.NET.Data;
 
@@ -86,7 +87,7 @@ internal sealed class PreparedStatement : IDisposable
 
     private static void BindParameter(DuckDBPreparedStatement preparedStatement, long index, DuckDBParameter parameter)
     {
-        if (parameter.Value == null)
+        if (parameter.Value.IsNull())
         {
             NativeMethods.PreparedStatements.DuckDBBindNull(preparedStatement, index);
             return;
