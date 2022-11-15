@@ -9,7 +9,7 @@ on:
       - '**.md'
 
 env:
-  DUCKDB_GIT_TAG: 'v0.5.1'
+  DUCKDB_GIT_TAG: 'v0.6.0'
 
 jobs:
   build:
