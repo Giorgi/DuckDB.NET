@@ -44,6 +44,7 @@ class DuckDBStream : Stream
             SeekOrigin.Current => position,
             SeekOrigin.End => Length,
             SeekOrigin.Begin => 0,
+            _ => throw new ArgumentOutOfRangeException(nameof(origin), origin, null)
         };
 
         var newPosition = startingPoint + offset;

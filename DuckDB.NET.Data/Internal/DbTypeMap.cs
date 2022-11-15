@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Numerics;
+using DuckDB.NET.Data.Extensions;
 
 namespace DuckDB.NET.Data.Internal;
 
@@ -25,14 +26,17 @@ internal static class DbTypeMap
         {typeof(ulong), DbType.UInt64},
         {typeof(BigInteger), DbType.VarNumeric},
         {typeof(byte[]), DbType.Binary},
+        {typeof(DateTime), DbType.DateTime},
+        {typeof(DuckDBDateOnly), DbType.Date},
+        {typeof(DuckDBTimeOnly), DbType.Time},
     };
 
 
     public static DbType GetDbTypeForValue(object value)
     {
-        if (value == null)
+        if (value.IsNull())
         {
-            throw new ArgumentNullException(nameof(value));
+            return DbType.Object;
         }
 
         var type = value.GetType();

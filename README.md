@@ -16,7 +16,11 @@ Note: The library is in early stage and contributions are more than wellcome.
 
 ## Usage
 
-There are two ways to work with DuckDB from C# :
+### Before you Begin
+Before you begin, make sure that duckdb binary is available on your machine and accessible to your project. The easiest option is to put the library in your project directory and set **Copy to Output Directory** to **Copy Always**. Make sure to use the correct binary for your platform: *duckdb.dll* on Windows, *duckdb.so* on Linux and *duckdb.dylib* on macOS.
+
+### Getting Started
+There are two ways to work with DuckDB from C#
 
 Using ADO.NET Provider or using low level bindings library for DuckDB. The ADO.NET Provider is built on top of the low level library and is the recommended and most straightforward way for working with DuckDB.
 
@@ -71,6 +75,32 @@ private static void PrintQueryResults(DbDataReader queryResult)
   }
 }
 ```
+
+#### Parameterized queries and DuckDB native types.
+
+Starting from version 0.4.0.10, DuckDB.NET.Data supports executing parameterized queries and reading all built-in native duckdb types:
+
+```cs
+using var connection = new DuckDBConnection("DataSource=:memory:");
+connection.Open();
+
+var command = connection.CreateCommand();
+command.CommandText = "SELECT * from integers where foo > ?;";
+command.Parameters.Add(new new DuckDBParameter(3));
+
+using var reader = command.ExecuteReader();
+```
+
+To read DuckDB specific native types use `DuckDBDataReader.GetFieldValue<T>` method. The following table shows the mapping between DuckDB native type and DuckDB.NET.Data .Net type:
+
+| DuckDB Type  | .Net Type |
+| ------------- | ------------- |
+| INTERVAL   | DuckDBInterval  |
+| DATE  | DuckDBDateOnly  |
+| TIME  | DuckDBTimeOnly  |
+| HUGEINT  | BigInteger  |
+
+### Dapper
 
 You can also use Dapper to query data:
 
