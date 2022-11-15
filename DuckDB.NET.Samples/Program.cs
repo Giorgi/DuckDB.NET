@@ -26,6 +26,8 @@ namespace DuckDB.NET.Samples
             {
                 cn.Open();
 
+                Console.WriteLine("DuckDB version: {0}", cn.ServerVersion);
+
                 cn.Execute("CREATE TABLE test (id INTEGER, name VARCHAR)");
 
                 var query = cn.Query<Row>("SELECT * FROM test");

@@ -25,6 +25,9 @@ namespace DuckDB.NET
 
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_disconnect")]
             public static extern void DuckDBDisconnect(out IntPtr connection);
+
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_library_version")]
+            public static extern IntPtr DuckDBLibraryVersion();
         }
 
         public static class Configure
