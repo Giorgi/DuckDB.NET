@@ -28,8 +28,8 @@ namespace DuckDB.NET.Data
 
         internal DuckDBNativeConnection NativeConnection => connectionReference.NativeConnection;
 
-        public override string ServerVersion { get; }
-        
+        public override string ServerVersion => NativeMethods.Startup.DuckDBLibraryVersion().ToManagedString(false);
+
         public override ConnectionState State => connectionState;
 
         public override void ChangeDatabase(string databaseName)
