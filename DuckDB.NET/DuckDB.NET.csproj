@@ -65,6 +65,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
       <PackagePath>\runtimes</PackagePath>
+      <Link>runtimes\%(RecursiveDir)\%(FileName)%(Extension)</Link>
     </None>
   </ItemGroup>
   <!-- End native lib section -->
