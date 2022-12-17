@@ -27,6 +27,8 @@
     <Copyright>Copyright © 2020 - 2022 Giorgi Dalakishvili</Copyright>
     <AssemblyVersion>0.4.0.10</AssemblyVersion>
     <FileVersion>0.4.0.10</FileVersion>
+    
+    <RuntimeIdentifiers>win-x86;win-x64;linux-x64;linux-arm64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <ItemGroup>
@@ -43,12 +45,27 @@
       <PackagePath></PackagePath>
     </None>
   </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
-
+  
+  <!-- Download and include the native libraries into the nuget package-->
+  <Target Name="DownloadNativeLibs" BeforeTargets="GenerateAdditionalSources">
+    <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=win-x86;LibUrl=https://github.com/duckdb/duckdb/releases/download/v0.6.1/libduckdb-windows-i386.zip" />
+    <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=win-x64;LibUrl=https://github.com/duckdb/duckdb/releases/download/v0.6.1/libduckdb-windows-amd64.zip" />
+    <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=linux-x64;LibUrl=https://github.com/duckdb/duckdb/releases/download/v0.6.1/libduckdb-linux-amd64.zip" />
+    <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=linux-arm64;LibUrl=https://github.com/duckdb/duckdb/releases/download/v0.6.1/libduckdb-linux-aarch64.zip" />
+  </Target>
+  <ItemGroup>
+    <None Include="obj\runtimes\**\*">
+      <Visible>false</Visible>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+      <PackagePath>\runtimes</PackagePath>
+    </None>
+  </ItemGroup>
+  <!-- End native lib section -->
 </Project>
