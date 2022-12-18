@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 #nullable enable
@@ -14,12 +15,15 @@ public static class ModuleInit
             return;
         }
 
-        if (NativeLibrary.TryLoad(Path.Join("runtimes", rid, "native", "duckdb"), out _))
+        if (NativeLibrary.TryLoad(Path.Join("runtimes", rid, "native", "duckdb"), Assembly.GetExecutingAssembly(), DllImportSearchPath.AssemblyDirectory, out _))
         {
             return;
         }
-		
-        NativeLibrary.TryLoad(Path.Join("runtimes", rid, "native", "libduckdb"), out _);
+
+        if (NativeLibrary.TryLoad(Path.Join("runtimes", rid, "native", "libduckdb"), Assembly.GetExecutingAssembly(), DllImportSearchPath.AssemblyDirectory, out _))
+        {
+            return;
+        }
     }
 
 	private static string? GetRid()
