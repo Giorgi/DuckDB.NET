@@ -28,7 +28,7 @@
     <AssemblyVersion>0.4.0.10</AssemblyVersion>
     <FileVersion>0.4.0.10</FileVersion>
     
-    <RuntimeIdentifiers>win-x86;win-x64;linux-x64;linux-arm64</RuntimeIdentifiers>
+    <RuntimeIdentifiers>win-x86;win-x64;linux-x64;linux-arm64;osx-x64</RuntimeIdentifiers>
     <DuckDbArtifactRoot>https://github.com/duckdb/duckdb/releases/download/v0.6.1</DuckDbArtifactRoot>
   </PropertyGroup>
 
