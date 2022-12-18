@@ -39,5 +39,13 @@ namespace DuckDB.NET
 
         public static explicit operator DateTime(DuckDBTimeOnly timeOnly) => timeOnly.ToDateTime();
         public static explicit operator DuckDBTimeOnly(DateTime dateTime) => FromDateTime(dateTime);
+        
+#if NET6_0_OR_GREATER
+        
+        public static implicit operator TimeOnly(DuckDBTimeOnly time) => new(time.Hour, time.Min, time.Sec, time.Msec);
+        
+        public static implicit operator DuckDBTimeOnly(TimeOnly time) => new((byte)time.Hour, (byte)time.Minute, (byte)time.Second, time.Millisecond);
+        
+#endif
     }
 }

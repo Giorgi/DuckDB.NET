@@ -96,6 +96,8 @@ namespace DuckDB.NET.Data
             };
         }
 
+        public DuckDBAppender CreateAppender(string table) => new DuckDBAppender(this, table);
+
         protected override void Dispose(bool disposing)
         {
             if (disposing)
