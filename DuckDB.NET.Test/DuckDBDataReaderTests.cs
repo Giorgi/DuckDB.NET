@@ -141,7 +141,7 @@ public class DuckDBDataReaderTests
         connection.Open();
 
         var duckDbCommand = connection.CreateCommand();
-        duckDbCommand.CommandText = "select 1 as num, 'text' as str, now() as tme";
+        duckDbCommand.CommandText = "select 1 as num, 'text' as str, TIMESTAMP '1992-09-20 20:38:40' as tme";
         var reader = duckDbCommand.ExecuteReader();
         var dt = new DataTable();
         dt.Load(reader);
