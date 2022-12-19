@@ -45,7 +45,7 @@ jobs:
         path-to-lcov: DuckDB.NET.Test/coverage.info
         parallel: true
 
-  Finish Coveralls Collection:
+  Finish-Coveralls-Collection:
       needs: build
       runs-on: ubuntu-latest
       steps:
