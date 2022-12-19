@@ -143,8 +143,8 @@ public class DuckDBDataReaderTests
         var duckDbCommand = connection.CreateCommand();
         duckDbCommand.CommandText = "select 1 as num, 'text' as str, now() as tme";
         var reader = duckDbCommand.ExecuteReader();
-        var dt = new DataTable()
-        dt.Load(reader)
-        dt.Rows.Count.Should().Be(1)
+        var dt = new DataTable();
+        dt.Load(reader);
+        dt.Rows.Count.Should().Be(1);
     }
 }
