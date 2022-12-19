@@ -26,6 +26,15 @@ namespace DuckDB.NET
         public DateTime ToDateTime() => new DateTime(Year, Month, Day);
 
         public static explicit operator DateTime(DuckDBDateOnly dateOnly) => dateOnly.ToDateTime();
+        
         public static explicit operator DuckDBDateOnly(DateTime dateTime) => FromDateTime(dateTime);
+        
+        #if NET6_0_OR_GREATER
+        
+        public static implicit operator DateOnly(DuckDBDateOnly dateOnly) => new DateOnly(dateOnly.Year, dateOnly.Month, dateOnly.Day);
+        
+        public static implicit operator DuckDBDateOnly(DateOnly date) => new DuckDBDateOnly(date.Year, (byte)date.Month, (byte) date.Day);
+        
+        #endif
     }
 }
