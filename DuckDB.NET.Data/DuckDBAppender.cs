@@ -6,7 +6,7 @@ namespace DuckDB.NET.Data;
 public class DuckDBAppender : IDisposable
 {
     private readonly NET.DuckDBAppender nativeAppender;
-    
+
     public DuckDBAppender(NET.DuckDBAppender appender)
     {
         nativeAppender = appender;
@@ -24,10 +24,8 @@ public class DuckDBAppender : IDisposable
 
     private void ReleaseUnmanagedResources()
     {
-        if (NativeMethods.Appender.DuckDBAppenderFlush(nativeAppender) == DuckDBState.DuckDBError)
-            DuckDBAppenderRow.ThrowLastError(nativeAppender);
-        if (NativeMethods.Appender.DuckDBAppenderClose(nativeAppender) == DuckDBState.DuckDBError)
-            DuckDBAppenderRow.ThrowLastError(nativeAppender);
+        NativeMethods.Appender.DuckDBAppenderFlush(nativeAppender);
+        NativeMethods.Appender.DuckDBAppenderClose(nativeAppender);
     }
 
     private void Dispose(bool disposing)
@@ -69,7 +67,7 @@ public class DuckDBAppenderRow
             return this.AppendValue(value);
         return this.AppendNullValue();
     }
-    
+
     public DuckDBAppenderRow AppendValue(string value)
     {
         if (value is { } str)
@@ -349,7 +347,7 @@ public class DuckDBAppenderRow
             return this.AppendValue(value);
         return this.AppendNullValue();
     }
-    
+
     #endregion
 
     private void ThrowLastError()
