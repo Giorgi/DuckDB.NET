@@ -34,18 +34,7 @@ jobs:
     - name: Build
       run: dotnet build --configuration Release
 
-    - name: Run tests (Linux)
-      if: runner.os == 'Linux'
-      run: dotnet test --configuration Release --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
-
-    - name: Run tests (MacOS)
-      if: runner.os == 'MacOS'
-      run: dotnet test --configuration Release --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
-
-    - name: Run tests (Windows)
-      if: runner.os == 'Windows'
-      env:
-        PATH: ${{ github.workspace }}/native
+    - name: Run tests
       run: dotnet test --configuration Release --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
 
     - name: Coveralls Parallel
