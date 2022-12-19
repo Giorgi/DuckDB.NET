@@ -68,6 +68,112 @@ namespace DuckDB.NET.Test
 				 readRowIndex.Should().Be(rows);
 	         }
          }
+         
+         [Fact]
+         public void IncompleteRowThrowsException()
+         {
+	         using var connection = new DuckDBConnection("DataSource=:memory:");
+	         connection.Open();
+
+	         using (var duckDbCommand = connection.CreateCommand())
+	         {
+		         
+		         var table = "CREATE TABLE appenderTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR);";
+		         duckDbCommand.CommandText = table;
+		         duckDbCommand.ExecuteNonQuery();
+	         }
+
+	         Assert.Throws<DuckDBException>(() =>
+	         {
+		         var rows = 10;
+		         using var appender = connection.CreateAppender("appenderTest");
+		         for (var i = 0; i < rows; i++)
+		         {
+			         using var row = appender.CreateRow();
+			         row
+				         .AppendValue(i % 2 == 0)
+				         .AppendValue((byte) i);
+		         }
+	         });
+         }
+         
+         [Fact]
+         public void TableDoesNotExistsThrowsException()
+         {
+	         using var connection = new DuckDBConnection("DataSource=:memory:");
+	         connection.Open();
+
+	         Assert.Throws<DuckDBException>(() =>
+	         {
+		         var rows = 10;
+		         using var appender = connection.CreateAppender("appenderTest");
+		         for (var i = 0; i < rows; i++)
+		         {
+			         using var row = appender.CreateRow();
+			         row
+				         .AppendValue(i % 2 == 0)
+				         .AppendValue((byte) i);
+		         }
+	         });
+         }
+         
+         [Fact]
+         public void TooManyAppendValueThrowsException()
+         {
+	         using var connection = new DuckDBConnection("DataSource=:memory:");
+	         connection.Open();
+
+	         using (var duckDbCommand = connection.CreateCommand())
+	         {
+		         
+		         var table = "CREATE TABLE appenderTest(a BOOLEAN, b TINYINT);";
+		         duckDbCommand.CommandText = table;
+		         duckDbCommand.ExecuteNonQuery();
+	         }
+
+	         Assert.Throws<DuckDBException>(() =>
+	         {
+		         var rows = 10;
+		         using var appender = connection.CreateAppender("appenderTest");
+		         for (var i = 0; i < rows; i++)
+		         {
+			         using var row = appender.CreateRow();
+			         row
+				         .AppendValue(i % 2 == 0)
+				         .AppendValue((byte) i)
+				         .AppendValue((short) i);
+		         }
+	         });
+         }
+         
+         [Fact]
+         public void WrongTypesThrowException()
+         {
+	         using var connection = new DuckDBConnection("DataSource=:memory:");
+	         connection.Open();
+
+	         using (var duckDbCommand = connection.CreateCommand())
+	         {
+		         
+		         var table = "CREATE TABLE appenderTest(a BOOLEAN, c Date, b TINYINT);";
+		         duckDbCommand.CommandText = table;
+		         duckDbCommand.ExecuteNonQuery();
+	         }
+
+	         Assert.Throws<DuckDBException>(() =>
+	         {
+		         var rows = 10;
+		         using var appender = connection.CreateAppender("appenderTest");
+		         for (var i = 0; i < rows; i++)
+		         {
+			         using var row = appender.CreateRow();
+			         row
+				         .AppendValue(i % 2 == 0)
+				         .AppendValue((byte) i)
+				         .AppendValue((short) i);
+		         }
+	         });
+         }
     }
 }
 

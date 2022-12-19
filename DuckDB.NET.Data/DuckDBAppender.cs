@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Runtime.InteropServices;
+
 #nullable enable
 namespace DuckDB.NET.Data;
 
@@ -13,7 +15,8 @@ public class DuckDBAppender : IDisposable
 		_connection = connection;
 		_table = table;
 
-		NativeMethods.Appender.DuckDBAppenderCreate(connection.NativeConnection, null, table, out _nativeAppender);
+		if (NativeMethods.Appender.DuckDBAppenderCreate(connection.NativeConnection, null, table, out _nativeAppender) == DuckDBState.DuckDBError) 
+			DuckDBAppenderRow.ThrowLastError(_nativeAppender);
 	}
 
 
@@ -28,8 +31,10 @@ public class DuckDBAppender : IDisposable
 	
 	private void ReleaseUnmanagedResources()
 	{
-		NativeMethods.Appender.DuckDBAppenderFlush(_nativeAppender);
-		NativeMethods.Appender.DuckDBAppenderClose(_nativeAppender);
+		if (NativeMethods.Appender.DuckDBAppenderFlush(_nativeAppender) == DuckDBState.DuckDBError) 
+			DuckDBAppenderRow.ThrowLastError(_nativeAppender);
+		if (NativeMethods.Appender.DuckDBAppenderClose(_nativeAppender) == DuckDBState.DuckDBError) 
+			DuckDBAppenderRow.ThrowLastError(_nativeAppender);
 	}
 
 	private void Dispose(bool disposing)
@@ -60,7 +65,8 @@ public class DuckDBAppenderRow : IDisposable
 
 	public DuckDBAppenderRow AppendValue(bool value)
 	{
-		NativeMethods.Appender.DuckDBAppendBool(appender, value);
+		if (NativeMethods.Appender.DuckDBAppendBool(appender, value) == DuckDBState.DuckDBError) 
+			ThrowLastError();
 		return this;
 	}
 	
@@ -75,16 +81,23 @@ public class DuckDBAppenderRow : IDisposable
 	public DuckDBAppenderRow AppendValue(string value)
 	{
 		if (value is {} str)
-			NativeMethods.Appender.DuckDBAppendVarchar(appender, value);
-		else 
-			NativeMethods.Appender.DuckDBAppendNull(appender);
+		{
+			if (NativeMethods.Appender.DuckDBAppendVarchar(appender, value) == DuckDBState.DuckDBError)
+				ThrowLastError();
+		}
+		else
+		{
+			if (NativeMethods.Appender.DuckDBAppendNull(appender) == DuckDBState.DuckDBError)
+				ThrowLastError();
+		}
 
 		return this;
 	}
 
 	public DuckDBAppenderRow AppendNullValue()
 	{
-		NativeMethods.Appender.DuckDBAppendNull(appender);
+		if (NativeMethods.Appender.DuckDBAppendNull(appender) == DuckDBState.DuckDBError) 
+			ThrowLastError();
 		return this;
 	}
 
@@ -92,25 +105,29 @@ public class DuckDBAppenderRow : IDisposable
 
 	public DuckDBAppenderRow AppendValue(sbyte value)
 	{
-		NativeMethods.Appender.DuckDBAppendInt8(appender, value);
+		if (NativeMethods.Appender.DuckDBAppendInt8(appender, value) == DuckDBState.DuckDBError)
+			ThrowLastError();
 		return this;
 	}
 	
 	public DuckDBAppenderRow AppendValue(short value)
 	{
-		NativeMethods.Appender.DuckDBAppendInt16(appender, value);
+		if (NativeMethods.Appender.DuckDBAppendInt16(appender, value) == DuckDBState.DuckDBError)
+			ThrowLastError();
 		return this;
 	}
 	
 	public DuckDBAppenderRow AppendValue(int value)
 	{
-		NativeMethods.Appender.DuckDBAppendInt32(appender, value);
+		if (NativeMethods.Appender.DuckDBAppendInt32(appender, value) == DuckDBState.DuckDBError)
+			ThrowLastError();
 		return this;
 	}
 	
 	public DuckDBAppenderRow AppendValue(long value)
 	{
-		NativeMethods.Appender.DuckDBAppendInt64(appender, value);
+		if (NativeMethods.Appender.DuckDBAppendInt64(appender, value) == DuckDBState.DuckDBError)
+			ThrowLastError();
 		return this;
 	}
 	
@@ -148,25 +165,29 @@ public class DuckDBAppenderRow : IDisposable
 
 	public DuckDBAppenderRow AppendValue(byte value)
 	{
-		NativeMethods.Appender.DuckDBAppendUInt8(appender, value);
+		if (NativeMethods.Appender.DuckDBAppendUInt8(appender, value) == DuckDBState.DuckDBError) 
+			ThrowLastError();
 		return this;
 	}
 	
 	public DuckDBAppenderRow AppendValue(ushort value)
 	{
-		NativeMethods.Appender.DuckDBAppendUInt16(appender, value);
+		if (NativeMethods.Appender.DuckDBAppendUInt16(appender, value) == DuckDBState.DuckDBError)
+			ThrowLastError();
 		return this;
 	}
 	
 	public DuckDBAppenderRow AppendValue(uint value)
 	{
-		NativeMethods.Appender.DuckDBAppendUInt32(appender, value);
+		if (NativeMethods.Appender.DuckDBAppendUInt32(appender, value) == DuckDBState.DuckDBError)
+			ThrowLastError();
 		return this;
 	}
 	
 	public DuckDBAppenderRow AppendValue(ulong value)
 	{
-		NativeMethods.Appender.DuckDBAppendUInt64(appender, value);
+		if (NativeMethods.Appender.DuckDBAppendUInt64(appender, value) == DuckDBState.DuckDBError)
+			ThrowLastError();
 		return this;
 	}
 	
@@ -203,12 +224,14 @@ public class DuckDBAppenderRow : IDisposable
 	#region Append Float
 	public DuckDBAppenderRow AppendValue(Single value)
 	{
-		NativeMethods.Appender.DuckDBAppendFloat(appender, value);
+		if (NativeMethods.Appender.DuckDBAppendFloat(appender, value) == DuckDBState.DuckDBError) 
+			ThrowLastError();
 		return this;
 	}
 	public DuckDBAppenderRow AppendValue(Double value)
 	{
-		NativeMethods.Appender.DuckDBAppendDouble(appender, value);
+		if (NativeMethods.Appender.DuckDBAppendDouble(appender, value) == DuckDBState.DuckDBError)
+			ThrowLastError();
 		return this;
 	}
 	
@@ -259,7 +282,8 @@ public class DuckDBAppenderRow : IDisposable
 
 	public DuckDBAppenderRow AppendValue(DateTime value)
 	{
-		NativeMethods.Appender.DuckDBAppendTimestamp(appender, DuckDBTimestamp.FromDateTime(value));
+		if (NativeMethods.Appender.DuckDBAppendTimestamp(appender, DuckDBTimestamp.FromDateTime(value)) == DuckDBState.DuckDBError) 
+			ThrowLastError();
 		return this;
 	}
 
@@ -271,19 +295,22 @@ public class DuckDBAppenderRow : IDisposable
 	
 	public DuckDBAppenderRow AppendValue(DuckDBDate date)
 	{
-		NativeMethods.Appender.DuckDBAppendDate(appender, date);
+		if (NativeMethods.Appender.DuckDBAppendDate(appender, date) == DuckDBState.DuckDBError) 
+			ThrowLastError();
 		return this;
 	}
 	
 	public DuckDBAppenderRow AppendValue(DuckDBTimeOnly time)
 	{
-		NativeMethods.Appender.DuckDBAppendTime(appender, NativeMethods.DateTime.DuckDBToTime(time));
+		if (NativeMethods.Appender.DuckDBAppendTime(appender, NativeMethods.DateTime.DuckDBToTime(time)) == DuckDBState.DuckDBError) 
+			ThrowLastError();
 		return this;
 	}
 	
 	public DuckDBAppenderRow AppendValue(DuckDBTime time)
 	{
-		NativeMethods.Appender.DuckDBAppendTime(appender, time);
+		if (NativeMethods.Appender.DuckDBAppendTime(appender, time) == DuckDBState.DuckDBError) 
+			ThrowLastError();
 		return this;
 	}
 	
@@ -318,11 +345,26 @@ public class DuckDBAppenderRow : IDisposable
 		return this.AppendNullValue();
 	}
 
+	private void ThrowLastError()
+	{
+		ThrowLastError(appender);
+	}
+	
+	internal static void ThrowLastError(NET.DuckDBAppender appender)
+	{
+		var errorMessagePtr = NativeMethods.Appender.DuckDBAppenderError(appender);
+		if (errorMessagePtr == IntPtr.Zero) return;
+
+		if (Marshal.PtrToStringAnsi(errorMessagePtr) is { } errorMessage)
+			throw new DuckDBException(errorMessage);
+	}
+
 
 	#endregion
 	
 	public void Dispose()
 	{
-		NativeMethods.Appender.DuckDBAppenderEndRow(appender);
+		if (NativeMethods.Appender.DuckDBAppenderEndRow(appender) == DuckDBState.DuckDBError)
+			ThrowLastError();
 	}
 }
