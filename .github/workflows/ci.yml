@@ -35,6 +35,8 @@ jobs:
       run: dotnet build --configuration Release
 
     - name: Run tests
+      env:
+        CoverletOutputFormat: lcov
       run: dotnet test --configuration Release --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
 
     - name: Coveralls Parallel
