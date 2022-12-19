@@ -28,21 +28,20 @@ namespace DuckDB.NET.Test
 	         {
 		         for (var i = 0; i < rows; i++)
 		         {
-			         using (var row = appender.CreateRow())
-			         {
-				         row.AppendValue(i % 2 == 0);
-				         row.AppendValue((byte)i);
-				         row.AppendValue((short)i);
-				         row.AppendValue((int)i);
-				         row.AppendValue((long)i);
-				         row.AppendValue((byte)i);
-				         row.AppendValue((ushort)i);
-				         row.AppendValue((uint)i);
-				         row.AppendValue((ulong)i);
-				         row.AppendValue((float)i);
-				         row.AppendValue((double)i);
-				         row.AppendValue($"{i}");
-			         }
+			         using var row = appender.CreateRow();
+			         row
+				         .AppendValue(i % 2 == 0)
+				         .AppendValue((byte)i)
+				         .AppendValue((short)i)
+				         .AppendValue((int)i)
+				         .AppendValue((long)i)
+				         .AppendValue((byte)i)
+				         .AppendValue((ushort)i)
+				         .AppendValue((uint)i)
+				         .AppendValue((ulong)i)
+				         .AppendValue((float)i)
+				         .AppendValue((double)i)
+				         .AppendValue($"{i}");
 		         }
 	         }
 	         
