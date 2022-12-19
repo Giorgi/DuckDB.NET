@@ -289,6 +289,32 @@ namespace DuckDB.NET.Data
         {
             return new DbEnumerator(this, behavior == CommandBehavior.CloseConnection);
         }
+        
+        public override DataTable GetSchemaTable()
+        {
+            DataTable table = new DataTable
+            {
+                Columns =
+                {
+                     { "ColumnOrdinal", typeof(int) },
+                     { "ColumnName", typeof(string) },
+                     { "DataType", typeof(Type) },
+                     { "ColumnSize", typeof(int) },
+                     { "AllowDBNull", typeof(bool) }
+                }
+            };
+            object[] rowData = new object[5];
+            for (int i = 0; i < FieldCount; i++)
+            {
+                rowData[0] = i;
+                rowData[1] = GetName(i);
+                rowData[2] = GetFieldType(i);
+                rowData[3] = -1;
+                rowData[4] = true;
+                table.Rows.Add(rowData);
+            }
+            return table;
+        }
 
         public override void Close()
         {
