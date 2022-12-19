@@ -26,7 +26,7 @@ namespace DuckDB.NET.Test
             {
                 for (var i = 0; i < rows; i++)
                 {
-                    using var row = appender.CreateRow();
+                    var row = appender.CreateRow();
                     row
                         .AppendValue(i % 2 == 0)
                         .AppendValue((byte)i)
@@ -39,7 +39,8 @@ namespace DuckDB.NET.Test
                         .AppendValue((ulong)i)
                         .AppendValue((float)i)
                         .AppendValue((double)i)
-                        .AppendValue($"{i}");
+                        .AppendValue($"{i}")
+                        .EndRow();
                 }
             }
 
@@ -84,10 +85,11 @@ namespace DuckDB.NET.Test
             connection.Invoking(dbConnection =>
             {
                 using var appender = dbConnection.CreateAppender("managedAppenderIncompleteTest");
-                using var row = appender.CreateRow();
+                var row = appender.CreateRow();
                 row
                     .AppendValue(true)
-                    .AppendValue((byte)1);
+                    .AppendValue((byte)1)
+                    .EndRow();
             }).Should().Throw<DuckDBException>();
         }
 
@@ -100,10 +102,11 @@ namespace DuckDB.NET.Test
             connection.Invoking(dbConnection =>
             {
                 using var appender = dbConnection.CreateAppender("managedAppenderMissingTableTest");
-                using var row = appender.CreateRow();
+                var row = appender.CreateRow();
                 row
                     .AppendValue(true)
-                    .AppendValue((byte)1);
+                    .AppendValue((byte)1)
+                    .EndRow();
             }).Should().Throw<DuckDBException>();
         }
 
@@ -123,11 +126,12 @@ namespace DuckDB.NET.Test
             connection.Invoking(dbConnection =>
             {
                 using var appender = dbConnection.CreateAppender("managedAppenderManyValuesTest");
-                using var row = appender.CreateRow();
+                var row = appender.CreateRow();
                 row
                     .AppendValue(true)
                     .AppendValue((byte)1)
-                    .AppendValue("test");
+                    .AppendValue("test")
+                    .EndRow();
 
             }).Should().Throw<DuckDBException>();
         }
@@ -148,11 +152,12 @@ namespace DuckDB.NET.Test
             connection.Invoking(dbConnection =>
             {
                 using var appender = dbConnection.CreateAppender("managedAppenderWrongTypeTest");
-                using var row = appender.CreateRow();
+                var row = appender.CreateRow();
                 row
                     .AppendValue(false)
                     .AppendValue((byte)1)
-                    .AppendValue((short)1);
+                    .AppendValue((short)1)
+                    .EndRow();
             }).Should().Throw<DuckDBException>();
         }
     }
