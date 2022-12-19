@@ -1,6 +1,5 @@
 using System;
 using System.Globalization;
-using DuckDB.NET;
 using DuckDB.NET.Data;
 using Xunit;
 using FluentAssertions;
@@ -17,14 +16,13 @@ namespace DuckDB.NET.Test
 
 	         using (var duckDbCommand = connection.CreateCommand())
 	         {
-		         
-		         var table = "CREATE TABLE appenderTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR);";
+                 var table = "CREATE TABLE managedAppenderTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR);";
 		         duckDbCommand.CommandText = table;
 		         duckDbCommand.ExecuteNonQuery();
 	         }
 
 		     var rows = 10;
-	         using (var appender = connection.CreateAppender("appenderTest"))
+	         using (var appender = connection.CreateAppender("managedAppenderTest"))
 	         {
 		         for (var i = 0; i < rows; i++)
 		         {
@@ -47,7 +45,7 @@ namespace DuckDB.NET.Test
 	         
 	         using (var duckDbCommand = connection.CreateCommand())
 	         {
-		         duckDbCommand.CommandText = "SELECT * FROM appenderTest";
+		         duckDbCommand.CommandText = "SELECT * FROM managedAppenderTest";
 		         using var reader = duckDbCommand.ExecuteReader();
 
 		         var readRowIndex = 0;
@@ -78,7 +76,7 @@ namespace DuckDB.NET.Test
 	         using (var duckDbCommand = connection.CreateCommand())
 	         {
 		         
-		         var table = "CREATE TABLE appenderTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR);";
+		         var table = "CREATE TABLE managedAppenderIncompleteTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR);";
 		         duckDbCommand.CommandText = table;
 		         duckDbCommand.ExecuteNonQuery();
 	         }
@@ -86,7 +84,7 @@ namespace DuckDB.NET.Test
 	         Assert.Throws<DuckDBException>(() =>
 	         {
 		         var rows = 10;
-		         using var appender = connection.CreateAppender("appenderTest");
+		         using var appender = connection.CreateAppender("managedAppenderIncompleteTest");
 		         for (var i = 0; i < rows; i++)
 		         {
 			         using var row = appender.CreateRow();
@@ -106,7 +104,7 @@ namespace DuckDB.NET.Test
 	         Assert.Throws<DuckDBException>(() =>
 	         {
 		         var rows = 10;
-		         using var appender = connection.CreateAppender("appenderTest");
+		         using var appender = connection.CreateAppender("managedAppenderMissingTableTest");
 		         for (var i = 0; i < rows; i++)
 		         {
 			         using var row = appender.CreateRow();
@@ -126,7 +124,7 @@ namespace DuckDB.NET.Test
 	         using (var duckDbCommand = connection.CreateCommand())
 	         {
 		         
-		         var table = "CREATE TABLE appenderTest(a BOOLEAN, b TINYINT);";
+		         var table = "CREATE TABLE managedAppenderManyValuesTest(a BOOLEAN, b TINYINT);";
 		         duckDbCommand.CommandText = table;
 		         duckDbCommand.ExecuteNonQuery();
 	         }
@@ -134,7 +132,7 @@ namespace DuckDB.NET.Test
 	         Assert.Throws<DuckDBException>(() =>
 	         {
 		         var rows = 10;
-		         using var appender = connection.CreateAppender("appenderTest");
+		         using var appender = connection.CreateAppender("managedAppenderManyValuesTest");
 		         for (var i = 0; i < rows; i++)
 		         {
 			         using var row = appender.CreateRow();
@@ -155,7 +153,7 @@ namespace DuckDB.NET.Test
 	         using (var duckDbCommand = connection.CreateCommand())
 	         {
 		         
-		         var table = "CREATE TABLE appenderTest(a BOOLEAN, c Date, b TINYINT);";
+		         var table = "CREATE TABLE managedAppenderWrongTypeTest(a BOOLEAN, c Date, b TINYINT);";
 		         duckDbCommand.CommandText = table;
 		         duckDbCommand.ExecuteNonQuery();
 	         }
@@ -163,7 +161,7 @@ namespace DuckDB.NET.Test
 	         Assert.Throws<DuckDBException>(() =>
 	         {
 		         var rows = 10;
-		         using var appender = connection.CreateAppender("appenderTest");
+		         using var appender = connection.CreateAppender("managedAppenderWrongTypeTest");
 		         for (var i = 0; i < rows; i++)
 		         {
 			         using var row = appender.CreateRow();
