@@ -29,10 +29,4 @@
     <ProjectReference Include="..\DuckDB.NET.Data\DuckDB.NET.Data.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Update="duckdb.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
 </Project>
