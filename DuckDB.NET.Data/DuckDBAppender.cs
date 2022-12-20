@@ -36,7 +36,7 @@ public class DuckDBAppender : IDisposable
             var state = NativeMethods.Appender.DuckDBAppenderClose(nativeAppender);
             if (state == DuckDBState.DuckDBError)
             {
-                DuckDBAppenderRow.ThrowLastError(nativeAppender);
+                ThrowLastError(nativeAppender);
             }
         }
         finally
@@ -52,6 +52,13 @@ public class DuckDBAppender : IDisposable
             Close();
         }
     }
+
+    internal static void ThrowLastError(NET.DuckDBAppender appender)
+    {
+        var errorMessage = NativeMethods.Appender.DuckDBAppenderError(appender).ToManagedString(false);
+
+        throw new DuckDBException(errorMessage);
+    }
 }
 
 public class DuckDBAppenderRow
@@ -63,42 +70,11 @@ public class DuckDBAppenderRow
         this.appender = appender;
     }
 
-    public DuckDBAppenderRow AppendValue(bool value)
-    {
-        if (NativeMethods.Appender.DuckDBAppendBool(appender, value) == DuckDBState.DuckDBError)
-            ThrowLastError();
-        return this;
-    }
+    public DuckDBAppenderRow AppendValue(bool? value) => Append(value);
 
-    public DuckDBAppenderRow AppendValue(bool? nullable)
-    {
-        if (nullable is { } value)
-            return this.AppendValue(value);
-        return this.AppendNullValue();
-    }
+    public DuckDBAppenderRow AppendValue(string? value) => Append(value);
 
-    public DuckDBAppenderRow AppendValue(string value)
-    {
-        if (value is { } str)
-        {
-            if (NativeMethods.Appender.DuckDBAppendVarchar(appender, value) == DuckDBState.DuckDBError)
-                ThrowLastError();
-        }
-        else
-        {
-            if (NativeMethods.Appender.DuckDBAppendNull(appender) == DuckDBState.DuckDBError)
-                ThrowLastError();
-        }
-
-        return this;
-    }
-
-    public DuckDBAppenderRow AppendNullValue()
-    {
-        if (NativeMethods.Appender.DuckDBAppendNull(appender) == DuckDBState.DuckDBError)
-            ThrowLastError();
-        return this;
-    }
+    public DuckDBAppenderRow AppendNullValue() => Append<object>(null);
 
     public void EndRow()
     {
@@ -110,264 +86,89 @@ public class DuckDBAppenderRow
 
     #region Append Signed Int
 
-    public DuckDBAppenderRow AppendValue(sbyte value)
-    {
-        if (NativeMethods.Appender.DuckDBAppendInt8(appender, value) == DuckDBState.DuckDBError)
-            ThrowLastError();
-        return this;
-    }
+    public DuckDBAppenderRow AppendValue(sbyte? value) => Append(value);
 
-    public DuckDBAppenderRow AppendValue(short value)
-    {
-        if (NativeMethods.Appender.DuckDBAppendInt16(appender, value) == DuckDBState.DuckDBError)
-            ThrowLastError();
-        return this;
-    }
+    public DuckDBAppenderRow AppendValue(short? value) => Append(value);
 
-    public DuckDBAppenderRow AppendValue(int value)
-    {
-        if (NativeMethods.Appender.DuckDBAppendInt32(appender, value) == DuckDBState.DuckDBError)
-            ThrowLastError();
-        return this;
-    }
+    public DuckDBAppenderRow AppendValue(int? value) => Append(value);
 
-    public DuckDBAppenderRow AppendValue(long value)
-    {
-        if (NativeMethods.Appender.DuckDBAppendInt64(appender, value) == DuckDBState.DuckDBError)
-            ThrowLastError();
-        return this;
-    }
-
-    public DuckDBAppenderRow AppendValue(sbyte? nullable)
-    {
-        if (nullable is { } value)
-            return this.AppendValue(value);
-        return this.AppendNullValue();
-    }
-
-    public DuckDBAppenderRow AppendValue(short? nullable)
-    {
-        if (nullable is { } value)
-            return this.AppendValue(value);
-        return this.AppendNullValue();
-    }
-
-    public DuckDBAppenderRow AppendValue(int? nullable)
-    {
-        if (nullable is { } value)
-            return this.AppendValue(value);
-        return this.AppendNullValue();
-    }
-
-    public DuckDBAppenderRow AppendValue(long? nullable)
-    {
-        if (nullable is { } value)
-            return this.AppendValue(value);
-        return this.AppendNullValue();
-    }
+    public DuckDBAppenderRow AppendValue(long? value) => Append(value);
 
     #endregion
 
     #region Append Unsigned Int
 
-    public DuckDBAppenderRow AppendValue(byte value)
-    {
-        if (NativeMethods.Appender.DuckDBAppendUInt8(appender, value) == DuckDBState.DuckDBError)
-            ThrowLastError();
-        return this;
-    }
+    public DuckDBAppenderRow AppendValue(byte? value) => Append(value);
 
-    public DuckDBAppenderRow AppendValue(ushort value)
-    {
-        if (NativeMethods.Appender.DuckDBAppendUInt16(appender, value) == DuckDBState.DuckDBError)
-            ThrowLastError();
-        return this;
-    }
+    public DuckDBAppenderRow AppendValue(ushort? value) => Append(value);
 
-    public DuckDBAppenderRow AppendValue(uint value)
-    {
-        if (NativeMethods.Appender.DuckDBAppendUInt32(appender, value) == DuckDBState.DuckDBError)
-            ThrowLastError();
-        return this;
-    }
+    public DuckDBAppenderRow AppendValue(uint? value) => Append(value);
 
-    public DuckDBAppenderRow AppendValue(ulong value)
-    {
-        if (NativeMethods.Appender.DuckDBAppendUInt64(appender, value) == DuckDBState.DuckDBError)
-            ThrowLastError();
-        return this;
-    }
-
-    public DuckDBAppenderRow AppendValue(byte? nullable)
-    {
-        if (nullable is { } value)
-            return this.AppendValue(value);
-        return this.AppendNullValue();
-    }
-
-    public DuckDBAppenderRow AppendValue(ushort? nullable)
-    {
-        if (nullable is { } value)
-            return this.AppendValue(value);
-        return this.AppendNullValue();
-    }
-
-    public DuckDBAppenderRow AppendValue(uint? nullable)
-    {
-        if (nullable is { } value)
-            return this.AppendValue(value);
-        return this.AppendNullValue();
-    }
-
-    public DuckDBAppenderRow AppendValue(ulong? nullable)
-    {
-        if (nullable is { } value)
-            return this.AppendValue(value);
-        return this.AppendNullValue();
-    }
+    public DuckDBAppenderRow AppendValue(ulong? value) => Append(value);
 
     #endregion
 
     #region Append Float
-    public DuckDBAppenderRow AppendValue(float value)
-    {
-        if (NativeMethods.Appender.DuckDBAppendFloat(appender, value) == DuckDBState.DuckDBError)
-            ThrowLastError();
-        return this;
-    }
 
-    public DuckDBAppenderRow AppendValue(double value)
-    {
-        if (NativeMethods.Appender.DuckDBAppendDouble(appender, value) == DuckDBState.DuckDBError)
-            ThrowLastError();
-        return this;
-    }
+    public DuckDBAppenderRow AppendValue(float? value) => Append(value);
 
-    public DuckDBAppenderRow AppendValue(float? nullable)
-    {
-        if (nullable is { } value)
-            return this.AppendValue(value);
-        return this.AppendNullValue();
-    }
-
-    public DuckDBAppenderRow AppendValue(double? nullable)
-    {
-        if (nullable is { } value)
-            return this.AppendValue(value);
-        return this.AppendNullValue();
-    }
+    public DuckDBAppenderRow AppendValue(double? value) => Append(value);
 
     #endregion
 
     #region Append Temporal
 #if NET6_0_OR_GREATER
-    public DuckDBAppenderRow AppendValue(DateOnly value)
-    {
-        DuckDBDateOnly date = value;
-        return AppendValue(date);
-    }
+    public DuckDBAppenderRow AppendValue(DateOnly? value) => Append(value);
 
-    public DuckDBAppenderRow AppendValue(TimeOnly value)
-    {
-        DuckDBTimeOnly time = value;
-        return AppendValue(time);
-    }
-
-    public DuckDBAppenderRow AppendValue(DateOnly? nullable)
-    {
-        if (nullable is { } value)
-            return this.AppendValue(value);
-        return this.AppendNullValue();
-    }
-
-    public DuckDBAppenderRow AppendValue(TimeOnly? nullable)
-    {
-        if (nullable is { } value)
-            return this.AppendValue(value);
-        return this.AppendNullValue();
-    }
+    public DuckDBAppenderRow AppendValue(TimeOnly? nullable) => Append(nullable);
 #endif
 
-    public DuckDBAppenderRow AppendValue(DateTime value)
-    {
-        if (NativeMethods.Appender.DuckDBAppendTimestamp(appender, DuckDBTimestamp.FromDateTime(value)) == DuckDBState.DuckDBError)
-            ThrowLastError();
-        return this;
-    }
-
-    public DuckDBAppenderRow AppendValue(DuckDBDateOnly date)
-    {
-        AppendValue(NativeMethods.DateTime.DuckDBToDate(date));
-        return this;
-    }
-
-    public DuckDBAppenderRow AppendValue(DuckDBDate date)
-    {
-        if (NativeMethods.Appender.DuckDBAppendDate(appender, date) == DuckDBState.DuckDBError)
-            ThrowLastError();
-        return this;
-    }
-
-    public DuckDBAppenderRow AppendValue(DuckDBTimeOnly time)
-    {
-        if (NativeMethods.Appender.DuckDBAppendTime(appender, NativeMethods.DateTime.DuckDBToTime(time)) == DuckDBState.DuckDBError)
-            ThrowLastError();
-        return this;
-    }
-
-    public DuckDBAppenderRow AppendValue(DuckDBTime time)
-    {
-        if (NativeMethods.Appender.DuckDBAppendTime(appender, time) == DuckDBState.DuckDBError)
-            ThrowLastError();
-        return this;
-    }
-
-    public DuckDBAppenderRow AppendValue(DateTime? nullable)
-    {
-        if (nullable is { } value)
-            return this.AppendValue(value);
-        return this.AppendNullValue();
-    }
-
-    public DuckDBAppenderRow AppendValue(DuckDBDateOnly? nullable)
-    {
-        if (nullable is { } value)
-            return this.AppendValue(value);
-        return this.AppendNullValue();
-    }
-
-    public DuckDBAppenderRow AppendValue(DuckDBDate? nullable)
-    {
-        if (nullable is { } value)
-            return this.AppendValue(value);
-        return this.AppendNullValue();
-    }
-
-    public DuckDBAppenderRow AppendValue(DuckDBTimeOnly? nullable)
-    {
-        if (nullable is { } value)
-            return this.AppendValue(value);
-        return this.AppendNullValue();
-    }
-
-    public DuckDBAppenderRow AppendValue(DuckDBTime? nullable)
-    {
-        if (nullable is { } value)
-            return this.AppendValue(value);
-        return this.AppendNullValue();
-    }
+    public DuckDBAppenderRow AppendValue(DuckDBTime? value) => Append(value);
 
     #endregion
 
-    private void ThrowLastError()
+    private DuckDBAppenderRow Append<T>(T? value)
     {
-        ThrowLastError(appender);
+        var state = value is null
+            ? NativeMethods.Appender.DuckDBAppendNull(appender)
+            : value switch
+            {
+                bool val => NativeMethods.Appender.DuckDBAppendBool(appender, val),
+                string val => NativeMethods.Appender.DuckDBAppendVarchar(appender, val),
+
+                sbyte val => NativeMethods.Appender.DuckDBAppendInt8(appender, val),
+                short val => NativeMethods.Appender.DuckDBAppendInt16(appender, val),
+                int val => NativeMethods.Appender.DuckDBAppendInt32(appender, val),
+                long val => NativeMethods.Appender.DuckDBAppendInt64(appender, val),
+
+                byte val => NativeMethods.Appender.DuckDBAppendUInt8(appender, val),
+                ushort val => NativeMethods.Appender.DuckDBAppendUInt16(appender, val),
+                uint val => NativeMethods.Appender.DuckDBAppendUInt32(appender, val),
+                ulong val => NativeMethods.Appender.DuckDBAppendUInt64(appender, val),
+
+                float val => NativeMethods.Appender.DuckDBAppendFloat(appender, val),
+                double val => NativeMethods.Appender.DuckDBAppendDouble(appender, val),
+
+                DateTime val => NativeMethods.Appender.DuckDBAppendTimestamp(appender, DuckDBTimestamp.FromDateTime(val)),
+#if NET6_0_OR_GREATER
+                DateOnly val => NativeMethods.Appender.DuckDBAppendDate(appender, NativeMethods.DateTime.DuckDBToDate(val)),
+                TimeOnly val => NativeMethods.Appender.DuckDBAppendTime(appender, NativeMethods.DateTime.DuckDBToTime(val)),
+#endif
+
+
+                _ => throw new InvalidOperationException($"Unsupported type {typeof(T).Name}")
+            };
+
+        if (state == DuckDBState.DuckDBError)
+        {
+            ThrowLastError();
+        }
+
+        return this;
     }
 
-    internal static void ThrowLastError(NET.DuckDBAppender appender)
+    private void ThrowLastError()
     {
-        var errorMessage = NativeMethods.Appender.DuckDBAppenderError(appender).ToManagedString(false);
-
-        throw new DuckDBException(errorMessage);
+        DuckDBAppender.ThrowLastError(appender);
     }
 }

@@ -100,7 +100,7 @@ namespace DuckDB.NET.Data
         {
             if (NativeMethods.Appender.DuckDBAppenderCreate(NativeConnection, null, table, out var nativeAppender) == DuckDBState.DuckDBError)
             {
-                DuckDBAppenderRow.ThrowLastError(nativeAppender);
+                DuckDBAppender.ThrowLastError(nativeAppender);
             }
 
             return new DuckDBAppender(nativeAppender);

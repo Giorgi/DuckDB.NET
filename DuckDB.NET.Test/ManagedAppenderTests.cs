@@ -29,14 +29,14 @@ namespace DuckDB.NET.Test
                     var row = appender.CreateRow();
                     row
                         .AppendValue(i % 2 == 0)
-                        .AppendValue((byte)i)
-                        .AppendValue((short)i)
-                        .AppendValue((int)i)
-                        .AppendValue((long)i)
-                        .AppendValue((byte)i)
-                        .AppendValue((ushort)i)
-                        .AppendValue((uint)i)
-                        .AppendValue((ulong)i)
+                        .AppendValue((byte?)i)
+                        .AppendValue((short?)i)
+                        .AppendValue((int?)i)
+                        .AppendValue((long?)i)
+                        .AppendValue((byte?)i)
+                        .AppendValue((ushort?)i)
+                        .AppendValue((uint?)i)
+                        .AppendValue((ulong?)i)
                         .AppendValue((float)i)
                         .AppendValue((double)i)
                         .AppendValue($"{i}")
@@ -156,10 +156,9 @@ namespace DuckDB.NET.Test
                 row
                     .AppendValue(false)
                     .AppendValue((byte)1)
-                    .AppendValue((short)1)
+                    .AppendValue((short?)1)
                     .EndRow();
             }).Should().Throw<DuckDBException>();
         }
     }
 }
-
