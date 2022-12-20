@@ -73,8 +73,7 @@ namespace DuckDB.NET
 
         protected override bool ReleaseHandle()
         {
-            NativeMethods.Appender.DuckDBDestroyAppender(out handle);
-            return true;
+            return NativeMethods.Appender.DuckDBDestroyAppender(out handle) == DuckDBState.DuckDBSuccess;
         }
 
         public override bool IsInvalid => handle == IntPtr.Zero;

@@ -5,6 +5,7 @@ namespace DuckDB.NET.Data;
 
 public class DuckDBAppender : IDisposable
 {
+    private bool closed;
     private readonly NET.DuckDBAppender nativeAppender;
 
     public DuckDBAppender(NET.DuckDBAppender appender)
@@ -12,36 +13,44 @@ public class DuckDBAppender : IDisposable
         nativeAppender = appender;
     }
 
-
     public DuckDBAppenderRow CreateRow()
     {
         // https://duckdb.org/docs/api/c/api#duckdb_appender_begin_row
         // Begin row is a no op. Do not need to call.
         // NativeMethods.Appender.DuckDBAppenderBeingRow(_connection.NativeConnection)
 
+        if (closed)
+        {
+            throw new InvalidOperationException("Appender is already closed");
+        }
+
         return new DuckDBAppenderRow(nativeAppender);
     }
 
-    private void ReleaseUnmanagedResources()
+    public void Close()
     {
-        NativeMethods.Appender.DuckDBAppenderFlush(nativeAppender);
-        NativeMethods.Appender.DuckDBAppenderClose(nativeAppender);
-    }
+        closed = true;
 
-    private void Dispose(bool disposing)
-    {
-        ReleaseUnmanagedResources();
+        try
+        {
+            var state = NativeMethods.Appender.DuckDBAppenderClose(nativeAppender);
+            if (state == DuckDBState.DuckDBError)
+            {
+                DuckDBAppenderRow.ThrowLastError(nativeAppender);
+            }
+        }
+        finally
+        {
+            nativeAppender.Close();
+        }
     }
 
     public void Dispose()
     {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    ~DuckDBAppender()
-    {
-        Dispose(false);
+        if (!closed)
+        {
+            Close();
+        }
     }
 }
 
@@ -357,8 +366,7 @@ public class DuckDBAppenderRow
 
     internal static void ThrowLastError(NET.DuckDBAppender appender)
     {
-        var errorMessagePtr = NativeMethods.Appender.DuckDBAppenderError(appender);
-        var errorMessage = errorMessagePtr.ToManagedString(false);
+        var errorMessage = NativeMethods.Appender.DuckDBAppenderError(appender).ToManagedString(false);
 
         throw new DuckDBException(errorMessage);
     }
