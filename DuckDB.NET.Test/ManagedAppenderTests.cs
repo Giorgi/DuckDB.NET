@@ -161,5 +161,31 @@ namespace DuckDB.NET.Test
                     .EndRow();
             }).Should().Throw<DuckDBException>();
         }
+
+        [Fact]
+        public void ClosedAdapterThrowException()
+        {
+            using var connection = new DuckDBConnection("DataSource=:memory:");
+            connection.Open();
+
+            using (var duckDbCommand = connection.CreateCommand())
+            {
+                var table = "CREATE TABLE managedAppenderClosedAdapterTest(a BOOLEAN, c Date, b TINYINT);";
+                duckDbCommand.CommandText = table;
+                duckDbCommand.ExecuteNonQuery();
+            }
+
+            connection.Invoking(dbConnection =>
+            {
+                using var appender = dbConnection.CreateAppender("managedAppenderClosedAdapterTest");
+                appender.Close();
+                var row = appender.CreateRow();
+                row
+                    .AppendValue(false)
+                    .AppendValue((byte)1)
+                    .AppendValue((short?)1)
+                    .EndRow();
+            }).Should().Throw<InvalidOperationException>();
+        }
     }
 }
