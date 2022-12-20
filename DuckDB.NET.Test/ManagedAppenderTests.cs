@@ -16,7 +16,7 @@ namespace DuckDB.NET.Test
 
             using (var duckDbCommand = connection.CreateCommand())
             {
-                var table = "CREATE TABLE managedAppenderTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR);";
+                var table = "CREATE TABLE managedAppenderTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR, m Date);";
                 duckDbCommand.CommandText = table;
                 duckDbCommand.ExecuteNonQuery();
             }
@@ -29,7 +29,7 @@ namespace DuckDB.NET.Test
                     var row = appender.CreateRow();
                     row
                         .AppendValue(i % 2 == 0)
-                        .AppendValue((byte?)i)
+                        .AppendValue((sbyte?)i)
                         .AppendValue((short?)i)
                         .AppendValue((int?)i)
                         .AppendValue((long?)i)
@@ -40,6 +40,7 @@ namespace DuckDB.NET.Test
                         .AppendValue((float)i)
                         .AppendValue((double)i)
                         .AppendValue($"{i}")
+                        .AppendNullValue()
                         .EndRow();
                 }
             }

@@ -70,19 +70,19 @@ public class DuckDBAppenderRow
         this.appender = appender;
     }
 
+    public void EndRow()
+    {
+        if (NativeMethods.Appender.DuckDBAppenderEndRow(appender) == DuckDBState.DuckDBError)
+        {
+            DuckDBAppender.ThrowLastError(appender);
+        }
+    }
+
     public DuckDBAppenderRow AppendValue(bool? value) => Append(value);
 
     public DuckDBAppenderRow AppendValue(string? value) => Append(value);
 
     public DuckDBAppenderRow AppendNullValue() => Append<object>(null);
-
-    public void EndRow()
-    {
-        if (NativeMethods.Appender.DuckDBAppenderEndRow(appender) == DuckDBState.DuckDBError)
-        {
-            ThrowLastError();
-        }
-    }
 
     #region Append Signed Int
 
@@ -129,46 +129,38 @@ public class DuckDBAppenderRow
 
     private DuckDBAppenderRow Append<T>(T? value)
     {
-        var state = value is null
-            ? NativeMethods.Appender.DuckDBAppendNull(appender)
-            : value switch
-            {
-                bool val => NativeMethods.Appender.DuckDBAppendBool(appender, val),
-                string val => NativeMethods.Appender.DuckDBAppendVarchar(appender, val),
+        var state = value switch
+        {
+            null => NativeMethods.Appender.DuckDBAppendNull(appender),
+            bool val => NativeMethods.Appender.DuckDBAppendBool(appender, val),
+            string val => NativeMethods.Appender.DuckDBAppendVarchar(appender, val),
 
-                sbyte val => NativeMethods.Appender.DuckDBAppendInt8(appender, val),
-                short val => NativeMethods.Appender.DuckDBAppendInt16(appender, val),
-                int val => NativeMethods.Appender.DuckDBAppendInt32(appender, val),
-                long val => NativeMethods.Appender.DuckDBAppendInt64(appender, val),
+            sbyte val => NativeMethods.Appender.DuckDBAppendInt8(appender, val),
+            short val => NativeMethods.Appender.DuckDBAppendInt16(appender, val),
+            int val => NativeMethods.Appender.DuckDBAppendInt32(appender, val),
+            long val => NativeMethods.Appender.DuckDBAppendInt64(appender, val),
 
-                byte val => NativeMethods.Appender.DuckDBAppendUInt8(appender, val),
-                ushort val => NativeMethods.Appender.DuckDBAppendUInt16(appender, val),
-                uint val => NativeMethods.Appender.DuckDBAppendUInt32(appender, val),
-                ulong val => NativeMethods.Appender.DuckDBAppendUInt64(appender, val),
+            byte val => NativeMethods.Appender.DuckDBAppendUInt8(appender, val),
+            ushort val => NativeMethods.Appender.DuckDBAppendUInt16(appender, val),
+            uint val => NativeMethods.Appender.DuckDBAppendUInt32(appender, val),
+            ulong val => NativeMethods.Appender.DuckDBAppendUInt64(appender, val),
 
-                float val => NativeMethods.Appender.DuckDBAppendFloat(appender, val),
-                double val => NativeMethods.Appender.DuckDBAppendDouble(appender, val),
+            float val => NativeMethods.Appender.DuckDBAppendFloat(appender, val),
+            double val => NativeMethods.Appender.DuckDBAppendDouble(appender, val),
 
-                DateTime val => NativeMethods.Appender.DuckDBAppendTimestamp(appender, DuckDBTimestamp.FromDateTime(val)),
+            DateTime val => NativeMethods.Appender.DuckDBAppendTimestamp(appender, DuckDBTimestamp.FromDateTime(val)),
 #if NET6_0_OR_GREATER
-                DateOnly val => NativeMethods.Appender.DuckDBAppendDate(appender, NativeMethods.DateTime.DuckDBToDate(val)),
-                TimeOnly val => NativeMethods.Appender.DuckDBAppendTime(appender, NativeMethods.DateTime.DuckDBToTime(val)),
+            DateOnly val => NativeMethods.Appender.DuckDBAppendDate(appender, NativeMethods.DateTime.DuckDBToDate(val)),
+            TimeOnly val => NativeMethods.Appender.DuckDBAppendTime(appender, NativeMethods.DateTime.DuckDBToTime(val)),
 #endif
-
-
-                _ => throw new InvalidOperationException($"Unsupported type {typeof(T).Name}")
-            };
+            _ => throw new InvalidOperationException($"Unsupported type {typeof(T).Name}")
+        };
 
         if (state == DuckDBState.DuckDBError)
         {
-            ThrowLastError();
+            DuckDBAppender.ThrowLastError(appender);
         }
 
         return this;
-    }
-
-    private void ThrowLastError()
-    {
-        DuckDBAppender.ThrowLastError(appender);
     }
 }
