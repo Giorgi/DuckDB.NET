@@ -96,6 +96,16 @@ namespace DuckDB.NET.Data
             };
         }
 
+        public DuckDBAppender CreateAppender(string table)
+        {
+            if (NativeMethods.Appender.DuckDBAppenderCreate(NativeConnection, null, table, out var nativeAppender) == DuckDBState.DuckDBError)
+            {
+                DuckDBAppender.ThrowLastError(nativeAppender);
+            }
+
+            return new DuckDBAppender(nativeAppender);
+        }
+
         protected override void Dispose(bool disposing)
         {
             if (disposing)
