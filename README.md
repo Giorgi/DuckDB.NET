@@ -2,13 +2,14 @@
 
 [DuckDB](https://duckdb.org/) bindings for C#
 
-[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/Giorgi/DuckDB.NET/Build?logo=GitHub&style=for-the-badge)](https://github.com/Giorgi/DuckDB.NET/actions/workflows/ci.yml)
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/Giorgi/DuckDB.NET/ci.yml?branch=main&logo=GitHub&style=for-the-badge)](https://github.com/Giorgi/DuckDB.NET/actions/workflows/ci.yml)
 [![Coveralls](https://img.shields.io/coveralls/github/Giorgi/DuckDB.NET?logo=coveralls&style=for-the-badge)](https://coveralls.io/github/Giorgi/DuckDB.NET)
 [![License](https://img.shields.io/badge/License-Mit-blue.svg?style=for-the-badge&logo=mit)](LICENSE.md)
 [![Ko-Fi](https://img.shields.io/static/v1?style=for-the-badge&message=Support%20the%20Project&color=success&logo=ko-fi&label=$$)](https://ko-fi.com/U6U81LHU8)
 
 [![](https://img.shields.io/nuget/dt/DuckDB.NET.Data.svg?label=DuckDB.NET.Data&style=for-the-badge&logo=NuGet)](https://www.nuget.org/packages/DuckDB.NET.Data/)
 [![](https://img.shields.io/nuget/dt/DuckDB.NET.Bindings.svg?label=DuckDB.NET.Bindings&style=for-the-badge&logo=NuGet)](https://www.nuget.org/packages/DuckDB.NET.Bindings/)
+![](https://img.shields.io/badge/DuckDB-.Net-%23FFF000?logo=DuckDB&style=for-the-badge)
 
 ![Project Icon](Logo.jpg "DuckDB.NET Project Icon")
 
@@ -18,6 +19,9 @@ Note: The library is in early stage and contributions are more than wellcome.
 
 ### Before you Begin
 Before you begin, make sure that duckdb binary is available on your machine and accessible to your project. The easiest option is to put the library in your project directory and set **Copy to Output Directory** to **Copy Always**. Make sure to use the correct binary for your platform: *duckdb.dll* on Windows, *duckdb.so* on Linux and *duckdb.dylib* on macOS.
+
+### Support
+If you encounter a bug with the library [Create an Issue](https://github.com/Giorgi/DuckDB.NET/issues/new). Join the [DuckDB .Net Channel](https://discord.com/channels/909674491309850675/1051088721996427265) for DuckDB.NET related topics.
 
 ### Getting Started
 There are two ways to work with DuckDB from C#

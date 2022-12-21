@@ -13,6 +13,9 @@ namespace DuckDB.NET
 
         public static string ToManagedString(this IntPtr unmanagedString, bool freeWhenCopied = true)
         {
+#if NET6_0_OR_GREATER
+            return Marshal.PtrToStringUTF8(unmanagedString);
+#endif
             if (unmanagedString == IntPtr.Zero)
             {
                 return "";
