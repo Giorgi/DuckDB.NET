@@ -98,6 +98,7 @@ namespace DuckDB.NET.Data
 
         public DuckDBAppender CreateAppender(string table)
         {
+            EnsureConnectionOpen();
             if (NativeMethods.Appender.DuckDBAppenderCreate(NativeConnection, null, table, out var nativeAppender) == DuckDBState.DuckDBError)
             {
                 try
