@@ -65,7 +65,7 @@
     <RemoveDir Directories="obj\runtimes" />
   </Target>
   <ItemGroup>
-    <None Include="obj\runtimes\**\*">
+    <None Include="obj\runtimes\**\*.dll;obj\runtimes\**\*.so;obj\runtimes\**\*.dylib;">
       <Visible>false</Visible>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
