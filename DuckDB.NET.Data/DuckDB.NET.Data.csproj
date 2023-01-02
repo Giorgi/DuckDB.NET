@@ -49,6 +49,10 @@
     <ProjectReference Include="..\DuckDB.NET\DuckDB.NET.csproj" />
   </ItemGroup>
 
+  <PropertyGroup Condition="'$(BuildType)' == 'Full' ">
+    <PackageId>DuckDB.NET.Data.Full</PackageId>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0">
       <PrivateAssets>all</PrivateAssets>
