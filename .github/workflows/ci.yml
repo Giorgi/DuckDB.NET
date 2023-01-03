@@ -44,7 +44,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: nupkg
-        path: DuckDB.NET/bin/Release/*.nupkg
+        path: ./**/bin/Release/*.nupkg
       
     - name: Run tests
       env:
