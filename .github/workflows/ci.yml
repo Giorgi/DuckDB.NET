@@ -34,17 +34,17 @@ jobs:
     - name: Pack
       if: matrix.os == 'ubuntu-20.04'
       run: |
-        dotnet pack DuckDB.NET/Bindings.csproj
-        dotnet pack DuckDB.NET.Data/Data.csproj
-        dotnet pack DuckDB.NET/Bindings.csproj /p:BuildType=Full
-        dotnet pack DuckDB.NET.Data/Data.csproj /p:BuildType=Full
+        dotnet pack DuckDB.NET/Bindings.csproj   --configuration Release 
+        dotnet pack DuckDB.NET.Data/Data.csproj  --configuration Release 
+        dotnet pack DuckDB.NET/Bindings.csproj   --configuration Release /p:BuildType=Full
+        dotnet pack DuckDB.NET.Data/Data.csproj  --configuration Release /p:BuildType=Full
       
     - name: Upload Artifacts
       if: matrix.os == 'ubuntu-20.04'
       uses: actions/upload-artifact@v3
       with:
         name: nupkg
-        path: DuckDB.NET/bin/Release/DuckDB.NET.Bindings.0.4.0.10.nupkg
+        path: DuckDB.NET/bin/Release/*.nupkg
       
     - name: Run tests
       env:
