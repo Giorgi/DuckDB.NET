@@ -1,4 +1,8 @@
 <Project>
+  <PropertyGroup Label="Ensure SolutionName is defined for project level pipeline">
+    <SolutionName Condition="'$(SolutionName)' == ''">$([System.IO.Path]::GetFileNameWithoutExtension($([System.IO.Directory]::GetFiles("$(MSBuildThisFileDirectory)", "*.sln")[0])))</SolutionName>
+  </PropertyGroup>
+  
   <PropertyGroup Label="Configure assembly names and namespaces">
     <AssemblyName>$(SolutionName).$(MSBuildProjectName)</AssemblyName>
     <RootNamespace>$(AssemblyName)</RootNamespace>
