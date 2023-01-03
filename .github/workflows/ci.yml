@@ -30,7 +30,15 @@ jobs:
  
     - name: Build
       run: dotnet build --configuration Release /p:BuildType=Full
-
+ 
+    - name: Pack
+      run: |
+        dotnet pack DuckDB.NET/Bindings.csproj
+        dotnet pack DuckDB.NET.Data/Data.csproj
+        dotnet pack DuckDB.NET/Bindings.csproj /p:BuildType=Full
+        dotnet pack DuckDB.NET.Data/Data.csproj /p:BuildType=Full
+      
+      
     - name: Run tests
       env:
         CoverletOutputFormat: lcov
