@@ -1,0 +1,69 @@
+<Project>
+  <PropertyGroup Label="Configure assembly names and namespaces">
+    <AssemblyName>$(SolutionName).$(MSBuildProjectName)</AssemblyName>
+    <RootNamespace>$(AssemblyName)</RootNamespace>
+  </PropertyGroup>
+  
+  <PropertyGroup Label="Common assembly attributes">
+    <TargetFrameworks>netstandard2.0;net6.0</TargetFrameworks>
+    <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
+    <LangVersion>default</LangVersion>
+	
+	<Year>$([System.DateTime]::Today.Year)</Year>
+	
+    <Version>0.4.0.10</Version>
+    <FileVersion>0.4.0.10</FileVersion>
+    <AssemblyVersion>0.4.0.10</AssemblyVersion>
+    <Authors>Giorgi Dalakishvili</Authors>
+    <Company>Giorgi Dalakishvili</Company>
+    <Copyright>Copyright © 2020 - $(Year) Giorgi Dalakishvili</Copyright>
+	
+	<Product>DuckDB.NET.$(MSBuildProjectName)</Product>
+	<PackageId>DuckDB.NET.$(MSBuildProjectName)</PackageId>
+    <PackageIcon>Logo.jpg</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+	    
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(Configuration)'=='Release'">True</ContinuousIntegrationBuild>
+
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/Giorgi/DuckDB.NET</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Giorgi/DuckDB.NET</PackageProjectUrl>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
+
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <BuildType>ManagedOnly</BuildType>
+	<NoNativeText>This package does not include a copy of the native DuckDB library.</NoNativeText>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(BuildType)' == 'Full' ">
+    <PackageId>$(PackageId).Full</PackageId>
+	<AssemblyName>$(AssemblyName).Full</AssemblyName>
+  </PropertyGroup>  
+
+  <ItemGroup>
+    <None Include="..\LICENSE.md">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+    <None Include="..\Logo.jpg">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+</Project>

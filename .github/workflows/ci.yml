@@ -8,9 +8,6 @@ on:
     paths-ignore:
       - '**.md'
 
-env:
-  DUCKDB_GIT_TAG: 'v0.6.0'
-
 jobs:
   build:
     strategy:

@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "DuckDB.NET.Samples": {
+      "commandName": "Project"
+    },
+    "WSL": {
+      "commandName": "WSL2",
+      "environmentVariables": {},
+      "distributionName": ""
+    }
+  }
+}

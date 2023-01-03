@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>DuckDB ADO.NET Provider for C#.</Description>
+    <PackageReleaseNotes>Added support for parameterized queries, reading and writing all supported DuckDB types</PackageReleaseNotes>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(BuildType)' == 'ManagedOnly' ">
+    <Description>$(Description) $(NoNativeText)</Description>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\DuckDB.NET\Bindings.csproj" />
+  </ItemGroup>
+
+</Project>
