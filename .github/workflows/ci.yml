@@ -43,7 +43,7 @@ jobs:
       if: matrix.os == 'ubuntu-20.04'
       uses: actions/upload-artifact@v3
       with:
-        name: nupkg
+        name: nugetPackages
         path: ./**/bin/Release/*.nupkg
       
     - name: Run tests
