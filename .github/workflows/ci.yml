@@ -63,6 +63,7 @@ jobs:
 
   publish:
     needs: build
+    name: Publish Packages
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/develop'
     steps:
@@ -78,10 +79,11 @@ jobs:
       run: dotnet nuget add source --username Giorgi --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/Giorgi/index.json"
       
     - name: Push package to GitHub packages
-      run: dotnet nuget push *.nupkg --api-key ${{ secrets.GITHUB_TOKEN }}  --source "github"
+      run: dotnet nuget push "**/*.nupkg" --api-key ${{ secrets.GITHUB_TOKEN }}  --source "github"
       
   Finish-Coveralls-Collection:
     needs: build
+    name: Finish Coveralls Collection
     runs-on: ubuntu-latest
     steps:
     - name: Coveralls Finished
