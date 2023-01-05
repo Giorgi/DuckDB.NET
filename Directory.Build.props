@@ -15,9 +15,6 @@
 	
 	<Year>$([System.DateTime]::Today.Year)</Year>
 	
-    <Version>0.4.0.10</Version>
-    <FileVersion>0.4.0.10</FileVersion>
-    <AssemblyVersion>0.4.0.10</AssemblyVersion>
     <Authors>Giorgi Dalakishvili</Authors>
     <Company>Giorgi Dalakishvili</Company>
     <Copyright>Copyright © 2020 - $(Year) Giorgi Dalakishvili</Copyright>
