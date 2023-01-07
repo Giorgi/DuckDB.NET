@@ -1,0 +1,20 @@
+name: "NuGet"
+
+on: [workflow_dispatch]
+
+jobs:
+  publish:
+    needs: build
+    name: Publish Packages
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download nuget package artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: nugetPackages-${{github.ref_name}}
+
+    - name: Display structure of downloaded files
+      run: ls -R
+
+    - name: Push package to NuGet.org
+      run: dotnet nuget push "**/*.nupkg" -k ${{ secrets.NUGET }}  -s https://api.nuget.org/v3/index.json
