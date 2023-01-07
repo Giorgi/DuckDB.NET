@@ -6,10 +6,13 @@
 [![Coveralls](https://img.shields.io/coveralls/github/Giorgi/DuckDB.NET?logo=coveralls&style=for-the-badge)](https://coveralls.io/github/Giorgi/DuckDB.NET)
 [![License](https://img.shields.io/badge/License-Mit-blue.svg?style=for-the-badge&logo=mit)](LICENSE.md)
 [![Ko-Fi](https://img.shields.io/static/v1?style=for-the-badge&message=Support%20the%20Project&color=success&logo=ko-fi&label=$$)](https://ko-fi.com/U6U81LHU8)
+[![](https://img.shields.io/badge/DuckDB-.Net-%23FFF000?logo=DuckDB&style=for-the-badge)](https://discord.com/channels/909674491309850675/1051088721996427265)
 
 [![](https://img.shields.io/nuget/dt/DuckDB.NET.Data.svg?label=DuckDB.NET.Data&style=for-the-badge&logo=NuGet)](https://www.nuget.org/packages/DuckDB.NET.Data/)
 [![](https://img.shields.io/nuget/dt/DuckDB.NET.Bindings.svg?label=DuckDB.NET.Bindings&style=for-the-badge&logo=NuGet)](https://www.nuget.org/packages/DuckDB.NET.Bindings/)
-![](https://img.shields.io/badge/DuckDB-.Net-%23FFF000?logo=DuckDB&style=for-the-badge)
+
+[![](https://img.shields.io/nuget/dt/DuckDB.NET.Data.Full.svg?label=DuckDB.NET.Data.Full&style=for-the-badge&logo=NuGet)](https://www.nuget.org/packages/DuckDB.NET.Data.Full/)
+[![](https://img.shields.io/nuget/dt/DuckDB.NET.Bindings.Full.svg?label=DuckDB.NET.Bindings.Full&style=for-the-badge&logo=NuGet)](https://www.nuget.org/packages/DuckDB.NET.Bindings.Full/)
 
 ![Project Icon](Logo.jpg "DuckDB.NET Project Icon")
 
@@ -17,21 +20,23 @@ Note: The library is in early stage and contributions are more than wellcome.
 
 ## Usage
 
-### Before you Begin
-Before you begin, make sure that duckdb binary is available on your machine and accessible to your project. The easiest option is to put the library in your project directory and set **Copy to Output Directory** to **Copy Always**. Make sure to use the correct binary for your platform: *duckdb.dll* on Windows, *duckdb.so* on Linux and *duckdb.dylib* on macOS.
-
 ### Support
 If you encounter a bug with the library [Create an Issue](https://github.com/Giorgi/DuckDB.NET/issues/new). Join the [DuckDB .Net Channel](https://discord.com/channels/909674491309850675/1051088721996427265) for DuckDB.NET related topics.
 
 ### Getting Started
-There are two ways to work with DuckDB from C#
+There are two ways to work with DuckDB from C#: You can use ADO.NET Provider or use low-level bindings library for DuckDB. The ADO.NET Provider is built on top of the low-level library and is the recommended and most straightforward approach to work with DuckDB.
 
-Using ADO.NET Provider or using low level bindings library for DuckDB. The ADO.NET Provider is built on top of the low level library and is the recommended and most straightforward way for working with DuckDB.
+In both cases, there are two NuGet packages available: The Full package that includes DuckDB native library and a managed-only library that doesn't include a native library.
+
+|  | ADO.NET Provider | Includes DuckDB library |
+|---|---|---|
+| Yes | DuckDB.NET.Data | DuckDB.NET.Data.**Full** |
+| No | DuckDB.NET.Bindings| DuckDB.NET.Bindings.**Full** |
 
 ### Using ADO.NET Provider
 
 ```sh
-dotnet add package DuckDB.NET.Data
+dotnet add package DuckDB.NET.Data.Full
 ```
 
 ```cs
@@ -79,6 +84,31 @@ private static void PrintQueryResults(DbDataReader queryResult)
   }
 }
 ```
+#### Efficient data loading with Appender
+
+Appenders are the most efficient way of loading data into DuckDB. Starting from version 0.6.1, you can use a managed Appender instead of using low-level DuckDB Api:
+
+```cs
+using var connection = new DuckDBConnection("DataSource=:memory:");
+connection.Open();
+
+using (var duckDbCommand = connection.CreateCommand())
+{
+  var table = "CREATE TABLE AppenderTest(foo INTEGER, bar INTEGER);";
+  duckDbCommand.CommandText = table;
+  duckDbCommand.ExecuteNonQuery();
+}
+
+var rows = 10;
+using (var appender = connection.CreateAppender("managedAppenderTest"))
+{
+  for (var i = 0; i < rows; i++)
+  {
+    var row = appender.CreateRow();
+    row.AppendValue(i).AppendValue(i+2).EndRow();
+  }
+}
+```
 
 #### Parameterized queries and DuckDB native types.
 
@@ -119,7 +149,7 @@ For in-memory database use `Data Source=:memory:` connection string. When using 
 ### Use low level bindings library
 
 ```sh
-dotnet add package DuckDB.NET.Bindings
+dotnet add package DuckDB.NET.Bindings.Full
 ```
 
 ```cs
