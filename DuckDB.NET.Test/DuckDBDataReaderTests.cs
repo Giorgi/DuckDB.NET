@@ -85,7 +85,7 @@ public class DuckDBDataReaderTests
 
         var duckDbCommand = connection.CreateCommand();
 
-        duckDbCommand.CommandText = "select 7 union select 11";
+        duckDbCommand.CommandText = "select 7 union select 11 order by 1";
         using var reader = duckDbCommand.ExecuteReader(CommandBehavior.CloseConnection);
         var enumerator = reader.GetEnumerator();
 
