@@ -15,7 +15,7 @@ namespace DuckDB.NET
         {
 #if NET6_0_OR_GREATER
             return Marshal.PtrToStringUTF8(unmanagedString);
-#endif
+#else
             if (unmanagedString == IntPtr.Zero)
             {
                 return "";
@@ -43,6 +43,7 @@ namespace DuckDB.NET
             }
 
             return Encoding.UTF8.GetString(byteArray, 0, length);
+#endif
         }
 
         public static SafeUnmanagedMemoryHandle ToUnmanagedString(this string managedString)

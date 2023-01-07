@@ -85,17 +85,16 @@ public class DuckDBDataReaderTests
 
         var duckDbCommand = connection.CreateCommand();
 
-        duckDbCommand.CommandText = "select 2 union select 4";
-        var reader = duckDbCommand.ExecuteReader(CommandBehavior.CloseConnection);
-
+        duckDbCommand.CommandText = "select 7 union select 11 order by 1";
+        using var reader = duckDbCommand.ExecuteReader(CommandBehavior.CloseConnection);
         var enumerator = reader.GetEnumerator();
 
         enumerator.MoveNext().Should().Be(true);
-
-        (enumerator.Current as IDataRecord).GetInt32(0).Should().Be(2);
+        (enumerator.Current as IDataRecord).GetInt32(0).Should().Be(7);
+        
         enumerator.MoveNext().Should().Be(true);
-
-        (enumerator.Current as IDataRecord).GetInt32(0).Should().Be(4);
+        (enumerator.Current as IDataRecord).GetInt32(0).Should().Be(11);
+        
         enumerator.MoveNext().Should().Be(false);
     }
 

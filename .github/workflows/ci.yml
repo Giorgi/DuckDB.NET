@@ -8,51 +8,88 @@ on:
     paths-ignore:
       - '**.md'
 
-env:
-  DUCKDB_GIT_TAG: 'v0.6.0'
-
 jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-20.04, windows-2022, macos-12]
+        os: [ubuntu-20.04, windows-latest, macos-12]
         arch: ['amd64']
         dotnet-version: ['6.0']
       fail-fast: false
- 
+
     name: Build library (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
- 
+      with:
+        fetch-depth: 0
+
     - name: Setup .NET Core SDK ${{ matrix.dotnet-version }}
       uses: actions/setup-dotnet@v2
       with:
         dotnet-version: ${{ matrix.dotnet-version }}
- 
-    - name: Build
-      run: dotnet build --configuration Release
 
+    - name: Build
+      run: dotnet build --configuration Release /p:BuildType=Full
+
+    - name: Pack
+      if: matrix.os == 'ubuntu-20.04'
+      run: |
+        dotnet pack DuckDB.NET/Bindings.csproj   --configuration Release 
+        dotnet pack DuckDB.NET.Data/Data.csproj  --configuration Release 
+        dotnet pack DuckDB.NET/Bindings.csproj   --configuration Release /p:BuildType=Full
+        dotnet pack DuckDB.NET.Data/Data.csproj  --configuration Release /p:BuildType=Full
+
+    - name: Upload Artifacts
+      if: matrix.os == 'ubuntu-20.04'
+      uses: actions/upload-artifact@v3
+      with:
+        name: nugetPackages-${{github.ref_name}}
+        path: ./**/bin/Release/*.nupkg
+      
     - name: Run tests
       env:
         CoverletOutputFormat: lcov
-      run: dotnet test --configuration Release --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
+      run: dotnet test --configuration Release --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:BuildType=Full
 
     - name: Coveralls Parallel
       uses: coverallsapp/github-action@master
       with:
         github-token: ${{ secrets.github_token }}
         flag-name: run-${{ matrix.os }}
-        path-to-lcov: DuckDB.NET.Test/coverage.info
+        path-to-lcov: DuckDB.NET.Test/coverage.net6.0.info
         parallel: true
 
+
+
+  publish:
+    needs: build
+    name: Publish Packages
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+    steps:
+    - name: Download nuget package artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: nugetPackages-${{github.ref_name}}
+
+    - name: Display structure of downloaded files
+      run: ls -R
+
+    - name: Prep packages
+      run: dotnet nuget add source --username Giorgi --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/Giorgi/index.json"
+
+    - name: Push package to GitHub packages
+      run: dotnet nuget push "**/*.nupkg" --api-key ${{ secrets.GITHUB_TOKEN }}  --source "github"
+      
   Finish-Coveralls-Collection:
-      needs: build
-      runs-on: ubuntu-latest
-      steps:
-      - name: Coveralls Finished
-        uses: coverallsapp/github-action@master
-        with:
-          github-token: ${{ secrets.github_token }}
-          parallel-finished: true
+    needs: build
+    name: Finish Coveralls Collection
+    runs-on: ubuntu-latest
+    steps:
+    - name: Coveralls Finished
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.github_token }}
+        parallel-finished: true

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>DuckDB ADO.NET Provider for C#.</Description>
+    <PackageReleaseNotes>Added managed implementation for DuckDB Appender.</PackageReleaseNotes>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(BuildType)' == 'ManagedOnly' ">
+    <Description>$(Description) $(NoNativeText)</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="GitVersion.MsBuild" Version="5.11.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\DuckDB.NET\Bindings.csproj" />
+  </ItemGroup>
+
+</Project>

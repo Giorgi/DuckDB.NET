@@ -47,7 +47,7 @@ public static class ModuleInit
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            return "osx";
+            return "osx-x64";
         }
 
         return null;

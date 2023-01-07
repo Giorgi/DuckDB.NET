@@ -1,0 +1,7 @@
+next-version: 0.6.1
+branches:
+  develop:
+    increment: None  
+ignore:
+  sha: []
+merge-message-formats: {}
