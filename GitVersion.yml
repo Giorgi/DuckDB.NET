@@ -1,7 +1,9 @@
 next-version: 0.6.1
 branches:
   develop:
-    increment: None  
+    increment: None
+  main:
+    increment: None
 ignore:
   sha: []
 merge-message-formats: {}
