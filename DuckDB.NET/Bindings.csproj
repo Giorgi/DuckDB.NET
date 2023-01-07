@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <Description>DuckDB Bindings for C#.</Description>
-    <PackageReleaseNotes>Added types for Interval, HugeInt, Blob and other native DuckDB types.</PackageReleaseNotes>
+    <PackageReleaseNotes>Added support for DuckDB 0.6.1</PackageReleaseNotes>
     <RootNamespace>DuckDB.NET</RootNamespace>
     <RuntimeIdentifiers>win-x86;win-x64;linux-x64;linux-arm64;osx-x64</RuntimeIdentifiers>
     <DuckDbArtifactRoot>https://github.com/duckdb/duckdb/releases/download/v0.6.1</DuckDbArtifactRoot>

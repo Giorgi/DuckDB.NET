@@ -21,6 +21,7 @@
 
 	<Product>DuckDB.NET.$(MSBuildProjectName)</Product>
 	<PackageId>DuckDB.NET.$(MSBuildProjectName)</PackageId>
+	<PackageTags>DuckDB;ADO.NET;Database;Olap;Embedded</PackageTags>
     <PackageIcon>Logo.jpg</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
@@ -43,7 +44,6 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(BuildType)' == 'Full' ">
     <PackageId>$(PackageId).Full</PackageId>
-	<AssemblyName>$(AssemblyName).Full</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

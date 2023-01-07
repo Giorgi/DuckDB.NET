@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <Description>DuckDB ADO.NET Provider for C#.</Description>
-    <PackageReleaseNotes>Added support for parameterized queries, reading and writing all supported DuckDB types</PackageReleaseNotes>
+    <PackageReleaseNotes>Added managed implementation for DuckDB Appender.</PackageReleaseNotes>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(BuildType)' == 'ManagedOnly' ">
