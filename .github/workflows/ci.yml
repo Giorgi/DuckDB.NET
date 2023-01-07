@@ -16,23 +16,23 @@ jobs:
         arch: ['amd64']
         dotnet-version: ['6.0']
       fail-fast: false
- 
+
     name: Build library (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
       with:
-        fetch-depth: 0      
- 
+        fetch-depth: 0
+
     - name: Setup .NET Core SDK ${{ matrix.dotnet-version }}
       uses: actions/setup-dotnet@v2
       with:
         dotnet-version: ${{ matrix.dotnet-version }}
- 
+
     - name: Build
       run: dotnet build --configuration Release /p:BuildType=Full
- 
+
     - name: Pack
       if: matrix.os == 'ubuntu-20.04'
       run: |
@@ -40,12 +40,12 @@ jobs:
         dotnet pack DuckDB.NET.Data/Data.csproj  --configuration Release 
         dotnet pack DuckDB.NET/Bindings.csproj   --configuration Release /p:BuildType=Full
         dotnet pack DuckDB.NET.Data/Data.csproj  --configuration Release /p:BuildType=Full
-      
+
     - name: Upload Artifacts
       if: matrix.os == 'ubuntu-20.04'
       uses: actions/upload-artifact@v3
       with:
-        name: nugetPackages
+        name: nugetPackages-${{github.ref_name}}
         path: ./**/bin/Release/*.nupkg
       
     - name: Run tests
@@ -72,14 +72,14 @@ jobs:
     - name: Download nuget package artifact
       uses: actions/download-artifact@v3
       with:
-        name: nugetPackages
-    
+        name: nugetPackages-${{github.ref_name}}
+
     - name: Display structure of downloaded files
-      run: ls -R        
-    
+      run: ls -R
+
     - name: Prep packages
       run: dotnet nuget add source --username Giorgi --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/Giorgi/index.json"
-      
+
     - name: Push package to GitHub packages
       run: dotnet nuget push "**/*.nupkg" --api-key ${{ secrets.GITHUB_TOKEN }}  --source "github"
       

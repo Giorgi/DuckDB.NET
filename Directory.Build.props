@@ -12,19 +12,19 @@
     <TargetFrameworks>netstandard2.0;net6.0</TargetFrameworks>
     <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
     <LangVersion>default</LangVersion>
-	
+
 	<Year>$([System.DateTime]::Today.Year)</Year>
-	
+
     <Authors>Giorgi Dalakishvili</Authors>
     <Company>Giorgi Dalakishvili</Company>
     <Copyright>Copyright © 2020 - $(Year) Giorgi Dalakishvili</Copyright>
-	
+
 	<Product>DuckDB.NET.$(MSBuildProjectName)</Product>
 	<PackageId>DuckDB.NET.$(MSBuildProjectName)</PackageId>
     <PackageIcon>Logo.jpg</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
-	    
+
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(Configuration)'=='Release'">True</ContinuousIntegrationBuild>
 
@@ -44,7 +44,7 @@
   <PropertyGroup Condition="'$(BuildType)' == 'Full' ">
     <PackageId>$(PackageId).Full</PackageId>
 	<AssemblyName>$(AssemblyName).Full</AssemblyName>
-  </PropertyGroup>  
+  </PropertyGroup>
 
   <ItemGroup>
     <None Include="..\LICENSE.md">
