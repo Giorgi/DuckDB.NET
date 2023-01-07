@@ -51,6 +51,10 @@
       <Pack>True</Pack>
       <PackagePath></PackagePath>
     </None>
+    <None Include="..\LICENSE-DuckDB.txt" Condition="'$(BuildType)' == 'Full' ">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>	
     <None Include="..\Logo.jpg">
       <Pack>True</Pack>
       <PackagePath></PackagePath>
