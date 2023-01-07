@@ -4,6 +4,7 @@ on:
   push:
     paths-ignore:
       - '**.md'
+      - '**/NuGet.yml'
   pull_request:
     paths-ignore:
       - '**.md'
