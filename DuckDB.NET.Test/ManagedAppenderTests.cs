@@ -1,8 +1,9 @@
-using System;
+﻿using System;
 using System.Globalization;
 using DuckDB.NET.Data;
 using Xunit;
 using FluentAssertions;
+using System.Collections.Generic;
 
 namespace DuckDB.NET.Test
 {
@@ -66,6 +67,50 @@ namespace DuckDB.NET.Test
                     readRowIndex++;
                 }
                 readRowIndex.Should().Be(rows);
+            }
+        }
+
+        [Fact]
+        public void ManagedAppenderUnicodeTests()
+        {
+            var words = new List<string> { "hello", "안녕하세요", "Ø3mm CHAIN" };
+
+            using var connection = new DuckDBConnection("DataSource=:memory:");
+            connection.Open();
+
+            using (var duckDbCommand = connection.CreateCommand())
+            {
+                var table = "CREATE TABLE UnicodeAppenderTestTable (index INTEGER, words VARCHAR);";
+                duckDbCommand.CommandText = table;
+                duckDbCommand.ExecuteNonQuery();
+            }
+
+            using (var appender = connection.CreateAppender("UnicodeAppenderTestTable"))
+            {
+                for (int i = 0; i < words.Count; i++)
+                {
+                    var row = appender.CreateRow();
+                    row.AppendValue(i).AppendValue(words[i]);
+
+                    row.EndRow();
+                }
+
+                appender.Close();
+            }
+
+            using (var duckDbCommand = connection.CreateCommand())
+            {
+                duckDbCommand.CommandText = "SELECT * FROM UnicodeAppenderTestTable";
+                using var reader = duckDbCommand.ExecuteReader();
+
+                var results = new List<string>();
+                while (reader.Read())
+                {
+                    var text = reader.GetString(1);
+                    results.Add(text);
+                }
+
+                results.Should().BeEquivalentTo(words);
             }
         }
 

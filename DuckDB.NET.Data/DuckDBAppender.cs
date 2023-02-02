@@ -80,7 +80,16 @@ public class DuckDBAppenderRow
 
     public DuckDBAppenderRow AppendValue(bool? value) => Append(value);
 
-    public DuckDBAppenderRow AppendValue(string? value) => Append(value);
+    public DuckDBAppenderRow AppendValue(string? value)
+    {
+        if (value == null)
+        {
+            return AppendNullValue();
+        }
+
+        using var unmanagedString = value.ToUnmanagedString();
+        return Append(unmanagedString);
+    }
 
     public DuckDBAppenderRow AppendNullValue() => Append<object>(null);
 
@@ -133,7 +142,7 @@ public class DuckDBAppenderRow
         {
             null => NativeMethods.Appender.DuckDBAppendNull(appender),
             bool val => NativeMethods.Appender.DuckDBAppendBool(appender, val),
-            string val => NativeMethods.Appender.DuckDBAppendVarchar(appender, val),
+            SafeUnmanagedMemoryHandle val => NativeMethods.Appender.DuckDBAppendVarchar(appender, val),
 
             sbyte val => NativeMethods.Appender.DuckDBAppendInt8(appender, val),
             short val => NativeMethods.Appender.DuckDBAppendInt16(appender, val),

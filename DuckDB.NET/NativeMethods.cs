@@ -298,7 +298,7 @@ namespace DuckDB.NET
             [SuppressGCTransition]
 #endif
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_append_varchar")]
-            public static extern DuckDBState DuckDBAppendVarchar(DuckDBAppender appender, string val);
+            public static extern DuckDBState DuckDBAppendVarchar(DuckDBAppender appender, SafeUnmanagedMemoryHandle val);
 #if NET5_0_OR_GREATER
             [SuppressGCTransition]
 #endif

@@ -41,7 +41,6 @@ namespace DuckDB.NET.Test
                          NativeMethods.Appender.DuckDBAppendUInt64(appender, (ulong)i);
                          NativeMethods.Appender.DuckDBAppendFloat(appender, (float)i);
                          NativeMethods.Appender.DuckDBAppendDouble(appender, (double)i);
-                         NativeMethods.Appender.DuckDBAppendVarchar(appender, $"{i}");
                          NativeMethods.Appender.DuckDBAppenderEndRow(appender);
                      }
                  }
