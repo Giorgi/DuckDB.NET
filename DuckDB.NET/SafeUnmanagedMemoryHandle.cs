@@ -6,10 +6,12 @@ namespace DuckDB.NET
 {
     public class SafeUnmanagedMemoryHandle : SafeHandleZeroOrMinusOneIsInvalid
     {
+        private readonly bool freeWithGlobal;
         public SafeUnmanagedMemoryHandle() : base(true) { }
 
-        public SafeUnmanagedMemoryHandle(IntPtr preexistingHandle, bool ownsHandle) : base(ownsHandle)
+        public SafeUnmanagedMemoryHandle(IntPtr preexistingHandle, bool ownsHandle, bool freeWithGlobal = true) : base(ownsHandle)
         {
+            this.freeWithGlobal = freeWithGlobal;
             SetHandle(preexistingHandle);
         }
 
@@ -17,7 +19,14 @@ namespace DuckDB.NET
         {
             if (handle != IntPtr.Zero)
             {
-                Marshal.FreeHGlobal(handle);
+                if (freeWithGlobal)
+                {
+                    Marshal.FreeHGlobal(handle);
+                }
+                else
+                {
+                    Marshal.FreeCoTaskMem(handle);
+                }
 
                 handle = IntPtr.Zero;
 

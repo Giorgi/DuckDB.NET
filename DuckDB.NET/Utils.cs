@@ -48,6 +48,16 @@ namespace DuckDB.NET
 
         public static SafeUnmanagedMemoryHandle ToUnmanagedString(this string managedString)
         {
+#if NET6_0_OR_GREATER
+            var pointer = Marshal.StringToCoTaskMemUTF8(managedString);
+
+            return new SafeUnmanagedMemoryHandle(pointer, true, false);
+#else
+            if (managedString == null)
+            {
+                return new SafeUnmanagedMemoryHandle(IntPtr.Zero, true);
+            }
+
             int len = Encoding.UTF8.GetByteCount(managedString);
 
             var buffer = new byte[len + 1];
@@ -57,6 +67,7 @@ namespace DuckDB.NET
             Marshal.Copy(buffer, 0, nativeUtf8, buffer.Length);
 
             return new SafeUnmanagedMemoryHandle(nativeUtf8, true);
+#endif
         }
     }
 }

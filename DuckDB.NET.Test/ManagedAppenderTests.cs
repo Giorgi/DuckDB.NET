@@ -73,7 +73,7 @@ namespace DuckDB.NET.Test
         [Fact]
         public void ManagedAppenderUnicodeTests()
         {
-            var words = new List<string> { "hello", "안녕하세요", "Ø3mm CHAIN" };
+            var words = new List<string> { "hello", "안녕하세요", "Ø3mm CHAIN", null, "" };
 
             using var connection = new DuckDBConnection("DataSource=:memory:");
             connection.Open();
