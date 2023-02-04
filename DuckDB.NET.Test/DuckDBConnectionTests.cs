@@ -73,7 +73,7 @@ namespace DuckDB.NET.Test
         }
 
         [Fact]
-        [Trait("Category","Baseline")]
+        [Trait("Category", "Baseline")]
         public async Task ExceptionOnDisposeThenClose()
         {
             using var dbInfo = DisposableFile.GenerateInTemp("db");
@@ -240,10 +240,10 @@ namespace DuckDB.NET.Test
                 command.CommandText = "SELECT 42;";
                 command.ExecuteScalar();
             }).Should().ThrowExactly<InvalidOperationException>();
-            
+
             connection.Open();
             connection.State.Should().Be(ConnectionState.Open);
-            
+
             var command = connection.CreateCommand();
             command.CommandText = "SELECT 42;";
             command.ExecuteScalar().Should().Be(42);
@@ -256,6 +256,51 @@ namespace DuckDB.NET.Test
 
             connection.Open();
             connection.Invoking(connection => connection.Open()).Should().Throw<InvalidOperationException>();
+        }
+
+        [Fact]
+        public void MultipleInMemoryConnectionsSeparateDatabases()
+        {
+            var tableCount = 0;
+
+            using var firstConnection = new DuckDBConnection("DataSource=:memory:");
+            using var secondConnection = new DuckDBConnection("DataSource=:memory:");
+
+            firstConnection.Open();
+
+            var command = firstConnection.CreateCommand();
+            command.CommandText = "CREATE TABLE t1 (foo INTEGER, bar INTEGER);";
+            command.ExecuteNonQuery();
+
+            command.CommandText = "show tables;";
+            using (var dataReader = command.ExecuteReader())
+            {
+                while (dataReader.Read())
+                {
+                    tableCount++;
+                }
+            }
+
+            tableCount.Should().Be(1);
+
+            // connection 2
+            tableCount = 0;
+            secondConnection.Open();
+            command = secondConnection.CreateCommand();
+
+            command.CommandText = "CREATE TABLE t2 (foo INTEGER, bar INTEGER);";
+            command.ExecuteNonQuery();
+
+            command.CommandText = "show tables;";
+            using (var dataReader = command.ExecuteReader())
+            {
+                while (dataReader.Read())
+                {
+                    tableCount++;
+                }
+            }
+
+            tableCount.Should().Be(1);
         }
     }
 }

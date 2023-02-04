@@ -18,11 +18,11 @@ namespace DuckDB.NET.Data.Internal
         {
             var filename = connectionString.DataSource;
 
-            FileRef fileRef = null;
+            var fileRef = string.IsNullOrEmpty(filename) ? new FileRef("") : null;
 
             //need to loop until we have a locked fileRef
             //that is also in the cache
-            do
+            while (fileRef == null)
             {
                 fileRef = ConnectionCache.GetOrAdd(filename, fn =>
                 {
@@ -40,22 +40,20 @@ namespace DuckDB.NET.Data.Internal
                     //file in the cache matches what is locked, we are good!
                     break;
                 }
-                    
+
                 //exit lock and try the whole thing again
                 Monitor.Exit(fileRef);
                 fileRef = null;
             }
-            while (fileRef == null);
 
             //now connect what needs to be connected
             try
             {
                 if (fileRef.Database == null)
                 {
-                    var inMemory = filename == string.Empty;
-                    var filenameForDll = inMemory ? null : filename;
+                    var path = filename == string.Empty ? null : filename;
 
-                    var resultOpen = NativeMethods.Startup.DuckDBOpen(filenameForDll, out fileRef.Database, new DuckDBConfig(), out var error);
+                    var resultOpen = NativeMethods.Startup.DuckDBOpen(path, out fileRef.Database, new DuckDBConfig(), out var error);
 
                     if (!resultOpen.IsSuccess())
                     {
@@ -78,7 +76,10 @@ namespace DuckDB.NET.Data.Internal
             }
             finally
             {
-                Monitor.Exit(fileRef);
+                if (!string.IsNullOrEmpty(filename))
+                {
+                    Monitor.Exit(fileRef);
+                }
             }
         }
 
@@ -104,7 +105,7 @@ namespace DuckDB.NET.Data.Internal
                     fileRef.Database.Dispose();
                     fileRef.Database = null;
 
-                    if (!ConnectionCache.TryRemove(fileRef.FileName, out _))
+                    if (!string.IsNullOrEmpty(fileRef.FileName) && !ConnectionCache.TryRemove(fileRef.FileName, out _))
                     {
                         throw new InvalidOperationException($"Internal Error: tried to remove {fileRef.FileName} from cache but it wasn't there!");
                     }
