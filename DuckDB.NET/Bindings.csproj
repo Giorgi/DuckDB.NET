@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <Description>DuckDB Bindings for C#.</Description>
-    <PackageReleaseNotes>Added support for DuckDB 0.6.1</PackageReleaseNotes>
+    <PackageReleaseNotes>Fix bug when inserting unicode test through appender.</PackageReleaseNotes>
     <RootNamespace>DuckDB.NET</RootNamespace>
     <RuntimeIdentifiers>win-x86;win-x64;linux-x64;linux-arm64;osx-x64</RuntimeIdentifiers>
     <DuckDbArtifactRoot>https://github.com/duckdb/duckdb/releases/download/v0.7.1</DuckDbArtifactRoot>

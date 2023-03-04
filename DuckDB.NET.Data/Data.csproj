@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <Description>DuckDB ADO.NET Provider for C#.</Description>
-    <PackageReleaseNotes>Added managed implementation for DuckDB Appender.</PackageReleaseNotes>
+    <PackageReleaseNotes>Fix bug when inserting unicode test through appender.</PackageReleaseNotes>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(BuildType)' == 'ManagedOnly' ">
