@@ -1,4 +1,3 @@
-next-version: 0.7.1
 branches:
   develop:
     increment: None
