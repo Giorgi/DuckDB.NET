@@ -348,5 +348,69 @@ namespace DuckDB.NET.Test
             tableCount.Should().Be(2);
         }
 
-	}
+        [Fact]
+        public void DuplicateNotInMemoryConnectionError()
+        {
+            using var db1 = DisposableFile.GenerateInTemp("db", 1);
+            var cs = db1.ConnectionString;
+
+            using var duckDBConnection = new DuckDBConnection(cs);
+            duckDBConnection.Open();
+
+            duckDBConnection.Invoking(connection => connection.Duplicate()).Should().Throw<NotSupportedException>();
+        }
+
+        [Fact]
+        public void DuplicateInMemoryNotOpenedConnectionError()
+        {
+            using var duckDBConnection = new DuckDBConnection("DataSource =:memory:");
+
+            duckDBConnection.Invoking(connection => connection.Duplicate()).Should().Throw<InvalidOperationException>();
+        }
+
+        [Fact]
+        public void DuplicateInMemoryConnection()
+        {
+            var tableCount = 0;
+
+            using var firstConnection = new DuckDBConnection("DataSource=:memory:");
+
+            firstConnection.Open();
+
+            var command = firstConnection.CreateCommand();
+            command.CommandText = "CREATE TABLE t1 (foo INTEGER, bar INTEGER);";
+            command.ExecuteNonQuery();
+
+            command.CommandText = "show tables;";
+            using (var dataReader = command.ExecuteReader())
+            {
+                while (dataReader.Read())
+                {
+                    tableCount++;
+                }
+            }
+
+            Assert.Equal(1, tableCount);
+
+            using var secondConnection = firstConnection.Duplicate();
+            // connection 2
+            tableCount = 0;
+            secondConnection.Open();
+            command = secondConnection.CreateCommand();
+
+            command.CommandText = "CREATE TABLE t2 (foo INTEGER, bar INTEGER);";
+            command.ExecuteNonQuery();
+
+            command.CommandText = "show tables;";
+            using (var dataReader = command.ExecuteReader())
+            {
+                while (dataReader.Read())
+                {
+                    tableCount++;
+                }
+            }
+
+            Assert.Equal(2, tableCount);
+        }
+    }
 }

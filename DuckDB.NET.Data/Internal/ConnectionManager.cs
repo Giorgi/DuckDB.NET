@@ -112,5 +112,24 @@ namespace DuckDB.NET.Data.Internal
                 }
             }
         }
+
+        internal ConnectionReference DuplicateConnectionReference(ConnectionReference connectionReference)
+        {
+            var fileRef = connectionReference.FileRefCounter;
+
+            lock (fileRef)
+            {
+                var resultConnect = NativeMethods.Startup.DuckDBConnect(fileRef.Database, out var duplicatedNativeConnection);
+                if (resultConnect.IsSuccess())
+                {
+                    fileRef.Increment();
+                }
+                else
+                {
+                    throw new DuckDBException("DuckDBConnect failed", resultConnect);
+                }
+                return new ConnectionReference(fileRef, duplicatedNativeConnection);
+            }
+        }
     }
 }
