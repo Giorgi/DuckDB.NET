@@ -302,5 +302,51 @@ namespace DuckDB.NET.Test
 
             tableCount.Should().Be(1);
         }
-    }
+
+        [Fact]
+        public void MultipleInMemoryConnectionsSharedDatabases()
+        {
+            var tableCount = 0;
+
+            using var firstConnection = new DuckDBConnection("DataSource=:memory:?cache=shared");
+            using var secondConnection = new DuckDBConnection("DataSource=:memory:?cache=shared");
+
+            firstConnection.Open();
+
+            var command = firstConnection.CreateCommand();
+            command.CommandText = "CREATE TABLE t1 (foo INTEGER, bar INTEGER);";
+            command.ExecuteNonQuery();
+
+            command.CommandText = "show tables;";
+            using (var dataReader = command.ExecuteReader())
+            {
+                while (dataReader.Read())
+                {
+                    tableCount++;
+                }
+            }
+
+            tableCount.Should().Be(1);
+
+            // connection 2
+            tableCount = 0;
+            secondConnection.Open();
+            command = secondConnection.CreateCommand();
+
+            command.CommandText = "CREATE TABLE t2 (foo INTEGER, bar INTEGER);";
+            command.ExecuteNonQuery();
+
+            command.CommandText = "show tables;";
+            using (var dataReader = command.ExecuteReader())
+            {
+                while (dataReader.Read())
+                {
+                    tableCount++;
+                }
+            }
+
+            tableCount.Should().Be(2);
+        }
+
+	}
 }

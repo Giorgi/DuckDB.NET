@@ -1,3 +1,4 @@
+using DuckDB.NET.Data.Internal;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,7 +11,7 @@ namespace DuckDB.NET.Data.ConnectionString
         {
             var properties = connectionString
                 .Split(new[] {';'}, StringSplitOptions.RemoveEmptyEntries)
-                .Select(pair => pair.Split(new[] {'='}, StringSplitOptions.RemoveEmptyEntries))
+                .Select(pair => pair.Split(new[] {'='}, 2, StringSplitOptions.RemoveEmptyEntries))
                 .ToDictionary(pair => pair[0].Trim(), pair => pair[1].Trim());
 
             var dataSource = GetDataSource(properties);
@@ -22,7 +23,12 @@ namespace DuckDB.NET.Data.ConnectionString
 
             if (dataSource.Equals(DuckDBConnectionStringBuilder.InMemoryDataSource, StringComparison.OrdinalIgnoreCase))
             {
-                dataSource = string.Empty;
+                dataSource = InMemoryDataSource.Default;
+            }
+
+            if (dataSource.Equals(DuckDBConnectionStringBuilder.InMemorySharedDataSource, StringComparison.OrdinalIgnoreCase))
+            {
+                dataSource = InMemoryDataSource.CacheShared;
             }
             
             return new DuckDBConnectionString(dataSource);

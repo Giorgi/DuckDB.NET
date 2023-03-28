@@ -6,6 +6,9 @@ namespace DuckDB.NET.Data
     {
         public const string InMemoryDataSource = ":memory:";
         public const string InMemoryConnectionString = "DataSource=:memory:";
+
+        public const string InMemorySharedDataSource = ":memory:?cache=shared";
+        public const string InMemorySharedConnectionString = "DataSource=:meory:?cache=shared";
         
         internal static readonly string[] DataSourceKeys = {"Data Source", "DataSource"};
         private const string DataSourceKey = "DataSource";

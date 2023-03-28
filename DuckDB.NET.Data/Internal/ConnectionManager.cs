@@ -18,7 +18,7 @@ namespace DuckDB.NET.Data.Internal
         {
             var filename = connectionString.DataSource;
 
-            var fileRef = string.IsNullOrEmpty(filename) ? new FileRef("") : null;
+            var fileRef = InMemoryDataSource.IsDefault(filename) ? new FileRef("") : null;
 
             //need to loop until we have a locked fileRef
             //that is also in the cache
