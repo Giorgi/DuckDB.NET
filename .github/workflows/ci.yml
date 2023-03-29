@@ -35,7 +35,7 @@ jobs:
       run: dotnet build --configuration Release /p:BuildType=Full
 
     - name: Pack
-      if: matrix.os == 'ubuntu-20.04'
+      if: matrix.os == 'ubuntu-20.04' && github.event_name != 'pull_request'
       run: |
         dotnet pack DuckDB.NET/Bindings.csproj   --configuration Release 
         dotnet pack DuckDB.NET.Data/Data.csproj  --configuration Release 
@@ -43,7 +43,7 @@ jobs:
         dotnet pack DuckDB.NET.Data/Data.csproj  --configuration Release /p:BuildType=Full
 
     - name: Upload Artifacts
-      if: matrix.os == 'ubuntu-20.04'
+      if: matrix.os == 'ubuntu-20.04' && github.event_name != 'pull_request'
       uses: actions/upload-artifact@v3
       with:
         name: nugetPackages-${{github.ref_name}}
@@ -68,7 +68,7 @@ jobs:
     needs: build
     name: Publish Packages
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop'
+    if: github.ref == 'refs/heads/develop' && github.event_name != 'pull_request'
     steps:
     - name: Download nuget package artifact
       uses: actions/download-artifact@v3
