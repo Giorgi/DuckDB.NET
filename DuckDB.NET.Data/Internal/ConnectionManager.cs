@@ -51,7 +51,7 @@ namespace DuckDB.NET.Data.Internal
             {
                 if (fileRef.Database == null)
                 {
-                    var path = filename == string.Empty ? null : filename;
+                    var path = InMemoryDataSource.IsInMemoryDataSource(filename) ? null : filename;
 
                     var resultOpen = NativeMethods.Startup.DuckDBOpen(path, out fileRef.Database, new DuckDBConfig(), out var error);
 
@@ -76,7 +76,7 @@ namespace DuckDB.NET.Data.Internal
             }
             finally
             {
-                if (!string.IsNullOrEmpty(filename))
+                if (!InMemoryDataSource.IsDefault(filename))
                 {
                     Monitor.Exit(fileRef);
                 }
