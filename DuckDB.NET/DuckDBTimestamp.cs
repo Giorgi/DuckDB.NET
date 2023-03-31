@@ -17,7 +17,7 @@ namespace DuckDB.NET
                 Time.Hour,
                 Time.Min,
                 Time.Sec,
-                Time.Msec
+                Time.Msec / 1000
             );
 
         public static DuckDBTimestamp FromDateTime(DateTime dateTime)
