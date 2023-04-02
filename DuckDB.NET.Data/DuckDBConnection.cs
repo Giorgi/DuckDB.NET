@@ -15,10 +15,7 @@ namespace DuckDB.NET.Data
 
         #region Protected Properties
 
-        protected override DbProviderFactory DbProviderFactory
-        {
-            get => DuckDBClientFactory.Instance;
-        }
+        protected override DbProviderFactory DbProviderFactory => DuckDBClientFactory.Instance;
 
         #endregion
 

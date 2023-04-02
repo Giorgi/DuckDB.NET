@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Data.Common;
-using System.Text;
 
 namespace DuckDB.NET.Data
 {
@@ -11,24 +9,19 @@ namespace DuckDB.NET.Data
 
         #region Static Properties
 
-        public static readonly DuckDBClientFactory Instance = new ();
+        public static readonly DuckDBClientFactory Instance = new();
 
         #endregion
 
         #region Properties
 
-        public override bool CanCreateDataSourceEnumerator
-        {
-            get { return false; }
-        }
+        public override bool CanCreateDataSourceEnumerator => false;
 
         #endregion
 
         #region Constructors
 
-        private DuckDBClientFactory()
-            : base()
-        { }
+        private DuckDBClientFactory() { }
 
         #endregion
 
