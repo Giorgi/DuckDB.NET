@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Globalization;
 using System.Numerics;
 using DuckDB.NET.Data.Extensions;
 
@@ -108,8 +109,8 @@ internal sealed class PreparedStatement : IDisposable
     }
 
     private static DuckDBState BindObject(DuckDBPreparedStatement preparedStatement, long index, object value)
-        => BindString(preparedStatement, index, value.ToString());
-    
+        => BindString(preparedStatement, index, Convert.ToString(value, CultureInfo.InvariantCulture));
+
     private static DuckDBState BindBoolean(DuckDBPreparedStatement preparedStatement, long index, object value)
         => NativeMethods.PreparedStatements.DuckDBBindBoolean(preparedStatement, index, (bool)value);
 
