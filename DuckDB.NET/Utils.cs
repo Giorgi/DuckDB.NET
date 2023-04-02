@@ -13,8 +13,9 @@ namespace DuckDB.NET
 
         public static string ToManagedString(this IntPtr unmanagedString, bool freeWhenCopied = true)
         {
+            string result;
 #if NET6_0_OR_GREATER
-            return Marshal.PtrToStringUTF8(unmanagedString);
+            result = Marshal.PtrToStringUTF8(unmanagedString);
 #else
             if (unmanagedString == IntPtr.Zero)
             {
@@ -37,13 +38,14 @@ namespace DuckDB.NET
 
             Marshal.Copy(unmanagedString, byteArray, 0, length);
 
+            result = Encoding.UTF8.GetString(byteArray, 0, length);
+#endif
             if (freeWhenCopied)
             {
                 NativeMethods.Helpers.DuckDBFree(unmanagedString);
             }
 
-            return Encoding.UTF8.GetString(byteArray, 0, length);
-#endif
+            return result;
         }
 
         public static SafeUnmanagedMemoryHandle ToUnmanagedString(this string managedString)

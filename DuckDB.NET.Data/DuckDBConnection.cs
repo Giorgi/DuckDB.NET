@@ -13,7 +13,19 @@ namespace DuckDB.NET.Data
         private ConnectionReference connectionReference;
         private ConnectionState connectionState = ConnectionState.Closed;
 
+        #region Protected Properties
+
+        protected override DbProviderFactory DbProviderFactory
+        {
+            get => DuckDBClientFactory.Instance;
+        }
+
+        #endregion
+
         internal DuckDBTransaction Transaction { get; set; }
+
+        public DuckDBConnection()
+        { }
 
         public DuckDBConnection(string connectionString)
         {
