@@ -14,7 +14,17 @@ namespace DuckDB.NET.Data
 
         internal bool InMemoryDuplication { get; set; }
         internal ConnectionReference ConnectionReference { get; set; }
+        
+        #region Protected Properties
+
+        protected override DbProviderFactory DbProviderFactory => DuckDBClientFactory.Instance;
+
+        #endregion
+
         internal DuckDBTransaction Transaction { get; set; }
+
+        public DuckDBConnection()
+        { }
 
         public DuckDBConnection(string connectionString)
         {
