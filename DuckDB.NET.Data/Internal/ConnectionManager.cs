@@ -18,7 +18,7 @@ namespace DuckDB.NET.Data.Internal
         {
             var filename = connectionString.DataSource;
 
-            var fileRef = string.IsNullOrEmpty(filename) ? new FileRef("") : null;
+            var fileRef = InMemoryDataSource.IsDefault(filename) ? new FileRef("") : null;
 
             //need to loop until we have a locked fileRef
             //that is also in the cache
@@ -51,7 +51,7 @@ namespace DuckDB.NET.Data.Internal
             {
                 if (fileRef.Database == null)
                 {
-                    var path = filename == string.Empty ? null : filename;
+                    var path = InMemoryDataSource.IsInMemoryDataSource(filename) ? null : filename;
 
                     var resultOpen = NativeMethods.Startup.DuckDBOpen(path, out fileRef.Database, new DuckDBConfig(), out var error);
 
@@ -76,7 +76,7 @@ namespace DuckDB.NET.Data.Internal
             }
             finally
             {
-                if (!string.IsNullOrEmpty(filename))
+                if (!InMemoryDataSource.IsDefault(filename))
                 {
                     Monitor.Exit(fileRef);
                 }
@@ -110,6 +110,25 @@ namespace DuckDB.NET.Data.Internal
                         throw new InvalidOperationException($"Internal Error: tried to remove {fileRef.FileName} from cache but it wasn't there!");
                     }
                 }
+            }
+        }
+
+        internal ConnectionReference DuplicateConnectionReference(ConnectionReference connectionReference)
+        {
+            var fileRef = connectionReference.FileRefCounter;
+
+            lock (fileRef)
+            {
+                var resultConnect = NativeMethods.Startup.DuckDBConnect(fileRef.Database, out var duplicatedNativeConnection);
+                if (resultConnect.IsSuccess())
+                {
+                    fileRef.Increment();
+                }
+                else
+                {
+                    throw new DuckDBException("DuckDBConnect failed", resultConnect);
+                }
+                return new ConnectionReference(fileRef, duplicatedNativeConnection);
             }
         }
     }

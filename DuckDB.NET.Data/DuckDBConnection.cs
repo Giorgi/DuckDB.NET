@@ -10,9 +10,11 @@ namespace DuckDB.NET.Data
     public class DuckDBConnection : DbConnection
     {
         private readonly ConnectionManager connectionManager = ConnectionManager.Default;
-        private ConnectionReference connectionReference;
         private ConnectionState connectionState = ConnectionState.Closed;
 
+        internal bool InMemoryDuplication { get; set; }
+        internal ConnectionReference ConnectionReference { get; set; }
+        
         #region Protected Properties
 
         protected override DbProviderFactory DbProviderFactory => DuckDBClientFactory.Instance;
@@ -35,7 +37,7 @@ namespace DuckDB.NET.Data
 
         public override string DataSource { get; }
 
-        internal DuckDBNativeConnection NativeConnection => connectionReference.NativeConnection;
+        internal DuckDBNativeConnection NativeConnection => ConnectionReference.NativeConnection;
 
         public override string ServerVersion => NativeMethods.Startup.DuckDBLibraryVersion().ToManagedString(false);
 
@@ -63,9 +65,16 @@ namespace DuckDB.NET.Data
                 throw new InvalidOperationException("Connection is already open.");
             }
 
-            var connectionString = DuckDBConnectionStringParser.Parse(ConnectionString);
+            if (InMemoryDuplication)
+            {
+                ConnectionReference = connectionManager.DuplicateConnectionReference(ConnectionReference);
+            }
+            else
+            {
+                var connectionString = DuckDBConnectionStringParser.Parse(ConnectionString);
 
-            connectionReference = connectionManager.GetConnectionReference(connectionString);
+                ConnectionReference = connectionManager.GetConnectionReference(connectionString);
+            }
 
             connectionState = ConnectionState.Open;
         }
@@ -129,7 +138,7 @@ namespace DuckDB.NET.Data
             {
                 if (connectionState == ConnectionState.Open)
                 {
-                    connectionManager.ReturnConnectionReference(connectionReference);
+                    connectionManager.ReturnConnectionReference(ConnectionReference);
                     connectionState = ConnectionState.Closed;
                 }
             }
@@ -143,6 +152,27 @@ namespace DuckDB.NET.Data
             {
                 throw new InvalidOperationException($"{operation} requires an open connection");
             }
+        }
+
+        public DuckDBConnection Duplicate()
+        {
+            if (State != ConnectionState.Open)
+            {
+                throw new InvalidOperationException("Duplication requires an open connection");
+            }
+
+            if (!InMemoryDataSource.IsInMemoryDataSource(ConnectionReference.FileRefCounter.FileName))
+            {
+                throw new NotSupportedException();
+            }
+
+            var duplicatedConnection = new DuckDBConnection(ConnectionString)
+            {
+                InMemoryDuplication = true,
+                ConnectionReference = ConnectionReference,
+            };
+
+            return duplicatedConnection;
         }
     }
 }
