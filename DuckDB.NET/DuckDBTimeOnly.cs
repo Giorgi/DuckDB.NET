@@ -26,12 +26,7 @@ namespace DuckDB.NET
 
         public int Microsecond { get; }
 
-        public long ToTicks()
-        {
-            var seconds = (Hour * 60 * 60) + (Min * 60) + (Sec);
-
-            return (seconds * 10_000_000) + (Microsecond * 10);
-        }
+        public long ToTicks() => Utils.GetTicks(Hour, Min, Sec, Microsecond);
 
         public DateTime ToDateTime()
         {

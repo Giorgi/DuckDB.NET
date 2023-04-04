@@ -72,10 +72,10 @@ namespace DuckDB.NET
 
         public const long UnixEpochTicks = 621355968000000000;
         
-        public static long GetTicks(int hour, int minute, int second)
+        public static long GetTicks(int hour, int minute, int second, int microsecond = 0)
         {
             long seconds = (hour * 60 * 60) + (minute * 60) + (second);
-            return seconds * 10_000_000;
+            return (seconds * 10_000_000) + (microsecond * 10);
         }
 
         public static int GetMicrosecond(this TimeSpan timeSpan)
