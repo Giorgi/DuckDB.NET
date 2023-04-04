@@ -58,10 +58,8 @@ public class TimeTests
         using var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
         connection.Open();
 
-        var milliseconds = microsecond / 1000;
-        
         var expectedValue = new DateTime(DateTime.MinValue.Year, DateTime.MinValue.Month, DateTime.MinValue.Day,
-            hour, minute, second, milliseconds);
+            hour, minute, second).AddTicks(microsecond * 10);
         
         using var cmd = connection.CreateCommand();
         cmd.CommandText = "SELECT ?;";
@@ -76,7 +74,7 @@ public class TimeTests
         timeOnly.Hour.Should().Be((byte)hour);
         timeOnly.Min.Should().Be((byte)minute);
         timeOnly.Sec.Should().Be((byte)second);
-        timeOnly.Microsecond.Should().Be(milliseconds * 1000);
+        timeOnly.Microsecond.Should().Be(microsecond);
 
         var dateTime = timeOnly.ToDateTime();
         dateTime.Year.Should().Be(DateTime.MinValue.Year);
@@ -85,7 +83,7 @@ public class TimeTests
         dateTime.Hour.Should().Be(hour);
         dateTime.Minute.Should().Be(minute);
         dateTime.Second.Should().Be(second);
-        dateTime.Millisecond.Should().Be(milliseconds);
+        dateTime.Millisecond.Should().Be(microsecond / 1000);
 
         var convertedValue = (DateTime) timeOnly;
         convertedValue.Should().Be(dateTime);
