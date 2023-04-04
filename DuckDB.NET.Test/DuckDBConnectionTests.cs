@@ -310,6 +310,7 @@ namespace DuckDB.NET.Test
 
             using var firstConnection = new DuckDBConnection("DataSource=:memory:?cache=shared");
             using var secondConnection = new DuckDBConnection("DataSource=:memory:?cache=shared");
+            using var thirdConnection = new DuckDBConnection("DataSource=:memory:");
 
             firstConnection.Open();
 
@@ -346,6 +347,21 @@ namespace DuckDB.NET.Test
             }
 
             tableCount.Should().Be(2);
+
+            var unsharedConnectionTableCount = 0;
+            thirdConnection.Open();
+            command = thirdConnection.CreateCommand();
+
+            command.CommandText = "show tables;";
+            using (var dataReader = command.ExecuteReader())
+            {
+                while (dataReader.Read())
+                {
+                    unsharedConnectionTableCount++;
+                }
+            }
+
+            unsharedConnectionTableCount.Should().Be(0);
         }
 
         [Fact]

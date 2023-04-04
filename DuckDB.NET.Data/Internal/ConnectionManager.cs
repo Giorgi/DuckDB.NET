@@ -18,7 +18,7 @@ namespace DuckDB.NET.Data.Internal
         {
             var filename = connectionString.DataSource;
 
-            var fileRef = InMemoryDataSource.IsDefault(filename) ? new FileRef("") : null;
+            var fileRef = connectionString.InMemory && !connectionString.Shared ? new FileRef("") : null;
 
             //need to loop until we have a locked fileRef
             //that is also in the cache
@@ -51,7 +51,7 @@ namespace DuckDB.NET.Data.Internal
             {
                 if (fileRef.Database == null)
                 {
-                    var path = InMemoryDataSource.IsInMemoryDataSource(filename) ? null : filename;
+                    var path = connectionString.InMemory ? null : filename;
 
                     var resultOpen = NativeMethods.Startup.DuckDBOpen(path, out fileRef.Database, new DuckDBConfig(), out var error);
 
@@ -76,7 +76,7 @@ namespace DuckDB.NET.Data.Internal
             }
             finally
             {
-                if (!InMemoryDataSource.IsDefault(filename))
+                if (Monitor.IsEntered(fileRef))
                 {
                     Monitor.Exit(fileRef);
                 }

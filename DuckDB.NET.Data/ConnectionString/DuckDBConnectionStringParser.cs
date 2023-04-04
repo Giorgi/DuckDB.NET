@@ -1,4 +1,3 @@
-using DuckDB.NET.Data.Internal;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,17 +20,21 @@ namespace DuckDB.NET.Data.ConnectionString
                 throw new InvalidOperationException($"Connection string '{connectionString}' is not valid.");
             }
 
+            var inMemory = false;
             if (dataSource.Equals(DuckDBConnectionStringBuilder.InMemoryDataSource, StringComparison.OrdinalIgnoreCase))
             {
-                dataSource = InMemoryDataSource.Default;
+                inMemory = true;
+                dataSource = "";
             }
 
-            if (dataSource.Equals(DuckDBConnectionStringBuilder.InMemorySharedDataSource, StringComparison.OrdinalIgnoreCase))
+            var isShared = dataSource.Equals(DuckDBConnectionStringBuilder.InMemorySharedDataSource, StringComparison.OrdinalIgnoreCase);
+            if (isShared)
             {
-                dataSource = InMemoryDataSource.CacheShared;
+                inMemory = true;
+                dataSource = "";
             }
             
-            return new DuckDBConnectionString(dataSource);
+            return new DuckDBConnectionString(dataSource, inMemory, isShared);
         }
 
         private static string GetDataSource(IReadOnlyDictionary<string, string> properties)
