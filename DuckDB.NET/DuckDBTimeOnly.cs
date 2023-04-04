@@ -26,7 +26,7 @@ namespace DuckDB.NET
 
         public int Microsecond { get; }
 
-        public long ToTicks() => Utils.GetTicks(Hour, Min, Sec, Microsecond);
+        public long Ticks { get => Utils.GetTicks(Hour, Min, Sec, Microsecond); }
 
         public DateTime ToDateTime()
         {
@@ -52,10 +52,10 @@ namespace DuckDB.NET
             return new DuckDBTimeOnly((byte)timeOnly.Hour, (byte)timeOnly.Minute, (byte)timeOnly.Second, microsecond);
         }
 
-        public static implicit operator TimeOnly(DuckDBTimeOnly time) => new(time.ToTicks());
+        public static implicit operator TimeOnly(DuckDBTimeOnly time) => new(time.Ticks);
 
         public static implicit operator DuckDBTimeOnly(TimeOnly time) => FromTimeOnly(time);
-        
+
 #endif
     }
 }
