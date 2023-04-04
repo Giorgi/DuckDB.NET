@@ -33,7 +33,7 @@ public class TimeTests
         timeOnly.Hour.Should().Be((byte)hour);
         timeOnly.Min.Should().Be((byte)minute);
         timeOnly.Sec.Should().Be((byte)second);
-        timeOnly.Msec.Should().Be(microsecond);
+        timeOnly.Microsecond.Should().Be(microsecond);
 
         var dateTime = timeOnly.ToDateTime();
         dateTime.Year.Should().Be(DateTime.MinValue.Year);
@@ -79,7 +79,7 @@ public class TimeTests
         timeOnly.Hour.Should().Be((byte)hour);
         timeOnly.Min.Should().Be((byte)minute);
         timeOnly.Sec.Should().Be((byte)second);
-        timeOnly.Msec.Should().Be(milliseconds * 1000);
+        timeOnly.Microsecond.Should().Be(milliseconds * 1000);
 
         var dateTime = timeOnly.ToDateTime();
         dateTime.Year.Should().Be(DateTime.MinValue.Year);
@@ -133,7 +133,7 @@ public class TimeTests
         timeOnly.Hour.Should().Be(hour);
         timeOnly.Min.Should().Be(minute);
         timeOnly.Sec.Should().Be(second);
-        timeOnly.Msec.Should().Be(milliseconds * 1000);
+        timeOnly.Microsecond.Should().Be(milliseconds * 1000);
 
         var dateTime = timeOnly.ToDateTime();
         dateTime.Year.Should().Be(DateTime.MinValue.Year);
