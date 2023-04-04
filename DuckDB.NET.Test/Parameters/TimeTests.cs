@@ -8,16 +8,19 @@ namespace DuckDB.NET.Test.Parameters;
 public class TimeTests
 {
     [Theory]
-    [InlineData(12, 15, 17, 350)]
-    [InlineData(12, 17, 15, 450)]
-    [InlineData(18, 15, 17, 125)]
-    public void QueryScalarTest(int hour, int minute, int second, int millisecond)
+    [InlineData(12, 15, 17, 350_000)]
+    [InlineData(12, 17, 15, 450_000)]
+    [InlineData(18, 15, 17, 125_000)]
+    [InlineData(12, 15, 17, 350_300)]
+    [InlineData(12, 17, 15, 450_500)]
+    [InlineData(18, 15, 17, 125_700)]
+    public void QueryScalarTest(int hour, int minute, int second, int microsecond)
     {
         using var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
         connection.Open();
 
         using var cmd = connection.CreateCommand();
-        cmd.CommandText = $"SELECT TIME '{hour}:{minute}:{second}.{millisecond:000000}';";
+        cmd.CommandText = $"SELECT TIME '{hour}:{minute}:{second}.{microsecond:000000}';";
 
         var scalar = cmd.ExecuteScalar();
 
@@ -28,7 +31,7 @@ public class TimeTests
         timeOnly.Hour.Should().Be((byte)hour);
         timeOnly.Min.Should().Be((byte)minute);
         timeOnly.Sec.Should().Be((byte)second);
-        timeOnly.Msec.Should().Be(millisecond);
+        timeOnly.Microsecond.Should().Be(microsecond);
 
         var dateTime = timeOnly.ToDateTime();
         dateTime.Year.Should().Be(DateTime.MinValue.Year);
@@ -37,23 +40,26 @@ public class TimeTests
         dateTime.Hour.Should().Be(hour);
         dateTime.Minute.Should().Be(minute);
         dateTime.Second.Should().Be(second);
-        dateTime.Millisecond.Should().Be(millisecond);
+        dateTime.Millisecond.Should().Be(microsecond / 1000);
 
         var convertedValue = (DateTime) timeOnly;
         convertedValue.Should().Be(dateTime);
     }
     
     [Theory]
-    [InlineData(12, 15, 17, 350)]
-    [InlineData(12, 17, 15, 450)]
-    [InlineData(18, 15, 17, 125)]
-    public void BindWithCastTest(int hour, int minute, int second, int millisecond)
+    [InlineData(12, 15, 17, 350_000)]
+    [InlineData(12, 17, 15, 450_000)]
+    [InlineData(18, 15, 17, 125_000)]
+    [InlineData(12, 15, 17, 350_300)]
+    [InlineData(12, 17, 15, 450_500)]
+    [InlineData(18, 15, 17, 125_700)]
+    public void BindWithCastTest(int hour, int minute, int second, int microsecond)
     {
         using var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
         connection.Open();
-        
+
         var expectedValue = new DateTime(DateTime.MinValue.Year, DateTime.MinValue.Month, DateTime.MinValue.Day,
-            hour, minute, second, millisecond);
+            hour, minute, second).AddTicks(microsecond * 10);
         
         using var cmd = connection.CreateCommand();
         cmd.CommandText = "SELECT ?;";
@@ -68,7 +74,7 @@ public class TimeTests
         timeOnly.Hour.Should().Be((byte)hour);
         timeOnly.Min.Should().Be((byte)minute);
         timeOnly.Sec.Should().Be((byte)second);
-        timeOnly.Msec.Should().Be(millisecond);
+        timeOnly.Microsecond.Should().Be(microsecond);
 
         var dateTime = timeOnly.ToDateTime();
         dateTime.Year.Should().Be(DateTime.MinValue.Year);
@@ -77,7 +83,7 @@ public class TimeTests
         dateTime.Hour.Should().Be(hour);
         dateTime.Minute.Should().Be(minute);
         dateTime.Second.Should().Be(second);
-        dateTime.Millisecond.Should().Be(millisecond);
+        dateTime.Millisecond.Should().Be(microsecond / 1000);
 
         var convertedValue = (DateTime) timeOnly;
         convertedValue.Should().Be(dateTime);
@@ -87,13 +93,16 @@ public class TimeTests
     [InlineData(12, 15, 17, 350)]
     [InlineData(12, 17, 15, 450)]
     [InlineData(18, 15, 17, 125)]
-    public void InsertAndQueryTest(byte hour, byte minute, byte second, int millisecond)
+    [InlineData(12, 15, 17, 350_300)]
+    [InlineData(12, 17, 15, 450_500)]
+    [InlineData(18, 15, 17, 125_700)]
+    public void InsertAndQueryTest(byte hour, byte minute, byte second, int microsecond)
     {
         using var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
         connection.Open();
-        
+
         var expectedValue = new DateTime(DateTime.MinValue.Year, DateTime.MinValue.Month, DateTime.MinValue.Day,
-            hour, minute, second, millisecond);
+            hour, minute, second).AddTicks(microsecond * 10);
 
         using var cmd = connection.CreateCommand();
         cmd.CommandText = "CREATE TABLE TimeOnlyTestTable (a INTEGER, b TIME);";
@@ -116,7 +125,7 @@ public class TimeTests
         timeOnly.Hour.Should().Be(hour);
         timeOnly.Min.Should().Be(minute);
         timeOnly.Sec.Should().Be(second);
-        timeOnly.Msec.Should().Be(millisecond);
+        timeOnly.Microsecond.Should().Be(microsecond);
 
         var dateTime = timeOnly.ToDateTime();
         dateTime.Year.Should().Be(DateTime.MinValue.Year);
@@ -125,7 +134,7 @@ public class TimeTests
         dateTime.Hour.Should().Be(hour);
         dateTime.Minute.Should().Be(minute);
         dateTime.Second.Should().Be(second);
-        dateTime.Millisecond.Should().Be(millisecond);
+        dateTime.Millisecond.Should().Be(microsecond / 1000);
 
         var convertedValue = (DateTime) timeOnly;
         convertedValue.Should().Be(dateTime);
