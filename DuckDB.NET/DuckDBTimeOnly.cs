@@ -6,14 +6,6 @@ namespace DuckDB.NET
     [StructLayout(LayoutKind.Sequential)]
     public struct DuckDBTimeOnly
     {
-        public DuckDBTimeOnly(long ticks)
-        {
-            var timeSpan = new TimeSpan(ticks);
-            Hour = (byte)timeSpan.Hours;
-            Min = (byte)timeSpan.Minutes;
-            Sec = (byte)timeSpan.Seconds;
-        }
-
         public DuckDBTimeOnly(byte hour, byte min, byte sec) : this(hour, min, sec, 0)
         {
         }
