@@ -16,10 +16,8 @@ public class TimeTests
     [InlineData(18, 15, 17, 125_700)]
     public void QueryScalarTest(int hour, int minute, int second, int microsecond)
     {
-        // DateTime resolution is millisecond, so we expect to lose (truncate) microsecond granularity
         using var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
         connection.Open();
-
 
         using var cmd = connection.CreateCommand();
         cmd.CommandText = $"SELECT TIME '{hour}:{minute}:{second}.{microsecond:000000}';";
@@ -57,7 +55,6 @@ public class TimeTests
     [InlineData(18, 15, 17, 125_700)]
     public void BindWithCastTest(int hour, int minute, int second, int microsecond)
     {
-        // DateTime resolution is millisecond, so we expect to lose (truncate) microsecond granularity
         using var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
         connection.Open();
 
@@ -103,14 +100,11 @@ public class TimeTests
     [InlineData(18, 15, 17, 125_700)]
     public void InsertAndQueryTest(byte hour, byte minute, byte second, int microsecond)
     {
-        // DateTime resolution is millisecond, so we expect to lose (truncate) microsecond granularity
         using var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
         connection.Open();
 
-        var milliseconds = microsecond / 1000;
-
         var expectedValue = new DateTime(DateTime.MinValue.Year, DateTime.MinValue.Month, DateTime.MinValue.Day,
-            hour, minute, second, milliseconds);
+            hour, minute, second).AddTicks(microsecond * 10);
 
         using var cmd = connection.CreateCommand();
         cmd.CommandText = "CREATE TABLE TimeOnlyTestTable (a INTEGER, b TIME);";
@@ -133,7 +127,7 @@ public class TimeTests
         timeOnly.Hour.Should().Be(hour);
         timeOnly.Min.Should().Be(minute);
         timeOnly.Sec.Should().Be(second);
-        timeOnly.Microsecond.Should().Be(milliseconds * 1000);
+        timeOnly.Microsecond.Should().Be(microsecond);
 
         var dateTime = timeOnly.ToDateTime();
         dateTime.Year.Should().Be(DateTime.MinValue.Year);
@@ -142,7 +136,7 @@ public class TimeTests
         dateTime.Hour.Should().Be(hour);
         dateTime.Minute.Should().Be(minute);
         dateTime.Second.Should().Be(second);
-        dateTime.Millisecond.Should().Be(milliseconds);
+        dateTime.Millisecond.Should().Be(microsecond / 1000);
 
         var convertedValue = (DateTime) timeOnly;
         convertedValue.Should().Be(dateTime);

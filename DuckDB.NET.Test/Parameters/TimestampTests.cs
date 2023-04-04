@@ -17,7 +17,6 @@ public class TimestampTests
     [InlineData(2022, 04, 05, 18, 15, 17, 125_700)]
     public void QueryScalarTest(int year, int mon, int day, int hour, int minute, int second, int microsecond)
     {
-        // DateTime resolution is millisecond, so we expect to lose (truncate) microsecond granularity
         using var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
         connection.Open();
 
@@ -88,7 +87,6 @@ public class TimestampTests
     [InlineData(2022, 04, 05, 18, 15, 17, 125_700)]
     public void InsertAndQueryTest(int year, int mon, int day, byte hour, byte minute, byte second, int microsecond)
     {
-        // DateTime resolution is millisecond, so we expect to lose (truncate) microsecond granularity
         using var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
         connection.Open();
 
