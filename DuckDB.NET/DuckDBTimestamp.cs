@@ -9,16 +9,17 @@ namespace DuckDB.NET
         public DuckDBDateOnly Date { get; private set; }
         public DuckDBTimeOnly Time { get; private set; }
 
-        public DateTime ToDateTime() =>
-            new DateTime(
+        public DateTime ToDateTime()
+        {
+            return new DateTime(
                 Date.Year,
                 Date.Month,
                 Date.Day,
                 Time.Hour,
                 Time.Min,
-                Time.Sec,
-                Time.Msec / 1000
-            );
+                Time.Sec)
+                .AddTicks(Time.Microsecond * 10);
+        }
 
         public static DuckDBTimestamp FromDateTime(DateTime dateTime)
         {
