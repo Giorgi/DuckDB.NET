@@ -134,6 +134,8 @@ public class DuckDBAppenderRow
 
     public DuckDBAppenderRow AppendValue(DuckDBTime? value) => Append(value);
 
+    public DuckDBAppenderRow AppendValue(DateTime? value) => Append(value);
+
     #endregion
 
     private DuckDBAppenderRow Append<T>(T? value)

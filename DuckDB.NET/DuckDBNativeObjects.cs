@@ -95,6 +95,12 @@ namespace DuckDB.NET
     public struct DuckDBTimestampStruct
     {
         public long Micros { get; set; }
+
+        public DateTime ToDateTime()
+        {
+            var ticks = Micros * 10 + Utils.UnixEpochTicks;
+            return new DateTime(ticks);
+        }
     }
 
     [StructLayout(LayoutKind.Sequential)]

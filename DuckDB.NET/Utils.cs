@@ -6,6 +6,8 @@ namespace DuckDB.NET
 {
     public static class Utils
     {
+        internal const long UnixEpochTicks = 621355968000000000;
+
         public static bool IsSuccess(this DuckDBState duckDBState)
         {
             return duckDBState == DuckDBState.DuckDBSuccess;
@@ -72,23 +74,21 @@ namespace DuckDB.NET
 #endif
         }
 
-        public const long UnixEpochTicks = 621355968000000000;
-        
-        public static long GetTicks(int hour, int minute, int second, int microsecond = 0)
+        internal static long GetTicks(int hour, int minute, int second, int microsecond = 0)
         {
             long seconds = (hour * 60 * 60) + (minute * 60) + (second);
             return (seconds * 10_000_000) + (microsecond * 10);
         }
 
-        public static int GetMicrosecond(this TimeSpan timeSpan)
+        internal static int GetMicrosecond(this TimeSpan timeSpan)
         {
-            var ticks = timeSpan.Ticks - Utils.GetTicks(timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds);
+            var ticks = timeSpan.Ticks - GetTicks(timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds);
             return (int)(ticks / 10);
         }
 #if NET6_0_OR_GREATER
-        public static int GetMicrosecond(this TimeOnly timeOnly)
+        internal static int GetMicrosecond(this TimeOnly timeOnly)
         {
-            var ticks = timeOnly.Ticks - Utils.GetTicks(timeOnly.Hour, timeOnly.Minute, timeOnly.Second);
+            var ticks = timeOnly.Ticks - GetTicks(timeOnly.Hour, timeOnly.Minute, timeOnly.Second);
             return (int)(ticks / 10);
         }
 #endif

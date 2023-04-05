@@ -69,8 +69,8 @@ namespace DuckDB.NET.Data
         public override DateTime GetDateTime(int ordinal)
         {
             var timestampStruct = NativeMethods.Types.DuckDBValueTimestamp(queryResult, ordinal, currentRow);
-            var ticks = (timestampStruct.Micros * 10) + Utils.UnixEpochTicks;
-            return new DateTime(ticks);
+            
+            return timestampStruct.ToDateTime();
         }
 
         private DuckDBDateOnly GetDateOnly(int ordinal)
