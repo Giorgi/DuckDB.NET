@@ -232,5 +232,76 @@ namespace DuckDB.NET.Test
                     .EndRow();
             }).Should().Throw<InvalidOperationException>();
         }
+
+
+
+        [Fact]
+        public void ManagedAppenderTestsWithSchema()
+        {
+            using var connection = new DuckDBConnection("DataSource=:memory:");
+            connection.Open();
+
+
+            using (var duckDbCommand = connection.CreateCommand())
+            {
+                var schema = "CREATE SCHEMA managedAppenderTestSchema";
+                duckDbCommand.CommandText = schema;
+                duckDbCommand.ExecuteNonQuery();
+            }
+
+            using (var duckDbCommand = connection.CreateCommand())
+            {
+                var table = "CREATE TABLE managedAppenderTestSchema.managedAppenderTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR, m Date);";
+                duckDbCommand.CommandText = table;
+                duckDbCommand.ExecuteNonQuery();
+            }
+
+            var rows = 10;
+            using (var appender = connection.CreateAppender("managedAppenderTestSchema", "managedAppenderTest"))
+            {
+                for (var i = 0; i < rows; i++)
+                {
+                    var row = appender.CreateRow();
+                    row
+                        .AppendValue(i % 2 == 0)
+                        .AppendValue((sbyte?)i)
+                        .AppendValue((short?)i)
+                        .AppendValue((int?)i)
+                        .AppendValue((long?)i)
+                        .AppendValue((byte?)i)
+                        .AppendValue((ushort?)i)
+                        .AppendValue((uint?)i)
+                        .AppendValue((ulong?)i)
+                        .AppendValue((float)i)
+                        .AppendValue((double)i)
+                        .AppendValue($"{i}")
+                        .AppendNullValue()
+                        .EndRow();
+                }
+            }
+
+            using (var duckDbCommand = connection.CreateCommand())
+            {
+                duckDbCommand.CommandText = "SELECT * FROM managedAppenderTestSchema.managedAppenderTest";
+                using var reader = duckDbCommand.ExecuteReader();
+
+                var readRowIndex = 0;
+                while (reader.Read())
+                {
+                    var booleanCell = (bool)reader[0];
+
+                    booleanCell.Should().Be(readRowIndex % 2 == 0);
+
+                    for (int columnIndex = 1; columnIndex < 12; columnIndex++)
+                    {
+                        var cell = (IConvertible)reader[columnIndex];
+                        cell.ToInt32(CultureInfo.InvariantCulture).Should().Be(readRowIndex);
+                    }
+
+                    readRowIndex++;
+                }
+                readRowIndex.Should().Be(rows);
+            }
+        }
     }
 }
