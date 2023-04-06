@@ -17,12 +17,14 @@ namespace DuckDB.NET.Test
 
             using (var duckDbCommand = connection.CreateCommand())
             {
-                var table = "CREATE TABLE managedAppenderTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR, m Date);";
+                var table = "CREATE TABLE managedAppenderTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, " +
+                                  "g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR, m TIMESTAMP, n Date);";
                 duckDbCommand.CommandText = table;
                 duckDbCommand.ExecuteNonQuery();
             }
 
             var rows = 10;
+            var date = DateTime.Today;
             using (var appender = connection.CreateAppender("managedAppenderTest"))
             {
                 for (var i = 0; i < rows; i++)
@@ -41,6 +43,7 @@ namespace DuckDB.NET.Test
                         .AppendValue((float)i)
                         .AppendValue((double)i)
                         .AppendValue($"{i}")
+                        .AppendValue(date.AddDays(i))
                         .AppendNullValue()
                         .EndRow();
                 }
@@ -55,8 +58,10 @@ namespace DuckDB.NET.Test
                 while (reader.Read())
                 {
                     var booleanCell = (bool)reader[0];
+                    var dateTimeCell = (DateTime)reader[12];
 
                     booleanCell.Should().Be(readRowIndex % 2 == 0);
+                    dateTimeCell.Should().Be(date.AddDays(readRowIndex));
 
                     for (int columnIndex = 1; columnIndex < 12; columnIndex++)
                     {

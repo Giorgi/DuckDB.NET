@@ -129,11 +129,13 @@ public class DuckDBAppenderRow
 #if NET6_0_OR_GREATER
     public DuckDBAppenderRow AppendValue(DateOnly? value) => Append(value);
 
-    public DuckDBAppenderRow AppendValue(TimeOnly? nullable) => Append(nullable);
+    public DuckDBAppenderRow AppendValue(TimeOnly? value) => Append(value);
+#else
+    public DuckDBAppenderRow AppendValue(DuckDBDateOnly? value) => Append(value);
+
+    public DuckDBAppenderRow AppendValue(DuckDBTimeOnly? value) => Append(value);
 #endif
-
-    public DuckDBAppenderRow AppendValue(DuckDBTime? value) => Append(value);
-
+    
     public DuckDBAppenderRow AppendValue(DateTime? value) => Append(value);
 
     #endregion
@@ -159,10 +161,13 @@ public class DuckDBAppenderRow
             float val => NativeMethods.Appender.DuckDBAppendFloat(appender, val),
             double val => NativeMethods.Appender.DuckDBAppendDouble(appender, val),
 
-            DateTime val => NativeMethods.Appender.DuckDBAppendTimestamp(appender, DuckDBTimestamp.FromDateTime(val)),
+            DateTime val => NativeMethods.Appender.DuckDBAppendTimestamp(appender, NativeMethods.DateTime.DuckDBToTimestamp(DuckDBTimestamp.FromDateTime(val))),
 #if NET6_0_OR_GREATER
             DateOnly val => NativeMethods.Appender.DuckDBAppendDate(appender, NativeMethods.DateTime.DuckDBToDate(val)),
             TimeOnly val => NativeMethods.Appender.DuckDBAppendTime(appender, NativeMethods.DateTime.DuckDBToTime(val)),
+#else
+            DuckDBDateOnly val => NativeMethods.Appender.DuckDBAppendDate(appender, NativeMethods.DateTime.DuckDBToDate(val)),
+            DuckDBTimeOnly val => NativeMethods.Appender.DuckDBAppendTime(appender, NativeMethods.DateTime.DuckDBToTime(val)),
 #endif
             _ => throw new InvalidOperationException($"Unsupported type {typeof(T).Name}")
         };
