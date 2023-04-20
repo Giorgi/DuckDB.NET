@@ -1,6 +1,7 @@
 ﻿using System;
 
 using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 
 namespace DuckDB.NET
 {
@@ -77,5 +78,19 @@ namespace DuckDB.NET
         }
 
         public override bool IsInvalid => handle == IntPtr.Zero;
+    }
+
+    public class DuckDBExtractedStatements : SafeHandleZeroOrMinusOneIsInvalid
+    {
+        public DuckDBExtractedStatements() : base(true)
+        {
+        }
+
+        protected override bool ReleaseHandle()
+        {
+            NativeMethods.ExtractStatements.DuckDBDestroyExtracted(out handle);
+
+            return true;
+        }
     }
 }

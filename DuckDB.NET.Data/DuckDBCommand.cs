@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 
 namespace DuckDB.NET.Data
 {
@@ -11,7 +13,7 @@ namespace DuckDB.NET.Data
         private readonly DuckDBParameterCollection parameters = new();
 
         private string commandText;
-        private PreparedStatement preparedStatement;
+        private List<PreparedStatement> preparedStatements;
 
         protected override DbTransaction DbTransaction { get; set; }
         protected override DbParameterCollection DbParameterCollection => parameters;
@@ -29,8 +31,8 @@ namespace DuckDB.NET.Data
             set
             {
                 commandText = value;
-                preparedStatement?.Dispose();
-                preparedStatement = null;
+                ReleaseStatements();
+                preparedStatements = null;
             }
         }
 
@@ -65,8 +67,14 @@ namespace DuckDB.NET.Data
 
             PrepareIfNeeded();
 
-            using var queryResult = preparedStatement.Execute(parameters);
-            return (int)NativeMethods.Query.DuckDBRowsChanged(queryResult);
+            var result = 0;
+            foreach (var statement in preparedStatements)
+            {
+                using var queryResult = statement.Execute(parameters);
+                result += (int)NativeMethods.Query.DuckDBRowsChanged(queryResult);
+            }
+
+            return result;
         }
 
         public override object ExecuteScalar()
@@ -79,12 +87,12 @@ namespace DuckDB.NET.Data
 
         public new DuckDBDataReader ExecuteReader()
         {
-            return (DuckDBDataReader) base.ExecuteReader();
+            return (DuckDBDataReader)base.ExecuteReader();
         }
 
         public new DuckDBDataReader ExecuteReader(CommandBehavior behavior)
         {
-            return (DuckDBDataReader) base.ExecuteReader(behavior);
+            return (DuckDBDataReader)base.ExecuteReader(behavior);
         }
 
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
@@ -93,8 +101,29 @@ namespace DuckDB.NET.Data
 
             PrepareIfNeeded();
 
-            var queryResult = preparedStatement.Execute(parameters);
-            var reader = new DuckDBDataReader(this, queryResult, behavior);
+            var results = new List<DuckDBResult>();
+
+            foreach (var statement in preparedStatements)
+            {
+                try
+                {
+                    var result = statement.Execute(parameters);
+                    results.Add(result);
+                }
+                catch (DuckDBException ex)
+                {
+                    var capture = ExceptionDispatchInfo.Capture(ex);
+
+                    foreach (var result in results)
+                    {
+                        result.Dispose();
+                    }
+
+                    capture.Throw();
+                }
+            }
+
+            var reader = new DuckDBDataReader(this, results, behavior);
 
             return reader;
         }
@@ -105,12 +134,23 @@ namespace DuckDB.NET.Data
 
         protected override void Dispose(bool disposing)
         {
-            preparedStatement?.Dispose();
+            ReleaseStatements();
+        }
+
+        private void ReleaseStatements()
+        {
+            if (preparedStatements != null)
+            {
+                foreach (var statement in preparedStatements)
+                {
+                    statement.Dispose();
+                }
+            }
         }
 
         private void PrepareIfNeeded()
         {
-            preparedStatement ??= PreparedStatement.Prepare(connection.NativeConnection, CommandText);
+            preparedStatements ??= PreparedStatement.PrepareMultiple(connection.NativeConnection, CommandText);
         }
 
         internal void CloseConnection()

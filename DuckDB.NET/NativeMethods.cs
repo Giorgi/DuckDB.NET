@@ -219,6 +219,21 @@ namespace DuckDB.NET
             public static extern DuckDBState DuckDBExecutePrepared(DuckDBPreparedStatement preparedStatement, [In, Out] DuckDBResult result);
         }
 
+        public static class ExtractStatements 
+        {
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_extract_statements")]
+            public static extern int DuckDBExtractStatements(DuckDBNativeConnection connection, string query, out DuckDBExtractedStatements extractedStatements);
+
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_prepare_extracted_statement")]
+            public static extern DuckDBState DuckDBPrepareExtractedStatement(DuckDBNativeConnection connection, DuckDBExtractedStatements extractedStatements, long index, out DuckDBPreparedStatement preparedStatement);
+
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_extract_statements_error")]
+            public static extern string DuckDBExtractStatementsError(DuckDBExtractedStatements extractedStatements);
+
+            [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_extracted")]
+            public static extern void DuckDBDestroyExtracted(out IntPtr extractedStatements);
+        }
+
         public static class Appender
         {
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_appender_create")]
