@@ -24,37 +24,30 @@ public static class ModuleInit
         {
             return;
         }
-    }
-
-	private static string? GetRid()
-	{
-		if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-		{
-			return Environment.Is64BitProcess 
-				? "win-x64" 
-				: "win-x86";
-		}
-
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        {
-            return RuntimeInformation.ProcessArchitecture switch
-            {
-                Architecture.X64 => "linux-x64",
-                Architecture.Arm64 => "linux-arm64",
-                _ => null,
-            };
         }
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        private static string? GetRid()
         {
-            return RuntimeInformation.ProcessArchitecture switch
-            {
-                Architecture.X64 => "osx-x64",
-                Architecture.Arm64 => "osx-arm64",
-                _ => null,
-            };
-        }
+	    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+	    {
+		    return Environment.Is64BitProcess ? "win-x64" : "win-x86";
+	    }
 
-        return null;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                return RuntimeInformation.ProcessArchitecture switch
+                {
+                    Architecture.X64 => "linux-x64",
+                    Architecture.Arm64 => "linux-arm64",
+                    _ => null,
+                };
+            }
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                return "osx";
+            }
+
+            return null;
 	}
 }
