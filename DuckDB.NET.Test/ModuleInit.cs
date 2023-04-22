@@ -47,7 +47,12 @@ public static class ModuleInit
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            return "osx-x64";
+            return RuntimeInformation.ProcessArchitecture switch
+            {
+                Architecture.X64 => "osx-x64",
+                Architecture.Arm64 => "osx-arm64",
+                _ => null,
+            };
         }
 
         return null;

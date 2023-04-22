@@ -4,7 +4,7 @@
     <Description>DuckDB Bindings for C#.</Description>
     <PackageReleaseNotes>Fix bug when inserting unicode test through appender.</PackageReleaseNotes>
     <RootNamespace>DuckDB.NET</RootNamespace>
-    <RuntimeIdentifiers>win-x86;win-x64;linux-x64;linux-arm64;osx-x64</RuntimeIdentifiers>
+    <RuntimeIdentifiers>win-x86;win-x64;linux-x64;linux-arm64;osx-x64;osx-arm64</RuntimeIdentifiers>
     <DuckDbArtifactRoot>https://github.com/duckdb/duckdb/releases/download/v0.7.1</DuckDbArtifactRoot>
   </PropertyGroup>
 
@@ -18,7 +18,7 @@
     <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=win-x64;LibUrl=$(DuckDbArtifactRoot)/libduckdb-windows-amd64.zip" />
     <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=linux-x64;LibUrl=$(DuckDbArtifactRoot)/libduckdb-linux-amd64.zip" />
     <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=linux-arm64;LibUrl=$(DuckDbArtifactRoot)/libduckdb-linux-aarch64.zip" />
-    <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=osx-x64;LibUrl=$(DuckDbArtifactRoot)/libduckdb-osx-universal.zip" />
+    <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=osx;LibUrl=$(DuckDbArtifactRoot)/libduckdb-osx-universal.zip" />
   </Target>
   <Target Name="CleanNativeLibs" BeforeTargets="Clean" Condition="'$(BuildType)' == 'Full' ">
     <RemoveDir Directories="obj\runtimes" />
