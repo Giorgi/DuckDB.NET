@@ -228,7 +228,7 @@ namespace DuckDB.NET
             public static extern DuckDBState DuckDBPrepareExtractedStatement(DuckDBNativeConnection connection, DuckDBExtractedStatements extractedStatements, long index, out DuckDBPreparedStatement preparedStatement);
 
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_extract_statements_error")]
-            public static extern string DuckDBExtractStatementsError(DuckDBExtractedStatements extractedStatements);
+            public static extern IntPtr DuckDBExtractStatementsError(DuckDBExtractedStatements extractedStatements);
 
             [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_extracted")]
             public static extern void DuckDBDestroyExtracted(out IntPtr extractedStatements);
