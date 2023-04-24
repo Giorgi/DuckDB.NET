@@ -39,7 +39,7 @@ internal sealed class PreparedStatement : IDisposable
         this.statement = statement;
     }
 
-    public static PreparedStatement Prepare(DuckDBNativeConnection connection, string query)
+    public static PreparedStatement PrepareSingle(DuckDBNativeConnection connection, string query)
     {
         using var unmanagedQuery = query.ToUnmanagedString();
 
@@ -53,6 +53,44 @@ internal sealed class PreparedStatement : IDisposable
 
         var result = new PreparedStatement(preparedStatement);
         return result;
+    }
+
+    public static List<PreparedStatement> PrepareMultiple(DuckDBNativeConnection connection, string query)
+    {
+        var statements = new List<PreparedStatement>();
+
+        var statementCount = NativeMethods.ExtractStatements.DuckDBExtractStatements(connection, query, out var extractedStatements);
+        
+        using (extractedStatements)
+        {
+            if (statementCount <= 0)
+            {
+                var error = NativeMethods.ExtractStatements.DuckDBExtractStatementsError(extractedStatements);
+                throw new DuckDBException(error);
+            }
+
+            for (int index = 0; index < statementCount; index++)
+            {
+                var status = NativeMethods.ExtractStatements.DuckDBPrepareExtractedStatement(connection, extractedStatements, index, out var statement);
+                
+                if (!status.IsSuccess())
+                {
+                    foreach (var st in statements)
+                    {
+                        st.Dispose();
+                    }
+
+                    var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(statement).ToManagedString(false);
+                    statement.Dispose();
+
+                    throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, status);
+                }
+                
+                statements.Add(new PreparedStatement(statement));
+            }
+        }
+
+        return statements;
     }
 
     public DuckDBResult Execute(DuckDBParameterCollection parameterCollection)
@@ -98,7 +136,7 @@ internal sealed class PreparedStatement : IDisposable
         {
             throw new InvalidOperationException($"Unable to bind value of type {parameter.DbType}.");
         }
-            
+
         var result = binder(preparedStatement, index, parameter.Value);
 
         if (!result.IsSuccess())
@@ -138,7 +176,7 @@ internal sealed class PreparedStatement : IDisposable
     private static DuckDBState BindUInt64(DuckDBPreparedStatement preparedStatement, long index, object value)
         => NativeMethods.PreparedStatements.DuckDBBindUInt64(preparedStatement, index, (ulong)value);
 
-    
+
     private static DuckDBState BindFloat(DuckDBPreparedStatement preparedStatement, long index, object value)
         => NativeMethods.PreparedStatements.DuckDBBindFloat(preparedStatement, index, (float)value);
 
@@ -151,30 +189,30 @@ internal sealed class PreparedStatement : IDisposable
         return NativeMethods.PreparedStatements.DuckDBBindVarchar(preparedStatement, index, unmanagedString);
     }
 
-    private static DuckDBState BindHugeInt(DuckDBPreparedStatement preparedStatement, long index, object value) => 
-        NativeMethods.PreparedStatements.DuckDBBindHugeInt(preparedStatement, index, new DuckDBHugeInt((BigInteger) value));
+    private static DuckDBState BindHugeInt(DuckDBPreparedStatement preparedStatement, long index, object value) =>
+        NativeMethods.PreparedStatements.DuckDBBindHugeInt(preparedStatement, index, new DuckDBHugeInt((BigInteger)value));
 
     private static DuckDBState BindBlob(DuckDBPreparedStatement preparedStatement, long index, object value)
     {
         var bytes = (byte[])value;
         return NativeMethods.PreparedStatements.DuckDBBindBlob(preparedStatement, index, bytes, bytes.LongLength);
     }
-    
+
     private static DuckDBState BindDateOnly(DuckDBPreparedStatement preparedStatement, long index, object value)
     {
         var date = NativeMethods.DateTime.DuckDBToDate((DuckDBDateOnly)value);
         return NativeMethods.PreparedStatements.DuckDBBindDate(preparedStatement, index, date);
     }
-    
+
     private static DuckDBState BindTimeOnly(DuckDBPreparedStatement preparedStatement, long index, object value)
     {
         var time = NativeMethods.DateTime.DuckDBToTime((DuckDBTimeOnly)value);
         return NativeMethods.PreparedStatements.DuckDBBindTime(preparedStatement, index, time);
     }
-    
+
     private static DuckDBState BindTimestamp(DuckDBPreparedStatement preparedStatement, long index, object value)
     {
-        var timestamp = DuckDBTimestamp.FromDateTime((DateTime) value);
+        var timestamp = DuckDBTimestamp.FromDateTime((DateTime)value);
         var timestampStruct = NativeMethods.DateTime.DuckDBToTimestamp(timestamp);
         return NativeMethods.PreparedStatements.DuckDBBindTimestamp(preparedStatement, index, timestampStruct);
     }

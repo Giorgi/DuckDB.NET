@@ -1,12 +1,13 @@
 ﻿using System;
 
 using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 
 namespace DuckDB.NET
 {
-    public class DuckDBDatabase : SafeHandle
+    public class DuckDBDatabase : SafeHandleZeroOrMinusOneIsInvalid
     {
-        public DuckDBDatabase() : base(IntPtr.Zero, true)
+        public DuckDBDatabase() : base(true)
         {
         }
 
@@ -15,13 +16,11 @@ namespace DuckDB.NET
             NativeMethods.Startup.DuckDBClose(out handle);
             return true;
         }
-
-        public override bool IsInvalid => handle == IntPtr.Zero;
     }
 
-    public class DuckDBNativeConnection : SafeHandle
+    public class DuckDBNativeConnection : SafeHandleZeroOrMinusOneIsInvalid
     {
-        public DuckDBNativeConnection() : base(IntPtr.Zero, true)
+        public DuckDBNativeConnection() : base(true)
         {
         }
 
@@ -30,13 +29,11 @@ namespace DuckDB.NET
             NativeMethods.Startup.DuckDBDisconnect(out handle);
             return true;
         }
-
-        public override bool IsInvalid => handle == IntPtr.Zero;
     }
 
-    public class DuckDBPreparedStatement : SafeHandle
+    public class DuckDBPreparedStatement : SafeHandleZeroOrMinusOneIsInvalid
     {
-        public DuckDBPreparedStatement() : base(IntPtr.Zero, true)
+        public DuckDBPreparedStatement() : base(true)
         {
         }
 
@@ -45,15 +42,13 @@ namespace DuckDB.NET
             NativeMethods.PreparedStatements.DuckDBDestroyPrepare(out handle);
             return true;
         }
-
-        public override bool IsInvalid => handle == IntPtr.Zero;
     }
 
-    public class DuckDBConfig : SafeHandle
+    public class DuckDBConfig : SafeHandleZeroOrMinusOneIsInvalid
     {
-        public DuckDBConfig(): base(IntPtr.Zero, true)
+        public DuckDBConfig() : base(true)
         {
-            
+
         }
 
         protected override bool ReleaseHandle()
@@ -61,13 +56,11 @@ namespace DuckDB.NET
             NativeMethods.Configure.DuckDBDestroyConfig(out handle);
             return true;
         }
-
-        public override bool IsInvalid => handle == IntPtr.Zero;
     }
 
-    public class DuckDBAppender : SafeHandle
+    public class DuckDBAppender : SafeHandleZeroOrMinusOneIsInvalid
     {
-        public DuckDBAppender() : base(IntPtr.Zero, true)
+        public DuckDBAppender() : base(true)
         {
         }
 
@@ -75,7 +68,19 @@ namespace DuckDB.NET
         {
             return NativeMethods.Appender.DuckDBDestroyAppender(out handle) == DuckDBState.DuckDBSuccess;
         }
+    }
 
-        public override bool IsInvalid => handle == IntPtr.Zero;
+    public class DuckDBExtractedStatements : SafeHandleZeroOrMinusOneIsInvalid
+    {
+        public DuckDBExtractedStatements() : base(true)
+        {
+        }
+
+        protected override bool ReleaseHandle()
+        {
+            NativeMethods.ExtractStatements.DuckDBDestroyExtracted(out handle);
+
+            return true;
+        }
     }
 }

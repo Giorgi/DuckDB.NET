@@ -146,4 +146,27 @@ public class DuckDBDataReaderTests
         dt.Load(reader);
         dt.Rows.Count.Should().Be(1);
     }
+
+    [Fact]
+    public void MultipleStatementsQueryData()
+    {
+        using var connection = new DuckDBConnection("DataSource=:memory:");
+        connection.Open();
+
+        var duckDbCommand = connection.CreateCommand();
+        duckDbCommand.CommandText = "Select 1; Select 2";
+
+        using var reader = duckDbCommand.ExecuteReader();
+        
+        reader.Read();
+        reader.GetInt32(0).Should().Be(1);
+
+        reader.NextResult().Should().BeTrue();
+        
+        reader.Read().Should().BeTrue();
+
+        reader.GetInt32(0).Should().Be(2);
+
+        reader.NextResult().Should().BeFalse();
+    }
 }

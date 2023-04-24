@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Globalization;
@@ -14,36 +15,48 @@ namespace DuckDB.NET.Data
         private readonly DuckDbCommand command;
         private readonly CommandBehavior behavior;
 
-        private readonly DuckDBResult queryResult;
+        private DuckDBResult currentResult;
+        private readonly List<DuckDBResult> queryResults;
 
-        private int currentRow = -1;
-        private bool closed = false;
-        private readonly long rowCount;
+        private bool closed;
+        private long rowCount;
+        private int currentRow;
+        private int currentResultIndex;
 
-        internal DuckDBDataReader(DuckDbCommand command, DuckDBResult queryResult, CommandBehavior behavior)
+        private int fieldCount;
+        private int recordsAffected;
+
+        internal DuckDBDataReader(DuckDbCommand command, List<DuckDBResult> queryResults, CommandBehavior behavior)
         {
             this.command = command;
             this.behavior = behavior;
-            this.queryResult = queryResult;
+            this.queryResults = queryResults;
 
-            rowCount = NativeMethods.Query.DuckDBRowCount(queryResult);
-            FieldCount = (int)NativeMethods.Query.DuckDBColumnCount(queryResult);
-            RecordsAffected = (int)NativeMethods.Query.DuckDBRowsChanged(queryResult);
+            currentResult = queryResults[0];
+            InitReaderData();
+        }
+
+        private void InitReaderData()
+        {
+            currentRow = -1;
+            rowCount = NativeMethods.Query.DuckDBRowCount(currentResult);
+            fieldCount = (int)NativeMethods.Query.DuckDBColumnCount(currentResult);
+            recordsAffected = (int)NativeMethods.Query.DuckDBRowsChanged(currentResult);
         }
 
         public override bool GetBoolean(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueBoolean(queryResult, ordinal, currentRow);
+            return NativeMethods.Types.DuckDBValueBoolean(currentResult, ordinal, currentRow);
         }
 
         public override byte GetByte(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueUInt8(queryResult, ordinal, currentRow);
+            return NativeMethods.Types.DuckDBValueUInt8(currentResult, ordinal, currentRow);
         }
 
         private sbyte GetSByte(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueInt8(queryResult, ordinal, currentRow);
+            return NativeMethods.Types.DuckDBValueInt8(currentResult, ordinal, currentRow);
         }
 
         public override long GetBytes(int ordinal, long dataOffset, byte[] buffer, int bufferOffset, int length)
@@ -63,25 +76,25 @@ namespace DuckDB.NET.Data
 
         public override string GetDataTypeName(int ordinal)
         {
-            return NativeMethods.Query.DuckDBColumnType(queryResult, ordinal).ToString();
+            return NativeMethods.Query.DuckDBColumnType(currentResult, ordinal).ToString();
         }
 
         public override DateTime GetDateTime(int ordinal)
         {
-            var timestampStruct = NativeMethods.Types.DuckDBValueTimestamp(queryResult, ordinal, currentRow);
+            var timestampStruct = NativeMethods.Types.DuckDBValueTimestamp(currentResult, ordinal, currentRow);
             
             return timestampStruct.ToDateTime();
         }
 
         private DuckDBDateOnly GetDateOnly(int ordinal)
         {
-            var date = NativeMethods.Types.DuckDBValueDate(queryResult, ordinal, currentRow);
+            var date = NativeMethods.Types.DuckDBValueDate(currentResult, ordinal, currentRow);
             return NativeMethods.DateTime.DuckDBFromDate(date);
         }
 
         private DuckDBTimeOnly GetTimeOnly(int ordinal)
         {
-            var time = NativeMethods.Types.DuckDBValueTime(queryResult, ordinal, currentRow);
+            var time = NativeMethods.Types.DuckDBValueTime(currentResult, ordinal, currentRow);
             return NativeMethods.DateTime.DuckDBFromTime(time);
         }
 
@@ -92,12 +105,12 @@ namespace DuckDB.NET.Data
 
         public override double GetDouble(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueDouble(queryResult, ordinal, currentRow);
+            return NativeMethods.Types.DuckDBValueDouble(currentResult, ordinal, currentRow);
         }
 
         public override Type GetFieldType(int ordinal)
         {
-            return NativeMethods.Query.DuckDBColumnType(queryResult, ordinal) switch
+            return NativeMethods.Query.DuckDBColumnType(currentResult, ordinal) switch
             {
                 DuckDBType.DuckdbTypeInvalid => throw new DuckDBException("Invalid type"),
                 DuckDBType.DuckdbTypeBoolean => typeof(bool),
@@ -125,7 +138,7 @@ namespace DuckDB.NET.Data
 
         public override float GetFloat(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueFloat(queryResult, ordinal, currentRow);
+            return NativeMethods.Types.DuckDBValueFloat(currentResult, ordinal, currentRow);
         }
 
         public override Guid GetGuid(int ordinal)
@@ -135,32 +148,32 @@ namespace DuckDB.NET.Data
 
         public override short GetInt16(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueInt16(queryResult, ordinal, currentRow);
+            return NativeMethods.Types.DuckDBValueInt16(currentResult, ordinal, currentRow);
         }
 
         public override int GetInt32(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueInt32(queryResult, ordinal, currentRow);
+            return NativeMethods.Types.DuckDBValueInt32(currentResult, ordinal, currentRow);
         }
 
         public override long GetInt64(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueInt64(queryResult, ordinal, currentRow);
+            return NativeMethods.Types.DuckDBValueInt64(currentResult, ordinal, currentRow);
         }
 
         private ushort GetUInt16(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueUInt16(queryResult, ordinal, currentRow);
+            return NativeMethods.Types.DuckDBValueUInt16(currentResult, ordinal, currentRow);
         }
-        
+
         private uint GetUInt32(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueUInt32(queryResult, ordinal, currentRow);
+            return NativeMethods.Types.DuckDBValueUInt32(currentResult, ordinal, currentRow);
         }
-        
+
         private ulong GetUInt64(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueUInt64(queryResult, ordinal, currentRow);
+            return NativeMethods.Types.DuckDBValueUInt64(currentResult, ordinal, currentRow);
         }
 
         private BigInteger GetBigInteger(int ordinal)
@@ -170,15 +183,15 @@ namespace DuckDB.NET.Data
 
         public override string GetName(int ordinal)
         {
-            return NativeMethods.Query.DuckDBColumnName(queryResult, ordinal).ToManagedString(false);
+            return NativeMethods.Query.DuckDBColumnName(currentResult, ordinal).ToManagedString(false);
         }
 
         public override int GetOrdinal(string name)
         {
-            var columnCount = NativeMethods.Query.DuckDBColumnCount(queryResult);
+            var columnCount = NativeMethods.Query.DuckDBColumnCount(currentResult);
             for (var i = 0; i < columnCount; i++)
             {
-                var columnName = NativeMethods.Query.DuckDBColumnName(queryResult, i).ToManagedString(false);
+                var columnName = NativeMethods.Query.DuckDBColumnName(currentResult, i).ToManagedString(false);
                 if (name == columnName)
                 {
                     return i;
@@ -190,7 +203,7 @@ namespace DuckDB.NET.Data
 
         public override string GetString(int ordinal)
         {
-            var unmanagedString = NativeMethods.Types.DuckDBValueVarchar(queryResult, ordinal, currentRow);
+            var unmanagedString = NativeMethods.Types.DuckDBValueVarchar(currentResult, ordinal, currentRow);
 
             return unmanagedString.ToManagedString();
         }
@@ -202,7 +215,7 @@ namespace DuckDB.NET.Data
                 return DBNull.Value;
             }
 
-            return NativeMethods.Query.DuckDBColumnType(queryResult, ordinal) switch
+            return NativeMethods.Query.DuckDBColumnType(currentResult, ordinal) switch
             {
                 DuckDBType.DuckdbTypeInvalid => throw new DuckDBException("Invalid type"),
                 DuckDBType.DuckdbTypeBoolean => GetBoolean(ordinal),
@@ -230,7 +243,7 @@ namespace DuckDB.NET.Data
 
         private DuckDBInterval GetDuckDBInterval(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueInterval(queryResult, ordinal, currentRow);
+            return NativeMethods.Types.DuckDBValueInterval(currentResult, ordinal, currentRow);
         }
 
         public override int GetValues(object[] values)
@@ -245,23 +258,23 @@ namespace DuckDB.NET.Data
 
         public override Stream GetStream(int ordinal)
         {
-            var blob = NativeMethods.Types.DuckDBValueBlob(queryResult, ordinal, currentRow);
+            var blob = NativeMethods.Types.DuckDBValueBlob(currentResult, ordinal, currentRow);
             return new DuckDBStream(blob);
         }
 
         public override bool IsDBNull(int ordinal)
         {
-            var nullMask = NativeMethods.Query.DuckDBNullmaskData(queryResult, ordinal);
+            var nullMask = NativeMethods.Query.DuckDBNullmaskData(currentResult, ordinal);
             return Marshal.ReadByte(nullMask, currentRow) != 0;
         }
 
-        public override int FieldCount { get; }
+        public override int FieldCount => fieldCount;
 
         public override object this[int ordinal] => GetValue(ordinal);
 
         public override object this[string name] => GetValue(GetOrdinal(name));
 
-        public override int RecordsAffected { get; }
+        public override int RecordsAffected => recordsAffected;
 
         public override bool HasRows => rowCount > 0;
 
@@ -269,18 +282,22 @@ namespace DuckDB.NET.Data
 
         public override bool NextResult()
         {
+            currentResultIndex++;
+            
+            if (currentResultIndex < queryResults.Count)
+            {
+                currentResult = queryResults[currentResultIndex];
+                
+                InitReaderData();
+                return true;
+            }
+
             return false;
         }
 
         public override bool Read()
         {
-            if (currentRow + 1 < rowCount)
-            {
-                currentRow++;
-                return true;
-            }
-
-            return false;
+            return ++currentRow < rowCount;
         }
 
         public override int Depth { get; }
@@ -289,7 +306,7 @@ namespace DuckDB.NET.Data
         {
             return new DbEnumerator(this, behavior == CommandBehavior.CloseConnection);
         }
-        
+
         public override DataTable GetSchemaTable()
         {
             DataTable table = new DataTable
@@ -320,7 +337,10 @@ namespace DuckDB.NET.Data
         {
             if (closed) return;
 
-            queryResult.Dispose();
+            foreach (var result in queryResults)
+            {
+                result.Dispose();
+            }
 
             if (behavior == CommandBehavior.CloseConnection)
             {
