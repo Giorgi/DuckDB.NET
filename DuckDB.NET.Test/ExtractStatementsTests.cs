@@ -1,4 +1,5 @@
-﻿using DuckDB.NET.Data;
+﻿using System;
+using DuckDB.NET.Data;
 using FluentAssertions;
 using Xunit;
 
@@ -50,9 +51,20 @@ public class ExtractStatementsTests
     public void NotExistingTableThrowsException()
     {
         using var command = connection.CreateCommand();
-        command.CommandText = "Select 1 from dummy";
+        command.CommandText = "Select 2; Select 1 from dummy";
         
         command.Invoking(cmd => cmd.ExecuteNonQuery()).Should()
                .Throw<DuckDBException>().Where(e => e.Message.Contains("Table with name dummy does not exist"));
+    }
+
+    [Fact]
+    public void MissingParametersThrowsException()
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "Select ?1; Select ?1, ?2";
+        command.Parameters.Add(new DuckDBParameter(42));
+
+        command.Invoking(cmd => cmd.ExecuteReader()).Should()
+            .Throw<InvalidOperationException>().Where(e => e.Message.Contains("Invalid number of parameters. Expected 2, got 1"));
     }
 }

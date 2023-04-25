@@ -110,7 +110,7 @@ namespace DuckDB.NET.Data
                     var result = statement.Execute(parameters);
                     results.Add(result);
                 }
-                catch (DuckDBException ex)
+                catch (Exception ex)
                 {
                     var capture = ExceptionDispatchInfo.Capture(ex);
 
