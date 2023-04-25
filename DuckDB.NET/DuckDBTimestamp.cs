@@ -11,14 +11,7 @@ namespace DuckDB.NET
 
         public DateTime ToDateTime()
         {
-            return new DateTime(
-                Date.Year,
-                Date.Month,
-                Date.Day,
-                Time.Hour,
-                Time.Min,
-                Time.Sec)
-                .AddTicks(Time.Microsecond * 10);
+            return new DateTime(Date.Year, Date.Month, Date.Day, Time.Hour, Time.Min, Time.Sec).AddTicks(Time.Microsecond * 10);
         }
 
         public static DuckDBTimestamp FromDateTime(DateTime dateTime)

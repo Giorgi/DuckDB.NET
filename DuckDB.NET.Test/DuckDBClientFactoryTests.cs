@@ -35,8 +35,11 @@ namespace DuckDB.NET.Test
             using var command = factory.CreateCommand();
             var parameter = factory.CreateParameter();
 
-            connection.ConnectionString = DuckDBConnectionStringBuilder.InMemoryConnectionString;
+            var connectionStringBuilder = factory.CreateConnectionStringBuilder();
+            connectionStringBuilder["DataSource"] = DuckDBConnectionStringBuilder.InMemoryDataSource;
             
+            connection.ConnectionString = connectionStringBuilder.ConnectionString;
+
             command.CommandText = "Select ?";
             command.Connection = connection;
             parameter.Value = 42;

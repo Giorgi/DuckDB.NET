@@ -27,23 +27,17 @@ namespace DuckDB.NET.Data
 
         #region Methods
 
-        public override DbCommand CreateCommand()
-            => new DuckDbCommand();
+        public override DbCommand CreateCommand() => new DuckDbCommand();
 
-        public override DbCommandBuilder CreateCommandBuilder()
-            => throw new NotImplementedException();
+        public override DbCommandBuilder CreateCommandBuilder() => throw new NotImplementedException();
 
-        public override DbConnection CreateConnection()
-            => new DuckDBConnection();
+        public override DbConnection CreateConnection() => new DuckDBConnection();
 
-        public override DbConnectionStringBuilder CreateConnectionStringBuilder()
-            => new DuckDBConnectionStringBuilder();
+        public override DbConnectionStringBuilder CreateConnectionStringBuilder() => new DuckDBConnectionStringBuilder();
 
-        public override DbDataAdapter CreateDataAdapter()
-            => throw new NotImplementedException();
+        public override DbDataAdapter CreateDataAdapter() => throw new NotImplementedException();
 
-        public override DbParameter CreateParameter()
-            => new DuckDBParameter();
+        public override DbParameter CreateParameter() => new DuckDBParameter();
 
         #endregion
     }
