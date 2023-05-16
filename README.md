@@ -175,7 +175,9 @@ var item = duckDBConnection.Query<FooBar>("SELECT foo, bar FROM integers");
 
 ### In-Memory database
 
-For in-memory database use `Data Source=:memory:` connection string. When using in-memory database no data is persisted on disk.
+For in-memory database use `Data Source=:memory:` connection string. When using in-memory database no data is persisted on disk. Every in-memory connection results in a new, isolated database so tables created
+inside one in-memory connection aren't visible to another in-memory connection. If you want to create shared in-memory database, you can use `DataSource=:memory:?cache=shared` connection string. Both connection strings
+are exposed by the library as `DuckDBConnectionStringBuilder.InMemoryDataSource` and `DuckDBConnectionStringBuilder.InMemorySharedDataSource` respectively.
 
 ### Use low level bindings library
 
