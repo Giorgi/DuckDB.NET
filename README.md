@@ -30,8 +30,10 @@ In both cases, there are two NuGet packages available: The Full package that inc
 
 |  | ADO.NET Provider | Includes DuckDB library |
 |---|---|---|
-| Yes | DuckDB.NET.Data | DuckDB.NET.Data.**Full** |
-| No | DuckDB.NET.Bindings| DuckDB.NET.Bindings.**Full** |
+| DuckDB.NET.Bindings | :x: | :x: |
+| DuckDB.NET.Bindings.**Full** | :x: | :white_check_mark: |
+| DuckDB.NET.Data | :white_check_mark: | :x: |
+| DuckDB.NET.Data.**Full** | :white_check_mark: | :white_check_mark: |
 
 ### Using ADO.NET Provider
 
@@ -133,6 +135,35 @@ To read DuckDB specific native types use `DuckDBDataReader.GetFieldValue<T>` met
 | DATE  | DuckDBDateOnly  |
 | TIME  | DuckDBTimeOnly  |
 | HUGEINT  | BigInteger  |
+
+#### Executing multiple statements in a single go.
+
+Starting from version 0.8, you can execute multiple statements in a single go:
+
+```cs
+ var command = duckDBConnection.CreateCommand();
+
+ command.CommandText = "INSTALL 'httpfs'; Load 'httpfs';";
+ command.ExecuteNonQuery();
+```
+
+To consume multiple result sets use `NextResult`:
+
+```cs
+var duckDbCommand = connection.CreateCommand();
+duckDbCommand.CommandText = "Select 1; Select 2";
+
+using var reader = duckDbCommand.ExecuteReader();
+
+reader.Read();
+var firstValue = reader.GetInt32(0);
+
+reader.NextResult();
+
+reader.Read();
+
+var secondResult = reader.GetInt32(0);
+```
 
 ### Dapper
 
