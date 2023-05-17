@@ -2,7 +2,12 @@
 
   <PropertyGroup>
     <Description>DuckDB ADO.NET Provider for C#.</Description>
-    <PackageReleaseNotes>Fix bug when inserting unicode test through appender.</PackageReleaseNotes>
+    <PackageReleaseNotes>Added support for executing multiple statements in a single go.
+
+Added DbProviderFactory support.
+
+Fixed reading DateTime values.
+	</PackageReleaseNotes>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(BuildType)' == 'ManagedOnly' ">
