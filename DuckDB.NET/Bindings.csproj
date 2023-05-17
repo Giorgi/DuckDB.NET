@@ -5,7 +5,7 @@
     <PackageReleaseNotes>Fix bug when inserting unicode test through appender.</PackageReleaseNotes>
     <RootNamespace>DuckDB.NET</RootNamespace>
     <RuntimeIdentifiers>win-x86;win-x64;linux-x64;linux-arm64;osx</RuntimeIdentifiers>
-    <DuckDbArtifactRoot>https://github.com/duckdb/duckdb/releases/download/v0.7.1</DuckDbArtifactRoot>
+    <DuckDbArtifactRoot>https://github.com/duckdb/duckdb/releases/download/v0.8.0</DuckDbArtifactRoot>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(BuildType)' == 'ManagedOnly' ">
