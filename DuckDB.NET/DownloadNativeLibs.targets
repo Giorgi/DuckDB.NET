@@ -3,7 +3,7 @@
         <MakeDir Directories="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native" />
         <DownloadFile
                 DestinationFolder="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)" 
-                SourceUrl="$(libUrl)" 
+                SourceUrl="$(libUrl)" Retries="3"
                 DestinationFileName="native.zip"/>
         <Unzip DestinationFolder="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native" 
                SourceFiles="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native.zip"/>
