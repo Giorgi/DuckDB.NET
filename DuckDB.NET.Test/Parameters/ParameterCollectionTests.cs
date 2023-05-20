@@ -206,10 +206,10 @@ public class ParameterCollectionTests
         dp.Add("param2", 1);
         dp.Add("param1", "test");
 
-        connection.Execute(queryStatement, dp);
+        connection.Execute(queryStatement, dp).Should().BeLessOrEqualTo(1);
         connection.Execute(queryStatement, new { A = 1, B = "test" });
 
-        connection.Execute(queryStatement, dp);
+        connection.Execute(queryStatement, dp).Should().BeLessOrEqualTo(1);
         connection.Execute(queryStatement, new { A = 1, B = "test" });
     }
 
@@ -231,7 +231,7 @@ public class ParameterCollectionTests
         dp.Add("param2", 1);
         dp.Add("param1", "test");
 
-        connection.Execute(queryStatement, dp);
+        connection.Execute(queryStatement, dp).Should().BeLessOrEqualTo(1);
     }
     
     [Theory]

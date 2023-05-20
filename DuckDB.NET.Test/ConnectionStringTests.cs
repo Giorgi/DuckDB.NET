@@ -1,4 +1,5 @@
 using System;
+using System.Data;
 using DuckDB.NET.Data;
 using FluentAssertions;
 using Xunit;
@@ -24,6 +25,8 @@ namespace DuckDB.NET.Test
         {
             using var connection = new DuckDBConnection(connectionString);
             connection.Open();
+
+            connection.State.Should().Be(ConnectionState.Open);
         }
         
         [Theory]
@@ -46,6 +49,7 @@ namespace DuckDB.NET.Test
 
             using var connection = new DuckDBConnection(builder.ToString());
             connection.Open();
+            connection.State.Should().Be(ConnectionState.Open);
         }
     }
 }
