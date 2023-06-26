@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Runtime.CompilerServices;
-using System.Runtime.ExceptionServices;
 
 namespace DuckDB.NET.Data
 {
@@ -11,9 +10,6 @@ namespace DuckDB.NET.Data
     {
         private DuckDBConnection connection;
         private readonly DuckDBParameterCollection parameters = new();
-
-        private string commandText;
-        private List<PreparedStatement> preparedStatements;
 
         protected override DbTransaction DbTransaction { get; set; }
         protected override DbParameterCollection DbParameterCollection => parameters;
@@ -25,16 +21,7 @@ namespace DuckDB.NET.Data
         public override bool DesignTimeVisible { get; set; }
         public override UpdateRowSource UpdatedRowSource { get; set; }
 
-        public override string CommandText
-        {
-            get => commandText;
-            set
-            {
-                commandText = value;
-                ReleaseStatements();
-                preparedStatements = null;
-            }
-        }
+        public override string CommandText { get; set; }
 
         protected override DbConnection DbConnection
         {
@@ -65,16 +52,23 @@ namespace DuckDB.NET.Data
         {
             EnsureConnectionOpen();
 
-            PrepareIfNeeded();
+            var (preparedStatements, results) = PreparedStatement.PrepareMultiple(connection.NativeConnection, CommandText, parameters);
 
-            var result = 0;
-            foreach (var statement in preparedStatements)
+            var count = 0;
+
+            foreach (var result in results)
             {
-                using var queryResult = statement.Execute(parameters);
-                result += (int)NativeMethods.Query.DuckDBRowsChanged(queryResult);
+                count += (int)NativeMethods.Query.DuckDBRowsChanged(result);
+
+                result.Dispose();
             }
 
-            return result;
+            foreach (var statement in preparedStatements)
+            {
+                statement.Dispose();
+            }
+
+            return count;
         }
 
         public override object ExecuteScalar()
@@ -99,60 +93,22 @@ namespace DuckDB.NET.Data
         {
             EnsureConnectionOpen();
 
-            PrepareIfNeeded();
+            var (preparedStatements, results) = PreparedStatement.PrepareMultiple(connection.NativeConnection, CommandText, parameters);
 
-            var results = new List<DuckDBResult>();
+            var reader = new DuckDBDataReader(this, results, behavior);
 
             foreach (var statement in preparedStatements)
             {
-                try
-                {
-                    var result = statement.Execute(parameters);
-                    results.Add(result);
-                }
-                catch (Exception ex)
-                {
-                    var capture = ExceptionDispatchInfo.Capture(ex);
-
-                    foreach (var result in results)
-                    {
-                        result.Dispose();
-                    }
-
-                    capture.Throw();
-                }
+                statement.Dispose();
             }
-
-            var reader = new DuckDBDataReader(this, results, behavior);
 
             return reader;
         }
 
-        public override void Prepare() => PrepareIfNeeded();
+        public override void Prepare() => throw new NotSupportedException("Prepare not supported"); //PrepareIfNeeded();
 
         protected override DbParameter CreateDbParameter() => new DuckDBParameter();
-
-        protected override void Dispose(bool disposing)
-        {
-            ReleaseStatements();
-        }
-
-        private void ReleaseStatements()
-        {
-            if (preparedStatements != null)
-            {
-                foreach (var statement in preparedStatements)
-                {
-                    statement.Dispose();
-                }
-            }
-        }
-
-        private void PrepareIfNeeded()
-        {
-            preparedStatements ??= PreparedStatement.PrepareMultiple(connection.NativeConnection, CommandText);
-        }
-
+        
         internal void CloseConnection()
         {
             Connection.Close();

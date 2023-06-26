@@ -77,7 +77,7 @@ public class ParameterCollectionTests
 
         var command = new DuckDbCommand("Select ? from nowhere", connection);
 
-        command.Invoking(dbCommand => dbCommand.Prepare()).Should().Throw<DuckDBException>();
+        command.Invoking(dbCommand => dbCommand.Prepare()).Should().Throw<NotSupportedException>();
     }
 
     [Fact]

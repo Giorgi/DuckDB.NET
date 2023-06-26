@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using System.Numerics;
+using System.Runtime.ExceptionServices;
 using DuckDB.NET.Data.Extensions;
 
 namespace DuckDB.NET.Data;
@@ -55,9 +56,10 @@ internal sealed class PreparedStatement : IDisposable
         return result;
     }
 
-    public static List<PreparedStatement> PrepareMultiple(DuckDBNativeConnection connection, string query)
+    public static (List<PreparedStatement> statements, List<DuckDBResult> results) PrepareMultiple(DuckDBNativeConnection connection, string query, DuckDBParameterCollection parameters)
     {
         var statements = new List<PreparedStatement>();
+        var results = new List<DuckDBResult>();
 
         var statementCount = NativeMethods.ExtractStatements.DuckDBExtractStatements(connection, query, out var extractedStatements);
         
@@ -72,25 +74,51 @@ internal sealed class PreparedStatement : IDisposable
             for (int index = 0; index < statementCount; index++)
             {
                 var status = NativeMethods.ExtractStatements.DuckDBPrepareExtractedStatement(connection, extractedStatements, index, out var statement);
-                
-                if (!status.IsSuccess())
-                {
-                    foreach (var st in statements)
-                    {
-                        st.Dispose();
-                    }
 
+                var preparedStatement = new PreparedStatement(statement);
+                statements.Add(preparedStatement);
+
+                if (status.IsSuccess())
+                {
+                    try
+                    {
+                        var result = preparedStatement.Execute(parameters);
+                        results.Add(result);
+                    }
+                    catch (Exception ex)
+                    {
+                        var capture = ExceptionDispatchInfo.Capture(ex);
+
+                        CleanUp();
+                        
+                        capture.Throw();
+                    }
+                }
+                else
+                {
                     var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(statement).ToManagedString(false);
-                    statement.Dispose();
+                    
+                    CleanUp();
 
                     throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, status);
                 }
-                
-                statements.Add(new PreparedStatement(statement));
             }
         }
 
-        return statements;
+        return (statements, results);
+
+        void CleanUp()
+        {
+            foreach (var result in results)
+            {
+                result.Dispose();
+            }
+
+            foreach (var statement in statements)
+            {
+                statement.Dispose();
+            }
+        }
     }
 
     public DuckDBResult Execute(DuckDBParameterCollection parameterCollection)
