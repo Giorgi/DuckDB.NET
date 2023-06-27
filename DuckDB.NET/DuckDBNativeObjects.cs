@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.Design;
 using System.Numerics;
 using System.Runtime.InteropServices;
 
@@ -173,5 +174,47 @@ namespace DuckDB.NET
         public int Months { get; }
         public int Days { get; }
         public ulong Micros { get; }
+
+        public DuckDBInterval(int months, int days, ulong micros)
+            => (Months, Days, Micros) = (months, days, micros);
+
+        public static explicit operator TimeSpan(DuckDBInterval interval) => ToTimeSpan(interval);
+        public static implicit operator DuckDBInterval(TimeSpan timeSpan) => FromTimeSpan(timeSpan);
+
+        private static TimeSpan ToTimeSpan(DuckDBInterval interval)
+        {
+            if (interval.Months > 0)
+                throw new ArgumentOutOfRangeException(nameof(interval), $"Cannot convert a value of type {nameof(DuckDBInterval)} to type {nameof(TimeSpan)} when the attribute them is greater or equal to 1");
+            else
+            {
+                var milliSecondsByDay = (ulong)(24 * 60 * 60 * 1e6);
+                int days = 0;
+                ulong micros = interval.Micros;
+                if (interval.Micros > milliSecondsByDay)
+                {
+                    days = Convert.ToInt32(Math.Floor((double)(interval.Micros / milliSecondsByDay)));
+                    if (days > int.MaxValue - interval.Days)
+                        throw new ArgumentOutOfRangeException(nameof(interval), $"Cannot convert a value of type {nameof(DuckDBInterval)} to type {nameof(TimeSpan)} when the total days value is larger than {int.MaxValue}");
+
+                    if (days > 0)
+                        micros = interval.Micros - ((ulong)days * milliSecondsByDay);
+                    days = interval.Days + days;
+                }
+                else
+                    days = interval.Days;
+
+                if (micros * 10 > long.MaxValue)
+                    throw new ArgumentOutOfRangeException(nameof(interval), $"Cannot convert a value of type {nameof(DuckDBInterval)} to type {nameof(TimeSpan)} when the value of microseconds is larger than {long.MaxValue / 10}");
+
+                return new TimeSpan(days, 0, 0, 0) + new TimeSpan((long)micros * 10);
+            }
+        }
+
+        private static DuckDBInterval FromTimeSpan(TimeSpan timeSpan)
+            => new(
+                    0
+                    , timeSpan.Days
+                    , Convert.ToUInt64(timeSpan.Ticks / 10 - new TimeSpan(timeSpan.Days, 0, 0, 0).Ticks / 10)
+                );
     }
 }
