@@ -25,6 +25,8 @@ namespace DuckDB.NET.Test
         public void ToTimeSpan_ValidValue_ExpectedResult(int days, ulong micros, string ts)
         {
             var interval = new DuckDBInterval(0, days, micros);
+            Assert.True(interval.TryConvert(out var timeSpan));
+            Assert.Equal(TimeSpan.Parse(ts), timeSpan);
             Assert.Equal(TimeSpan.Parse(ts), (TimeSpan)interval);
         }
 
@@ -32,6 +34,7 @@ namespace DuckDB.NET.Test
         public void ToTimeSpan_MonthInterval_Exception()
         {
             var interval = new DuckDBInterval(1, 0, 0);
+            Assert.False(interval.TryConvert(out var ts));
             Assert.Throws<ArgumentOutOfRangeException>(() => (TimeSpan)interval);
         }
 
@@ -39,6 +42,7 @@ namespace DuckDB.NET.Test
         public void ToTimeSpan_TooBigMicros_Exception()
         {
             var interval = new DuckDBInterval(0, 0, ((ulong)long.MaxValue) + 1);
+            Assert.False(interval.TryConvert(out var ts));
             Assert.Throws<ArgumentOutOfRangeException>(() => (TimeSpan)interval);
         }
 
@@ -46,6 +50,7 @@ namespace DuckDB.NET.Test
         public void ToTimeSpan_TooBigDays_Exception()
         {
             var interval = new DuckDBInterval(0, int.MaxValue, (ulong)24 * 60 * 60 * 1000 * 1000);
+            Assert.False(interval.TryConvert(out var ts));
             Assert.Throws<ArgumentOutOfRangeException>(() => (TimeSpan)interval);
         }
 
