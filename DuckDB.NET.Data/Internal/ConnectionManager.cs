@@ -53,11 +53,14 @@ namespace DuckDB.NET.Data.Internal
                 {
                     var path = connectionString.InMemory ? null : filename;
 
-                    var resultOpen = NativeMethods.Startup.DuckDBOpen(path, out fileRef.Database, new DuckDBConfig(), out var error);
-
-                    if (!resultOpen.IsSuccess())
+                    using (var config = new DuckDBConfig())
                     {
-                        throw new DuckDBException($"DuckDBOpen failed: {error.ToManagedString()}", resultOpen);
+                        var resultOpen = NativeMethods.Startup.DuckDBOpen(path, out fileRef.Database, config, out var error);
+
+                        if (!resultOpen.IsSuccess())
+                        {
+                            throw new DuckDBException($"DuckDBOpen failed: {error.ToManagedString()}", resultOpen);
+                        }
                     }
                 }
 
