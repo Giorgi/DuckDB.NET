@@ -8,6 +8,8 @@ Added DbProviderFactory support.
 
 Fixed reading DateTime values.
 	</PackageReleaseNotes>
+	<SignAssembly>True</SignAssembly>
+	<AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(BuildType)' == 'ManagedOnly' ">
