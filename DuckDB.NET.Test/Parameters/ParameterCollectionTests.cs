@@ -70,14 +70,14 @@ public class ParameterCollectionTests
     }
 
     [Fact]
-    public void PrepareCommandErrorTest()
+    public void PrepareCommandNoOperationTest()
     {
         using var connection = new DuckDBConnection("DataSource=:memory:");
         connection.Open();
 
         var command = new DuckDbCommand("Select ? from nowhere", connection);
 
-        command.Invoking(dbCommand => dbCommand.Prepare()).Should().Throw<NotSupportedException>();
+        command.Invoking(dbCommand => dbCommand.Prepare()).Should().NotThrow();
     }
 
     [Fact]
