@@ -105,7 +105,7 @@ namespace DuckDB.NET.Data
             return reader;
         }
 
-        public override void Prepare() => throw new NotSupportedException("Prepare not supported"); //PrepareIfNeeded();
+        public override void Prepare() { }
 
         protected override DbParameter CreateDbParameter() => new DuckDBParameter();
         
