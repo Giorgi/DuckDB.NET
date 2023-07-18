@@ -193,36 +193,37 @@ using (database)
   result = Startup.DuckDBConnect(database, out var connection);
   using (connection)
   {
-    result = Query.DuckDBQuery(connection, "CREATE TABLE integers(foo INTEGER, bar INTEGER);", out var queryResult);
-    result = Query.DuckDBQuery(connection, "INSERT INTO integers VALUES (3, 4), (5, 6), (7, 8);", out queryResult);
-    result = Query.DuckDBQuery(connection, "SELECT foo, bar FROM integers", out queryResult);
+    var queryResult = new DuckDBResult();
+    result = Query.DuckDBQuery(connection, "CREATE TABLE integers(foo INTEGER, bar INTEGER);", null);
+    result = Query.DuckDBQuery(connection, "INSERT INTO integers VALUES (3, 4), (5, 6), (7, 8);", null);
+    result = Query.DuckDBQuery(connection, "SELECT foo, bar FROM integers", queryResult);
 
     PrintQueryResults(queryResult);
 
-    result = Query.DuckDBPrepare(connection, "INSERT INTO integers VALUES (?, ?)", out var insertStatement);
+    result = PreparedStatements.DuckDBPrepare(connection, "INSERT INTO integers VALUES (?, ?)", out var insertStatement);
 
     using (insertStatement)
     {
-      result = Query.DuckDBBindInt32(insertStatement, 1, 42); // the parameter index starts counting at 1!
-      result = Query.DuckDBBindInt32(insertStatement, 2, 43);
+      result = PreparedStatements.DuckDBBindInt32(insertStatement, 1, 42); // the parameter index starts counting at 1!
+      result = PreparedStatements.DuckDBBindInt32(insertStatement, 2, 43);
 
-      result = Query.DuckDBExecutePrepared(insertStatement, out var _);
+      result = PreparedStatements.DuckDBExecutePrepared(insertStatement, null);
     }
 
 
-    result = Query.DuckDBPrepare(connection, "SELECT * FROM integers WHERE foo = ?", out var selectStatement);
+    result = PreparedStatements.DuckDBPrepare(connection, "SELECT * FROM integers WHERE foo = ?", out var selectStatement);
 
     using (selectStatement)
     {
-      result = Query.DuckDBBindInt32(selectStatement, 1, 42);
+      result = PreparedStatements.DuckDBBindInt32(selectStatement, 1, 42);
 
-      result = Query.DuckDBExecutePrepared(selectStatement, out queryResult);
+      result = PreparedStatements.DuckDBExecutePrepared(selectStatement, queryResult);
     }
 
     PrintQueryResults(queryResult);
 
     // clean up
-    Query.DuckDBDestroyResult(out queryResult);
+    Query.DuckDBDestroyResult(queryResult);
   }
 }
 
@@ -237,9 +238,10 @@ private static void PrintQueryResults(DuckDBResult queryResult)
 
   Console.WriteLine();
 
-  for (long row = 0; row < queryResult.RowCount; row++)
+  var rowCount = Query.DuckDBRowCount(queryResult);
+  for (long row = 0; row < rowCount; row++)
   {
-    for (long column = 0; column < queryResult.ColumnCount; column++)
+    for (long column = 0; column < columnCount; column++)
     {
       var val = Types.DuckDBValueInt32(queryResult, column, row);
       Console.Write(val);
