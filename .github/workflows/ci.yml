@@ -37,9 +37,9 @@ jobs:
     - name: Pack
       if: matrix.os == 'ubuntu-20.04' && github.event_name != 'pull_request'
       run: |
-        dotnet pack DuckDB.NET/Bindings.csproj   --configuration Release 
+        dotnet pack DuckDB.NET.Bindings/Bindings.csproj   --configuration Release 
         dotnet pack DuckDB.NET.Data/Data.csproj  --configuration Release 
-        dotnet pack DuckDB.NET/Bindings.csproj   --configuration Release /p:BuildType=Full
+        dotnet pack DuckDB.NET.Bindings/Bindings.csproj   --configuration Release /p:BuildType=Full
         dotnet pack DuckDB.NET.Data/Data.csproj  --configuration Release /p:BuildType=Full
 
     - name: Upload Artifacts
