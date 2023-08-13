@@ -12,7 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DuckDB.NET.Data\Data.csproj" />
-    <ProjectReference Include="..\DuckDB.NET\Bindings.csproj" />
+    <ProjectReference Include="..\DuckDB.NET.Bindings\Bindings.csproj" />
   </ItemGroup> 
   
 </Project>
