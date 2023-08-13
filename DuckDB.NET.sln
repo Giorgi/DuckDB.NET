@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bindings", "DuckDB.NET\Bindings.csproj", "{AACED9D2-A26F-4449-9362-458E7E3EFF0F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bindings", "DuckDB.NET.Bindings\Bindings.csproj", "{AACED9D2-A26F-4449-9362-458E7E3EFF0F}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Samples", "DuckDB.NET.Samples\Samples.csproj", "{7F7F0A1B-9535-43AB-86DA-B37E54BE40C9}"
 EndProject
