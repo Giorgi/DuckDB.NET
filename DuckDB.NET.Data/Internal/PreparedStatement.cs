@@ -123,13 +123,12 @@ internal sealed class PreparedStatement : IDisposable
 
     public DuckDBResult Execute(DuckDBParameterCollection parameterCollection)
     {
-        var queryResult = new DuckDBResult();
         BindParameters(statement, parameterCollection);
 
-        var status = NativeMethods.PreparedStatements.DuckDBExecutePrepared(statement, queryResult);
+        var status = NativeMethods.PreparedStatements.DuckDBExecutePrepared(statement, out var queryResult);
         if (!status.IsSuccess())
         {
-            var errorMessage = NativeMethods.Query.DuckDBResultError(queryResult).ToManagedString(false);
+            var errorMessage = NativeMethods.Query.DuckDBResultError(ref queryResult).ToManagedString(false);
             queryResult.Dispose();
             throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, status);
         }

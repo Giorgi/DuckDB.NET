@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Numerics;
 using DuckDB.NET.Data;
 using FluentAssertions;
 using Xunit;
@@ -63,39 +62,38 @@ public class BlobParameterTests
         connection.Open();
 
         var command = connection.CreateCommand();
-        command.CommandText = "SELECT 'ABCDEFGH'::BLOB;";
+        var blobValue = "ABCDEFGHIJKLMNOPQR";
+        command.CommandText = $"SELECT '{blobValue}'::BLOB;";
         command.ExecuteNonQuery();
 
         var reader = command.ExecuteReader();
         reader.Read();
 
-        using (var stream = reader.GetStream(0))
+        using var stream = reader.GetStream(0);
+        stream.CanSeek.Should().Be(true);
+        using (var streamReader = new StreamReader(stream, leaveOpen: true))
         {
-            stream.CanSeek.Should().Be(true);
-            using (var streamReader = new StreamReader(stream, leaveOpen: true))
-            {
-                stream.Seek(2, SeekOrigin.Begin);
-                var text = streamReader.ReadToEnd();
-                text.Should().Be("CDEFGH");
+            stream.Seek(2, SeekOrigin.Begin);
+            var text = streamReader.ReadToEnd();
+            text.Should().Be(blobValue.Substring(2));
 
-                stream.Seek(-4, SeekOrigin.End);
-                streamReader.ReadLine().Should().Be("EFGH");
+            stream.Seek(-4, SeekOrigin.End);
+            streamReader.ReadLine().Should().Be(blobValue[^4..]);
 
-                stream.Seek(-4, SeekOrigin.End);
-                stream.Seek(2, SeekOrigin.Current);
+            stream.Seek(-4, SeekOrigin.End);
+            stream.Seek(2, SeekOrigin.Current);
 
-                streamReader.ReadLine().Should().Be("GH");
+            streamReader.ReadLine().Should().Be(blobValue[^4..][^4..][2..]);
 
-                stream.Position = 7;
-                streamReader.ReadLine().Should().Be("H");
+            stream.Position = 7;
+            streamReader.ReadLine().Should().Be(blobValue[7..]);
 
-                stream.Seek(0, SeekOrigin.Begin).Should().Be(0);
-                stream.Seek(0, SeekOrigin.End).Should().Be(stream.Length);
-                stream.Position = 5;
-                stream.Seek(0, SeekOrigin.Current).Should().Be(stream.Position);
+            stream.Seek(0, SeekOrigin.Begin).Should().Be(0);
+            stream.Seek(0, SeekOrigin.End).Should().Be(stream.Length);
+            stream.Position = 5;
+            stream.Seek(0, SeekOrigin.Current).Should().Be(stream.Position);
 
-                stream.Invoking(s => s.Seek(stream.Length+1, SeekOrigin.Current)).Should().Throw<InvalidOperationException>();
-            }
+            stream.Invoking(s => s.Seek(stream.Length+1, SeekOrigin.Current)).Should().Throw<InvalidOperationException>();
         }
     }
 

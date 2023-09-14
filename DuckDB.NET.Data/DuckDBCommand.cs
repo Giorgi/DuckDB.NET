@@ -56,9 +56,10 @@ namespace DuckDB.NET.Data
 
             var count = 0;
 
-            foreach (var result in results)
+            for (var index = 0; index < results.Count; index++)
             {
-                count += (int)NativeMethods.Query.DuckDBRowsChanged(result);
+                var result = results[index];
+                count += (int)NativeMethods.Query.DuckDBRowsChanged(ref result);
 
                 result.Dispose();
             }

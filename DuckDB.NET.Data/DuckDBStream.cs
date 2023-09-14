@@ -6,12 +6,14 @@ namespace DuckDB.NET.Data;
 
 class DuckDBStream : Stream
 {
-    private long position;
-    private readonly DuckDBBlob blob;
+    private readonly IntPtr data;
 
-    public DuckDBStream(DuckDBBlob blob)
+    private long position;
+
+    public DuckDBStream(IntPtr data, long length)
     {
-        this.blob = blob;
+        this.data = data;
+        Length = length;
     }
 
     public override void Flush()
@@ -27,7 +29,7 @@ class DuckDBStream : Stream
         {
             unchecked
             {
-                var source = position <= int.MaxValue ? IntPtr.Add(blob.Data, (int)position) : new IntPtr(blob.Data.ToInt64() + position);
+                var source = position <= int.MaxValue ? IntPtr.Add(data, (int)position) : new IntPtr(data.ToInt64() + position);
 
                 Marshal.Copy(source, buffer, offset, bytesToRead);
 
@@ -73,7 +75,7 @@ class DuckDBStream : Stream
     public override bool CanSeek => true;
     public override bool CanWrite => false;
 
-    public override long Length => blob.Size;
+    public override long Length { get; }
 
     public override long Position
     {
@@ -83,6 +85,5 @@ class DuckDBStream : Stream
 
     public override void Close()
     {
-        blob.Dispose();
     }
 }

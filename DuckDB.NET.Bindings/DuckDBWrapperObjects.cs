@@ -1,7 +1,4 @@
-﻿using System;
-
-using System.Runtime.InteropServices;
-using Microsoft.Win32.SafeHandles;
+﻿using Microsoft.Win32.SafeHandles;
 
 namespace DuckDB.NET
 {
@@ -80,6 +77,32 @@ namespace DuckDB.NET
         {
             NativeMethods.ExtractStatements.DuckDBDestroyExtracted(out handle);
 
+            return true;
+        }
+    }
+
+    public class DuckDBLogicalType : SafeHandleZeroOrMinusOneIsInvalid
+    {
+        public DuckDBLogicalType() : base(true)
+        {
+        }
+
+        protected override bool ReleaseHandle()
+        {
+            NativeMethods.LogicalType.DuckDBDestroyLogicalType(out handle);
+            return true;
+        }
+    }
+
+    public class DuckDBDataChunk : SafeHandleZeroOrMinusOneIsInvalid
+    {
+        public DuckDBDataChunk() : base(true)
+        {
+        }
+
+        protected override bool ReleaseHandle()
+        {
+            NativeMethods.DataChunks.DuckDBDestroyDataChunk(out handle);
             return true;
         }
     }

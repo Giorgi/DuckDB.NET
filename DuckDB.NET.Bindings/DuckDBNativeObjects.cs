@@ -55,7 +55,7 @@ namespace DuckDB.NET
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    public class DuckDBResult : IDisposable
+    public struct DuckDBResult : IDisposable
     {
         [Obsolete]
         private long ColumnCount;
@@ -76,7 +76,7 @@ namespace DuckDB.NET
 
         public void Dispose()
         {
-            NativeMethods.Query.DuckDBDestroyResult(this);
+            NativeMethods.Query.DuckDBDestroyResult(ref this);
         }
     }
 
@@ -231,5 +231,27 @@ namespace DuckDB.NET
                     , timeSpan.Days
                     , Convert.ToUInt64(timeSpan.Ticks / 10 - new TimeSpan(timeSpan.Days, 0, 0, 0).Ticks / 10)
                 );
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    public struct DuckDBString
+    {
+        [FieldOffset(0)] public DuckDBStringPointer Pointer;
+        [FieldOffset(0)] public DuckDBStringInlined Inlined;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    public struct DuckDBStringPointer
+    {
+        [FieldOffset(0)] public uint length;
+        [FieldOffset(4)] public IntPtr prefix;
+        [FieldOffset(8)] public IntPtr ptr;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    public struct DuckDBStringInlined
+    {
+        [FieldOffset(0)] public uint length;
+        [FieldOffset(4)] public IntPtr inlined;
     }
 }

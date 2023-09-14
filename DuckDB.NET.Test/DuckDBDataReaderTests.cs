@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data;
 using DuckDB.NET.Data;
 using FluentAssertions;
@@ -68,7 +69,7 @@ public class DuckDBDataReaderTests
         reader[1].Should().Be(reader.GetDecimal(1));
         reader.GetValue(2).Should().Be(reader.GetBoolean(2));
         reader[3].Should().Be(DBNull.Value);
-        
+
         var values = new object[4];
         reader.GetValues(values);
         values.Should().BeEquivalentTo(new object[] { 1, 2.4, true, DBNull.Value });
@@ -91,10 +92,10 @@ public class DuckDBDataReaderTests
 
         enumerator.MoveNext().Should().Be(true);
         (enumerator.Current as IDataRecord).GetInt32(0).Should().Be(7);
-        
+
         enumerator.MoveNext().Should().Be(true);
         (enumerator.Current as IDataRecord).GetInt32(0).Should().Be(11);
-        
+
         enumerator.MoveNext().Should().Be(false);
     }
 
@@ -132,7 +133,7 @@ public class DuckDBDataReaderTests
 
         interval.Micros.Should().Be(30_000_000);
     }
-    
+
     [Fact]
     public void LoadDataTable()
     {
@@ -157,16 +158,71 @@ public class DuckDBDataReaderTests
         duckDbCommand.CommandText = "Select 1; Select 2";
 
         using var reader = duckDbCommand.ExecuteReader();
-        
+
         reader.Read();
         reader.GetInt32(0).Should().Be(1);
 
         reader.NextResult().Should().BeTrue();
-        
+
         reader.Read().Should().BeTrue();
 
         reader.GetInt32(0).Should().Be(2);
 
         reader.NextResult().Should().BeFalse();
+    }
+
+    [Fact]
+    public void ReadManyRows()
+    {
+        using var connection = new DuckDBConnection("DataSource=:memory:");
+        connection.Open();
+
+        using (var duckDbCommand = connection.CreateCommand())
+        {
+            var table = "CREATE TABLE TableForManyRows(foo INTEGER, bar VARCHAR);";
+            duckDbCommand.CommandText = table;
+            duckDbCommand.ExecuteNonQuery();
+        }
+
+        var rows = 10_000;
+
+        var values = new List<KeyValuePair<int?, string>>();
+
+        using (var appender = connection.CreateAppender("TableForManyRows"))
+        {
+            for (var i = 0; i < rows; i++)
+            {
+                var value = new string((char)('A' + i % 26), Random.Shared.Next(2, 20));
+                values.Add(new KeyValuePair<int?, string>(i, value));
+
+                var row = appender.CreateRow();
+
+                row
+                    .AppendValue(i)
+                    .AppendValue(value)
+                    .EndRow();
+            }
+            values.Add(new KeyValuePair<int?, string>(null, null));
+
+            appender.CreateRow().AppendNullValue().AppendNullValue().EndRow();
+        }
+
+        using (var duckDbCommand = connection.CreateCommand())
+        {
+            duckDbCommand.CommandText = "SELECT * FROM TableForManyRows";
+            using var reader = duckDbCommand.ExecuteReader();
+
+            var readRowIndex = 0;
+            while (reader.Read())
+            {
+                var item = values[readRowIndex];
+
+                (reader.IsDBNull(0) ? (int?)null : reader.GetInt32(0)).Should().Be(item.Key);
+                (reader.IsDBNull(1) ? null : reader.GetString(1)).Should().Be(item.Value);
+
+                readRowIndex++;
+            }
+            readRowIndex.Should().Be(rows + 1);
+        }
     }
 }

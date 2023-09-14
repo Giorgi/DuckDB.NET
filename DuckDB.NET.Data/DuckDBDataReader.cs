@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Globalization;
 using System.IO;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -12,10 +11,12 @@ namespace DuckDB.NET.Data
 {
     public class DuckDBDataReader : DbDataReader
     {
+        private const int InlineStringMaxLength = 12;
         private readonly DuckDbCommand command;
         private readonly CommandBehavior behavior;
 
         private DuckDBResult currentResult;
+        private DuckDBDataChunk currentChunk;
         private readonly List<DuckDBResult> queryResults;
 
         private bool closed;
@@ -25,6 +26,13 @@ namespace DuckDB.NET.Data
 
         private int fieldCount;
         private int recordsAffected;
+        private readonly Dictionary<int, IntPtr> vectors = new();
+        private readonly Dictionary<int, IntPtr> vectorValidityMask = new();
+
+        private long chunkCount;
+        private int currentChunkIndex;
+        private int rowsReadFromCurrentChunk;
+        private long currentChunkRowCount;
 
         internal DuckDBDataReader(DuckDbCommand command, List<DuckDBResult> queryResults, CommandBehavior behavior)
         {
@@ -39,24 +47,50 @@ namespace DuckDB.NET.Data
         private void InitReaderData()
         {
             currentRow = -1;
-            rowCount = NativeMethods.Query.DuckDBRowCount(currentResult);
-            fieldCount = (int)NativeMethods.Query.DuckDBColumnCount(currentResult);
-            recordsAffected = (int)NativeMethods.Query.DuckDBRowsChanged(currentResult);
+
+            rowCount = NativeMethods.Query.DuckDBRowCount(ref currentResult);
+            fieldCount = (int)NativeMethods.Query.DuckDBColumnCount(ref currentResult);
+            chunkCount = NativeMethods.Types.DuckDBResultChunkCount(currentResult);
+
+            currentChunkIndex = 0;
+            rowsReadFromCurrentChunk = 0;
+
+            InitChunkData();
+
+            //recordsAffected = (int)NativeMethods.Query.DuckDBRowsChanged(currentResult);
+        }
+
+        private void InitChunkData()
+        {
+            currentChunk?.Dispose();
+            currentChunk = NativeMethods.Types.DuckDBResultGetChunk(currentResult, currentChunkIndex);
+            currentChunkRowCount = NativeMethods.DataChunks.DuckDBDataChunkGetSize(currentChunk);
+
+            for (int i = 0; i < fieldCount; i++)
+            {
+                var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(currentChunk, i);
+
+                vectors[i] = NativeMethods.DataChunks.DuckDBVectorGetData(vector);
+                vectorValidityMask[i] = NativeMethods.DataChunks.DuckDBVectorGetValidity(vector);
+            }
         }
 
         public override bool GetBoolean(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueBoolean(currentResult, ordinal, currentRow);
+            var data = vectors[ordinal];
+            return Marshal.ReadByte(data, (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<byte>()) != 0;
         }
 
         public override byte GetByte(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueUInt8(currentResult, ordinal, currentRow);
+            var data = vectors[ordinal];
+            return Marshal.ReadByte(data, (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<byte>());
         }
 
         private sbyte GetSByte(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueInt8(currentResult, ordinal, currentRow);
+            var data = vectors[ordinal];
+            return (sbyte)Marshal.ReadByte(data, (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<byte>());
         }
 
         public override long GetBytes(int ordinal, long dataOffset, byte[] buffer, int bufferOffset, int length)
@@ -76,41 +110,77 @@ namespace DuckDB.NET.Data
 
         public override string GetDataTypeName(int ordinal)
         {
-            return NativeMethods.Query.DuckDBColumnType(currentResult, ordinal).ToString();
+            return NativeMethods.Query.DuckDBColumnType(ref currentResult, ordinal).ToString();
         }
 
         public override DateTime GetDateTime(int ordinal)
         {
-            var timestampStruct = NativeMethods.Types.DuckDBValueTimestamp(currentResult, ordinal, currentRow);
-            
+            var data = vectors[ordinal];
+            var timestampStruct = Marshal.PtrToStructure<DuckDBTimestampStruct>(data + (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<DuckDBTimestampStruct>());
+
             return timestampStruct.ToDateTime();
         }
 
         private DuckDBDateOnly GetDateOnly(int ordinal)
         {
-            var date = NativeMethods.Types.DuckDBValueDate(currentResult, ordinal, currentRow);
+            var data = vectors[ordinal];
+            var date = Marshal.PtrToStructure<DuckDBDate>(data + (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<DuckDBDate>());
             return NativeMethods.DateTime.DuckDBFromDate(date);
         }
 
         private DuckDBTimeOnly GetTimeOnly(int ordinal)
         {
-            var time = NativeMethods.Types.DuckDBValueTime(currentResult, ordinal, currentRow);
+            var data = vectors[ordinal];
+            var time = Marshal.PtrToStructure<DuckDBTime>(data + (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<DuckDBTime>());
             return NativeMethods.DateTime.DuckDBFromTime(time);
         }
 
         public override decimal GetDecimal(int ordinal)
         {
-            return decimal.Parse(GetString(ordinal), CultureInfo.InvariantCulture);
+            using (var logicalType = NativeMethods.Query.DuckDBColumnLogicalType(ref currentResult, ordinal))
+            {
+                var scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
+                var internalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
+
+                decimal result = 0;
+
+                var pow = (decimal)Math.Pow(10, scale);
+
+                switch (internalType)
+                {
+                    case DuckDBType.DuckdbTypeSmallInt:
+                        result = decimal.Divide(GetInt16(ordinal), pow);
+                        break;
+                    case DuckDBType.DuckdbTypeInteger:
+                        result = decimal.Divide(GetInt32(ordinal), pow);
+                        break;
+                    case DuckDBType.DuckdbTypeBigInt:
+                        result = decimal.Divide(GetInt64(ordinal), pow);
+                        break;
+                    case DuckDBType.DuckdbTypeHugeInt:
+                        {
+                            var hugeInt = GetBigInteger(ordinal);
+
+                            result = (decimal)BigInteger.DivRem(hugeInt, (BigInteger)pow, out var remainder);
+
+                            result += decimal.Divide((decimal)remainder, pow);
+                            break;
+                        }
+                }
+
+                return result;
+            }
         }
 
         public override double GetDouble(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueDouble(currentResult, ordinal, currentRow);
+            var data = vectors[ordinal];
+            return Marshal.PtrToStructure<double>(data + (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<double>());
         }
 
         public override Type GetFieldType(int ordinal)
         {
-            return NativeMethods.Query.DuckDBColumnType(currentResult, ordinal) switch
+            return NativeMethods.Query.DuckDBColumnType(ref currentResult, ordinal) switch
             {
                 DuckDBType.DuckdbTypeInvalid => throw new DuckDBException("Invalid type"),
                 DuckDBType.DuckdbTypeBoolean => typeof(bool),
@@ -138,7 +208,8 @@ namespace DuckDB.NET.Data
 
         public override float GetFloat(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueFloat(currentResult, ordinal, currentRow);
+            var data = vectors[ordinal];
+            return Marshal.PtrToStructure<float>(data + (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<float>());
         }
 
         public override Guid GetGuid(int ordinal)
@@ -148,50 +219,59 @@ namespace DuckDB.NET.Data
 
         public override short GetInt16(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueInt16(currentResult, ordinal, currentRow);
+            var data = vectors[ordinal];
+            return Marshal.ReadInt16(data, (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<short>());
         }
 
         public override int GetInt32(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueInt32(currentResult, ordinal, currentRow);
+            var data = vectors[ordinal];
+            return Marshal.ReadInt32(data, (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<int>());
         }
 
         public override long GetInt64(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueInt64(currentResult, ordinal, currentRow);
+            var data = vectors[ordinal];
+            return Marshal.ReadInt64(data, (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<long>());
         }
 
         private ushort GetUInt16(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueUInt16(currentResult, ordinal, currentRow);
+            var data = vectors[ordinal];
+            return (ushort)Marshal.ReadInt32(data, (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<ushort>());
         }
 
         private uint GetUInt32(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueUInt32(currentResult, ordinal, currentRow);
+            var data = vectors[ordinal];
+            return (uint)Marshal.ReadInt32(data, (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<uint>());
         }
 
         private ulong GetUInt64(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueUInt64(currentResult, ordinal, currentRow);
+            var data = vectors[ordinal];
+            return (ulong)Marshal.ReadInt32(data, (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<ulong>());
         }
 
         private BigInteger GetBigInteger(int ordinal)
         {
-            return BigInteger.Parse(GetString(ordinal));
+            var data = vectors[ordinal];
+            var hugeInt = Marshal.PtrToStructure<DuckDBHugeInt>(data + (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<DuckDBHugeInt>());
+
+            return hugeInt.ToBigInteger();
         }
 
         public override string GetName(int ordinal)
         {
-            return NativeMethods.Query.DuckDBColumnName(currentResult, ordinal).ToManagedString(false);
+            return NativeMethods.Query.DuckDBColumnName(ref currentResult, ordinal).ToManagedString(false);
         }
 
         public override int GetOrdinal(string name)
         {
-            var columnCount = NativeMethods.Query.DuckDBColumnCount(currentResult);
+            var columnCount = NativeMethods.Query.DuckDBColumnCount(ref currentResult);
             for (var i = 0; i < columnCount; i++)
             {
-                var columnName = NativeMethods.Query.DuckDBColumnName(currentResult, i).ToManagedString(false);
+                var columnName = NativeMethods.Query.DuckDBColumnName(ref currentResult, i).ToManagedString(false);
                 if (name == columnName)
                 {
                     return i;
@@ -203,9 +283,19 @@ namespace DuckDB.NET.Data
 
         public override string GetString(int ordinal)
         {
-            var unmanagedString = NativeMethods.Types.DuckDBValueVarchar(currentResult, ordinal, currentRow);
+            var data = vectors[ordinal] + (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<DuckDBString>();
 
-            return unmanagedString.ToManagedString();
+            var length = Marshal.ReadInt32(data);
+
+            if (length <= InlineStringMaxLength)
+            {
+                return (data + Marshal.SizeOf<int>()).ToManagedString(false, length);
+            }
+            else
+            {
+                var intPtr = Marshal.ReadIntPtr(data + Marshal.SizeOf<int>() * 2);
+                return intPtr.ToManagedString(false, length);
+            }
         }
 
         public override object GetValue(int ordinal)
@@ -215,7 +305,7 @@ namespace DuckDB.NET.Data
                 return DBNull.Value;
             }
 
-            return NativeMethods.Query.DuckDBColumnType(currentResult, ordinal) switch
+            return NativeMethods.Query.DuckDBColumnType(ref currentResult, ordinal) switch
             {
                 DuckDBType.DuckdbTypeInvalid => throw new DuckDBException("Invalid type"),
                 DuckDBType.DuckdbTypeBoolean => GetBoolean(ordinal),
@@ -243,7 +333,9 @@ namespace DuckDB.NET.Data
 
         private DuckDBInterval GetDuckDBInterval(int ordinal)
         {
-            return NativeMethods.Types.DuckDBValueInterval(currentResult, ordinal, currentRow);
+            var data = vectors[ordinal];
+            var interval = Marshal.PtrToStructure<DuckDBInterval>(data + (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<DuckDBInterval>());
+            return interval;
         }
 
         public override int GetValues(object[] values)
@@ -258,14 +350,27 @@ namespace DuckDB.NET.Data
 
         public override Stream GetStream(int ordinal)
         {
-            var blob = NativeMethods.Types.DuckDBValueBlob(currentResult, ordinal, currentRow);
-            return new DuckDBStream(blob);
+            var data = vectors[ordinal] + (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<DuckDBString>();
+
+            var length = Marshal.ReadInt32(data);
+
+            var blobPointer = length <= InlineStringMaxLength
+                ? data + Marshal.SizeOf<int>()
+                : Marshal.ReadIntPtr(data + Marshal.SizeOf<int>() * 2);
+
+            return new DuckDBStream(blobPointer, length);
         }
 
         public override bool IsDBNull(int ordinal)
         {
-            var nullMask = NativeMethods.Query.DuckDBNullmaskData(currentResult, ordinal);
-            return Marshal.ReadByte(nullMask, currentRow) != 0;
+            var validityMaskEntryIndex = (rowsReadFromCurrentChunk - 1) / 64;
+            var validityBitIndex = (rowsReadFromCurrentChunk - 1) % 64;
+
+            var validityMaskEntryPtr = vectorValidityMask[ordinal] + validityMaskEntryIndex * Marshal.SizeOf<ulong>();
+            var validityBit = 1ul << validityBitIndex;
+
+            var isValid = (Marshal.PtrToStructure<ulong>(validityMaskEntryPtr) & validityBit) != 0;
+            return !isValid;
         }
 
         public override int FieldCount => fieldCount;
@@ -283,11 +388,11 @@ namespace DuckDB.NET.Data
         public override bool NextResult()
         {
             currentResultIndex++;
-            
+
             if (currentResultIndex < queryResults.Count)
             {
                 currentResult = queryResults[currentResultIndex];
-                
+
                 InitReaderData();
                 return true;
             }
@@ -297,7 +402,21 @@ namespace DuckDB.NET.Data
 
         public override bool Read()
         {
-            return ++currentRow < rowCount;
+            var hasMoreRows = ++currentRow < rowCount;
+
+            if (!hasMoreRows) return false;
+
+            if (rowsReadFromCurrentChunk == currentChunkRowCount)
+            {
+                currentChunkIndex++;
+                rowsReadFromCurrentChunk = 0;
+
+                InitChunkData();
+            }
+
+            rowsReadFromCurrentChunk++;
+
+            return true;
         }
 
         public override int Depth { get; }
@@ -309,7 +428,7 @@ namespace DuckDB.NET.Data
 
         public override DataTable GetSchemaTable()
         {
-            DataTable table = new DataTable
+            var table = new DataTable
             {
                 Columns =
                 {
@@ -320,8 +439,10 @@ namespace DuckDB.NET.Data
                      { "AllowDBNull", typeof(bool) }
                 }
             };
-            object[] rowData = new object[5];
-            for (int i = 0; i < FieldCount; i++)
+            
+            var rowData = new object[5];
+
+            for (var i = 0; i < FieldCount; i++)
             {
                 rowData[0] = i;
                 rowData[1] = GetName(i);
@@ -330,6 +451,7 @@ namespace DuckDB.NET.Data
                 rowData[4] = true;
                 table.Rows.Add(rowData);
             }
+
             return table;
         }
 
@@ -337,6 +459,7 @@ namespace DuckDB.NET.Data
         {
             if (closed) return;
 
+            currentChunk?.Dispose();
             foreach (var result in queryResults)
             {
                 result.Dispose();

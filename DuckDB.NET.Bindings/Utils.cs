@@ -13,22 +13,25 @@ namespace DuckDB.NET
             return duckDBState == DuckDBState.DuckDBSuccess;
         }
 
-        public static string ToManagedString(this IntPtr unmanagedString, bool freeWhenCopied = true)
+        public static string ToManagedString(this IntPtr unmanagedString, bool freeWhenCopied = true, int? length = null)
         {
             string result;
 #if NET6_0_OR_GREATER
-            result = Marshal.PtrToStringUTF8(unmanagedString);
+            result = length.HasValue? Marshal.PtrToStringUTF8(unmanagedString, length.Value) : Marshal.PtrToStringUTF8(unmanagedString);
 #else
             if (unmanagedString == IntPtr.Zero)
             {
                 return "";
             }
 
-            var length = 0;
-
-            while (Marshal.ReadByte(unmanagedString, length) != 0)
+            if (length == null)
             {
-                length++;
+                length = 0;
+
+                while (Marshal.ReadByte(unmanagedString, length.Value) != 0)
+                {
+                    length++;
+                }
             }
 
             if (length == 0)
@@ -36,11 +39,11 @@ namespace DuckDB.NET
                 return string.Empty;
             }
 
-            var byteArray = new byte[length];
+            var byteArray = new byte[length.Value];
 
-            Marshal.Copy(unmanagedString, byteArray, 0, length);
+            Marshal.Copy(unmanagedString, byteArray, 0, length.Value);
 
-            result = Encoding.UTF8.GetString(byteArray, 0, length);
+            result = Encoding.UTF8.GetString(byteArray, 0, length.Value);
 #endif
             if (freeWhenCopied)
             {

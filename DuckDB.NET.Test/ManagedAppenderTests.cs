@@ -111,7 +111,7 @@ namespace DuckDB.NET.Test
                 var results = new List<string>();
                 while (reader.Read())
                 {
-                    var text = reader.GetString(1);
+                    var text = reader.IsDBNull(1) ? null : reader.GetString(1);
                     results.Add(text);
                 }
 
