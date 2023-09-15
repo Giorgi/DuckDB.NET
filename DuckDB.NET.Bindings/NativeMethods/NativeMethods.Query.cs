@@ -34,9 +34,11 @@ public partial class NativeMethods
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_rows_changed")]
         public static extern long DuckDBRowsChanged([In, Out] ref DuckDBResult result);
 
+        [Obsolete("Prefer using duckdb_result_get_chunk instead")]
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_column_data")]
         public static extern IntPtr DuckDBColumnData([In, Out] ref DuckDBResult result, long col);
 
+        [Obsolete("Prefer using duckdb_result_get_chunk instead")]
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_nullmask_data")]
         public static extern IntPtr DuckDBNullmaskData([In, Out] ref DuckDBResult result, long col);
 
