@@ -5,177 +5,176 @@ using System.Data.Common;
 using System.Runtime.CompilerServices;
 using DuckDB.NET.Data.ConnectionString;
 
-namespace DuckDB.NET.Data
+namespace DuckDB.NET.Data;
+
+public class DuckDBConnection : DbConnection
 {
-    public class DuckDBConnection : DbConnection
+    private readonly ConnectionManager connectionManager = ConnectionManager.Default;
+    private ConnectionState connectionState = ConnectionState.Closed;
+    private DuckDBConnectionString connectionString;
+    private ConnectionReference connectionReference;
+    private bool inMemoryDuplication;
+
+    #region Protected Properties
+
+    protected override DbProviderFactory DbProviderFactory => DuckDBClientFactory.Instance;
+
+    #endregion
+
+    internal DuckDBTransaction Transaction { get; set; }
+
+    public DuckDBConnection()
+    { }
+
+    public DuckDBConnection(string connectionString)
     {
-        private readonly ConnectionManager connectionManager = ConnectionManager.Default;
-        private ConnectionState connectionState = ConnectionState.Closed;
-        private DuckDBConnectionString connectionString;
-        private ConnectionReference connectionReference;
-        private bool inMemoryDuplication;
+        ConnectionString = connectionString;
+    }
 
-        #region Protected Properties
+    public override string ConnectionString { get; set; }
 
-        protected override DbProviderFactory DbProviderFactory => DuckDBClientFactory.Instance;
+    public override string Database { get; }
 
-        #endregion
+    public override string DataSource { get; }
 
-        internal DuckDBTransaction Transaction { get; set; }
+    internal DuckDBNativeConnection NativeConnection => connectionReference.NativeConnection;
 
-        public DuckDBConnection()
-        { }
+    public override string ServerVersion => NativeMethods.Startup.DuckDBLibraryVersion().ToManagedString(false);
 
-        public DuckDBConnection(string connectionString)
+    public override ConnectionState State => connectionState;
+
+    public override void ChangeDatabase(string databaseName)
+    {
+        throw new NotSupportedException();
+    }
+
+    public override void Close()
+    {
+        if (connectionState == ConnectionState.Closed)
         {
-            ConnectionString = connectionString;
+            throw new InvalidOperationException("Connection is already closed.");
         }
 
-        public override string ConnectionString { get; set; }
+        Dispose(true);
+    }
 
-        public override string Database { get; }
+    public override void Open()
+    {
+        if (connectionState == ConnectionState.Open)
+        {
+            throw new InvalidOperationException("Connection is already open.");
+        }
 
-        public override string DataSource { get; }
+        if (inMemoryDuplication)
+        {
+            connectionReference = connectionManager.DuplicateConnectionReference(connectionReference);
+        }
+        else
+        {
+            connectionString = DuckDBConnectionStringParser.Parse(ConnectionString);
 
-        internal DuckDBNativeConnection NativeConnection => connectionReference.NativeConnection;
+            connectionReference = connectionManager.GetConnectionReference(connectionString);
+        }
 
-        public override string ServerVersion => NativeMethods.Startup.DuckDBLibraryVersion().ToManagedString(false);
+        connectionState = ConnectionState.Open;
+    }
 
-        public override ConnectionState State => connectionState;
+    protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
+    {
+        return BeginTransaction(isolationLevel);
+    }
 
-        public override void ChangeDatabase(string databaseName)
+    public new DuckDBTransaction BeginTransaction()
+    {
+        return BeginTransaction(IsolationLevel.Unspecified);
+    }
+
+    private new DuckDBTransaction BeginTransaction(IsolationLevel isolationLevel)
+    {
+        EnsureConnectionOpen();
+        if (Transaction != null)
+        {
+            throw new InvalidOperationException("Already in a transaction.");
+        }
+
+        return Transaction = new DuckDBTransaction(this, isolationLevel);
+    }
+
+    protected override DbCommand CreateDbCommand()
+    {
+        return CreateCommand();
+    }
+
+    public new virtual DuckDbCommand CreateCommand()
+    {
+        return new DuckDbCommand
+        {
+            Connection = this,
+            Transaction = Transaction
+        };
+    }
+
+    public DuckDBAppender CreateAppender(string table) => CreateAppender(null, table);
+
+    public DuckDBAppender CreateAppender(string schema, string table)
+    {
+        EnsureConnectionOpen();
+        if (NativeMethods.Appender.DuckDBAppenderCreate(NativeConnection, schema, table, out var nativeAppender) == DuckDBState.DuckDBError)
+        {
+            try
+            {
+                DuckDBAppender.ThrowLastError(nativeAppender);
+            }
+            finally
+            {
+                nativeAppender.Close();
+            }
+        }
+
+        return new DuckDBAppender(nativeAppender);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            if (connectionState == ConnectionState.Open)
+            {
+                connectionManager.ReturnConnectionReference(connectionReference);
+                connectionState = ConnectionState.Closed;
+            }
+        }
+
+        base.Dispose(disposing);
+    }
+        
+    private void EnsureConnectionOpen([CallerMemberName]string operation = "")
+    {
+        if (State != ConnectionState.Open)
+        {
+            throw new InvalidOperationException($"{operation} requires an open connection");
+        }
+    }
+
+    public DuckDBConnection Duplicate()
+    {
+        if (State != ConnectionState.Open)
+        {
+            throw new InvalidOperationException("Duplication requires an open connection");
+        }
+
+        if (!connectionString.InMemory)
         {
             throw new NotSupportedException();
         }
 
-        public override void Close()
+        var duplicatedConnection = new DuckDBConnection(ConnectionString)
         {
-            if (connectionState == ConnectionState.Closed)
-            {
-                throw new InvalidOperationException("Connection is already closed.");
-            }
+            connectionString = connectionString,
+            inMemoryDuplication = true,
+            connectionReference = connectionReference,
+        };
 
-            Dispose(true);
-        }
-
-        public override void Open()
-        {
-            if (connectionState == ConnectionState.Open)
-            {
-                throw new InvalidOperationException("Connection is already open.");
-            }
-
-            if (inMemoryDuplication)
-            {
-                connectionReference = connectionManager.DuplicateConnectionReference(connectionReference);
-            }
-            else
-            {
-                connectionString = DuckDBConnectionStringParser.Parse(ConnectionString);
-
-                connectionReference = connectionManager.GetConnectionReference(connectionString);
-            }
-
-            connectionState = ConnectionState.Open;
-        }
-
-        protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
-        {
-            return BeginTransaction(isolationLevel);
-        }
-
-        public new DuckDBTransaction BeginTransaction()
-        {
-            return BeginTransaction(IsolationLevel.Unspecified);
-        }
-
-        private new DuckDBTransaction BeginTransaction(IsolationLevel isolationLevel)
-        {
-            EnsureConnectionOpen();
-            if (Transaction != null)
-            {
-                throw new InvalidOperationException("Already in a transaction.");
-            }
-
-            return Transaction = new DuckDBTransaction(this, isolationLevel);
-        }
-
-        protected override DbCommand CreateDbCommand()
-        {
-            return CreateCommand();
-        }
-
-        public new virtual DuckDbCommand CreateCommand()
-        {
-            return new DuckDbCommand
-            {
-                Connection = this,
-                Transaction = Transaction
-            };
-        }
-
-        public DuckDBAppender CreateAppender(string table) => CreateAppender(null, table);
-
-        public DuckDBAppender CreateAppender(string schema, string table)
-        {
-            EnsureConnectionOpen();
-            if (NativeMethods.Appender.DuckDBAppenderCreate(NativeConnection, schema, table, out var nativeAppender) == DuckDBState.DuckDBError)
-            {
-                try
-                {
-                    DuckDBAppender.ThrowLastError(nativeAppender);
-                }
-                finally
-                {
-                    nativeAppender.Close();
-                }
-            }
-
-            return new DuckDBAppender(nativeAppender);
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                if (connectionState == ConnectionState.Open)
-                {
-                    connectionManager.ReturnConnectionReference(connectionReference);
-                    connectionState = ConnectionState.Closed;
-                }
-            }
-
-            base.Dispose(disposing);
-        }
-        
-        private void EnsureConnectionOpen([CallerMemberName]string operation = "")
-        {
-            if (State != ConnectionState.Open)
-            {
-                throw new InvalidOperationException($"{operation} requires an open connection");
-            }
-        }
-
-        public DuckDBConnection Duplicate()
-        {
-            if (State != ConnectionState.Open)
-            {
-                throw new InvalidOperationException("Duplication requires an open connection");
-            }
-
-            if (!connectionString.InMemory)
-            {
-                throw new NotSupportedException();
-            }
-
-            var duplicatedConnection = new DuckDBConnection(ConnectionString)
-            {
-                connectionString = connectionString,
-                inMemoryDuplication = true,
-                connectionReference = connectionReference,
-            };
-
-            return duplicatedConnection;
-        }
+        return duplicatedConnection;
     }
 }

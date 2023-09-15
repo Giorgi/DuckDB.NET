@@ -1,26 +1,25 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace DuckDB.NET
+namespace DuckDB.NET;
+
+[StructLayout(LayoutKind.Sequential)]
+public struct DuckDBTimestamp
 {
-    [StructLayout(LayoutKind.Sequential)]
-    public struct DuckDBTimestamp
+    public DuckDBDateOnly Date { get; private set; }
+    public DuckDBTimeOnly Time { get; private set; }
+
+    public DateTime ToDateTime()
     {
-        public DuckDBDateOnly Date { get; private set; }
-        public DuckDBTimeOnly Time { get; private set; }
+        return new DateTime(Date.Year, Date.Month, Date.Day, Time.Hour, Time.Min, Time.Sec).AddTicks(Time.Microsecond * 10);
+    }
 
-        public DateTime ToDateTime()
+    public static DuckDBTimestamp FromDateTime(DateTime dateTime)
+    {
+        return new DuckDBTimestamp
         {
-            return new DateTime(Date.Year, Date.Month, Date.Day, Time.Hour, Time.Min, Time.Sec).AddTicks(Time.Microsecond * 10);
-        }
-
-        public static DuckDBTimestamp FromDateTime(DateTime dateTime)
-        {
-            return new DuckDBTimestamp
-            {
-                Date = DuckDBDateOnly.FromDateTime(dateTime),
-                Time = DuckDBTimeOnly.FromDateTime(dateTime)
-            };
-        }
+            Date = DuckDBDateOnly.FromDateTime(dateTime),
+            Time = DuckDBTimeOnly.FromDateTime(dateTime)
+        };
     }
 }

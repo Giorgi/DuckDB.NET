@@ -1,109 +1,108 @@
 ﻿using Microsoft.Win32.SafeHandles;
 
-namespace DuckDB.NET
+namespace DuckDB.NET;
+
+public class DuckDBDatabase : SafeHandleZeroOrMinusOneIsInvalid
 {
-    public class DuckDBDatabase : SafeHandleZeroOrMinusOneIsInvalid
+    public DuckDBDatabase() : base(true)
     {
-        public DuckDBDatabase() : base(true)
-        {
-        }
-
-        protected override bool ReleaseHandle()
-        {
-            NativeMethods.Startup.DuckDBClose(out handle);
-            return true;
-        }
     }
 
-    public class DuckDBNativeConnection : SafeHandleZeroOrMinusOneIsInvalid
+    protected override bool ReleaseHandle()
     {
-        public DuckDBNativeConnection() : base(true)
-        {
-        }
+        NativeMethods.Startup.DuckDBClose(out handle);
+        return true;
+    }
+}
 
-        protected override bool ReleaseHandle()
-        {
-            NativeMethods.Startup.DuckDBDisconnect(out handle);
-            return true;
-        }
+public class DuckDBNativeConnection : SafeHandleZeroOrMinusOneIsInvalid
+{
+    public DuckDBNativeConnection() : base(true)
+    {
     }
 
-    public class DuckDBPreparedStatement : SafeHandleZeroOrMinusOneIsInvalid
+    protected override bool ReleaseHandle()
     {
-        public DuckDBPreparedStatement() : base(true)
-        {
-        }
+        NativeMethods.Startup.DuckDBDisconnect(out handle);
+        return true;
+    }
+}
 
-        protected override bool ReleaseHandle()
-        {
-            NativeMethods.PreparedStatements.DuckDBDestroyPrepare(out handle);
-            return true;
-        }
+public class DuckDBPreparedStatement : SafeHandleZeroOrMinusOneIsInvalid
+{
+    public DuckDBPreparedStatement() : base(true)
+    {
     }
 
-    public class DuckDBConfig : SafeHandleZeroOrMinusOneIsInvalid
+    protected override bool ReleaseHandle()
     {
-        public DuckDBConfig() : base(true)
-        {
+        NativeMethods.PreparedStatements.DuckDBDestroyPrepare(out handle);
+        return true;
+    }
+}
 
-        }
+public class DuckDBConfig : SafeHandleZeroOrMinusOneIsInvalid
+{
+    public DuckDBConfig() : base(true)
+    {
 
-        protected override bool ReleaseHandle()
-        {
-            NativeMethods.Configure.DuckDBDestroyConfig(out handle);
-            return true;
-        }
     }
 
-    public class DuckDBAppender : SafeHandleZeroOrMinusOneIsInvalid
+    protected override bool ReleaseHandle()
     {
-        public DuckDBAppender() : base(true)
-        {
-        }
+        NativeMethods.Configure.DuckDBDestroyConfig(out handle);
+        return true;
+    }
+}
 
-        protected override bool ReleaseHandle()
-        {
-            return NativeMethods.Appender.DuckDBDestroyAppender(out handle) == DuckDBState.DuckDBSuccess;
-        }
+public class DuckDBAppender : SafeHandleZeroOrMinusOneIsInvalid
+{
+    public DuckDBAppender() : base(true)
+    {
     }
 
-    public class DuckDBExtractedStatements : SafeHandleZeroOrMinusOneIsInvalid
+    protected override bool ReleaseHandle()
     {
-        public DuckDBExtractedStatements() : base(true)
-        {
-        }
+        return NativeMethods.Appender.DuckDBDestroyAppender(out handle) == DuckDBState.DuckDBSuccess;
+    }
+}
 
-        protected override bool ReleaseHandle()
-        {
-            NativeMethods.ExtractStatements.DuckDBDestroyExtracted(out handle);
-
-            return true;
-        }
+public class DuckDBExtractedStatements : SafeHandleZeroOrMinusOneIsInvalid
+{
+    public DuckDBExtractedStatements() : base(true)
+    {
     }
 
-    public class DuckDBLogicalType : SafeHandleZeroOrMinusOneIsInvalid
+    protected override bool ReleaseHandle()
     {
-        public DuckDBLogicalType() : base(true)
-        {
-        }
+        NativeMethods.ExtractStatements.DuckDBDestroyExtracted(out handle);
 
-        protected override bool ReleaseHandle()
-        {
-            NativeMethods.LogicalType.DuckDBDestroyLogicalType(out handle);
-            return true;
-        }
+        return true;
+    }
+}
+
+public class DuckDBLogicalType : SafeHandleZeroOrMinusOneIsInvalid
+{
+    public DuckDBLogicalType() : base(true)
+    {
     }
 
-    public class DuckDBDataChunk : SafeHandleZeroOrMinusOneIsInvalid
+    protected override bool ReleaseHandle()
     {
-        public DuckDBDataChunk() : base(true)
-        {
-        }
+        NativeMethods.LogicalType.DuckDBDestroyLogicalType(out handle);
+        return true;
+    }
+}
 
-        protected override bool ReleaseHandle()
-        {
-            NativeMethods.DataChunks.DuckDBDestroyDataChunk(out handle);
-            return true;
-        }
+public class DuckDBDataChunk : SafeHandleZeroOrMinusOneIsInvalid
+{
+    public DuckDBDataChunk() : base(true)
+    {
+    }
+
+    protected override bool ReleaseHandle()
+    {
+        NativeMethods.DataChunks.DuckDBDestroyDataChunk(out handle);
+        return true;
     }
 }

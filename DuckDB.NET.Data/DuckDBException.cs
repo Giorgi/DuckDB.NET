@@ -1,25 +1,24 @@
 ﻿using System.Data.Common;
 using System.Runtime.Serialization;
 
-namespace DuckDB.NET.Data
+namespace DuckDB.NET.Data;
+
+public class DuckDBException : DbException
 {
-    public class DuckDBException : DbException
+    internal DuckDBException()
     {
-        internal DuckDBException()
-        {
-        }
+    }
 
-        internal DuckDBException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
-        }
+    internal DuckDBException(SerializationInfo info, StreamingContext context) : base(info, context)
+    {
+    }
 
-        internal DuckDBException(string message) : base(message)
-        {
-        }
+    internal DuckDBException(string message) : base(message)
+    {
+    }
 
-        internal DuckDBException(string message, DuckDBState state) : base(message, (int)state)
-        {
+    internal DuckDBException(string message, DuckDBState state) : base(message, (int)state)
+    {
 
-        }
     }
 }

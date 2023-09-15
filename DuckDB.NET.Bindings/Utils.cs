@@ -2,22 +2,22 @@
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace DuckDB.NET
+namespace DuckDB.NET;
+
+public static class Utils
 {
-    public static class Utils
+    internal const long UnixEpochTicks = 621355968000000000;
+
+    public static bool IsSuccess(this DuckDBState duckDBState)
     {
-        internal const long UnixEpochTicks = 621355968000000000;
+        return duckDBState == DuckDBState.DuckDBSuccess;
+    }
 
-        public static bool IsSuccess(this DuckDBState duckDBState)
-        {
-            return duckDBState == DuckDBState.DuckDBSuccess;
-        }
-
-        public static string ToManagedString(this IntPtr unmanagedString, bool freeWhenCopied = true, int? length = null)
-        {
-            string result;
+    public static string ToManagedString(this IntPtr unmanagedString, bool freeWhenCopied = true, int? length = null)
+    {
+        string result;
 #if NET6_0_OR_GREATER
-            result = length.HasValue? Marshal.PtrToStringUTF8(unmanagedString, length.Value) : Marshal.PtrToStringUTF8(unmanagedString);
+        result = length.HasValue? Marshal.PtrToStringUTF8(unmanagedString, length.Value) : Marshal.PtrToStringUTF8(unmanagedString);
 #else
             if (unmanagedString == IntPtr.Zero)
             {
@@ -45,20 +45,20 @@ namespace DuckDB.NET
 
             result = Encoding.UTF8.GetString(byteArray, 0, length.Value);
 #endif
-            if (freeWhenCopied)
-            {
-                NativeMethods.Helpers.DuckDBFree(unmanagedString);
-            }
-
-            return result;
+        if (freeWhenCopied)
+        {
+            NativeMethods.Helpers.DuckDBFree(unmanagedString);
         }
 
-        public static SafeUnmanagedMemoryHandle ToUnmanagedString(this string managedString)
-        {
-#if NET6_0_OR_GREATER
-            var pointer = Marshal.StringToCoTaskMemUTF8(managedString);
+        return result;
+    }
 
-            return new SafeUnmanagedMemoryHandle(pointer, true, false);
+    public static SafeUnmanagedMemoryHandle ToUnmanagedString(this string managedString)
+    {
+#if NET6_0_OR_GREATER
+        var pointer = Marshal.StringToCoTaskMemUTF8(managedString);
+
+        return new SafeUnmanagedMemoryHandle(pointer, true, false);
 #else
             if (managedString == null)
             {
@@ -75,25 +75,24 @@ namespace DuckDB.NET
 
             return new SafeUnmanagedMemoryHandle(nativeUtf8, true);
 #endif
-        }
-
-        internal static long GetTicks(int hour, int minute, int second, int microsecond = 0)
-        {
-            long seconds = (hour * 60 * 60) + (minute * 60) + (second);
-            return (seconds * 10_000_000) + (microsecond * 10);
-        }
-
-        internal static int GetMicrosecond(this TimeSpan timeSpan)
-        {
-            var ticks = timeSpan.Ticks - GetTicks(timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds);
-            return (int)(ticks / 10);
-        }
-#if NET6_0_OR_GREATER
-        internal static int GetMicrosecond(this TimeOnly timeOnly)
-        {
-            var ticks = timeOnly.Ticks - GetTicks(timeOnly.Hour, timeOnly.Minute, timeOnly.Second);
-            return (int)(ticks / 10);
-        }
-#endif
     }
+
+    internal static long GetTicks(int hour, int minute, int second, int microsecond = 0)
+    {
+        long seconds = (hour * 60 * 60) + (minute * 60) + (second);
+        return (seconds * 10_000_000) + (microsecond * 10);
+    }
+
+    internal static int GetMicrosecond(this TimeSpan timeSpan)
+    {
+        var ticks = timeSpan.Ticks - GetTicks(timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds);
+        return (int)(ticks / 10);
+    }
+#if NET6_0_OR_GREATER
+    internal static int GetMicrosecond(this TimeOnly timeOnly)
+    {
+        var ticks = timeOnly.Ticks - GetTicks(timeOnly.Hour, timeOnly.Minute, timeOnly.Second);
+        return (int)(ticks / 10);
+    }
+#endif
 }

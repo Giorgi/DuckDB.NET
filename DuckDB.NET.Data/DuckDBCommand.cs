@@ -4,123 +4,122 @@ using System.Data;
 using System.Data.Common;
 using System.Runtime.CompilerServices;
 
-namespace DuckDB.NET.Data
+namespace DuckDB.NET.Data;
+
+public class DuckDbCommand : DbCommand
 {
-    public class DuckDbCommand : DbCommand
+    private DuckDBConnection connection;
+    private readonly DuckDBParameterCollection parameters = new();
+
+    protected override DbTransaction DbTransaction { get; set; }
+    protected override DbParameterCollection DbParameterCollection => parameters;
+
+    public new virtual DuckDBParameterCollection Parameters => parameters;
+
+    public override int CommandTimeout { get; set; }
+    public override CommandType CommandType { get; set; }
+    public override bool DesignTimeVisible { get; set; }
+    public override UpdateRowSource UpdatedRowSource { get; set; }
+
+    public override string CommandText { get; set; }
+
+    protected override DbConnection DbConnection
     {
-        private DuckDBConnection connection;
-        private readonly DuckDBParameterCollection parameters = new();
+        get => connection;
+        set => connection = (DuckDBConnection)value;
+    }
 
-        protected override DbTransaction DbTransaction { get; set; }
-        protected override DbParameterCollection DbParameterCollection => parameters;
+    public DuckDbCommand()
+    {
+    }
 
-        public new virtual DuckDBParameterCollection Parameters => parameters;
+    public DuckDbCommand(string commandText)
+    {
+        CommandText = commandText;
+    }
 
-        public override int CommandTimeout { get; set; }
-        public override CommandType CommandType { get; set; }
-        public override bool DesignTimeVisible { get; set; }
-        public override UpdateRowSource UpdatedRowSource { get; set; }
+    public DuckDbCommand(string commandText, DuckDBConnection connection) : this(commandText)
+    {
+        Connection = connection;
+    }
 
-        public override string CommandText { get; set; }
+    public override void Cancel()
+    {
 
-        protected override DbConnection DbConnection
+    }
+
+    public override int ExecuteNonQuery()
+    {
+        EnsureConnectionOpen();
+
+        var (preparedStatements, results) = PreparedStatement.PrepareMultiple(connection.NativeConnection, CommandText, parameters);
+
+        var count = 0;
+
+        for (var index = 0; index < results.Count; index++)
         {
-            get => connection;
-            set => connection = (DuckDBConnection)value;
+            var result = results[index];
+            count += (int)NativeMethods.Query.DuckDBRowsChanged(ref result);
+
+            result.Dispose();
         }
 
-        public DuckDbCommand()
+        foreach (var statement in preparedStatements)
         {
+            statement.Dispose();
         }
 
-        public DuckDbCommand(string commandText)
+        return count;
+    }
+
+    public override object ExecuteScalar()
+    {
+        EnsureConnectionOpen();
+
+        using var reader = ExecuteReader();
+        return reader.Read() ? reader.GetValue(0) : null;
+    }
+
+    public new DuckDBDataReader ExecuteReader()
+    {
+        return (DuckDBDataReader)base.ExecuteReader();
+    }
+
+    public new DuckDBDataReader ExecuteReader(CommandBehavior behavior)
+    {
+        return (DuckDBDataReader)base.ExecuteReader(behavior);
+    }
+
+    protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
+    {
+        EnsureConnectionOpen();
+
+        var (preparedStatements, results) = PreparedStatement.PrepareMultiple(connection.NativeConnection, CommandText, parameters);
+
+        var reader = new DuckDBDataReader(this, results, behavior);
+
+        foreach (var statement in preparedStatements)
         {
-            CommandText = commandText;
+            statement.Dispose();
         }
 
-        public DuckDbCommand(string commandText, DuckDBConnection connection) : this(commandText)
-        {
-            Connection = connection;
-        }
+        return reader;
+    }
 
-        public override void Cancel()
-        {
+    public override void Prepare() { }
 
-        }
-
-        public override int ExecuteNonQuery()
-        {
-            EnsureConnectionOpen();
-
-            var (preparedStatements, results) = PreparedStatement.PrepareMultiple(connection.NativeConnection, CommandText, parameters);
-
-            var count = 0;
-
-            for (var index = 0; index < results.Count; index++)
-            {
-                var result = results[index];
-                count += (int)NativeMethods.Query.DuckDBRowsChanged(ref result);
-
-                result.Dispose();
-            }
-
-            foreach (var statement in preparedStatements)
-            {
-                statement.Dispose();
-            }
-
-            return count;
-        }
-
-        public override object ExecuteScalar()
-        {
-            EnsureConnectionOpen();
-
-            using var reader = ExecuteReader();
-            return reader.Read() ? reader.GetValue(0) : null;
-        }
-
-        public new DuckDBDataReader ExecuteReader()
-        {
-            return (DuckDBDataReader)base.ExecuteReader();
-        }
-
-        public new DuckDBDataReader ExecuteReader(CommandBehavior behavior)
-        {
-            return (DuckDBDataReader)base.ExecuteReader(behavior);
-        }
-
-        protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
-        {
-            EnsureConnectionOpen();
-
-            var (preparedStatements, results) = PreparedStatement.PrepareMultiple(connection.NativeConnection, CommandText, parameters);
-
-            var reader = new DuckDBDataReader(this, results, behavior);
-
-            foreach (var statement in preparedStatements)
-            {
-                statement.Dispose();
-            }
-
-            return reader;
-        }
-
-        public override void Prepare() { }
-
-        protected override DbParameter CreateDbParameter() => new DuckDBParameter();
+    protected override DbParameter CreateDbParameter() => new DuckDBParameter();
         
-        internal void CloseConnection()
-        {
-            Connection.Close();
-        }
+    internal void CloseConnection()
+    {
+        Connection.Close();
+    }
 
-        private void EnsureConnectionOpen([CallerMemberName] string operation = "")
+    private void EnsureConnectionOpen([CallerMemberName] string operation = "")
+    {
+        if (connection.State != ConnectionState.Open)
         {
-            if (connection.State != ConnectionState.Open)
-            {
-                throw new InvalidOperationException($"{operation} requires an open connection");
-            }
+            throw new InvalidOperationException($"{operation} requires an open connection");
         }
     }
 }
