@@ -52,7 +52,7 @@ jobs:
     - name: Run tests
       env:
         CoverletOutputFormat: lcov
-      run: dotnet test --configuration Release --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:BuildType=Full
+      run: dotnet test --configuration Release --verbosity normal --logger GitHubActions /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:BuildType=Full
 
     - name: Coveralls Parallel
       uses: coverallsapp/github-action@master
