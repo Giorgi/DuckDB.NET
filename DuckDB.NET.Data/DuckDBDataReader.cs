@@ -25,7 +25,7 @@ public class DuckDBDataReader : DbDataReader
     private int currentResultIndex;
 
     private int fieldCount;
-    private int recordsAffected;
+    private int recordsAffected = -1;
     private readonly Dictionary<int, IntPtr> vectors = new();
     private readonly Dictionary<int, IntPtr> vectorValidityMask = new();
 
@@ -158,14 +158,14 @@ public class DuckDBDataReader : DbDataReader
                     result = decimal.Divide(GetInt64(ordinal), pow);
                     break;
                 case DuckDBType.DuckdbTypeHugeInt:
-                {
-                    var hugeInt = GetBigInteger(ordinal);
+                    {
+                        var hugeInt = GetBigInteger(ordinal);
 
-                    result = (decimal)BigInteger.DivRem(hugeInt, (BigInteger)pow, out var remainder);
+                        result = (decimal)BigInteger.DivRem(hugeInt, (BigInteger)pow, out var remainder);
 
-                    result += decimal.Divide((decimal)remainder, pow);
-                    break;
-                }
+                        result += decimal.Divide((decimal)remainder, pow);
+                        break;
+                    }
             }
 
             return result;
@@ -439,7 +439,7 @@ public class DuckDBDataReader : DbDataReader
                 { "AllowDBNull", typeof(bool) }
             }
         };
-            
+
         var rowData = new object[5];
 
         for (var i = 0; i < FieldCount; i++)
