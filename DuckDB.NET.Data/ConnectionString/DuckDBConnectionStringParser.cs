@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 
 namespace DuckDB.NET.Data.ConnectionString;
@@ -39,9 +40,13 @@ internal static class DuckDBConnectionStringParser
 
     private static string GetDataSource(IReadOnlyDictionary<string, string> properties)
     {
+        var lowerCaseProperties = properties.ToDictionary(kv => kv.Value.ToLower(CultureInfo.InvariantCulture), kv => kv.Value);
+        
         foreach (var key in DuckDBConnectionStringBuilder.DataSourceKeys)
         {
-            if (properties.TryGetValue(key, out var dataSource))
+            var lowerKey = key.ToLower(CultureInfo.InvariantCulture);
+            
+            if (lowerCaseProperties.TryGetValue(lowerKey, out var dataSource))
             {
                 return dataSource;
             }
