@@ -40,7 +40,7 @@ internal static class DuckDBConnectionStringParser
 
     private static string GetDataSource(IReadOnlyDictionary<string, string> properties)
     {
-        var lowerCaseProperties = properties.ToDictionary(kv => kv.Value.ToLower(CultureInfo.InvariantCulture), kv => kv.Value);
+        var lowerCaseProperties = properties.ToDictionary(kv => kv.Key.ToLower(CultureInfo.InvariantCulture), kv => kv.Value);
         
         foreach (var key in DuckDBConnectionStringBuilder.DataSourceKeys)
         {
