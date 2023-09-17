@@ -10,7 +10,7 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
     public const string InMemorySharedDataSource = ":memory:?cache=shared";
     public const string InMemorySharedConnectionString = "DataSource=:memory:?cache=shared";
         
-    internal static readonly string[] DataSourceKeys = {"Data Source", "DataSource", "datasource"};
+    internal static readonly string[] DataSourceKeys = {"Data Source", "DataSource", "datasource", "data source"};
     private const string DataSourceKey = "DataSource";
 
     private string dataSource = null;
