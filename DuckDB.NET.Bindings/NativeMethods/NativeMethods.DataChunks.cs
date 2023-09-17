@@ -17,7 +17,7 @@ public partial class NativeMethods
         public static extern long DuckDBDataChunkGetSize(DuckDBDataChunk chunk);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_vector_get_column_type")]
-        public static extern IntPtr DuckDBVectorGetColumnType(IntPtr vector);
+        public static extern DuckDBLogicalType DuckDBVectorGetColumnType(IntPtr vector);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_vector_get_data")]
         public static extern IntPtr DuckDBVectorGetData(IntPtr vector);
