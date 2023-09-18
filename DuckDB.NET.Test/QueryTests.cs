@@ -41,6 +41,26 @@ public class QueryTests
             var columnCount = NativeMethods.Query.DuckDBColumnCount(ref queryResult);
             columnCount.Should().Be(2);
 
+            // Using Data Chunks API
+            var chunkCount = NativeMethods.Types.DuckDBResultChunkCount(queryResult);
+            chunkCount.Should().Be(1);
+
+            using var chunk = NativeMethods.Types.DuckDBResultGetChunk(queryResult, 0);
+            var columnCountInChunk = NativeMethods.DataChunks.DuckDBDataChunkGetColumnCount(chunk);
+            columnCountInChunk.Should().Be(2);
+            var chunkRowCount = NativeMethods.DataChunks.DuckDBDataChunkGetSize(chunk);
+            chunkRowCount.Should().Be(3);
+
+            var columnA = NativeMethods.DataChunks.DuckDBDataChunkGetVector(chunk, 0);
+            using var columnALogicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(columnA);
+            var columnAType = NativeMethods.LogicalType.DuckDBGetTypeId(columnALogicalType);
+            columnAType.Should().Be(DuckDBType.DuckdbTypeInteger);
+
+            var columnB = NativeMethods.DataChunks.DuckDBDataChunkGetVector(chunk, 1);
+            using var columnBLogicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(columnB);
+            var columnBType = NativeMethods.LogicalType.DuckDBGetTypeId(columnBLogicalType);
+            columnBType.Should().Be(DuckDBType.DuckdbTypeBoolean);
+
             NativeMethods.Query.DuckDBDestroyResult(ref queryResult);
         }
     }
