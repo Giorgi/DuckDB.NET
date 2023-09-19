@@ -53,10 +53,10 @@ public class DuckDBDataReaderTests
         connection.Open();
 
         var duckDbCommand = connection.CreateCommand();
-        duckDbCommand.CommandText = "CREATE TABLE IndexerValuesTests (key INTEGER, value decimal, State Boolean, ErrorCode Integer)";
+        duckDbCommand.CommandText = "CREATE TABLE IndexerValuesTests (key INTEGER, value decimal, State Boolean, ErrorCode Integer, mean Float, stdev double)";
         duckDbCommand.ExecuteNonQuery();
 
-        duckDbCommand.CommandText = "Insert Into IndexerValuesTests values (1, 2.4, true, null)";
+        duckDbCommand.CommandText = "Insert Into IndexerValuesTests values (1, 2.4, true, null, null, null)";
         duckDbCommand.ExecuteNonQuery();
 
         duckDbCommand.CommandText = "select * from IndexerValuesTests";
@@ -70,12 +70,14 @@ public class DuckDBDataReaderTests
         reader.GetValue(2).Should().Be(reader.GetBoolean(2));
         reader[3].Should().Be(DBNull.Value);
 
-        var values = new object[4];
+        var values = new object[6];
         reader.GetValues(values);
-        values.Should().BeEquivalentTo(new object[] { 1, 2.4, true, DBNull.Value });
+        values.Should().BeEquivalentTo(new object[] { 1, 2.4, true, DBNull.Value, DBNull.Value, DBNull.Value });
 
         reader.GetFieldType(1).Should().Be(typeof(decimal));
         reader.GetFieldType(2).Should().Be(typeof(bool));
+        reader.GetFieldType(4).Should().Be(typeof(float));
+        reader.GetFieldType(5).Should().Be(typeof(double));
     }
 
     [Fact]
