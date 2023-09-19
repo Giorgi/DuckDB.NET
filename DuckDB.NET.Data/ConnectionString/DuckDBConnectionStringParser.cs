@@ -11,7 +11,7 @@ internal static class DuckDBConnectionStringParser
         var properties = connectionString
             .Split(new[] {';'}, StringSplitOptions.RemoveEmptyEntries)
             .Select(pair => pair.Split(new[] {'='}, 2, StringSplitOptions.RemoveEmptyEntries))
-            .ToDictionary(pair => pair[0].Trim(), pair => pair[1].Trim());
+            .ToDictionary(pair => pair[0].Trim(), pair => pair[1].Trim(), StringComparer.InvariantCultureIgnoreCase);
 
         var dataSource = GetDataSource(properties);
             

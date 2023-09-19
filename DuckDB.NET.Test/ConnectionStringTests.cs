@@ -21,6 +21,9 @@ public class ConnectionStringTests
     [InlineData("Data Source    =:memory:")]
     [InlineData("DataSource=:Memory:")]
     [InlineData("Data Source=:Memory:")]
+    [InlineData("datasource=:memory:")]
+    [InlineData("data source=:memory:")]
+    [InlineData("daTa source=:memory:")]
     public void ExplicitConnectionStringTest(string connectionString)
     {
         using var connection = new DuckDBConnection(connectionString);
