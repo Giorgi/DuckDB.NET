@@ -233,24 +233,33 @@ public struct DuckDBInterval
         );
 }
 
-[StructLayout(LayoutKind.Explicit)]
-public struct DuckDBString
+public partial struct DuckDBString
 {
-    [FieldOffset(0)] public DuckDBStringPointer Pointer;
-    [FieldOffset(0)] public DuckDBStringInlined Inlined;
-}
+    public _value_e__Union value;
 
-[StructLayout(LayoutKind.Explicit)]
-public struct DuckDBStringPointer
-{
-    [FieldOffset(0)] public uint length;
-    [FieldOffset(4)] public IntPtr prefix;
-    [FieldOffset(8)] public IntPtr ptr;
-}
+    [StructLayout(LayoutKind.Explicit)]
+    public partial struct _value_e__Union
+    {
+        [FieldOffset(0)]
+        public DuckDBStringPointer pointer;
 
-[StructLayout(LayoutKind.Explicit)]
-public struct DuckDBStringInlined
-{
-    [FieldOffset(0)] public uint length;
-    [FieldOffset(4)] public IntPtr inlined;
+        [FieldOffset(0)]
+        public DuckDBStringInlined inlined;
+
+        public unsafe partial struct DuckDBStringPointer
+        {
+            public uint length;
+
+            public fixed sbyte prefix[4];
+
+            public sbyte* ptr;
+        }
+
+        public unsafe partial struct DuckDBStringInlined
+        {
+            public uint length;
+
+            public fixed sbyte inlined[12];
+        }
+    }
 }

@@ -1,18 +1,17 @@
 ﻿using System;
 using System.IO;
-using System.Runtime.InteropServices;
 
 namespace DuckDB.NET.Data;
 
 class DuckDBStream : Stream
 {
-    private readonly IntPtr data;
+    private readonly unsafe byte* ptr;
 
     private long position;
-
-    public DuckDBStream(IntPtr data, long length)
+    
+    public unsafe DuckDBStream(sbyte* data, int length)
     {
-        this.data = data;
+        ptr = (byte*)data;
         Length = length;
     }
 
@@ -25,17 +24,15 @@ class DuckDBStream : Stream
     {
         var bytesToRead = (int)Math.Min(count, Length - position);
 
-        if (bytesToRead > 0)
+        for (var i = 0; i < bytesToRead; i++)
         {
-            unchecked
+            unsafe
             {
-                var source = position <= int.MaxValue ? IntPtr.Add(data, (int)position) : new IntPtr(data.ToInt64() + position);
-
-                Marshal.Copy(source, buffer, offset, bytesToRead);
-
-                position += bytesToRead;
+                buffer[offset + i] = *(ptr + i + position);
             }
         }
+
+        position += bytesToRead;
         return bytesToRead;
     }
 

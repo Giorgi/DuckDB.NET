@@ -17,7 +17,7 @@ public static class Utils
     {
         string result;
 #if NET6_0_OR_GREATER
-        result = length.HasValue? Marshal.PtrToStringUTF8(unmanagedString, length.Value) : Marshal.PtrToStringUTF8(unmanagedString);
+        result = length.HasValue ? Marshal.PtrToStringUTF8(unmanagedString, length.Value) : Marshal.PtrToStringUTF8(unmanagedString);
 #else
             if (unmanagedString == IntPtr.Zero)
             {
@@ -88,6 +88,7 @@ public static class Utils
         var ticks = timeSpan.Ticks - GetTicks(timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds);
         return (int)(ticks / 10);
     }
+
 #if NET6_0_OR_GREATER
     internal static int GetMicrosecond(this TimeOnly timeOnly)
     {

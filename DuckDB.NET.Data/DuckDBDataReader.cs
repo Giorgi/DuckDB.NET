@@ -5,7 +5,7 @@ using System.Data;
 using System.Data.Common;
 using System.IO;
 using System.Numerics;
-using System.Runtime.InteropServices;
+using System.Text;
 
 namespace DuckDB.NET.Data;
 
@@ -26,8 +26,9 @@ public class DuckDBDataReader : DbDataReader
 
     private int fieldCount;
     private int recordsAffected = -1;
-    private readonly Dictionary<int, IntPtr> vectors = new();
-    private readonly Dictionary<int, IntPtr> vectorValidityMask = new();
+
+    private unsafe void*[] vectors;
+    private unsafe ulong*[] vectorValidityMask;
 
     private long chunkCount;
     private int currentChunkIndex;
@@ -62,35 +63,42 @@ public class DuckDBDataReader : DbDataReader
 
     private void InitChunkData()
     {
-        currentChunk?.Dispose();
-        currentChunk = NativeMethods.Types.DuckDBResultGetChunk(currentResult, currentChunkIndex);
-        currentChunkRowCount = NativeMethods.DataChunks.DuckDBDataChunkGetSize(currentChunk);
-
-        for (int i = 0; i < fieldCount; i++)
+        unsafe
         {
-            var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(currentChunk, i);
+            currentChunk?.Dispose();
+            currentChunk = NativeMethods.Types.DuckDBResultGetChunk(currentResult, currentChunkIndex);
+            currentChunkRowCount = NativeMethods.DataChunks.DuckDBDataChunkGetSize(currentChunk);
 
-            vectors[i] = NativeMethods.DataChunks.DuckDBVectorGetData(vector);
-            vectorValidityMask[i] = NativeMethods.DataChunks.DuckDBVectorGetValidity(vector);
+            vectors = new void*[fieldCount];
+            vectorValidityMask = new ulong*[fieldCount];
+
+            for (int i = 0; i < fieldCount; i++)
+            {
+                var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(currentChunk, i);
+
+                vectors[i] = NativeMethods.DataChunks.DuckDBVectorGetData(vector);
+                vectorValidityMask[i] = NativeMethods.DataChunks.DuckDBVectorGetValidity(vector);
+            }
         }
     }
 
-    public override bool GetBoolean(int ordinal)
+    public override unsafe bool GetBoolean(int ordinal)
     {
-        var data = vectors[ordinal];
-        return Marshal.ReadByte(data, (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<byte>()) != 0;
+        var data = (byte*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
+        var b = *data;
+        return b != 0;
     }
 
-    public override byte GetByte(int ordinal)
+    public override unsafe byte GetByte(int ordinal)
     {
-        var data = vectors[ordinal];
-        return Marshal.ReadByte(data, (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<byte>());
+        var data = (byte*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
+        return *data;
     }
 
-    private sbyte GetSByte(int ordinal)
+    private unsafe sbyte GetSByte(int ordinal)
     {
-        var data = vectors[ordinal];
-        return (sbyte)Marshal.ReadByte(data, (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<byte>());
+        var data = (sbyte*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
+        return *data;
     }
 
     public override long GetBytes(int ordinal, long dataOffset, byte[] buffer, int bufferOffset, int length)
@@ -113,25 +121,23 @@ public class DuckDBDataReader : DbDataReader
         return NativeMethods.Query.DuckDBColumnType(ref currentResult, ordinal).ToString();
     }
 
-    public override DateTime GetDateTime(int ordinal)
+    public override unsafe DateTime GetDateTime(int ordinal)
     {
-        var data = vectors[ordinal];
-        var timestampStruct = Marshal.PtrToStructure<DuckDBTimestampStruct>(data + (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<DuckDBTimestampStruct>());
-
-        return timestampStruct.ToDateTime();
+        var data = (DuckDBTimestampStruct*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
+        return data->ToDateTime();
     }
 
-    private DuckDBDateOnly GetDateOnly(int ordinal)
+    private unsafe DuckDBDateOnly GetDateOnly(int ordinal)
     {
-        var data = vectors[ordinal];
-        var date = Marshal.PtrToStructure<DuckDBDate>(data + (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<DuckDBDate>());
+        var data = (DuckDBDate*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
+        var date = *data;
         return NativeMethods.DateTime.DuckDBFromDate(date);
     }
 
-    private DuckDBTimeOnly GetTimeOnly(int ordinal)
+    private unsafe DuckDBTimeOnly GetTimeOnly(int ordinal)
     {
-        var data = vectors[ordinal];
-        var time = Marshal.PtrToStructure<DuckDBTime>(data + (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<DuckDBTime>());
+        var data = (DuckDBTime*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
+        var time = *data;
         return NativeMethods.DateTime.DuckDBFromTime(time);
     }
 
@@ -172,10 +178,10 @@ public class DuckDBDataReader : DbDataReader
         }
     }
 
-    public override double GetDouble(int ordinal)
+    public override unsafe double GetDouble(int ordinal)
     {
-        var data = vectors[ordinal];
-        return Marshal.PtrToStructure<double>(data + (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<double>());
+        var data = (double*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
+        return *data;
     }
 
     public override Type GetFieldType(int ordinal)
@@ -206,10 +212,10 @@ public class DuckDBDataReader : DbDataReader
         };
     }
 
-    public override float GetFloat(int ordinal)
+    public override unsafe float GetFloat(int ordinal)
     {
-        var data = vectors[ordinal];
-        return Marshal.PtrToStructure<float>(data + (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<float>());
+        var data = (float*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
+        return *data;
     }
 
     public override Guid GetGuid(int ordinal)
@@ -217,48 +223,46 @@ public class DuckDBDataReader : DbDataReader
         return new Guid(GetString(ordinal));
     }
 
-    public override short GetInt16(int ordinal)
+    public override unsafe short GetInt16(int ordinal)
     {
-        var data = vectors[ordinal];
-        return Marshal.ReadInt16(data, (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<short>());
+        var data = (short*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
+        return *data;
     }
 
-    public override int GetInt32(int ordinal)
+    public override unsafe int GetInt32(int ordinal)
     {
-        var data = vectors[ordinal];
-        return Marshal.ReadInt32(data, (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<int>());
+        var data = (int*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
+        return *data;
     }
 
-    public override long GetInt64(int ordinal)
+    public override unsafe long GetInt64(int ordinal)
     {
-        var data = vectors[ordinal];
-        return Marshal.ReadInt64(data, (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<long>());
+        var data = (long*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
+        return *data;
     }
 
-    private ushort GetUInt16(int ordinal)
+    private unsafe ushort GetUInt16(int ordinal)
     {
-        var data = vectors[ordinal];
-        return (ushort)Marshal.ReadInt32(data, (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<ushort>());
+        var data = (ushort*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
+        return *data;
     }
 
-    private uint GetUInt32(int ordinal)
+    private unsafe uint GetUInt32(int ordinal)
     {
-        var data = vectors[ordinal];
-        return (uint)Marshal.ReadInt32(data, (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<uint>());
+        var data = (uint*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
+        return *data;
     }
 
-    private ulong GetUInt64(int ordinal)
+    private unsafe ulong GetUInt64(int ordinal)
     {
-        var data = vectors[ordinal];
-        return (ulong)Marshal.ReadInt32(data, (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<ulong>());
+        var data = (ulong*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
+        return *data;
     }
 
-    private BigInteger GetBigInteger(int ordinal)
+    private unsafe BigInteger GetBigInteger(int ordinal)
     {
-        var data = vectors[ordinal];
-        var hugeInt = Marshal.PtrToStructure<DuckDBHugeInt>(data + (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<DuckDBHugeInt>());
-
-        return hugeInt.ToBigInteger();
+        var data = (DuckDBHugeInt*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
+        return data->ToBigInteger();
     }
 
     public override string GetName(int ordinal)
@@ -281,21 +285,17 @@ public class DuckDBDataReader : DbDataReader
         throw new DuckDBException($"Column with name {name} was not found.");
     }
 
-    public override string GetString(int ordinal)
+    public override unsafe string GetString(int ordinal)
     {
-        var data = vectors[ordinal] + (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<DuckDBString>();
+        var data = (DuckDBString*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
 
-        var length = Marshal.ReadInt32(data);
+        var length = *(int*)data;
 
-        if (length <= InlineStringMaxLength)
-        {
-            return (data + Marshal.SizeOf<int>()).ToManagedString(false, length);
-        }
-        else
-        {
-            var intPtr = Marshal.ReadIntPtr(data + Marshal.SizeOf<int>() * 2);
-            return intPtr.ToManagedString(false, length);
-        }
+        var pointer = length <= InlineStringMaxLength
+            ? data->value.inlined.inlined
+            : data->value.pointer.ptr;
+
+        return new string(pointer, 0, length, Encoding.UTF8);
     }
 
     public override object GetValue(int ordinal)
@@ -331,11 +331,10 @@ public class DuckDBDataReader : DbDataReader
         };
     }
 
-    private DuckDBInterval GetDuckDBInterval(int ordinal)
+    private unsafe DuckDBInterval GetDuckDBInterval(int ordinal)
     {
-        var data = vectors[ordinal];
-        var interval = Marshal.PtrToStructure<DuckDBInterval>(data + (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<DuckDBInterval>());
-        return interval;
+        var data = (DuckDBInterval*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
+        return *data;
     }
 
     public override int GetValues(object[] values)
@@ -348,28 +347,30 @@ public class DuckDBDataReader : DbDataReader
         return FieldCount;
     }
 
-    public override Stream GetStream(int ordinal)
+    public override unsafe Stream GetStream(int ordinal)
     {
-        var data = vectors[ordinal] + (rowsReadFromCurrentChunk - 1) * Marshal.SizeOf<DuckDBString>();
+        var data = (DuckDBString*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
 
-        var length = Marshal.ReadInt32(data);
+        var length = *(int*)data;
 
-        var blobPointer = length <= InlineStringMaxLength
-            ? data + Marshal.SizeOf<int>()
-            : Marshal.ReadIntPtr(data + Marshal.SizeOf<int>() * 2);
+        if (length <= InlineStringMaxLength)
+        {
+            var value = new string(data->value.inlined.inlined, 0, length, Encoding.UTF8);
+            return new MemoryStream(Encoding.UTF8.GetBytes(value), false);
+        }
 
-        return new DuckDBStream(blobPointer, length);
+        return new UnmanagedMemoryStream((byte*)data->value.pointer.ptr, length, length, FileAccess.Read);
     }
 
-    public override bool IsDBNull(int ordinal)
+    public override unsafe bool IsDBNull(int ordinal)
     {
         var validityMaskEntryIndex = (rowsReadFromCurrentChunk - 1) / 64;
         var validityBitIndex = (rowsReadFromCurrentChunk - 1) % 64;
 
-        var validityMaskEntryPtr = vectorValidityMask[ordinal] + validityMaskEntryIndex * Marshal.SizeOf<ulong>();
+        var validityMaskEntryPtr = vectorValidityMask[ordinal] + validityMaskEntryIndex;
         var validityBit = 1ul << validityBitIndex;
 
-        var isValid = (Marshal.PtrToStructure<ulong>(validityMaskEntryPtr) & validityBit) != 0;
+        var isValid = (*validityMaskEntryPtr & validityBit) != 0;
         return !isValid;
     }
 

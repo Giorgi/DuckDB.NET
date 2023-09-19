@@ -20,10 +20,10 @@ public partial class NativeMethods
         public static extern DuckDBLogicalType DuckDBVectorGetColumnType(IntPtr vector);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_vector_get_data")]
-        public static extern IntPtr DuckDBVectorGetData(IntPtr vector);
+        public static extern unsafe void* DuckDBVectorGetData(IntPtr vector);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_vector_get_validity")]
-        public static extern IntPtr DuckDBVectorGetValidity(IntPtr vector);
+        public static extern unsafe ulong* DuckDBVectorGetValidity(IntPtr vector);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_list_vector_get_child")]
         public static extern long DuckDBListVectorGetChild(IntPtr vector);
