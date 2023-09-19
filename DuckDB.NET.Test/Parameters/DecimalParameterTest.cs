@@ -78,6 +78,16 @@ public class DecimalParameterTests
             decimal.One/3, decimal.MinusOne/3
         }, 38, 28);
 
+        DecimalTests(new[]
+        {
+            0.3333M, 56.1234M
+        }, 8, 4);
+
+        DecimalTests(new[]
+        {
+            0.33M, 12.34M
+        }, 4, 2);
+
         void DecimalTests(decimal[] values, int precision, int scale)
         {
             command.CommandText = $"CREATE TABLE DecimalValuesTests (key INTEGER, value decimal({precision}, {scale}))";
