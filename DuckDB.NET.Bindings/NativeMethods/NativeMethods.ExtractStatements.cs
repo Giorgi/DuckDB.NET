@@ -10,6 +10,9 @@ public partial class NativeMethods
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_extract_statements")]
         public static extern int DuckDBExtractStatements(DuckDBNativeConnection connection, string query, out DuckDBExtractedStatements extractedStatements);
 
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_extract_statements")]
+        public static extern int DuckDBExtractStatements(DuckDBNativeConnection connection, SafeUnmanagedMemoryHandle query, out DuckDBExtractedStatements extractedStatements);
+
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_prepare_extracted_statement")]
         public static extern DuckDBState DuckDBPrepareExtractedStatement(DuckDBNativeConnection connection, DuckDBExtractedStatements extractedStatements, long index, out DuckDBPreparedStatement preparedStatement);
 

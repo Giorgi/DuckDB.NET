@@ -61,7 +61,9 @@ internal sealed class PreparedStatement : IDisposable
         var statements = new List<PreparedStatement>();
         var results = new List<DuckDBResult>();
 
-        var statementCount = NativeMethods.ExtractStatements.DuckDBExtractStatements(connection, query, out var extractedStatements);
+        using var unmanagedQuery = query.ToUnmanagedString();
+        
+        var statementCount = NativeMethods.ExtractStatements.DuckDBExtractStatements(connection, unmanagedQuery, out var extractedStatements);
         
         using (extractedStatements)
         {
