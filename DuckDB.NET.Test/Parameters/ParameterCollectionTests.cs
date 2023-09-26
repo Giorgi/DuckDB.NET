@@ -209,7 +209,7 @@ public class ParameterCollectionTests
         command.Parameters.Add(new DuckDBParameter("param1", 42));
         command.Parameters.Add(new DuckDBParameter("param2", "hello"));
         command.Invoking(cmd => cmd.ExecuteNonQuery())
-            .Should().ThrowExactly<DuckDBException>();
+            .Should().ThrowExactly<InvalidOperationException>();
     }
 
     [Theory]
