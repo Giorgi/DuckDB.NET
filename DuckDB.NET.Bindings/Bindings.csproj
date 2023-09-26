@@ -4,8 +4,8 @@
     <Description>DuckDB Bindings for C#.</Description>
     <PackageReleaseNotes>Added binding for extract statements api.</PackageReleaseNotes>
     <RootNamespace>DuckDB.NET</RootNamespace>
-    <RuntimeIdentifiers>win-x86;win-x64;linux-x64;linux-arm64;osx</RuntimeIdentifiers>
-    <DuckDbArtifactRoot>https://github.com/duckdb/duckdb/releases/download/v0.8.1</DuckDbArtifactRoot>
+    <RuntimeIdentifiers>win-x64;linux-x64;linux-arm64;osx</RuntimeIdentifiers>
+    <DuckDbArtifactRoot>https://github.com/duckdb/duckdb/releases/download/v0.9.0</DuckDbArtifactRoot>
 	<SignAssembly>True</SignAssembly>
 	<AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
 	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -17,7 +17,6 @@
   
   <!-- Download and include the native libraries into the nuget package-->
   <Target Name="DownloadNativeLibs" BeforeTargets="GenerateAdditionalSources" Condition="'$(BuildType)' == 'Full' ">
-    <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=win-x86;LibUrl=$(DuckDbArtifactRoot)/libduckdb-windows-i386.zip" />
     <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=win-x64;LibUrl=$(DuckDbArtifactRoot)/libduckdb-windows-amd64.zip" />
     <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=linux-x64;LibUrl=$(DuckDbArtifactRoot)/libduckdb-linux-amd64.zip" />
     <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=linux-arm64;LibUrl=$(DuckDbArtifactRoot)/libduckdb-linux-aarch64.zip" />
