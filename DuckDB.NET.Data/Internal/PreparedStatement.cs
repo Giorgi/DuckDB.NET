@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
+using System.Linq;
 using System.Numerics;
 using System.Runtime.ExceptionServices;
 using DuckDB.NET.Data.Extensions;
@@ -146,10 +147,28 @@ internal sealed class PreparedStatement : IDisposable
             throw new InvalidOperationException($"Invalid number of parameters. Expected {expectedParameters}, got {parameterCollection.Count}");
         }
 
-        for (var i = 0; i < parameterCollection.Count; ++i)
+        if (parameterCollection.OfType<DuckDBParameter>().Any(p => !string.IsNullOrEmpty(p.ParameterName)))
         {
-            var param = parameterCollection[i];
-            BindParameter(preparedStatement, i + 1, param);
+            foreach (DuckDBParameter param in parameterCollection)
+            {
+                var state = NativeMethods.PreparedStatements.DuckDBBindParameterIndex(preparedStatement, out var index, param.ParameterName);
+                if (state.IsSuccess())
+                {
+                    BindParameter(preparedStatement, index, param);
+                }
+                else
+                {
+                    throw new InvalidOperationException($"Cannot get parameter '{param.ParameterName}' index.");
+                }
+            }
+        }
+        else
+        {
+            for (var i = 0; i < parameterCollection.Count; ++i)
+            {
+                var param = parameterCollection[i];
+                BindParameter(preparedStatement, i + 1, param);
+            }
         }
     }
 

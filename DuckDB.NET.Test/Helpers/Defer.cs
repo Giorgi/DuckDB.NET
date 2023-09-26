@@ -11,10 +11,8 @@ internal sealed class Defer : IDisposable
 
     public Defer(Action action)
     {
-        AddAction(action);
+        actions.Push(action);
     }
-    
-    public void AddAction(Action action) => actions.Push(action);
 
     public void Dispose()
     {

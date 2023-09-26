@@ -22,6 +22,9 @@ public partial class NativeMethods
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_nparams")]
         public static extern long DuckDBParams(DuckDBPreparedStatement preparedStatement);
 
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_parameter_index")]
+        public static extern DuckDBState DuckDBBindParameterIndex(DuckDBPreparedStatement preparedStatement, out int index, string name);
+
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_boolean")]
         public static extern DuckDBState DuckDBBindBoolean(DuckDBPreparedStatement preparedStatement, long index, bool val);
 
