@@ -16,7 +16,7 @@
 
 ![Project Icon](https://raw.githubusercontent.com/Giorgi/DuckDB.NET/main/Logo.jpg "DuckDB.NET Project Icon")
 
-Note: The library is in early stage and contributions are more than wellcome.
+Note: The library is in the early stage and contributions are more than welcome.
 
 ## Usage
 
@@ -26,7 +26,7 @@ If you encounter a bug with the library [Create an Issue](https://github.com/Gio
 ### Getting Started
 There are two ways to work with DuckDB from C#: You can use ADO.NET Provider or use low-level bindings library for DuckDB. The ADO.NET Provider is built on top of the low-level library and is the recommended and most straightforward approach to work with DuckDB.
 
-In both cases, there are two NuGet packages available: The Full package that includes DuckDB native library and a managed-only library that doesn't include a native library.
+In both cases, there are two NuGet packages available: The Full package that includes the DuckDB native library and a managed-only library that doesn't include a native library.
 
 |  | ADO.NET Provider | Includes DuckDB library |
 |---|---|---|
@@ -114,13 +114,26 @@ using (var appender = connection.CreateAppender("managedAppenderTest"))
 
 #### Parameterized queries and DuckDB native types.
 
-Starting from version 0.4.0.10, DuckDB.NET.Data supports executing parameterized queries and reading all built-in native duckdb types:
+Starting from version 0.4.0.10, DuckDB.NET.Data supports executing parameterized queries and reading all built-in native DuckDB types. Starting from version 0.9.0 the library supports named parameters too:
 
 ```cs
 using var connection = new DuckDBConnection("DataSource=:memory:");
 connection.Open();
 
 var command = connection.CreateCommand();
+
+//Named parameters
+command.CommandText = "INSERT INTO ParametersTestKeyValue (KEY, VALUE) VALUES ($key, $value)";
+command.Parameters.Add(new DuckDBParameter("key", 42));
+command.Parameters.Add(new DuckDBParameter("value", "hello"));
+var affectedRows = command.ExecuteNonQuery();
+
+//Positional parameters
+command.CommandText = "INSERT INTO ParametersTestKeyValue (KEY, VALUE) VALUES (?, ?)";
+command.Parameters.Add(new DuckDBParameter(24));
+command.Parameters.Add(new DuckDBParameter("world"));
+affectedRows = command.ExecuteNonQuery();
+
 command.CommandText = "SELECT * from integers where foo > ?;";
 command.Parameters.Add(new new DuckDBParameter(3));
 
@@ -175,11 +188,11 @@ var item = duckDBConnection.Query<FooBar>("SELECT foo, bar FROM integers");
 
 ### In-Memory database
 
-For in-memory database use `Data Source=:memory:` connection string. When using in-memory database no data is persisted on disk. Every in-memory connection results in a new, isolated database so tables created
-inside one in-memory connection aren't visible to another in-memory connection. If you want to create shared in-memory database, you can use `DataSource=:memory:?cache=shared` connection string. Both connection strings
+For an in-memory database use `Data Source=:memory:` connection string. When using an in-memory database no data is persisted on disk. Every in-memory connection results in a new, isolated database so tables created
+inside one in-memory connection aren't visible to another in-memory connection. If you want to create a shared in-memory database, you can use `DataSource=:memory:?cache=shared` connection string. Both connection strings
 are exposed by the library as `DuckDBConnectionStringBuilder.InMemoryDataSource` and `DuckDBConnectionStringBuilder.InMemorySharedDataSource` respectively.
 
-### Use low level bindings library
+### Use low-level bindings library
 
 ```sh
 dotnet add package DuckDB.NET.Bindings.Full
