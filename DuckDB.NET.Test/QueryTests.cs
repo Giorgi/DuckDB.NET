@@ -9,21 +9,21 @@ public class QueryTests
     public void QueryTest()
     {
         var result = NativeMethods.Startup.DuckDBOpen(null, out var database);
-        result.Should().Be(DuckDBState.DuckDBSuccess);
+        result.Should().Be(DuckDBState.Success);
 
         result = NativeMethods.Startup.DuckDBConnect(database, out var connection);
-        result.Should().Be(DuckDBState.DuckDBSuccess);
+        result.Should().Be(DuckDBState.Success);
 
         using (database)
         using (connection)
         {
             var table = "CREATE TABLE queryTest(a INTEGER, b BOOLEAN);";
             result = NativeMethods.Query.DuckDBQuery(connection, table.ToUnmanagedString(), out _);
-            result.Should().Be(DuckDBState.DuckDBSuccess);
+            result.Should().Be(DuckDBState.Success);
 
             var insert = "INSERT INTO queryTest VALUES (1, TRUE), (2, FALSE), (3, TRUE);";
             result = NativeMethods.Query.DuckDBQuery(connection, insert.ToUnmanagedString(), out var queryResult);
-            result.Should().Be(DuckDBState.DuckDBSuccess);
+            result.Should().Be(DuckDBState.Success);
 
             var rowsChanged = NativeMethods.Query.DuckDBRowsChanged(ref queryResult);
             rowsChanged.Should().Be(3);
@@ -33,7 +33,7 @@ public class QueryTests
 
             var query = "SELECT * FROM queryTest;";
             result = NativeMethods.Query.DuckDBQuery(connection, query.ToUnmanagedString(), out queryResult);
-            result.Should().Be(DuckDBState.DuckDBSuccess);
+            result.Should().Be(DuckDBState.Success);
 
             var rowCount = NativeMethods.Query.DuckDBRowCount(ref queryResult);
             rowCount.Should().Be(3);
@@ -54,12 +54,12 @@ public class QueryTests
             var columnA = NativeMethods.DataChunks.DuckDBDataChunkGetVector(chunk, 0);
             using var columnALogicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(columnA);
             var columnAType = NativeMethods.LogicalType.DuckDBGetTypeId(columnALogicalType);
-            columnAType.Should().Be(DuckDBType.DuckdbTypeInteger);
+            columnAType.Should().Be(DuckDBType.Integer);
 
             var columnB = NativeMethods.DataChunks.DuckDBDataChunkGetVector(chunk, 1);
             using var columnBLogicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(columnB);
             var columnBType = NativeMethods.LogicalType.DuckDBGetTypeId(columnBLogicalType);
-            columnBType.Should().Be(DuckDBType.DuckdbTypeBoolean);
+            columnBType.Should().Be(DuckDBType.Boolean);
 
             NativeMethods.Query.DuckDBDestroyResult(ref queryResult);
         }

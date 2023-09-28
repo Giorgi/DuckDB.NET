@@ -8,50 +8,50 @@ namespace DuckDB.NET;
 
 public enum DuckDBState
 {
-    DuckDBSuccess = 0,
-    DuckDBError = 1
+    Success = 0,
+    Error = 1
 }
 
 public enum DuckDBType
 {
-    DuckdbTypeInvalid = 0,
+    Invalid = 0,
     // bool
-    DuckdbTypeBoolean,
+    Boolean,
     // int8_t
-    DuckdbTypeTinyInt,
+    TinyInt,
     // int16_t
-    DuckdbTypeSmallInt,
+    SmallInt,
     // int32_t
-    DuckdbTypeInteger,
+    Integer,
     // int64_t
-    DuckdbTypeBigInt,
+    BigInt,
     // uint8_t
-    DuckdbTypeUnsignedTinyInt,
+    UnsignedTinyInt,
     // uint16_t
-    DuckdbTypeUnsignedSmallInt,
+    UnsignedSmallInt,
     // uint32_t
-    DuckdbTypeUnsignedInteger,
+    UnsignedInteger,
     // uint64_t
-    DuckdbTypeUnsignedBigInt,
+    UnsignedBigInt,
     // float
-    DuckdbTypeFloat,
+    Float,
     // double
-    DuckdbTypeDouble,
+    Double,
     // duckdb_timestamp
-    DuckdbTypeTimestamp,
+    Timestamp,
     // duckdb_date
-    DuckdbTypeDate,
+    Date,
     // duckdb_time
-    DuckdbTypeTime,
+    Time,
     // duckdb_interval
-    DuckdbTypeInterval,
+    Interval,
     // duckdb_hugeint
-    DuckdbTypeHugeInt,
+    HugeInt,
     // const char*
-    DuckdbTypeVarchar,
+    Varchar,
     // duckdb_blob
-    DuckdbTypeBlob,
-    DuckdbTypeDecimal,
+    Blob,
+    Decimal,
 }
 
 [StructLayout(LayoutKind.Sequential)]

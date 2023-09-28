@@ -143,39 +143,37 @@ public class DuckDBDataReader : DbDataReader
 
     public override decimal GetDecimal(int ordinal)
     {
-        using (var logicalType = NativeMethods.Query.DuckDBColumnLogicalType(ref currentResult, ordinal))
+        using var logicalType = NativeMethods.Query.DuckDBColumnLogicalType(ref currentResult, ordinal);
+        var scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
+        var internalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
+
+        decimal result = 0;
+
+        var pow = (decimal)Math.Pow(10, scale);
+
+        switch (internalType)
         {
-            var scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
-            var internalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
-
-            decimal result = 0;
-
-            var pow = (decimal)Math.Pow(10, scale);
-
-            switch (internalType)
+            case DuckDBType.SmallInt:
+                result = decimal.Divide(GetInt16(ordinal), pow);
+                break;
+            case DuckDBType.Integer:
+                result = decimal.Divide(GetInt32(ordinal), pow);
+                break;
+            case DuckDBType.BigInt:
+                result = decimal.Divide(GetInt64(ordinal), pow);
+                break;
+            case DuckDBType.HugeInt:
             {
-                case DuckDBType.DuckdbTypeSmallInt:
-                    result = decimal.Divide(GetInt16(ordinal), pow);
-                    break;
-                case DuckDBType.DuckdbTypeInteger:
-                    result = decimal.Divide(GetInt32(ordinal), pow);
-                    break;
-                case DuckDBType.DuckdbTypeBigInt:
-                    result = decimal.Divide(GetInt64(ordinal), pow);
-                    break;
-                case DuckDBType.DuckdbTypeHugeInt:
-                    {
-                        var hugeInt = GetBigInteger(ordinal);
+                var hugeInt = GetBigInteger(ordinal);
 
-                        result = (decimal)BigInteger.DivRem(hugeInt, (BigInteger)pow, out var remainder);
+                result = (decimal)BigInteger.DivRem(hugeInt, (BigInteger)pow, out var remainder);
 
-                        result += decimal.Divide((decimal)remainder, pow);
-                        break;
-                    }
+                result += decimal.Divide((decimal)remainder, pow);
+                break;
             }
-
-            return result;
         }
+
+        return result;
     }
 
     public override unsafe double GetDouble(int ordinal)
@@ -188,26 +186,26 @@ public class DuckDBDataReader : DbDataReader
     {
         return NativeMethods.Query.DuckDBColumnType(ref currentResult, ordinal) switch
         {
-            DuckDBType.DuckdbTypeInvalid => throw new DuckDBException("Invalid type"),
-            DuckDBType.DuckdbTypeBoolean => typeof(bool),
-            DuckDBType.DuckdbTypeTinyInt => typeof(sbyte),
-            DuckDBType.DuckdbTypeSmallInt => typeof(short),
-            DuckDBType.DuckdbTypeInteger => typeof(int),
-            DuckDBType.DuckdbTypeBigInt => typeof(long),
-            DuckDBType.DuckdbTypeUnsignedTinyInt => typeof(byte),
-            DuckDBType.DuckdbTypeUnsignedSmallInt => typeof(ushort),
-            DuckDBType.DuckdbTypeUnsignedInteger => typeof(uint),
-            DuckDBType.DuckdbTypeUnsignedBigInt => typeof(ulong),
-            DuckDBType.DuckdbTypeFloat => typeof(float),
-            DuckDBType.DuckdbTypeDouble => typeof(double),
-            DuckDBType.DuckdbTypeTimestamp => typeof(DateTime),
-            DuckDBType.DuckdbTypeInterval => typeof(DuckDBInterval),
-            DuckDBType.DuckdbTypeDate => typeof(DuckDBDateOnly),
-            DuckDBType.DuckdbTypeTime => typeof(DuckDBTimeOnly),
-            DuckDBType.DuckdbTypeHugeInt => typeof(BigInteger),
-            DuckDBType.DuckdbTypeVarchar => typeof(string),
-            DuckDBType.DuckdbTypeDecimal => typeof(decimal),
-            DuckDBType.DuckdbTypeBlob => typeof(Stream),
+            DuckDBType.Invalid => throw new DuckDBException("Invalid type"),
+            DuckDBType.Boolean => typeof(bool),
+            DuckDBType.TinyInt => typeof(sbyte),
+            DuckDBType.SmallInt => typeof(short),
+            DuckDBType.Integer => typeof(int),
+            DuckDBType.BigInt => typeof(long),
+            DuckDBType.UnsignedTinyInt => typeof(byte),
+            DuckDBType.UnsignedSmallInt => typeof(ushort),
+            DuckDBType.UnsignedInteger => typeof(uint),
+            DuckDBType.UnsignedBigInt => typeof(ulong),
+            DuckDBType.Float => typeof(float),
+            DuckDBType.Double => typeof(double),
+            DuckDBType.Timestamp => typeof(DateTime),
+            DuckDBType.Interval => typeof(DuckDBInterval),
+            DuckDBType.Date => typeof(DuckDBDateOnly),
+            DuckDBType.Time => typeof(DuckDBTimeOnly),
+            DuckDBType.HugeInt => typeof(BigInteger),
+            DuckDBType.Varchar => typeof(string),
+            DuckDBType.Decimal => typeof(decimal),
+            DuckDBType.Blob => typeof(Stream),
             var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type}) in column {ordinal + 1}")
         };
     }
@@ -307,26 +305,26 @@ public class DuckDBDataReader : DbDataReader
 
         return NativeMethods.Query.DuckDBColumnType(ref currentResult, ordinal) switch
         {
-            DuckDBType.DuckdbTypeInvalid => throw new DuckDBException("Invalid type"),
-            DuckDBType.DuckdbTypeBoolean => GetBoolean(ordinal),
-            DuckDBType.DuckdbTypeTinyInt => GetSByte(ordinal),
-            DuckDBType.DuckdbTypeSmallInt => GetInt16(ordinal),
-            DuckDBType.DuckdbTypeInteger => GetInt32(ordinal),
-            DuckDBType.DuckdbTypeBigInt => GetInt64(ordinal),
-            DuckDBType.DuckdbTypeUnsignedTinyInt => GetByte(ordinal),
-            DuckDBType.DuckdbTypeUnsignedSmallInt => GetUInt16(ordinal),
-            DuckDBType.DuckdbTypeUnsignedInteger => GetUInt32(ordinal),
-            DuckDBType.DuckdbTypeUnsignedBigInt => GetUInt64(ordinal),
-            DuckDBType.DuckdbTypeFloat => GetFloat(ordinal),
-            DuckDBType.DuckdbTypeDouble => GetDouble(ordinal),
-            DuckDBType.DuckdbTypeTimestamp => GetDateTime(ordinal),
-            DuckDBType.DuckdbTypeInterval => GetDuckDBInterval(ordinal),
-            DuckDBType.DuckdbTypeDate => GetDateOnly(ordinal),
-            DuckDBType.DuckdbTypeTime => GetTimeOnly(ordinal),
-            DuckDBType.DuckdbTypeHugeInt => GetBigInteger(ordinal),
-            DuckDBType.DuckdbTypeVarchar => GetString(ordinal),
-            DuckDBType.DuckdbTypeDecimal => GetDecimal(ordinal),
-            DuckDBType.DuckdbTypeBlob => GetStream(ordinal),
+            DuckDBType.Invalid => throw new DuckDBException("Invalid type"),
+            DuckDBType.Boolean => GetBoolean(ordinal),
+            DuckDBType.TinyInt => GetSByte(ordinal),
+            DuckDBType.SmallInt => GetInt16(ordinal),
+            DuckDBType.Integer => GetInt32(ordinal),
+            DuckDBType.BigInt => GetInt64(ordinal),
+            DuckDBType.UnsignedTinyInt => GetByte(ordinal),
+            DuckDBType.UnsignedSmallInt => GetUInt16(ordinal),
+            DuckDBType.UnsignedInteger => GetUInt32(ordinal),
+            DuckDBType.UnsignedBigInt => GetUInt64(ordinal),
+            DuckDBType.Float => GetFloat(ordinal),
+            DuckDBType.Double => GetDouble(ordinal),
+            DuckDBType.Timestamp => GetDateTime(ordinal),
+            DuckDBType.Interval => GetDuckDBInterval(ordinal),
+            DuckDBType.Date => GetDateOnly(ordinal),
+            DuckDBType.Time => GetTimeOnly(ordinal),
+            DuckDBType.HugeInt => GetBigInteger(ordinal),
+            DuckDBType.Varchar => GetString(ordinal),
+            DuckDBType.Decimal => GetDecimal(ordinal),
+            DuckDBType.Blob => GetStream(ordinal),
             var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type}) in column {ordinal + 1}")
         };
     }

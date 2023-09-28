@@ -9,20 +9,20 @@ public class DuckDBAppenderTests
     public void AppenderTests()
     {
         var result = NativeMethods.Startup.DuckDBOpen(null, out var database);
-        result.Should().Be(DuckDBState.DuckDBSuccess);
+        result.Should().Be(DuckDBState.Success);
 
         result = NativeMethods.Startup.DuckDBConnect(database, out var connection);
-        result.Should().Be(DuckDBState.DuckDBSuccess);
+        result.Should().Be(DuckDBState.Success);
 
         using (database)
         using (connection)
         {
             var table = "CREATE TABLE appenderTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR);";
             result = NativeMethods.Query.DuckDBQuery(connection, table.ToUnmanagedString(), out var queryResult);
-            result.Should().Be(DuckDBState.DuckDBSuccess);
+            result.Should().Be(DuckDBState.Success);
 
             result = NativeMethods.Appender.DuckDBAppenderCreate(connection, null, "appenderTest", out var appender);
-            result.Should().Be(DuckDBState.DuckDBSuccess);
+            result.Should().Be(DuckDBState.Success);
 
             var rows = 10;
             using (appender)
@@ -47,7 +47,7 @@ public class DuckDBAppenderTests
 
             var query = "SELECT * FROM appenderTest";
             result = NativeMethods.Query.DuckDBQuery(connection, query.ToUnmanagedString(), out queryResult);
-            result.Should().Be(DuckDBState.DuckDBSuccess);
+            result.Should().Be(DuckDBState.Success);
 
             var rowCount = NativeMethods.Query.DuckDBRowCount(ref queryResult);
             rowCount.Should().Be(rows);

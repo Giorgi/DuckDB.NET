@@ -119,7 +119,7 @@ public class DuckDBConnection : DbConnection
     public DuckDBAppender CreateAppender(string schema, string table)
     {
         EnsureConnectionOpen();
-        if (NativeMethods.Appender.DuckDBAppenderCreate(NativeConnection, schema, table, out var nativeAppender) == DuckDBState.DuckDBError)
+        if (NativeMethods.Appender.DuckDBAppenderCreate(NativeConnection, schema, table, out var nativeAppender) == DuckDBState.Error)
         {
             try
             {

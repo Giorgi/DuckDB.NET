@@ -10,7 +10,7 @@ public static class Utils
 
     public static bool IsSuccess(this DuckDBState duckDBState)
     {
-        return duckDBState == DuckDBState.DuckDBSuccess;
+        return duckDBState == DuckDBState.Success;
     }
 
     public static string ToManagedString(this IntPtr unmanagedString, bool freeWhenCopied = true, int? length = null)
