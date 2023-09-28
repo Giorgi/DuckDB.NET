@@ -82,23 +82,25 @@ public class DuckDBDataReader : DbDataReader
         }
     }
 
-    public override unsafe bool GetBoolean(int ordinal)
+    private unsafe T GetFieldData<T>(int ordinal) where T: unmanaged
     {
-        var data = (byte*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
-        var b = *data;
-        return b != 0;
-    }
-
-    public override unsafe byte GetByte(int ordinal)
-    {
-        var data = (byte*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
+        var data = (T*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
         return *data;
     }
 
-    private unsafe sbyte GetSByte(int ordinal)
+    public override bool GetBoolean(int ordinal)
     {
-        var data = (sbyte*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
-        return *data;
+        return GetByte(ordinal) != 0;
+    }
+
+    public override byte GetByte(int ordinal)
+    {
+        return GetFieldData<byte>(ordinal);
+    }
+
+    private sbyte GetSByte(int ordinal)
+    {
+        return GetFieldData<sbyte>(ordinal);
     }
 
     public override long GetBytes(int ordinal, long dataOffset, byte[] buffer, int bufferOffset, int length)
@@ -127,17 +129,15 @@ public class DuckDBDataReader : DbDataReader
         return data->ToDateTime();
     }
 
-    private unsafe DuckDBDateOnly GetDateOnly(int ordinal)
+    private DuckDBDateOnly GetDateOnly(int ordinal)
     {
-        var data = (DuckDBDate*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
-        var date = *data;
+        var date = GetFieldData<DuckDBDate>(ordinal);
         return NativeMethods.DateTime.DuckDBFromDate(date);
     }
 
-    private unsafe DuckDBTimeOnly GetTimeOnly(int ordinal)
+    private DuckDBTimeOnly GetTimeOnly(int ordinal)
     {
-        var data = (DuckDBTime*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
-        var time = *data;
+        var time = GetFieldData<DuckDBTime>(ordinal);
         return NativeMethods.DateTime.DuckDBFromTime(time);
     }
 
@@ -176,10 +176,9 @@ public class DuckDBDataReader : DbDataReader
         return result;
     }
 
-    public override unsafe double GetDouble(int ordinal)
+    public override double GetDouble(int ordinal)
     {
-        var data = (double*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
-        return *data;
+        return GetFieldData<double>(ordinal);
     }
 
     public override Type GetFieldType(int ordinal)
@@ -210,10 +209,9 @@ public class DuckDBDataReader : DbDataReader
         };
     }
 
-    public override unsafe float GetFloat(int ordinal)
+    public override float GetFloat(int ordinal)
     {
-        var data = (float*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
-        return *data;
+        return GetFieldData<float>(ordinal);
     }
 
     public override Guid GetGuid(int ordinal)
@@ -221,40 +219,34 @@ public class DuckDBDataReader : DbDataReader
         return new Guid(GetString(ordinal));
     }
 
-    public override unsafe short GetInt16(int ordinal)
+    public override short GetInt16(int ordinal)
     {
-        var data = (short*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
-        return *data;
+        return GetFieldData<short>(ordinal);
     }
 
-    public override unsafe int GetInt32(int ordinal)
+    public override int GetInt32(int ordinal)
     {
-        var data = (int*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
-        return *data;
+        return GetFieldData<int>(ordinal);
     }
 
-    public override unsafe long GetInt64(int ordinal)
+    public override long GetInt64(int ordinal)
     {
-        var data = (long*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
-        return *data;
+        return GetFieldData<long>(ordinal);
     }
 
-    private unsafe ushort GetUInt16(int ordinal)
+    private ushort GetUInt16(int ordinal)
     {
-        var data = (ushort*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
-        return *data;
+        return GetFieldData<ushort>(ordinal);
     }
 
-    private unsafe uint GetUInt32(int ordinal)
+    private uint GetUInt32(int ordinal)
     {
-        var data = (uint*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
-        return *data;
+        return GetFieldData<uint>(ordinal);
     }
 
-    private unsafe ulong GetUInt64(int ordinal)
+    private ulong GetUInt64(int ordinal)
     {
-        var data = (ulong*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
-        return *data;
+        return GetFieldData<ulong>(ordinal);
     }
 
     private unsafe BigInteger GetBigInteger(int ordinal)
@@ -329,10 +321,9 @@ public class DuckDBDataReader : DbDataReader
         };
     }
 
-    private unsafe DuckDBInterval GetDuckDBInterval(int ordinal)
+    private DuckDBInterval GetDuckDBInterval(int ordinal)
     {
-        var data = (DuckDBInterval*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
-        return *data;
+        return GetFieldData<DuckDBInterval>(ordinal);
     }
 
     public override int GetValues(object[] values)
