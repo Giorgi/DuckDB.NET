@@ -113,7 +113,7 @@ public class DuckDBDataReaderTests
         var reader = duckDbCommand.ExecuteReader();
         reader.Read();
         reader.GetFieldType(0).Should().Be(typeof(DuckDBInterval));
-        reader.GetDataTypeName(0).Should().Be("DuckdbTypeInterval");
+        reader.GetDataTypeName(0).Should().Be(DuckDBType.Interval.ToString());
 
         var interval = reader.GetFieldValue<DuckDBInterval>(0);
 
