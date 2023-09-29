@@ -130,6 +130,12 @@ public partial class NativeMethods
 #if NET5_0_OR_GREATER
         [SuppressGCTransition]
 #endif
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_append_varchar_length")]
+        public static extern DuckDBState DuckDBAppendVarchar(DuckDBAppender appender, SafeUnmanagedMemoryHandle val, int length);
+
+#if NET5_0_OR_GREATER
+        [SuppressGCTransition]
+#endif
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_append_null")]
         public static extern DuckDBState DuckDBAppendNull(DuckDBAppender appender);
     }
