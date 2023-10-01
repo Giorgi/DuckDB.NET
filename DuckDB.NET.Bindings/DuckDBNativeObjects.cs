@@ -51,7 +51,28 @@ public enum DuckDBType
     Varchar,
     // duckdb_blob
     Blob,
+    //decimal
     Decimal,
+    // duckdb_timestamp, in seconds
+    TimestampS,
+    // duckdb_timestamp, in milliseconds
+    TimestampMs,
+    // duckdb_timestamp, in nanoseconds
+    TimestampNs,
+    // enum type, only useful as logical type
+    Enum,
+    // list type, only useful as logical type
+    List,
+    // struct type, only useful as logical type
+    Struct,
+    // map type, only useful as logical type
+    Map,
+    // duckdb_hugeint
+    Uuid,
+    // union type, only useful as logical type
+    Union,
+    // duckdb_bit
+    Bit,
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -115,6 +136,13 @@ public struct DuckDBBlob : IDisposable
     {
         NativeMethods.Helpers.DuckDBFree(Data);
     }
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct DuckDBListEntry
+{
+    public ulong Offset { get; }
+    public ulong Length { get; }
 }
 
 [StructLayout(LayoutKind.Sequential)]

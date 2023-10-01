@@ -27,7 +27,8 @@ public class DuckDBDataReader : DbDataReader
     private int fieldCount;
     private int recordsAffected = -1;
 
-    private unsafe void*[] vectors;
+    private IntPtr[] vectors;
+    private unsafe void*[] vectorData;
     private unsafe ulong*[] vectorValidityMask;
 
     private long chunkCount;
@@ -69,22 +70,25 @@ public class DuckDBDataReader : DbDataReader
             currentChunk = NativeMethods.Types.DuckDBResultGetChunk(currentResult, currentChunkIndex);
             currentChunkRowCount = NativeMethods.DataChunks.DuckDBDataChunkGetSize(currentChunk);
 
-            vectors = new void*[fieldCount];
+            vectors = new IntPtr[fieldCount];
+            vectorData = new void*[fieldCount];
             vectorValidityMask = new ulong*[fieldCount];
 
             for (int i = 0; i < fieldCount; i++)
             {
-                var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(currentChunk, i);
+                vectors[i] = NativeMethods.DataChunks.DuckDBDataChunkGetVector(currentChunk, i);
 
-                vectors[i] = NativeMethods.DataChunks.DuckDBVectorGetData(vector);
-                vectorValidityMask[i] = NativeMethods.DataChunks.DuckDBVectorGetValidity(vector);
+                vectorData[i] = NativeMethods.DataChunks.DuckDBVectorGetData(vectors[i]);
+                vectorValidityMask[i] = NativeMethods.DataChunks.DuckDBVectorGetValidity(vectors[i]);
             }
         }
     }
 
-    private unsafe T GetFieldData<T>(int ordinal) where T: unmanaged
+    private unsafe T GetFieldData<T>(int ordinal) where T : unmanaged => GetFieldData<T>(vectorData[ordinal], (ulong)(rowsReadFromCurrentChunk - 1));
+
+    private static unsafe T GetFieldData<T>(void* pointer, ulong offset) where T : unmanaged
     {
-        var data = (T*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
+        var data = (T*)pointer + offset;
         return *data;
     }
 
@@ -125,7 +129,12 @@ public class DuckDBDataReader : DbDataReader
 
     public override unsafe DateTime GetDateTime(int ordinal)
     {
-        var data = (DuckDBTimestampStruct*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
+        return GetDateTime(vectorData[ordinal], (ulong)(rowsReadFromCurrentChunk - 1));
+    }
+
+    private static unsafe DateTime GetDateTime(void* pointer, ulong offset)
+    {
+        var data = (DuckDBTimestampStruct*)pointer + offset;
         return data->ToDateTime();
     }
 
@@ -141,39 +150,11 @@ public class DuckDBDataReader : DbDataReader
         return NativeMethods.DateTime.DuckDBFromTime(time);
     }
 
-    public override decimal GetDecimal(int ordinal)
+    public override unsafe decimal GetDecimal(int ordinal)
     {
-        using var logicalType = NativeMethods.Query.DuckDBColumnLogicalType(ref currentResult, ordinal);
-        var scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
-        var internalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
+        var logicalType = NativeMethods.Query.DuckDBColumnLogicalType(ref currentResult, ordinal);
 
-        decimal result = 0;
-
-        var pow = (decimal)Math.Pow(10, scale);
-
-        switch (internalType)
-        {
-            case DuckDBType.SmallInt:
-                result = decimal.Divide(GetInt16(ordinal), pow);
-                break;
-            case DuckDBType.Integer:
-                result = decimal.Divide(GetInt32(ordinal), pow);
-                break;
-            case DuckDBType.BigInt:
-                result = decimal.Divide(GetInt64(ordinal), pow);
-                break;
-            case DuckDBType.HugeInt:
-            {
-                var hugeInt = GetBigInteger(ordinal);
-
-                result = (decimal)BigInteger.DivRem(hugeInt, (BigInteger)pow, out var remainder);
-
-                result += decimal.Divide((decimal)remainder, pow);
-                break;
-            }
-        }
-
-        return result;
+        return GetDecimal(vectorData[ordinal], 0, logicalType);
     }
 
     public override double GetDouble(int ordinal)
@@ -251,7 +232,12 @@ public class DuckDBDataReader : DbDataReader
 
     private unsafe BigInteger GetBigInteger(int ordinal)
     {
-        var data = (DuckDBHugeInt*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
+        return GetBigInteger(vectorData[ordinal], (ulong)(rowsReadFromCurrentChunk - 1));
+    }
+
+    private static unsafe BigInteger GetBigInteger(void* pointer, ulong offset)
+    {
+        var data = (DuckDBHugeInt*)pointer + offset;
         return data->ToBigInteger();
     }
 
@@ -277,8 +263,12 @@ public class DuckDBDataReader : DbDataReader
 
     public override unsafe string GetString(int ordinal)
     {
-        var data = (DuckDBString*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
+        var data = (DuckDBString*)vectorData[ordinal] + rowsReadFromCurrentChunk - 1;
+        return DuckDBStringToString(data);
+    }
 
+    private static unsafe string DuckDBStringToString(DuckDBString* data)
+    {
         var length = *(int*)data;
 
         var pointer = length <= InlineStringMaxLength
@@ -288,14 +278,26 @@ public class DuckDBDataReader : DbDataReader
         return new string(pointer, 0, length, Encoding.UTF8);
     }
 
-    public override object GetValue(int ordinal)
+    public override T GetFieldValue<T>(int ordinal)
     {
-        if (IsDBNull(ordinal))
+        var type = NativeMethods.Query.DuckDBColumnType(ref currentResult, ordinal);
+
+        if (type == DuckDBType.List)
         {
-            return DBNull.Value;
+            return (T)GetList(ordinal, typeof(T));
         }
 
-        return NativeMethods.Query.DuckDBColumnType(ref currentResult, ordinal) switch
+        return (T)GetValue(ordinal, type);
+    }
+
+    public override object GetValue(int ordinal)
+    {
+        return IsDBNull(ordinal) ? DBNull.Value : GetValue(ordinal, NativeMethods.Query.DuckDBColumnType(ref currentResult, ordinal));
+    }
+
+    private object GetValue(int ordinal, DuckDBType columnType)
+    {
+        return columnType switch
         {
             DuckDBType.Invalid => throw new DuckDBException("Invalid type"),
             DuckDBType.Boolean => GetBoolean(ordinal),
@@ -317,8 +319,194 @@ public class DuckDBDataReader : DbDataReader
             DuckDBType.Varchar => GetString(ordinal),
             DuckDBType.Decimal => GetDecimal(ordinal),
             DuckDBType.Blob => GetStream(ordinal),
+            DuckDBType.List => GetList(ordinal),
             var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type}) in column {ordinal + 1}")
         };
+    }
+
+    private object GetList(int ordinal, Type returnType = null)
+    {
+        var vector = vectors[ordinal];
+        using var logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
+        using var childType = NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType);
+        var type = NativeMethods.LogicalType.DuckDBGetTypeId(childType);
+
+        var childVector = NativeMethods.DataChunks.DuckDBListVectorGetChild(vector);
+        var genericArgument = returnType?.GetGenericArguments()[0];
+        var allowNulls = returnType != null && genericArgument.IsValueType && Nullable.GetUnderlyingType(genericArgument) != null;
+
+        return type switch
+        {
+            DuckDBType.Invalid => throw new DuckDBException("Invalid type"),
+            DuckDBType.Boolean => allowNulls ? BuildList<bool?>() : BuildList<bool>(),
+            DuckDBType.TinyInt => allowNulls ? BuildList<sbyte?>() : BuildList<sbyte>(),
+            DuckDBType.SmallInt => allowNulls ? BuildList<short?>() : BuildList<short>(),
+            DuckDBType.Integer => allowNulls ? BuildList<int?>() : BuildList<int>(),
+            DuckDBType.BigInt => allowNulls ? BuildList<long?>() : BuildList<long>(),
+            DuckDBType.UnsignedTinyInt => allowNulls ? BuildList<byte?>() : BuildList<byte>(),
+            DuckDBType.UnsignedSmallInt => allowNulls ? BuildList<ushort?>() : BuildList<ushort>(),
+            DuckDBType.UnsignedInteger => allowNulls ? BuildList<uint?>() : BuildList<uint>(),
+            DuckDBType.UnsignedBigInt => allowNulls ? BuildList<ulong?>() : BuildList<ulong>(),
+            DuckDBType.Float => allowNulls ? BuildList<float?>() : BuildList<float>(),
+            DuckDBType.Double => allowNulls ? BuildList<double?>() : BuildList<double>(),
+            DuckDBType.Timestamp => allowNulls ? BuildList<DateTime?>() : BuildList<DateTime>(),
+#if NET6_0_OR_GREATER
+            DuckDBType.Date => allowNulls
+                ? genericArgument == null || genericArgument == typeof(DateTime)
+                    ? BuildList<DateTime?>()
+                    : BuildList<DateOnly?>()
+                : genericArgument == null || genericArgument == typeof(DateTime)
+                    ? BuildList<DateTime>() 
+                    : BuildList<DateOnly>(),
+#else
+            DuckDBType.Date => allowNulls ? BuildList<DateTime?>() : BuildList<DateTime>(),
+#endif
+#if NET6_0_OR_GREATER
+            DuckDBType.Time => allowNulls
+                ? genericArgument == null || genericArgument == typeof(DateTime)
+                    ? BuildList<DateTime?>()
+                    : BuildList<TimeOnly?>()
+                : genericArgument == null || genericArgument == typeof(DateTime)
+                    ? BuildList<DateTime>() 
+                    : BuildList<TimeOnly>(),
+#else
+            DuckDBType.Time => allowNulls ? BuildList<DateTime?>() : BuildList<DateTime>(),
+#endif
+
+            DuckDBType.Interval => allowNulls ? BuildList<DuckDBInterval?>() : BuildList<DuckDBInterval>(),
+            DuckDBType.HugeInt => allowNulls ? BuildList<BigInteger?>() : BuildList<BigInteger>(),
+            DuckDBType.Varchar => BuildList<string>(),
+            DuckDBType.Decimal => allowNulls ? BuildList<decimal?>() : BuildList<decimal>(),
+            _ => throw new NotImplementedException()
+        };
+
+        unsafe List<T> BuildList<T>()
+        {
+            var list = new List<T>();
+            var listData = (DuckDBListEntry*)vectorData[ordinal] + rowsReadFromCurrentChunk - 1;
+
+            var childVectorData = NativeMethods.DataChunks.DuckDBVectorGetData(childVector);
+
+            var childVectorValidity = NativeMethods.DataChunks.DuckDBVectorGetValidity(childVector);
+
+            var targetType = typeof(T);
+
+            if (Nullable.GetUnderlyingType(targetType) != null)
+            {
+                targetType = targetType.GetGenericArguments()[0];
+            }
+
+            for (ulong i = 0; i < listData->Length; i++)
+            {
+                var offset = i + listData->Offset;
+                if (IsValid(offset, childVectorValidity))
+                {
+                    var item = type switch
+                    {
+                        DuckDBType.Varchar => DuckDBStringToString((DuckDBString*)childVectorData + offset),
+                        DuckDBType.Timestamp => GetDateTime(childVectorData, offset),
+                        DuckDBType.Date => GetDate(offset),
+                        DuckDBType.Time => GetTime(offset),
+                        DuckDBType.HugeInt => GetBigInteger(childVectorData, offset),
+                        DuckDBType.Decimal => GetDecimal(childVectorData, offset, NativeMethods.DataChunks.DuckDBVectorGetColumnType(childVector)),
+
+                        DuckDBType.Integer => GetFieldData<int>(childVectorData, offset),
+                        DuckDBType.Double => GetFieldData<double>(childVectorData, offset),
+                        DuckDBType.Boolean => GetFieldData<bool>(childVectorData, offset),
+                        DuckDBType.TinyInt => GetFieldData<sbyte>(childVectorData, offset),
+                        DuckDBType.SmallInt => GetFieldData<short>(childVectorData, offset),
+                        DuckDBType.BigInt => GetFieldData<long>(childVectorData, offset),
+                        DuckDBType.UnsignedTinyInt => GetFieldData<byte>(childVectorData, offset),
+                        DuckDBType.UnsignedSmallInt => GetFieldData<ushort>(childVectorData, offset),
+                        DuckDBType.UnsignedInteger => GetFieldData<uint>(childVectorData, offset),
+                        DuckDBType.UnsignedBigInt => GetFieldData<ulong>(childVectorData, offset),
+                        DuckDBType.Float => GetFieldData<float>(childVectorData, offset),
+                        DuckDBType.Interval => GetFieldData<DuckDBInterval>(childVectorData, offset),
+                    };
+                    list.Add((T)item);
+                }
+                else
+                {
+                    if (allowNulls)
+                    {
+                        list.Add((T)(object)null);
+                    }
+                    else
+                    {
+                        throw new NullReferenceException("The list contains null value");
+                    }
+                }
+            }
+
+            return list;
+
+            object GetDate(ulong offset)
+            {
+                var dateOnly = NativeMethods.DateTime.DuckDBFromDate(GetFieldData<DuckDBDate>(childVectorData, offset));
+                if (targetType == typeof(DateTime))
+                {
+                    return (DateTime)dateOnly;
+                }
+
+#if NET6_0_OR_GREATER
+                if (targetType == typeof(DateOnly))
+                {
+                    return (DateOnly)dateOnly;
+                }
+#endif
+
+                return dateOnly;
+            }
+
+            object GetTime(ulong offset)
+            {
+                var timeOnly = NativeMethods.DateTime.DuckDBFromTime(GetFieldData<DuckDBTime>(childVectorData, offset));
+                if (targetType == typeof(DateTime))
+                {
+                    return (DateTime)timeOnly;
+                }
+
+#if NET6_0_OR_GREATER
+                if (targetType == typeof(TimeOnly))
+                {
+                    return (TimeOnly)timeOnly;
+                }
+#endif
+
+                return timeOnly;
+            }
+        }
+    }
+
+    private static unsafe decimal GetDecimal(void* data, ulong offset, DuckDBLogicalType columnType)
+    {
+        using (columnType)
+        {
+            var scale = NativeMethods.LogicalType.DuckDBDecimalScale(columnType);
+            var internalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(columnType);
+
+            var pow = (decimal)Math.Pow(10, scale);
+            switch (internalType)
+            {
+                case DuckDBType.SmallInt:
+                    return decimal.Divide(GetFieldData<short>(data, offset), pow);
+                case DuckDBType.Integer:
+                    return decimal.Divide(GetFieldData<int>(data, offset), pow);
+                case DuckDBType.BigInt:
+                    return decimal.Divide(GetFieldData<long>(data, offset), pow);
+                case DuckDBType.HugeInt:
+                    {
+                        var hugeInt = GetBigInteger(data, offset);
+
+                        var result = (decimal)BigInteger.DivRem(hugeInt, (BigInteger)pow, out var remainder);
+
+                        result += decimal.Divide((decimal)remainder, pow);
+                        return result;
+                    }
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+        }
     }
 
     private DuckDBInterval GetDuckDBInterval(int ordinal)
@@ -338,7 +526,7 @@ public class DuckDBDataReader : DbDataReader
 
     public override unsafe Stream GetStream(int ordinal)
     {
-        var data = (DuckDBString*)vectors[ordinal] + rowsReadFromCurrentChunk - 1;
+        var data = (DuckDBString*)vectorData[ordinal] + rowsReadFromCurrentChunk - 1;
 
         var length = *(int*)data;
 
@@ -353,14 +541,20 @@ public class DuckDBDataReader : DbDataReader
 
     public override unsafe bool IsDBNull(int ordinal)
     {
-        var validityMaskEntryIndex = (rowsReadFromCurrentChunk - 1) / 64;
-        var validityBitIndex = (rowsReadFromCurrentChunk - 1) % 64;
+        var isValid = IsValid((ulong)rowsReadFromCurrentChunk - 1, vectorValidityMask[ordinal]);
+        return !isValid;
+    }
 
-        var validityMaskEntryPtr = vectorValidityMask[ordinal] + validityMaskEntryIndex;
+    private static unsafe bool IsValid(ulong offset, ulong* pointer)
+    {
+        var validityMaskEntryIndex = offset / 64;
+        int validityBitIndex = (int)(offset % 64);
+
+        var validityMaskEntryPtr = pointer + validityMaskEntryIndex;
         var validityBit = 1ul << validityBitIndex;
 
         var isValid = (*validityMaskEntryPtr & validityBit) != 0;
-        return !isValid;
+        return isValid;
     }
 
     public override int FieldCount => fieldCount;
