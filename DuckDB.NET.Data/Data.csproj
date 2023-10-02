@@ -2,12 +2,12 @@
 
   <PropertyGroup>
     <Description>DuckDB ADO.NET Provider for C#.</Description>
-    <PackageReleaseNotes>Added support for executing multiple statements in a single go.
+    <PackageReleaseNotes>Reimplemented DuckDBDataReader for better performance.
 
-Added DbProviderFactory support.
+      Added named parameter support.
 
-Fixed reading DateTime values.
-	</PackageReleaseNotes>
+      Added support for reading List types.
+    </PackageReleaseNotes>
 	<SignAssembly>True</SignAssembly>
 	<AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
 	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
