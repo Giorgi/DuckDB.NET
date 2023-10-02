@@ -256,7 +256,7 @@ public class ParameterCollectionTests
         dp.Add("bar", "test");
         
         connection.Execute(queryStatement, dp).Should().BeGreaterOrEqualTo(1);
-        //connection.Execute(queryStatement, new { foo = 1, bar = "test" }).Should().BeGreaterOrEqualTo(1, "Passing parameters as object should work");
+        connection.Execute(queryStatement, new { foo = 1, bar = "test" }).Should().BeGreaterOrEqualTo(1, "Passing parameters as object should work");
     }
 
     [Theory]
