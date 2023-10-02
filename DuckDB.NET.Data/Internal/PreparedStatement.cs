@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
+using System.Linq;
 using System.Numerics;
 using System.Runtime.ExceptionServices;
 using DuckDB.NET.Data.Extensions;
@@ -61,7 +62,9 @@ internal sealed class PreparedStatement : IDisposable
         var statements = new List<PreparedStatement>();
         var results = new List<DuckDBResult>();
 
-        var statementCount = NativeMethods.ExtractStatements.DuckDBExtractStatements(connection, query, out var extractedStatements);
+        using var unmanagedQuery = query.ToUnmanagedString();
+        
+        var statementCount = NativeMethods.ExtractStatements.DuckDBExtractStatements(connection, unmanagedQuery, out var extractedStatements);
         
         using (extractedStatements)
         {
@@ -123,13 +126,12 @@ internal sealed class PreparedStatement : IDisposable
 
     public DuckDBResult Execute(DuckDBParameterCollection parameterCollection)
     {
-        var queryResult = new DuckDBResult();
         BindParameters(statement, parameterCollection);
 
-        var status = NativeMethods.PreparedStatements.DuckDBExecutePrepared(statement, queryResult);
+        var status = NativeMethods.PreparedStatements.DuckDBExecutePrepared(statement, out var queryResult);
         if (!status.IsSuccess())
         {
-            var errorMessage = NativeMethods.Query.DuckDBResultError(queryResult).ToManagedString(false);
+            var errorMessage = NativeMethods.Query.DuckDBResultError(ref queryResult).ToManagedString(false);
             queryResult.Dispose();
             throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, status);
         }
@@ -145,10 +147,28 @@ internal sealed class PreparedStatement : IDisposable
             throw new InvalidOperationException($"Invalid number of parameters. Expected {expectedParameters}, got {parameterCollection.Count}");
         }
 
-        for (var i = 0; i < parameterCollection.Count; ++i)
+        if (parameterCollection.OfType<DuckDBParameter>().Any(p => !string.IsNullOrEmpty(p.ParameterName)))
         {
-            var param = parameterCollection[i];
-            BindParameter(preparedStatement, i + 1, param);
+            foreach (DuckDBParameter param in parameterCollection)
+            {
+                var state = NativeMethods.PreparedStatements.DuckDBBindParameterIndex(preparedStatement, out var index, param.ParameterName);
+                if (state.IsSuccess())
+                {
+                    BindParameter(preparedStatement, index, param);
+                }
+                else
+                {
+                    throw new InvalidOperationException($"Cannot get parameter '{param.ParameterName}' index.");
+                }
+            }
+        }
+        else
+        {
+            for (var i = 0; i < parameterCollection.Count; ++i)
+            {
+                var param = parameterCollection[i];
+                BindParameter(preparedStatement, i + 1, param);
+            }
         }
     }
 

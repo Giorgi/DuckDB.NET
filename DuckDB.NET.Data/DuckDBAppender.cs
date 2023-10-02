@@ -34,7 +34,7 @@ public class DuckDBAppender : IDisposable
         try
         {
             var state = NativeMethods.Appender.DuckDBAppenderClose(nativeAppender);
-            if (state == DuckDBState.DuckDBError)
+            if (state == DuckDBState.Error)
             {
                 ThrowLastError(nativeAppender);
             }
@@ -72,7 +72,7 @@ public class DuckDBAppenderRow
 
     public void EndRow()
     {
-        if (NativeMethods.Appender.DuckDBAppenderEndRow(appender) == DuckDBState.DuckDBError)
+        if (NativeMethods.Appender.DuckDBAppenderEndRow(appender) == DuckDBState.Error)
         {
             DuckDBAppender.ThrowLastError(appender);
         }
@@ -172,7 +172,7 @@ public class DuckDBAppenderRow
             _ => throw new InvalidOperationException($"Unsupported type {typeof(T).Name}")
         };
 
-        if (state == DuckDBState.DuckDBError)
+        if (state == DuckDBState.Error)
         {
             DuckDBAppender.ThrowLastError(appender);
         }

@@ -91,15 +91,14 @@ namespace DuckDB.NET.Samples
                 result = Startup.DuckDBConnect(database, out var connection);
                 using (connection)
                 {
-                    var queryResult = new DuckDBResult();
-                    result = Query.DuckDBQuery(connection, "CREATE TABLE integers(foo INTEGER, bar INTEGER);", null);
-                    result = Query.DuckDBQuery(connection, "INSERT INTO integers VALUES (3, 4), (5, 6), (7, NULL);", null);
-                    result = Query.DuckDBQuery(connection, "SELECT foo, bar FROM integers", queryResult);
+                    result = Query.DuckDBQuery(connection, "CREATE TABLE integers(foo INTEGER, bar INTEGER);", out _);
+                    result = Query.DuckDBQuery(connection, "INSERT INTO integers VALUES (3, 4), (5, 6), (7, NULL);", out _);
+                    result = Query.DuckDBQuery(connection, "SELECT foo, bar FROM integers", out var queryResult);
 
                     PrintQueryResults(queryResult);
 
                     // clean up
-                    Query.DuckDBDestroyResult(queryResult);
+                    Query.DuckDBDestroyResult(ref queryResult);
 
                     result = PreparedStatements.DuckDBPrepare(connection, "INSERT INTO integers VALUES (?, ?)", out var insertStatement);
 
@@ -108,7 +107,7 @@ namespace DuckDB.NET.Samples
                         result = PreparedStatements.DuckDBBindInt32(insertStatement, 1, 42); // the parameter index starts counting at 1!
                         result = PreparedStatements.DuckDBBindInt32(insertStatement, 2, 43);
 
-                        result = PreparedStatements.DuckDBExecutePrepared(insertStatement, null);
+                        result = PreparedStatements.DuckDBExecutePrepared(insertStatement, out _);
                     }
 
 
@@ -118,13 +117,13 @@ namespace DuckDB.NET.Samples
                     {
                         result = PreparedStatements.DuckDBBindInt32(selectStatement, 1, 42);
 
-                        result = PreparedStatements.DuckDBExecutePrepared(selectStatement, queryResult);
+                        result = PreparedStatements.DuckDBExecutePrepared(selectStatement, out queryResult);
                     }
 
                     PrintQueryResults(queryResult);
 
                     // clean up
-                    Query.DuckDBDestroyResult(queryResult);
+                    Query.DuckDBDestroyResult(ref queryResult);
                 }
             }
         }
@@ -159,21 +158,21 @@ namespace DuckDB.NET.Samples
 
         private static void PrintQueryResults(DuckDBResult queryResult)
         {
-            var columnCount = Query.DuckDBColumnCount(queryResult);
+            var columnCount = Query.DuckDBColumnCount(ref queryResult);
             for (var index = 0; index < columnCount; index++)
             {
-                var columnName = Query.DuckDBColumnName(queryResult, index).ToManagedString(false);
+                var columnName = Query.DuckDBColumnName(ref queryResult, index).ToManagedString(false);
                 Console.Write($"{columnName} ");
             }
 
             Console.WriteLine();
 
-            var rowCount = Query.DuckDBRowCount(queryResult);
+            var rowCount = Query.DuckDBRowCount(ref queryResult);
             for (long row = 0; row < rowCount; row++)
             {
                 for (long column = 0; column < columnCount; column++)
                 {
-                    var val = Types.DuckDBValueInt32(queryResult, column, row);
+                    var val = Types.DuckDBValueInt32(ref queryResult, column, row);
                     Console.Write(val);
                     Console.Write(" ");
                 }

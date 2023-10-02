@@ -10,6 +10,7 @@ Fixed reading DateTime values.
 	</PackageReleaseNotes>
 	<SignAssembly>True</SignAssembly>
 	<AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
+	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(BuildType)' == 'ManagedOnly' ">
@@ -24,7 +25,7 @@ Fixed reading DateTime values.
   </ItemGroup>
   
   <ItemGroup>
-    <ProjectReference Include="..\DuckDB.NET\Bindings.csproj" />
+    <ProjectReference Include="..\DuckDB.NET.Bindings\Bindings.csproj" />
   </ItemGroup>
 
 </Project>

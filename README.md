@@ -16,7 +16,7 @@
 
 ![Project Icon](https://raw.githubusercontent.com/Giorgi/DuckDB.NET/main/Logo.jpg "DuckDB.NET Project Icon")
 
-Note: The library is in early stage and contributions are more than wellcome.
+Note: The library is in the early stage and contributions are more than welcome.
 
 ## Usage
 
@@ -26,7 +26,7 @@ If you encounter a bug with the library [Create an Issue](https://github.com/Gio
 ### Getting Started
 There are two ways to work with DuckDB from C#: You can use ADO.NET Provider or use low-level bindings library for DuckDB. The ADO.NET Provider is built on top of the low-level library and is the recommended and most straightforward approach to work with DuckDB.
 
-In both cases, there are two NuGet packages available: The Full package that includes DuckDB native library and a managed-only library that doesn't include a native library.
+In both cases, there are two NuGet packages available: The Full package that includes the DuckDB native library and a managed-only library that doesn't include a native library.
 
 |  | ADO.NET Provider | Includes DuckDB library |
 |---|---|---|
@@ -114,13 +114,26 @@ using (var appender = connection.CreateAppender("managedAppenderTest"))
 
 #### Parameterized queries and DuckDB native types.
 
-Starting from version 0.4.0.10, DuckDB.NET.Data supports executing parameterized queries and reading all built-in native duckdb types:
+Starting from version 0.4.0.10, DuckDB.NET.Data supports executing parameterized queries and reading all built-in native DuckDB types. Starting from version 0.9.0 the library supports named parameters too:
 
 ```cs
 using var connection = new DuckDBConnection("DataSource=:memory:");
 connection.Open();
 
 var command = connection.CreateCommand();
+
+//Named parameters
+command.CommandText = "INSERT INTO ParametersTestKeyValue (KEY, VALUE) VALUES ($key, $value)";
+command.Parameters.Add(new DuckDBParameter("key", 42));
+command.Parameters.Add(new DuckDBParameter("value", "hello"));
+var affectedRows = command.ExecuteNonQuery();
+
+//Positional parameters
+command.CommandText = "INSERT INTO ParametersTestKeyValue (KEY, VALUE) VALUES (?, ?)";
+command.Parameters.Add(new DuckDBParameter(24));
+command.Parameters.Add(new DuckDBParameter("world"));
+affectedRows = command.ExecuteNonQuery();
+
 command.CommandText = "SELECT * from integers where foo > ?;";
 command.Parameters.Add(new new DuckDBParameter(3));
 
@@ -135,6 +148,12 @@ To read DuckDB specific native types use `DuckDBDataReader.GetFieldValue<T>` met
 | DATE  | DuckDBDateOnly  |
 | TIME  | DuckDBTimeOnly  |
 | HUGEINT  | BigInteger  |
+
+#### List, Struct, Enum, and other composite types
+
+DuckDB.NET 0.9.0 supports reading a List of primitive types (int, string, double, etc). Reading a List of composite types or nested lists isn't supported.
+
+To read a List use `DuckDBDataReader.GetFieldValue<T>`. For example, to read a list of doubles: `DuckDBDataReader.GetFieldValue<List<double>>` If the list contains null use `DuckDBDataReader.GetFieldValue<List<double?>>`, otherwise an exception will be thrown when null is encountered. If you don't know whether the list contains null or not but want to skip all null values, you can use `select [x for x in mylist if x IS NOT NULL] as filtered;` to remove null values from the list.
 
 #### Executing multiple statements in a single go.
 
@@ -175,11 +194,11 @@ var item = duckDBConnection.Query<FooBar>("SELECT foo, bar FROM integers");
 
 ### In-Memory database
 
-For in-memory database use `Data Source=:memory:` connection string. When using in-memory database no data is persisted on disk. Every in-memory connection results in a new, isolated database so tables created
-inside one in-memory connection aren't visible to another in-memory connection. If you want to create shared in-memory database, you can use `DataSource=:memory:?cache=shared` connection string. Both connection strings
+For an in-memory database use `Data Source=:memory:` connection string. When using an in-memory database no data is persisted on disk. Every in-memory connection results in a new, isolated database so tables created
+inside one in-memory connection aren't visible to another in-memory connection. If you want to create a shared in-memory database, you can use `DataSource=:memory:?cache=shared` connection string. Both connection strings
 are exposed by the library as `DuckDBConnectionStringBuilder.InMemoryDataSource` and `DuckDBConnectionStringBuilder.InMemorySharedDataSource` respectively.
 
-### Use low level bindings library
+### Use low-level bindings library
 
 ```sh
 dotnet add package DuckDB.NET.Bindings.Full
@@ -193,36 +212,37 @@ using (database)
   result = Startup.DuckDBConnect(database, out var connection);
   using (connection)
   {
-    result = Query.DuckDBQuery(connection, "CREATE TABLE integers(foo INTEGER, bar INTEGER);", out var queryResult);
-    result = Query.DuckDBQuery(connection, "INSERT INTO integers VALUES (3, 4), (5, 6), (7, 8);", out queryResult);
-    result = Query.DuckDBQuery(connection, "SELECT foo, bar FROM integers", out queryResult);
+    var queryResult = new DuckDBResult();
+    result = Query.DuckDBQuery(connection, "CREATE TABLE integers(foo INTEGER, bar INTEGER);", null);
+    result = Query.DuckDBQuery(connection, "INSERT INTO integers VALUES (3, 4), (5, 6), (7, 8);", null);
+    result = Query.DuckDBQuery(connection, "SELECT foo, bar FROM integers", queryResult);
 
     PrintQueryResults(queryResult);
 
-    result = Query.DuckDBPrepare(connection, "INSERT INTO integers VALUES (?, ?)", out var insertStatement);
+    result = PreparedStatements.DuckDBPrepare(connection, "INSERT INTO integers VALUES (?, ?)", out var insertStatement);
 
     using (insertStatement)
     {
-      result = Query.DuckDBBindInt32(insertStatement, 1, 42); // the parameter index starts counting at 1!
-      result = Query.DuckDBBindInt32(insertStatement, 2, 43);
+      result = PreparedStatements.DuckDBBindInt32(insertStatement, 1, 42); // the parameter index starts counting at 1!
+      result = PreparedStatements.DuckDBBindInt32(insertStatement, 2, 43);
 
-      result = Query.DuckDBExecutePrepared(insertStatement, out var _);
+      result = PreparedStatements.DuckDBExecutePrepared(insertStatement, null);
     }
 
 
-    result = Query.DuckDBPrepare(connection, "SELECT * FROM integers WHERE foo = ?", out var selectStatement);
+    result = PreparedStatements.DuckDBPrepare(connection, "SELECT * FROM integers WHERE foo = ?", out var selectStatement);
 
     using (selectStatement)
     {
-      result = Query.DuckDBBindInt32(selectStatement, 1, 42);
+      result = PreparedStatements.DuckDBBindInt32(selectStatement, 1, 42);
 
-      result = Query.DuckDBExecutePrepared(selectStatement, out queryResult);
+      result = PreparedStatements.DuckDBExecutePrepared(selectStatement, queryResult);
     }
 
     PrintQueryResults(queryResult);
 
     // clean up
-    Query.DuckDBDestroyResult(out queryResult);
+    Query.DuckDBDestroyResult(queryResult);
   }
 }
 
@@ -237,9 +257,10 @@ private static void PrintQueryResults(DuckDBResult queryResult)
 
   Console.WriteLine();
 
-  for (long row = 0; row < queryResult.RowCount; row++)
+  var rowCount = Query.DuckDBRowCount(queryResult);
+  for (long row = 0; row < rowCount; row++)
   {
-    for (long column = 0; column < queryResult.ColumnCount; column++)
+    for (long column = 0; column < columnCount; column++)
     {
       var val = Types.DuckDBValueInt32(queryResult, column, row);
       Console.Write(val);

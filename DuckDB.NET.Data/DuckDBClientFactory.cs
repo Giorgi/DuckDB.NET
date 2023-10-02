@@ -1,44 +1,43 @@
 ﻿using System;
 using System.Data.Common;
 
-namespace DuckDB.NET.Data
+namespace DuckDB.NET.Data;
+
+public class DuckDBClientFactory : DbProviderFactory
 {
-    public class DuckDBClientFactory : DbProviderFactory
-    {
-        public const string ProviderInvariantName = "DuckDB.NET.Data";
+    public const string ProviderInvariantName = "DuckDB.NET.Data";
 
-        #region Static Properties
+    #region Static Properties
 
-        public static readonly DuckDBClientFactory Instance = new();
+    public static readonly DuckDBClientFactory Instance = new();
 
-        #endregion
+    #endregion
 
-        #region Properties
+    #region Properties
 
-        public override bool CanCreateDataSourceEnumerator => false;
+    public override bool CanCreateDataSourceEnumerator => false;
 
-        #endregion
+    #endregion
 
-        #region Constructors
+    #region Constructors
 
-        private DuckDBClientFactory() { }
+    private DuckDBClientFactory() { }
 
-        #endregion
+    #endregion
 
-        #region Methods
+    #region Methods
 
-        public override DbCommand CreateCommand() => new DuckDbCommand();
+    public override DbCommand CreateCommand() => new DuckDbCommand();
 
-        public override DbCommandBuilder CreateCommandBuilder() => throw new NotImplementedException();
+    public override DbCommandBuilder CreateCommandBuilder() => throw new NotImplementedException();
 
-        public override DbConnection CreateConnection() => new DuckDBConnection();
+    public override DbConnection CreateConnection() => new DuckDBConnection();
 
-        public override DbConnectionStringBuilder CreateConnectionStringBuilder() => new DuckDBConnectionStringBuilder();
+    public override DbConnectionStringBuilder CreateConnectionStringBuilder() => new DuckDBConnectionStringBuilder();
 
-        public override DbDataAdapter CreateDataAdapter() => throw new NotImplementedException();
+    public override DbDataAdapter CreateDataAdapter() => throw new NotImplementedException();
 
-        public override DbParameter CreateParameter() => new DuckDBParameter();
+    public override DbParameter CreateParameter() => new DuckDBParameter();
 
-        #endregion
-    }
+    #endregion
 }

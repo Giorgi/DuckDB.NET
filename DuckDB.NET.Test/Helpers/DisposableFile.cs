@@ -3,64 +3,63 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DuckDB.NET.Test.Helpers
+namespace DuckDB.NET.Test.Helpers;
+
+sealed class DisposableFile : IDisposable
 {
-    sealed class DisposableFile : IDisposable
+    private bool disposed;
+
+    public string ConnectionString { get; private set; }
+    public string FileName { get; private set; }
+
+    public DisposableFile(string filename)
     {
-        private bool disposed;
+        FileName = filename;
+        ConnectionString = $"DataSource={FileName}";
+    }
 
-        public string ConnectionString { get; private set; }
-        public string FileName { get; private set; }
+    public static DisposableFile GenerateInTemp(string extension = null, int? index = null, bool create = false)
+    {
+        var fileBuilder = new StringBuilder(Path.Combine(Path.GetTempPath(), "Temp File-" + Guid.NewGuid().ToString()));
 
-        public DisposableFile(string filename)
+        if (index != null)
         {
-            FileName = filename;
-            ConnectionString = $"DataSource={FileName}";
+            fileBuilder.Append("_");
+            fileBuilder.Append(index.ToString());
         }
 
-        public static DisposableFile GenerateInTemp(string extension = null, int? index = null, bool create = false)
+        if (extension != null)
         {
-            var fileBuilder = new StringBuilder(Path.Combine(Path.GetTempPath(), "Temp File-" + Guid.NewGuid().ToString()));
-
-            if (index != null)
-            {
-                fileBuilder.Append("_");
-                fileBuilder.Append(index.ToString());
-            }
-
-            if (extension != null)
-            {
-                fileBuilder.Append(".");
-                fileBuilder.Append(extension);
-            }
-
-            var filename = fileBuilder.ToString();
-
-            if (create)
-            {
-                File.Create(filename);
-            }
-
-            return new DisposableFile(filename);
+            fileBuilder.Append(".");
+            fileBuilder.Append(extension);
         }
 
-        public void Dispose()
+        var filename = fileBuilder.ToString();
+
+        if (create)
         {
-            if (disposed)
-            {
-                return;
-            }
-
-            File.Delete(FileName);
-
-            disposed = true;
-
-            GC.SuppressFinalize(this);
+            File.Create(filename);
         }
 
-        ~DisposableFile()
+        return new DisposableFile(filename);
+    }
+
+    public void Dispose()
+    {
+        if (disposed)
         {
-            Dispose();
+            return;
         }
+
+        File.Delete(FileName);
+
+        disposed = true;
+
+        GC.SuppressFinalize(this);
+    }
+
+    ~DisposableFile()
+    {
+        Dispose();
     }
 }

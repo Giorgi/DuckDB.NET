@@ -3,55 +3,54 @@ using System.Data;
 using System.Data.Common;
 using DuckDB.NET.Data.Extensions;
 
-namespace DuckDB.NET.Data
+namespace DuckDB.NET.Data;
+
+public class DuckDBTransaction : DbTransaction
 {
-    public class DuckDBTransaction : DbTransaction
+    private bool finished = false;
+    private readonly DuckDBConnection connection;
+        
+    protected override DbConnection DbConnection => connection;
+        
+    public override IsolationLevel IsolationLevel { get; }
+
+    public DuckDBTransaction(DuckDBConnection connection, IsolationLevel isolationLevel)
     {
-        private bool finished = false;
-        private readonly DuckDBConnection connection;
-        
-        protected override DbConnection DbConnection => connection;
-        
-        public override IsolationLevel IsolationLevel { get; }
+        this.connection = connection;
+        IsolationLevel = isolationLevel;
 
-        public DuckDBTransaction(DuckDBConnection connection, IsolationLevel isolationLevel)
+        if (isolationLevel != IsolationLevel.Snapshot && isolationLevel != IsolationLevel.Unspecified)
         {
-            this.connection = connection;
-            IsolationLevel = isolationLevel;
-
-            if (isolationLevel != IsolationLevel.Snapshot && isolationLevel != IsolationLevel.Unspecified)
-            {
-                throw new ArgumentException($"Unsupported isolation level: {isolationLevel}", nameof(isolationLevel));
-            }
-
-            this.connection.ExecuteNonQuery("BEGIN TRANSACTION;");
+            throw new ArgumentException($"Unsupported isolation level: {isolationLevel}", nameof(isolationLevel));
         }
 
-        public override void Commit() => FinishTransaction("COMMIT;");
+        this.connection.ExecuteNonQuery("BEGIN TRANSACTION;");
+    }
 
-        public override void Rollback() => FinishTransaction("ROLLBACK");
+    public override void Commit() => FinishTransaction("COMMIT;");
 
-        private void FinishTransaction(string finalizer)
+    public override void Rollback() => FinishTransaction("ROLLBACK");
+
+    private void FinishTransaction(string finalizer)
+    {
+        if (finished)
         {
-            if (finished)
-            {
-                throw new InvalidOperationException("Transaction has already been finished.");
-            }
-
-            connection.ExecuteNonQuery(finalizer);
-            connection.Transaction = null;
-            finished = true;
+            throw new InvalidOperationException("Transaction has already been finished.");
         }
-        
-        
-        protected override void Dispose(bool disposing)
-        {
-            base.Dispose(disposing);
 
-            if (disposing && !finished && connection.IsOpen())
-            {
-                Rollback();
-            }
+        connection.ExecuteNonQuery(finalizer);
+        connection.Transaction = null;
+        finished = true;
+    }
+        
+        
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+
+        if (disposing && !finished && connection.IsOpen())
+        {
+            Rollback();
         }
     }
 }

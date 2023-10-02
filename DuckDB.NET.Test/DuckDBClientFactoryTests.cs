@@ -9,50 +9,49 @@ using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace DuckDB.NET.Test
+namespace DuckDB.NET.Test;
+
+public class DuckDBClientFactoryTests
 {
-    public class DuckDBClientFactoryTests
+    [Fact]
+    public void RegisterFactory()
     {
-        [Fact]
-        public void RegisterFactory()
-        {
-            DbProviderFactories.RegisterFactory(DuckDBClientFactory.ProviderInvariantName, DuckDBClientFactory.Instance);
-            DbProviderFactories.TryGetFactory(DuckDBClientFactory.ProviderInvariantName, out var factory);
+        DbProviderFactories.RegisterFactory(DuckDBClientFactory.ProviderInvariantName, DuckDBClientFactory.Instance);
+        DbProviderFactories.TryGetFactory(DuckDBClientFactory.ProviderInvariantName, out var factory);
 
-            Assert.NotNull(factory);
-            Assert.IsType<DuckDBClientFactory>(factory);
-        }
+        Assert.NotNull(factory);
+        Assert.IsType<DuckDBClientFactory>(factory);
+    }
 
-        [Fact]
-        public void UseFactory()
-        {
-            DbProviderFactories.RegisterFactory(DuckDBClientFactory.ProviderInvariantName, DuckDBClientFactory.Instance);
-            DbProviderFactories.TryGetFactory(DuckDBClientFactory.ProviderInvariantName, out var factory);
+    [Fact]
+    public void UseFactory()
+    {
+        DbProviderFactories.RegisterFactory(DuckDBClientFactory.ProviderInvariantName, DuckDBClientFactory.Instance);
+        DbProviderFactories.TryGetFactory(DuckDBClientFactory.ProviderInvariantName, out var factory);
 
-            Assert.NotNull(factory);
+        Assert.NotNull(factory);
             
-            using var connection = factory.CreateConnection();
-            using var command = factory.CreateCommand();
-            var parameter = factory.CreateParameter();
+        using var connection = factory.CreateConnection();
+        using var command = factory.CreateCommand();
+        var parameter = factory.CreateParameter();
 
-            var connectionStringBuilder = factory.CreateConnectionStringBuilder();
-            connectionStringBuilder["DataSource"] = DuckDBConnectionStringBuilder.InMemoryDataSource;
+        var connectionStringBuilder = factory.CreateConnectionStringBuilder();
+        connectionStringBuilder["DataSource"] = DuckDBConnectionStringBuilder.InMemoryDataSource;
             
-            connection.ConnectionString = connectionStringBuilder.ConnectionString;
+        connection.ConnectionString = connectionStringBuilder.ConnectionString;
 
-            command.CommandText = "Select ?";
-            command.Connection = connection;
-            parameter.Value = 42;
-            command.Parameters.Add(parameter);
+        command.CommandText = "Select ?";
+        command.Connection = connection;
+        parameter.Value = 42;
+        command.Parameters.Add(parameter);
             
-            connection.Open();
+        connection.Open();
 
-            using var reader = command.ExecuteReader();
-            reader.Read();
+        using var reader = command.ExecuteReader();
+        reader.Read();
 
-            var value = reader.GetInt32(0);
+        var value = reader.GetInt32(0);
             
-            Assert.Equal(42, value);
-        }
+        Assert.Equal(42, value);
     }
 }

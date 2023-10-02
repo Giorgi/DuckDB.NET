@@ -37,9 +37,9 @@ jobs:
     - name: Pack
       if: matrix.os == 'ubuntu-20.04' && github.event_name != 'pull_request'
       run: |
-        dotnet pack DuckDB.NET/Bindings.csproj   --configuration Release 
+        dotnet pack DuckDB.NET.Bindings/Bindings.csproj   --configuration Release 
         dotnet pack DuckDB.NET.Data/Data.csproj  --configuration Release 
-        dotnet pack DuckDB.NET/Bindings.csproj   --configuration Release /p:BuildType=Full
+        dotnet pack DuckDB.NET.Bindings/Bindings.csproj   --configuration Release /p:BuildType=Full
         dotnet pack DuckDB.NET.Data/Data.csproj  --configuration Release /p:BuildType=Full
 
     - name: Upload Artifacts
@@ -52,7 +52,7 @@ jobs:
     - name: Run tests
       env:
         CoverletOutputFormat: lcov
-      run: dotnet test --configuration Release --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:BuildType=Full
+      run: dotnet test --configuration Release --verbosity normal --logger GitHubActions /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:BuildType=Full
 
     - name: Coveralls Parallel
       uses: coverallsapp/github-action@master

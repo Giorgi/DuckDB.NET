@@ -1,6 +1,5 @@
 using System;
 using System.Globalization;
-using System.Text.RegularExpressions;
 using DuckDB.NET.Data;
 using FluentAssertions;
 using Xunit;
@@ -17,18 +16,35 @@ public class DecimalParameterTests
 
         var values = new[]{0m, decimal.Zero, decimal.MinValue,
             decimal.MaxValue, decimal.MaxValue / 3, decimal.One,
-            decimal.One / 2, decimal.One / 3, decimal.MinusOne,
-            //decimal.MinusOne / 2, 
-            decimal.MinusOne / 3};
+            decimal.One / 2,  decimal.MinusOne,
+            decimal.MinusOne / 2};
 
         foreach (var value in values)
         {
             var command = connection.CreateCommand();
-            command.CommandText = $"SELECT {Convert.ToString(value, CultureInfo.InvariantCulture)};";
+            command.CommandText = $"SELECT {Convert.ToString(value, CultureInfo.InvariantCulture)}::DECIMAL(38,9);";
             command.ExecuteNonQuery();
 
-            //var scalar = command.ExecuteScalar();
-            //scalar.Should().Be(value);
+            var scalar = command.ExecuteScalar();
+            scalar.Should().Be(value);
+
+            var reader = command.ExecuteReader();
+            reader.Read();
+            var receivedValue = reader.GetDecimal(0);
+            receivedValue.Should().Be(value);
+        }
+
+
+        values = new[] { decimal.One / 3, decimal.MinusOne / 3 };
+
+        foreach (var value in values)
+        {
+            var command = connection.CreateCommand();
+            command.CommandText = $"SELECT {Convert.ToString(value, CultureInfo.InvariantCulture)}::DECIMAL(38,28);";
+            command.ExecuteNonQuery();
+
+            var scalar = command.ExecuteScalar();
+            scalar.Should().Be(value);
 
             var reader = command.ExecuteReader();
             reader.Read();
@@ -61,6 +77,16 @@ public class DecimalParameterTests
         {
             decimal.One/3, decimal.MinusOne/3
         }, 38, 28);
+
+        DecimalTests(new[]
+        {
+            0.3333M, 56.1234M
+        }, 8, 4);
+
+        DecimalTests(new[]
+        {
+            0.33M, 12.34M
+        }, 4, 2);
 
         void DecimalTests(decimal[] values, int precision, int scale)
         {
