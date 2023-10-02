@@ -7,20 +7,20 @@ using Xunit;
 
 namespace DuckDB.NET.Test;
 
-public class DuckDBDataReaderTests
+public class DuckDBDataReaderTests : DuckDBTestBase
 {
+    public DuckDBDataReaderTests(DuckDBDatabaseFixture db) : base(db)
+    {
+    }
+
     [Fact]
     public void GetOrdinalReturnsColumnIndex()
-    {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
+    { 
+        Command.CommandText = "CREATE TABLE GetOrdinalTests (key INTEGER, value TEXT, State Boolean)";
+        Command.ExecuteNonQuery();
 
-        var duckDbCommand = connection.CreateCommand();
-        duckDbCommand.CommandText = "CREATE TABLE GetOrdinalTests (key INTEGER, value TEXT, State Boolean)";
-        duckDbCommand.ExecuteNonQuery();
-
-        duckDbCommand.CommandText = "select * from GetOrdinalTests";
-        var reader = duckDbCommand.ExecuteReader();
+        Command.CommandText = "select * from GetOrdinalTests";
+        var reader = Command.ExecuteReader();
 
         reader.GetOrdinal("key").Should().Be(0);
         reader.GetOrdinal("value").Should().Be(1);
@@ -31,36 +31,28 @@ public class DuckDBDataReaderTests
     [Fact]
     public void CloseConnectionClosesConnection()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
+        Command.CommandText = "CREATE TABLE CloseConnectionTests (key INTEGER, value TEXT, State Boolean)";
+        Command.ExecuteNonQuery();
 
-        var duckDbCommand = connection.CreateCommand();
-        duckDbCommand.CommandText = "CREATE TABLE CloseConnectionTests (key INTEGER, value TEXT, State Boolean)";
-        duckDbCommand.ExecuteNonQuery();
-
-        duckDbCommand.CommandText = "select * from CloseConnectionTests";
-        var reader = duckDbCommand.ExecuteReader(CommandBehavior.CloseConnection);
+        Command.CommandText = "select * from CloseConnectionTests";
+        var reader = Command.ExecuteReader(CommandBehavior.CloseConnection);
         reader.Close();
 
         reader.IsClosed.Should().BeTrue();
-        connection.State.Should().Be(ConnectionState.Closed);
+        Connection.State.Should().Be(ConnectionState.Closed);
     }
 
     [Fact]
     public void ReaderValues()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
+        Command.CommandText = "CREATE TABLE IndexerValuesTests (key INTEGER, value decimal, State Boolean, ErrorCode Integer, mean Float, stdev double)";
+        Command.ExecuteNonQuery();
 
-        var duckDbCommand = connection.CreateCommand();
-        duckDbCommand.CommandText = "CREATE TABLE IndexerValuesTests (key INTEGER, value decimal, State Boolean, ErrorCode Integer, mean Float, stdev double)";
-        duckDbCommand.ExecuteNonQuery();
+        Command.CommandText = "Insert Into IndexerValuesTests values (1, 2.4, true, null, null, null)";
+        Command.ExecuteNonQuery();
 
-        duckDbCommand.CommandText = "Insert Into IndexerValuesTests values (1, 2.4, true, null, null, null)";
-        duckDbCommand.ExecuteNonQuery();
-
-        duckDbCommand.CommandText = "select * from IndexerValuesTests";
-        var reader = duckDbCommand.ExecuteReader(CommandBehavior.CloseConnection);
+        Command.CommandText = "select * from IndexerValuesTests";
+        var reader = Command.ExecuteReader(CommandBehavior.CloseConnection);
 
         reader.Read();
 
@@ -83,13 +75,8 @@ public class DuckDBDataReaderTests
     [Fact]
     public void ReaderEnumerator()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
-        var duckDbCommand = connection.CreateCommand();
-
-        duckDbCommand.CommandText = "select 7 union select 11 order by 1";
-        using var reader = duckDbCommand.ExecuteReader(CommandBehavior.CloseConnection);
+        Command.CommandText = "select 7 union select 11 order by 1";
+        using var reader = Command.ExecuteReader(CommandBehavior.CloseConnection);
         var enumerator = reader.GetEnumerator();
 
         enumerator.MoveNext().Should().Be(true);
@@ -104,13 +91,9 @@ public class DuckDBDataReaderTests
     [Fact]
     public void ReadIntervalValues()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
+        Command.CommandText = "SELECT INTERVAL 1 YEAR;";
 
-        var duckDbCommand = connection.CreateCommand();
-        duckDbCommand.CommandText = "SELECT INTERVAL 1 YEAR;";
-
-        var reader = duckDbCommand.ExecuteReader();
+        var reader = Command.ExecuteReader();
         reader.Read();
         reader.GetFieldType(0).Should().Be(typeof(DuckDBInterval));
         reader.GetDataTypeName(0).Should().Be(DuckDBType.Interval.ToString());
@@ -119,16 +102,16 @@ public class DuckDBDataReaderTests
 
         interval.Months.Should().Be(12);
 
-        duckDbCommand.CommandText = "SELECT INTERVAL '28' DAYS;";
-        reader = duckDbCommand.ExecuteReader();
+        Command.CommandText = "SELECT INTERVAL '28' DAYS;";
+        reader = Command.ExecuteReader();
         reader.Read();
 
         interval = reader.GetFieldValue<DuckDBInterval>(0);
 
         interval.Days.Should().Be(28);
 
-        duckDbCommand.CommandText = "SELECT INTERVAL 30 SECONDS;";
-        reader = duckDbCommand.ExecuteReader();
+        Command.CommandText = "SELECT INTERVAL 30 SECONDS;";
+        reader = Command.ExecuteReader();
         reader.Read();
 
         interval = reader.GetFieldValue<DuckDBInterval>(0);
@@ -142,9 +125,8 @@ public class DuckDBDataReaderTests
         using var connection = new DuckDBConnection("DataSource=:memory:");
         connection.Open();
 
-        var duckDbCommand = connection.CreateCommand();
-        duckDbCommand.CommandText = "select 1 as num, 'text' as str, TIMESTAMP '1992-09-20 20:38:40' as tme";
-        var reader = duckDbCommand.ExecuteReader();
+        Command.CommandText = "select 1 as num, 'text' as str, TIMESTAMP '1992-09-20 20:38:40' as tme";
+        var reader = Command.ExecuteReader();
         var dt = new DataTable();
         dt.Load(reader);
         dt.Rows.Count.Should().Be(1);
@@ -156,10 +138,9 @@ public class DuckDBDataReaderTests
         using var connection = new DuckDBConnection("DataSource=:memory:");
         connection.Open();
 
-        var duckDbCommand = connection.CreateCommand();
-        duckDbCommand.CommandText = "Select 1; Select 2";
+        Command.CommandText = "Select 1; Select 2";
 
-        using var reader = duckDbCommand.ExecuteReader();
+        using var reader = Command.ExecuteReader();
 
         reader.Read();
         reader.GetInt32(0).Should().Be(1);
@@ -176,21 +157,15 @@ public class DuckDBDataReaderTests
     [Fact]
     public void ReadManyRows()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
-        using (var duckDbCommand = connection.CreateCommand())
-        {
-            var table = "CREATE TABLE TableForManyRows(foo INTEGER, bar VARCHAR);";
-            duckDbCommand.CommandText = table;
-            duckDbCommand.ExecuteNonQuery();
-        }
+        var table = "CREATE TABLE TableForManyRows(foo INTEGER, bar VARCHAR);";
+        Command.CommandText = table;
+        Command.ExecuteNonQuery();
 
         var rows = 10_000;
 
         var values = new List<KeyValuePair<int?, string>>();
 
-        using (var appender = connection.CreateAppender("TableForManyRows"))
+        using (var appender = Connection.CreateAppender("TableForManyRows"))
         {
             for (var i = 0; i < rows; i++)
             {
@@ -209,22 +184,20 @@ public class DuckDBDataReaderTests
             appender.CreateRow().AppendNullValue().AppendNullValue().EndRow();
         }
 
-        using (var duckDbCommand = connection.CreateCommand())
+        Command.CommandText = "SELECT * FROM TableForManyRows";
+        using var reader = Command.ExecuteReader();
+
+        var readRowIndex = 0;
+        while (reader.Read())
         {
-            duckDbCommand.CommandText = "SELECT * FROM TableForManyRows";
-            using var reader = duckDbCommand.ExecuteReader();
+            var item = values[readRowIndex];
 
-            var readRowIndex = 0;
-            while (reader.Read())
-            {
-                var item = values[readRowIndex];
+            (reader.IsDBNull(0) ? (int?)null : reader.GetInt32(0)).Should().Be(item.Key);
+            (reader.IsDBNull(1) ? null : reader.GetString(1)).Should().Be(item.Value);
 
-                (reader.IsDBNull(0) ? (int?)null : reader.GetInt32(0)).Should().Be(item.Key);
-                (reader.IsDBNull(1) ? null : reader.GetString(1)).Should().Be(item.Value);
-
-                readRowIndex++;
-            }
-            readRowIndex.Should().Be(rows + 1);
+            readRowIndex++;
         }
+
+        readRowIndex.Should().Be(rows + 1);
     }
 }

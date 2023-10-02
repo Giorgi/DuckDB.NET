@@ -1,23 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using DuckDB.NET.Data;
 using FluentAssertions;
 using Xunit;
 
 namespace DuckDB.NET.Test;
 
-public class DuckDBDataReaderListTests
+public class DuckDBDataReaderListTests : DuckDBTestBase
 {
+    public DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : base(db)
+    {
+    }
+
     [Fact]
     public void ReadListOfIntegers()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
-        using var duckDbCommand = connection.CreateCommand();
-        duckDbCommand.CommandText = "SELECT [1, 2, 3];";
-        using var reader = duckDbCommand.ExecuteReader();
+        Command.CommandText = "SELECT [1, 2, 3];";
+        using var reader = Command.ExecuteReader();
         reader.Read();
         var list = reader.GetFieldValue<List<int>>(0);
         list.Should().BeEquivalentTo(new List<int> { 1, 2, 3 });
@@ -26,12 +25,8 @@ public class DuckDBDataReaderListTests
     [Fact]
     public void ReadMultipleListOfIntegers()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
-        using var duckDbCommand = connection.CreateCommand();
-        duckDbCommand.CommandText = "Select * from ( SELECT [1, 2, 3] Union Select [4, 5] Union Select []) order by 1";
-        using var reader = duckDbCommand.ExecuteReader();
+        Command.CommandText = "Select * from ( SELECT [1, 2, 3] Union Select [4, 5] Union Select []) order by 1";
+        using var reader = Command.ExecuteReader();
         reader.Read();
         var list = reader.GetFieldValue<List<int>>(0);
         list.Should().BeEquivalentTo(new List<int>());
@@ -48,12 +43,8 @@ public class DuckDBDataReaderListTests
     [Fact]
     public void ReadListOfIntegersWithNulls()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
-        using var duckDbCommand = connection.CreateCommand();
-        duckDbCommand.CommandText = "Select * from ( SELECT [1, 2, NULL, 3, NULL] Union Select [NULL, NULL, 4, 5] Union Select null) order by 1";
-        using var reader = duckDbCommand.ExecuteReader();
+        Command.CommandText = "Select * from ( SELECT [1, 2, NULL, 3, NULL] Union Select [NULL, NULL, 4, 5] Union Select null) order by 1";
+        using var reader = Command.ExecuteReader();
         reader.Read();
         var list = reader.GetFieldValue<List<int?>>(0);
         list.Should().BeEquivalentTo(new List<int?> { 1, 2, null, 3, null });
@@ -68,12 +59,8 @@ public class DuckDBDataReaderListTests
     [Fact]
     public void ReadMultipleListOfDoubles()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
-        using var duckDbCommand = connection.CreateCommand();
-        duckDbCommand.CommandText = "Select * from ( SELECT [1/2, 3/2, 5/2] Union Select [4, 5] Union Select []) order by 1";
-        using var reader = duckDbCommand.ExecuteReader();
+        Command.CommandText = "Select * from ( SELECT [1/2, 3/2, 5/2] Union Select [4, 5] Union Select []) order by 1";
+        using var reader = Command.ExecuteReader();
         reader.Read();
         var list = reader.GetFieldValue<List<double>>(0);
         list.Should().BeEquivalentTo(new List<double>());
@@ -90,12 +77,8 @@ public class DuckDBDataReaderListTests
     [Fact]
     public void ReadMultipleListOfStrings()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
-        using var duckDbCommand = connection.CreateCommand();
-        duckDbCommand.CommandText = "Select * from ( SELECT ['hello', 'world'] Union Select ['from DuckDB.Net', 'client'] Union Select []) order by 1";
-        using var reader = duckDbCommand.ExecuteReader();
+        Command.CommandText = "Select * from ( SELECT ['hello', 'world'] Union Select ['from DuckDB.Net', 'client'] Union Select []) order by 1";
+        using var reader = Command.ExecuteReader();
         reader.Read();
         var list = reader.GetFieldValue<List<string>>(0);
         list.Should().BeEquivalentTo(new List<string>());
@@ -112,12 +95,8 @@ public class DuckDBDataReaderListTests
     [Fact]
     public void ReadMultipleListOfDecimals()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
-        using var duckDbCommand = connection.CreateCommand();
-        duckDbCommand.CommandText = "Select * from ( SELECT [1.1, 2.3456, NULL] Union Select [73.56725, 264387.632673487236]) order by 1";
-        var reader = duckDbCommand.ExecuteReader();
+        Command.CommandText = "Select * from ( SELECT [1.1, 2.3456, NULL] Union Select [73.56725, 264387.632673487236]) order by 1";
+        var reader = Command.ExecuteReader();
 
         reader.Read();
         var list = reader.GetFieldValue<List<decimal?>>(0);
@@ -128,8 +107,8 @@ public class DuckDBDataReaderListTests
         value.Should().BeEquivalentTo(new List<decimal?> { 73.56725m, 264387.632673487236m });
         reader.Dispose();
 
-        duckDbCommand.CommandText = "SELECT [1.1, 2.34] ";
-        reader = duckDbCommand.ExecuteReader();
+        Command.CommandText = "SELECT [1.1, 2.34] ";
+        reader = Command.ExecuteReader();
 
         reader.Read();
         list = reader.GetFieldValue<List<decimal?>>(0);
@@ -140,13 +119,9 @@ public class DuckDBDataReaderListTests
     [Fact]
     public void ReadListOfTimeStamps()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
+        Command.CommandText = "SELECT range(date '1992-01-01', date '1992-08-01', interval '1' month);";
 
-        using var duckDbCommand = connection.CreateCommand();
-        duckDbCommand.CommandText = "SELECT range(date '1992-01-01', date '1992-08-01', interval '1' month);";
-
-        using var reader = duckDbCommand.ExecuteReader();
+        using var reader = Command.ExecuteReader();
         reader.Read();
 
         var list = reader.GetFieldValue<List<DateTime>>(0);
@@ -156,13 +131,9 @@ public class DuckDBDataReaderListTests
     [Fact]
     public void ReadListOfDates()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
+        Command.CommandText = "SELECT [Date '2002-04-06', Date '2008-10-12']";
 
-        using var duckDbCommand = connection.CreateCommand();
-        duckDbCommand.CommandText = "SELECT [Date '2002-04-06', Date '2008-10-12']";
-
-        using var reader = duckDbCommand.ExecuteReader();
+        using var reader = Command.ExecuteReader();
         reader.Read();
 
         var list = reader.GetFieldValue<List<DateTime>>(0);
@@ -175,13 +146,9 @@ public class DuckDBDataReaderListTests
     [Fact]
     public void ReadListOfTimes()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
+        Command.CommandText = "SELECT [Time '12:14:16', Time '18:10:12']";
 
-        using var duckDbCommand = connection.CreateCommand();
-        duckDbCommand.CommandText = "SELECT [Time '12:14:16', Time '18:10:12']";
-
-        using var reader = duckDbCommand.ExecuteReader();
+        using var reader = Command.ExecuteReader();
         reader.Read();
 
         var list = reader.GetFieldValue<List<TimeOnly>>(0);
