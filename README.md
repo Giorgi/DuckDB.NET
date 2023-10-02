@@ -149,6 +149,12 @@ To read DuckDB specific native types use `DuckDBDataReader.GetFieldValue<T>` met
 | TIME  | DuckDBTimeOnly  |
 | HUGEINT  | BigInteger  |
 
+#### List, Struct, Enum, and other composite types
+
+DuckDB.NET 0.9.0 supports reading a List of primitive types (int, string, double, etc). Reading a List of composite types or nested lists isn't supported.
+
+To read a List use `DuckDBDataReader.GetFieldValue<T>`. For example, to read a list of doubles: `DuckDBDataReader.GetFieldValue<List<double>>` If the list contains null use `DuckDBDataReader.GetFieldValue<List<double?>>`, otherwise an exception will be thrown when null is encountered. If you don't know whether the list contains null or nor but want to use skip all null values you can use `select [x for x in mylist if x IS NOT NULL] as filtered;` to remove null values from the list.
+
 #### Executing multiple statements in a single go.
 
 Starting from version 0.8, you can execute multiple statements in a single go:
