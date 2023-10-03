@@ -38,7 +38,7 @@ public class DuckDBTestBase : IDisposable, IClassFixture<DuckDBDatabaseFixture>
         Command = db.Connection.CreateCommand();
     }
 
-    public void Dispose()
+    public virtual void Dispose()
     {
         Command?.Dispose();
     }

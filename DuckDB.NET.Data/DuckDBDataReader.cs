@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Globalization;
 using System.IO;
 using System.Numerics;
 using System.Text;
@@ -282,12 +283,48 @@ public class DuckDBDataReader : DbDataReader
     {
         var type = NativeMethods.Query.DuckDBColumnType(ref currentResult, ordinal);
 
-        if (type == DuckDBType.List)
+        return type switch
         {
-            return (T)GetList(ordinal, typeof(T));
+            DuckDBType.List => (T)GetList(ordinal, typeof(T)),
+            DuckDBType.Enum => GetEnum<T>(ordinal),
+            _ => (T)GetValue(ordinal, type)
+        };
+    }
+
+    private T GetEnum<T>(int ordinal)
+    {
+        var vector = vectors[ordinal];
+        using var logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
+        var internalType = NativeMethods.LogicalType.DuckDBEnumInternalType(logicalType);
+
+        long enumValue = internalType switch
+        {
+            DuckDBType.UnsignedTinyInt => GetByte(ordinal),
+            DuckDBType.UnsignedSmallInt => GetUInt16(ordinal),
+            DuckDBType.UnsignedInteger => GetUInt32(ordinal),
+            _ => -1
+        };
+
+        var targetType = typeof(T);
+
+        if (targetType == typeof(string))
+        {
+            var value = NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType, enumValue).ToManagedString();
+            return (T)(object)value;
         }
 
-        return (T)GetValue(ordinal, type);
+        var underlyingType = Nullable.GetUnderlyingType(targetType);
+        if (underlyingType != null)
+        {
+            if (IsDBNull(ordinal))
+            {
+                return default;
+            }
+            targetType = underlyingType;
+        }
+
+        var enumItem = (T)Enum.Parse(targetType, enumValue.ToString(CultureInfo.InvariantCulture));
+        return enumItem;
     }
 
     public override object GetValue(int ordinal)
@@ -320,6 +357,7 @@ public class DuckDBDataReader : DbDataReader
             DuckDBType.Decimal => GetDecimal(ordinal),
             DuckDBType.Blob => GetStream(ordinal),
             DuckDBType.List => GetList(ordinal),
+            DuckDBType.Enum => GetEnum<string>(ordinal),
             var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type}) in column {ordinal + 1}")
         };
     }
@@ -356,7 +394,7 @@ public class DuckDBDataReader : DbDataReader
                     ? BuildList<DateTime?>()
                     : BuildList<DateOnly?>()
                 : genericArgument == null || genericArgument == typeof(DateTime)
-                    ? BuildList<DateTime>() 
+                    ? BuildList<DateTime>()
                     : BuildList<DateOnly>(),
 #else
             DuckDBType.Date => allowNulls ? BuildList<DateTime?>() : BuildList<DateTime>(),
@@ -367,7 +405,7 @@ public class DuckDBDataReader : DbDataReader
                     ? BuildList<DateTime?>()
                     : BuildList<TimeOnly?>()
                 : genericArgument == null || genericArgument == typeof(DateTime)
-                    ? BuildList<DateTime>() 
+                    ? BuildList<DateTime>()
                     : BuildList<TimeOnly>(),
 #else
             DuckDBType.Time => allowNulls ? BuildList<DateTime?>() : BuildList<DateTime>(),
