@@ -85,7 +85,7 @@ public class DuckDBDataReaderEnumTests : DuckDBTestBase
         base.Dispose();
     }
 
-    enum Mood
+    internal enum Mood
     {
         Sad, Ok, Happy
     }

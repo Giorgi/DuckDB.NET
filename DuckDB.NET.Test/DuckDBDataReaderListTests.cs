@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Dapper;
 using FluentAssertions;
 using Xunit;
 
@@ -153,5 +154,23 @@ public class DuckDBDataReaderListTests : DuckDBTestBase
 
         var list = reader.GetFieldValue<List<TimeOnly>>(0);
         list.Should().BeEquivalentTo(new List<TimeOnly> { new(12, 14, 16), new(18, 10, 12) });
+    }
+
+    [Fact]
+    public void ReadListWithDapper()
+    {
+        Command.CommandText = "CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy');";
+        Command.ExecuteNonQuery();
+
+        var person = Connection.QueryFirst<Person>("SELECT [1, 2, 3] as Ids, 'happy' as Mood");
+
+        person.Ids.Should().BeEquivalentTo(new List<int> { 1, 2, 3 });
+        person.Mood.Should().Be(DuckDBDataReaderEnumTests.Mood.Happy);
+    }
+
+    class Person
+    {
+        public List<int> Ids { get; set; }
+        public DuckDBDataReaderEnumTests.Mood Mood { get; set; }
     }
 }
