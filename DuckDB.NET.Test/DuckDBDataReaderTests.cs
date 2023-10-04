@@ -51,6 +51,9 @@ public class DuckDBDataReaderTests : DuckDBTestBase
         Command.CommandText = "Insert Into IndexerValuesTests values (1, 2.4, true, null, null, null)";
         Command.ExecuteNonQuery();
 
+        Command.CommandText = "Insert Into IndexerValuesTests values (2, 4.8, false, null, null, null)";
+        Command.ExecuteNonQuery();
+
         Command.CommandText = "select * from IndexerValuesTests";
         var reader = Command.ExecuteReader(CommandBehavior.CloseConnection);
 
@@ -70,6 +73,9 @@ public class DuckDBDataReaderTests : DuckDBTestBase
         reader.GetFieldType(2).Should().Be(typeof(bool));
         reader.GetFieldType(4).Should().Be(typeof(float));
         reader.GetFieldType(5).Should().Be(typeof(double));
+
+        reader.Read();
+        reader.GetDecimal(1).Should().Be(4.8m);
     }
 
     [Fact]

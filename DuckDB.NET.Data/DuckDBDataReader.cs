@@ -155,7 +155,7 @@ public class DuckDBDataReader : DbDataReader
     {
         var logicalType = NativeMethods.Query.DuckDBColumnLogicalType(ref currentResult, ordinal);
 
-        return GetDecimal(vectorData[ordinal], 0, logicalType);
+        return GetDecimal(vectorData[ordinal], (ulong)(rowsReadFromCurrentChunk - 1), logicalType);
     }
 
     public override double GetDouble(int ordinal)
