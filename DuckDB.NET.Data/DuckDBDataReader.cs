@@ -187,6 +187,8 @@ public class DuckDBDataReader : DbDataReader
             DuckDBType.Varchar => typeof(string),
             DuckDBType.Decimal => typeof(decimal),
             DuckDBType.Blob => typeof(Stream),
+            DuckDBType.Enum => typeof(Enum),
+            DuckDBType.List => typeof(List<>),
             var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type}) in column {ordinal + 1}")
         };
     }
