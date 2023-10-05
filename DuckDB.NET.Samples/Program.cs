@@ -5,6 +5,10 @@ using System.Linq;
 using DuckDB.NET.Data;
 using static DuckDB.NET.NativeMethods;
 using Dapper;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using DuckDB.NET.Test.Helpers;
 
 namespace DuckDB.NET.Samples
 {
@@ -12,6 +16,12 @@ namespace DuckDB.NET.Samples
     {
         static void Main(string[] args)
         {
+            if (!NativeLibraryHelper.TryLoad())
+            {
+                Console.Error.WriteLine("native assembly not found");
+                return;
+            }
+
             DapperSample();
 
             AdoNetSamples();

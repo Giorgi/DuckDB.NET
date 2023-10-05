@@ -1,18 +1,30 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
     <SonarQubeExclude>true</SonarQubeExclude>
+    <TargetFrameworks>net6.0</TargetFrameworks>
   </PropertyGroup>
 
-  <ItemGroup>
+	<PropertyGroup>
+		<BuildType>Full</BuildType>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <Compile Include="..\DuckDB.NET.Test\Helpers\NativeLibraryHelper.cs" Link="Helpers\NativeLibraryHelper.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
     <PackageReference Include="Dapper" Version="2.0.123" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\DuckDB.NET.Data\Data.csproj" />
-    <ProjectReference Include="..\DuckDB.NET.Bindings\Bindings.csproj" />
+    <ProjectReference Include="..\DuckDB.NET.Bindings\Bindings.csproj" properties="BuildType=Full" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Helpers\" />
   </ItemGroup> 
   
 </Project>
