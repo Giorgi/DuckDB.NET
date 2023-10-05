@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Numerics;
-using System.Reflection;
 using System.Text;
 
 namespace DuckDB.NET.Data;
@@ -22,6 +21,7 @@ internal class VectorDataReader : IDisposable
 
     private readonly byte scale;
     private readonly DuckDBType decimalType;
+    private readonly DuckDBType enumType;
 
     internal unsafe VectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType)
     {
@@ -29,25 +29,31 @@ internal class VectorDataReader : IDisposable
         this.dataPointer = dataPointer;
         this.validityMaskPointer = validityMaskPointer;
         ColumnType = columnType;
+
         logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
 
-        if (ColumnType == DuckDBType.Decimal)
+        switch (ColumnType)
         {
-            scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
-            decimalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
-        }
+            case DuckDBType.Enum:
+                enumType = NativeMethods.LogicalType.DuckDBEnumInternalType(logicalType);
+                break;
+            case DuckDBType.Decimal:
+                scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
+                decimalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
+                break;
+            case DuckDBType.List:
+            {
+                using var childType = NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType);
+                var type = NativeMethods.LogicalType.DuckDBGetTypeId(childType);
 
-        if (ColumnType == DuckDBType.List)
-        {
-            using var childType = NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType);
-            var type = NativeMethods.LogicalType.DuckDBGetTypeId(childType);
+                var childVector = NativeMethods.DataChunks.DuckDBListVectorGetChild(vector);
 
-            var childVector = NativeMethods.DataChunks.DuckDBListVectorGetChild(vector);
+                var childVectorData = NativeMethods.DataChunks.DuckDBVectorGetData(childVector);
+                var childVectorValidity = NativeMethods.DataChunks.DuckDBVectorGetValidity(childVector);
 
-            var childVectorData = NativeMethods.DataChunks.DuckDBVectorGetData(childVector);
-            var childVectorValidity = NativeMethods.DataChunks.DuckDBVectorGetValidity(childVector);
-
-            listDataReader = new VectorDataReader(childVector, childVectorData, childVectorValidity, type);
+                listDataReader = new VectorDataReader(childVector, childVectorData, childVectorValidity, type);
+                break;
+            }
         }
     }
 
@@ -134,9 +140,7 @@ internal class VectorDataReader : IDisposable
 
     internal T GetEnum<T>(ulong offset)
     {
-        var internalType = NativeMethods.LogicalType.DuckDBEnumInternalType(logicalType);
-
-        long enumValue = internalType switch
+        long enumValue = enumType switch
         {
             DuckDBType.UnsignedTinyInt => GetFieldData<byte>(offset),
             DuckDBType.UnsignedSmallInt => GetFieldData<ushort>(offset),
@@ -171,8 +175,10 @@ internal class VectorDataReader : IDisposable
         var listData = (DuckDBListEntry*)dataPointer + offset;
 
         var genericArgument = returnType?.GetGenericArguments()[0];
-        var allowNulls = returnType != null && genericArgument.IsValueType && Nullable.GetUnderlyingType(genericArgument) != null;
 
+        var allowNulls = returnType != null &&
+                         (!genericArgument.IsValueType || Nullable.GetUnderlyingType(genericArgument) != null);
+        
         return listDataReader.ColumnType switch
         {
             DuckDBType.Invalid => throw new DuckDBException("Invalid type"),

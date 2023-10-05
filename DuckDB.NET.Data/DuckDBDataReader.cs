@@ -31,7 +31,7 @@ public class DuckDBDataReader : DbDataReader
     private ulong rowsReadFromCurrentChunk;
     private ulong currentChunkRowCount;
 
-    private VectorDataReader[] vectorReaders;
+    private VectorDataReader[] vectorReaders = Array.Empty<VectorDataReader>();
 
     internal DuckDBDataReader(DuckDbCommand command, List<DuckDBResult> queryResults, CommandBehavior behavior)
     {
@@ -63,6 +63,11 @@ public class DuckDBDataReader : DbDataReader
     {
         unsafe
         {
+            foreach (var reader in vectorReaders)
+            {
+                reader?.Dispose();
+            }
+
             currentChunk?.Dispose();
             currentChunk = NativeMethods.Types.DuckDBResultGetChunk(currentResult, currentChunkIndex);
             currentChunkRowCount = (ulong)NativeMethods.DataChunks.DuckDBDataChunkGetSize(currentChunk);
@@ -212,9 +217,7 @@ public class DuckDBDataReader : DbDataReader
 
     public override T GetFieldValue<T>(int ordinal)
     {
-        var type = NativeMethods.Query.DuckDBColumnType(ref currentResult, ordinal);
-
-        return type switch
+        return vectorReaders[ordinal].ColumnType switch
         {
             DuckDBType.List => (T)vectorReaders[ordinal].GetList(rowsReadFromCurrentChunk - 1, typeof(T)),
             DuckDBType.Enum => vectorReaders[ordinal].GetEnum<T>(rowsReadFromCurrentChunk - 1),

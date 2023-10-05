@@ -78,7 +78,7 @@ public class DuckDBDataReaderListTests : DuckDBTestBase
     [Fact]
     public void ReadMultipleListOfStrings()
     {
-        Command.CommandText = "Select * from ( SELECT ['hello', 'world'] Union Select ['from DuckDB.Net', 'client'] Union Select []) order by 1";
+        Command.CommandText = "Select * from ( SELECT ['hello', NULL, 'world'] Union Select ['from DuckDB.Net', 'client'] Union Select []) order by 1";
         using var reader = Command.ExecuteReader();
         reader.Read();
         var list = reader.GetFieldValue<List<string>>(0);
@@ -90,7 +90,7 @@ public class DuckDBDataReaderListTests : DuckDBTestBase
 
         reader.Read();
         list = reader.GetFieldValue<List<string>>(0);
-        list.Should().BeEquivalentTo(new List<string> { "hello", "world" });
+        list.Should().BeEquivalentTo(new List<string> { "hello", null, "world" });
     }
 
     [Fact]
