@@ -130,7 +130,8 @@ public class DuckDBDataReader : DbDataReader
 
     public override unsafe DateTime GetDateTime(int ordinal)
     {
-        return GetDateTime(vectorData[ordinal], (ulong)(rowsReadFromCurrentChunk - 1));
+        var type = NativeMethods.Query.DuckDBColumnType(ref currentResult, ordinal);
+        return type == DuckDBType.Date ? GetDateOnly(ordinal).ToDateTime() : GetDateTime(vectorData[ordinal], (ulong)(rowsReadFromCurrentChunk - 1));
     }
 
     private static unsafe DateTime GetDateTime(void* pointer, ulong offset)
