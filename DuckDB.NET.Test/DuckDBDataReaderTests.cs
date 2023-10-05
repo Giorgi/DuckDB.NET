@@ -15,7 +15,7 @@ public class DuckDBDataReaderTests : DuckDBTestBase
 
     [Fact]
     public void GetOrdinalReturnsColumnIndex()
-    { 
+    {
         Command.CommandText = "CREATE TABLE GetOrdinalTests (key INTEGER, value TEXT, State Boolean)";
         Command.ExecuteNonQuery();
 
@@ -205,5 +205,30 @@ public class DuckDBDataReaderTests : DuckDBTestBase
         }
 
         readRowIndex.Should().Be(rows + 1);
+    }
+
+    [Fact]
+    public void ReadDateAsDateTime()
+    {
+        Command.CommandText = "CREATE TABLE intdate(foo INTEGER, bar DATE);";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "INSERT INTO intdate VALUES (3, date '2001-02-03'), (5, date '2004-05-06'), (7, date '2007-08-09');";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "SELECT bar FROM intdate";
+        using var reader = Command.ExecuteReader();
+
+        var dates = new List<DateTime>();
+
+        while (reader.Read())
+        {
+            for (int c = 0; c < reader.FieldCount; c++)
+            {
+                dates.Add(reader.GetDateTime(c));
+            }
+        }
+
+        dates.Should().BeEquivalentTo(new List<DateTime> { new(2001, 2, 3), new(2004, 5, 6), new(2007, 8, 9) });
     }
 }
