@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Numerics;
+using System.Reflection;
 using System.Text;
 
 namespace DuckDB.NET.Data;
@@ -89,12 +90,6 @@ internal class VectorDataReader : IDisposable
         }
     }
 
-    internal unsafe DateTime GetDateTime(ulong offset)
-    {
-        var data = (DuckDBTimestampStruct*)dataPointer + offset;
-        return data->ToDateTime();
-    }
-
     internal unsafe string GetString(ulong offset)
     {
         var data = (DuckDBString*)dataPointer + offset;
@@ -119,6 +114,16 @@ internal class VectorDataReader : IDisposable
         }
 
         return new UnmanagedMemoryStream((byte*)data->value.pointer.ptr, length, length, FileAccess.Read);
+    }
+
+    internal unsafe DateTime GetDateTime(ulong offset)
+    {
+        if (ColumnType == DuckDBType.Date)
+        {
+            return GetDateOnly(offset).ToDateTime();
+        }
+        var data = (DuckDBTimestampStruct*)dataPointer + offset;
+        return data->ToDateTime();
     }
 
     internal unsafe BigInteger GetBigInteger(ulong offset)
@@ -229,7 +234,7 @@ internal class VectorDataReader : IDisposable
                 var childOffset = i + listData->Offset;
                 if (listDataReader.IsValid(childOffset))
                 {
-                    var item = listDataReader.GetValue(childOffset);
+                    var item = listDataReader.GetValue(childOffset, targetType);
                     list.Add((T)item);
                 }
                 else
@@ -246,46 +251,10 @@ internal class VectorDataReader : IDisposable
             }
 
             return list;
-
-//            object GetDate(ulong offset)
-//            {
-//                var dateOnly = NativeMethods.DateTime.DuckDBFromDate(GetFieldData<DuckDBDate>(childVectorData, offset));
-//                if (targetType == typeof(DateTime))
-//                {
-//                    return (DateTime)dateOnly;
-//                }
-
-//#if NET6_0_OR_GREATER
-//                if (targetType == typeof(DateOnly))
-//                {
-//                    return (DateOnly)dateOnly;
-//                }
-//#endif
-
-//                return dateOnly;
-//            }
-
-//            object GetTime(ulong offset)
-//            {
-//                var timeOnly = NativeMethods.DateTime.DuckDBFromTime(GetFieldData<DuckDBTime>(childVectorData, offset));
-//                if (targetType == typeof(DateTime))
-//                {
-//                    return (DateTime)timeOnly;
-//                }
-
-//#if NET6_0_OR_GREATER
-//                if (targetType == typeof(TimeOnly))
-//                {
-//                    return (TimeOnly)timeOnly;
-//                }
-//#endif
-
-//                return timeOnly;
-//            }
         }
     }
 
-    internal object GetValue(ulong offset)
+    internal object GetValue(ulong offset, Type targetType = null)
     {
         return ColumnType switch
         {
@@ -303,8 +272,8 @@ internal class VectorDataReader : IDisposable
             DuckDBType.Double => GetFieldData<double>(offset),
             DuckDBType.Timestamp => GetDateTime(offset),
             DuckDBType.Interval => GetFieldData<DuckDBInterval>(offset),
-            DuckDBType.Date => NativeMethods.DateTime.DuckDBFromDate(GetFieldData<DuckDBDate>(offset)),
-            DuckDBType.Time => NativeMethods.DateTime.DuckDBFromTime(GetFieldData<DuckDBTime>(offset)),
+            DuckDBType.Date => GetDate(offset, targetType),
+            DuckDBType.Time => GetTime(offset, targetType),
             DuckDBType.HugeInt => GetBigInteger(offset),
             DuckDBType.Varchar => GetString(offset),
             DuckDBType.Decimal => GetDecimal(offset),
@@ -313,6 +282,52 @@ internal class VectorDataReader : IDisposable
             DuckDBType.Enum => GetEnum<string>(offset),
             var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type}) in column {offset + 1}")
         };
+    }
+
+    private DuckDBTimeOnly GetTime(ulong offset)
+    {
+        return NativeMethods.DateTime.DuckDBFromTime(GetFieldData<DuckDBTime>(offset));
+    }
+
+    private DuckDBDateOnly GetDateOnly(ulong offset)
+    {
+        return NativeMethods.DateTime.DuckDBFromDate(GetFieldData<DuckDBDate>(offset));
+    }
+
+    private object GetDate(ulong offset, Type targetType)
+    {
+        var dateOnly = GetDateOnly(offset);
+        if (targetType == typeof(DateTime))
+        {
+            return (DateTime)dateOnly;
+        }
+
+#if NET6_0_OR_GREATER
+        if (targetType == typeof(DateOnly))
+        {
+            return (DateOnly)dateOnly;
+        }
+#endif
+
+        return dateOnly;
+    }
+
+    private object GetTime(ulong offset, Type targetType)
+    {
+        var timeOnly = GetTime(offset);
+        if (targetType == typeof(DateTime))
+        {
+            return (DateTime)timeOnly;
+        }
+
+#if NET6_0_OR_GREATER
+        if (targetType == typeof(TimeOnly))
+        {
+            return (TimeOnly)timeOnly;
+        }
+#endif
+
+        return timeOnly;
     }
 
     public void Dispose()
