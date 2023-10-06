@@ -21,7 +21,7 @@ internal static class DuckDBConnectionStringParser
         }
 
         var inMemory = false;
-        if (dataSource.Equals(DuckDBConnectionStringBuilder.InMemoryDataSource, StringComparison.OrdinalIgnoreCase))
+        if (dataSource!.Equals(DuckDBConnectionStringBuilder.InMemoryDataSource, StringComparison.OrdinalIgnoreCase))
         {
             inMemory = true;
             dataSource = "";
@@ -37,7 +37,7 @@ internal static class DuckDBConnectionStringParser
         return new DuckDBConnectionString(dataSource, inMemory, isShared);
     }
 
-    private static string GetDataSource(IReadOnlyDictionary<string, string> properties)
+    private static string? GetDataSource(IReadOnlyDictionary<string, string> properties)
     {
         foreach (var key in DuckDBConnectionStringBuilder.DataSourceKeys)
         {
@@ -46,6 +46,7 @@ internal static class DuckDBConnectionStringParser
                 return dataSource;
             }
         }
+
         return null;
     }
 }

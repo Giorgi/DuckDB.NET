@@ -8,7 +8,7 @@ public partial class NativeMethods
     public static class Appender
     {
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_appender_create")]
-        public static extern DuckDBState DuckDBAppenderCreate(DuckDBNativeConnection connection, string schema, string table, out DuckDBAppender appender);
+        public static extern DuckDBState DuckDBAppenderCreate(DuckDBNativeConnection connection, string? schema, string table, out DuckDBAppender appender);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_appender_error")]
         public static extern IntPtr DuckDBAppenderError(DuckDBAppender appender);

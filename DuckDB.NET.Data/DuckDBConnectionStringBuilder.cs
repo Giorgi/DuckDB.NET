@@ -13,9 +13,9 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
     internal static readonly string[] DataSourceKeys = {"Data Source", "DataSource"};
     private const string DataSourceKey = "DataSource";
 
-    private string dataSource = null;
+    private string? dataSource = null;
         
-    public string DataSource
+    public string? DataSource
     {
         get => dataSource;
         set => this[DataSourceKey] = dataSource = value;

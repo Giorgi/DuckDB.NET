@@ -17,7 +17,7 @@ public class DuckDBDataReader : DbDataReader
     private readonly CommandBehavior behavior;
 
     private DuckDBResult currentResult;
-    private DuckDBDataChunk currentChunk;
+    private DuckDBDataChunk? currentChunk;
     private readonly List<DuckDBResult> queryResults;
 
     private bool closed;
@@ -37,7 +37,9 @@ public class DuckDBDataReader : DbDataReader
     private int rowsReadFromCurrentChunk;
     private long currentChunkRowCount;
 
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     internal DuckDBDataReader(DuckDbCommand command, List<DuckDBResult> queryResults, CommandBehavior behavior)
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     {
         this.command = command;
         this.behavior = behavior;
@@ -108,7 +110,9 @@ public class DuckDBDataReader : DbDataReader
         return GetFieldData<sbyte>(ordinal);
     }
 
+#pragma warning disable CS8765 // Nullability of type of parameter doesn't match overridden member (possibly because of nullability attributes).
     public override long GetBytes(int ordinal, long dataOffset, byte[] buffer, int bufferOffset, int length)
+#pragma warning restore CS8765 // Nullability of type of parameter doesn't match overridden member (possibly because of nullability attributes).
     {
         throw new NotImplementedException();
     }
@@ -118,7 +122,9 @@ public class DuckDBDataReader : DbDataReader
         throw new NotSupportedException();
     }
 
+#pragma warning disable CS8765 // Nullability of type of parameter doesn't match overridden member (possibly because of nullability attributes).
     public override long GetChars(int ordinal, long dataOffset, char[] buffer, int bufferOffset, int length)
+#pragma warning restore CS8765 // Nullability of type of parameter doesn't match overridden member (possibly because of nullability attributes).
     {
         throw new NotSupportedException();
     }
@@ -247,7 +253,9 @@ public class DuckDBDataReader : DbDataReader
 
     public override string GetName(int ordinal)
     {
+#pragma warning disable CS8603 // Possible null reference return.
         return NativeMethods.Query.DuckDBColumnName(ref currentResult, ordinal).ToManagedString(false);
+#pragma warning restore CS8603 // Possible null reference return.
     }
 
     public override int GetOrdinal(string name)
@@ -286,15 +294,19 @@ public class DuckDBDataReader : DbDataReader
     {
         var type = NativeMethods.Query.DuckDBColumnType(ref currentResult, ordinal);
 
-        return type switch
+        var value = type switch
         {
-            DuckDBType.List => (T)GetList(ordinal, typeof(T)),
+            DuckDBType.List => (T?)GetList(ordinal, typeof(T)),
             DuckDBType.Enum => GetEnum<T>(ordinal),
-            _ => (T)GetValue(ordinal, type)
+            _ => (T?)GetValue(ordinal, type)
         };
+
+#pragma warning disable CS8603 // Possible null reference return.
+        return value;
+#pragma warning restore CS8603 // Possible null reference return.
     }
 
-    private T GetEnum<T>(int ordinal)
+    private T? GetEnum<T>(int ordinal)
     {
         var vector = vectors[ordinal];
         using var logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
@@ -313,7 +325,7 @@ public class DuckDBDataReader : DbDataReader
         if (targetType == typeof(string))
         {
             var value = NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType, enumValue).ToManagedString();
-            return (T)(object)value;
+            return (T?)(object?)value;
         }
 
         var underlyingType = Nullable.GetUnderlyingType(targetType);
@@ -332,10 +344,13 @@ public class DuckDBDataReader : DbDataReader
 
     public override object GetValue(int ordinal)
     {
-        return IsDBNull(ordinal) ? DBNull.Value : GetValue(ordinal, NativeMethods.Query.DuckDBColumnType(ref currentResult, ordinal));
+        var value = IsDBNull(ordinal) ? DBNull.Value : GetValue(ordinal, NativeMethods.Query.DuckDBColumnType(ref currentResult, ordinal));
+#pragma warning disable CS8603 // Possible null reference return.
+        return value;
+#pragma warning restore CS8603 // Possible null reference return.
     }
 
-    private object GetValue(int ordinal, DuckDBType columnType)
+    private object? GetValue(int ordinal, DuckDBType columnType)
     {
         return columnType switch
         {
@@ -365,7 +380,7 @@ public class DuckDBDataReader : DbDataReader
         };
     }
 
-    private object GetList(int ordinal, Type returnType = null)
+    private object GetList(int ordinal, Type? returnType = null)
     {
         var vector = vectors[ordinal];
         using var logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
@@ -373,8 +388,8 @@ public class DuckDBDataReader : DbDataReader
         var type = NativeMethods.LogicalType.DuckDBGetTypeId(childType);
 
         var childVector = NativeMethods.DataChunks.DuckDBListVectorGetChild(vector);
-        var genericArgument = returnType?.GetGenericArguments()[0];
-        var allowNulls = returnType != null && genericArgument.IsValueType && Nullable.GetUnderlyingType(genericArgument) != null;
+        var genericArgument = returnType?.GetGenericArguments()?[0];
+        var allowNulls = (genericArgument?.IsValueType ?? false) && Nullable.GetUnderlyingType(genericArgument) != null;
 
         return type switch
         {
@@ -421,9 +436,9 @@ public class DuckDBDataReader : DbDataReader
             _ => throw new NotImplementedException()
         };
 
-        unsafe List<T> BuildList<T>()
+        unsafe List<T?> BuildList<T>()
         {
-            var list = new List<T>();
+            var list = new List<T?>();
             var listData = (DuckDBListEntry*)vectorData[ordinal] + rowsReadFromCurrentChunk - 1;
 
             var childVectorData = NativeMethods.DataChunks.DuckDBVectorGetData(childVector);
@@ -463,6 +478,19 @@ public class DuckDBDataReader : DbDataReader
                         DuckDBType.UnsignedBigInt => GetFieldData<ulong>(childVectorData, offset),
                         DuckDBType.Float => GetFieldData<float>(childVectorData, offset),
                         DuckDBType.Interval => GetFieldData<DuckDBInterval>(childVectorData, offset),
+                        DuckDBType.Invalid => throw new NotImplementedException(),
+                        DuckDBType.Blob => throw new NotImplementedException(),
+                        DuckDBType.TimestampS => throw new NotImplementedException(),
+                        DuckDBType.TimestampMs => throw new NotImplementedException(),
+                        DuckDBType.TimestampNs => throw new NotImplementedException(),
+                        DuckDBType.Enum => throw new NotImplementedException(),
+                        DuckDBType.List => throw new NotImplementedException(),
+                        DuckDBType.Struct => throw new NotImplementedException(),
+                        DuckDBType.Map => throw new NotImplementedException(),
+                        DuckDBType.Uuid => throw new NotImplementedException(),
+                        DuckDBType.Union => throw new NotImplementedException(),
+                        DuckDBType.Bit => throw new NotImplementedException(),
+                        _ => throw new NotImplementedException(),
                     };
                     list.Add((T)item);
                 }
@@ -470,7 +498,7 @@ public class DuckDBDataReader : DbDataReader
                 {
                     if (allowNulls)
                     {
-                        list.Add((T)(object)null);
+                        list.Add((T?)(object?)null);
                     }
                     else
                     {

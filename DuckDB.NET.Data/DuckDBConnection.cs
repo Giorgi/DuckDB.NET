@@ -11,8 +11,8 @@ public class DuckDBConnection : DbConnection
 {
     private readonly ConnectionManager connectionManager = ConnectionManager.Default;
     private ConnectionState connectionState = ConnectionState.Closed;
-    private DuckDBConnectionString connectionString;
-    private ConnectionReference connectionReference;
+    private DuckDBConnectionString? connectionString;
+    private ConnectionReference? connectionReference;
     private bool inMemoryDuplication;
 
     #region Protected Properties
@@ -21,25 +21,33 @@ public class DuckDBConnection : DbConnection
 
     #endregion
 
-    internal DuckDBTransaction Transaction { get; set; }
+    internal DuckDBTransaction? Transaction { get; set; }
 
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     public DuckDBConnection()
     { }
 
     public DuckDBConnection(string connectionString)
+
     {
         ConnectionString = connectionString;
     }
 
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+
+#pragma warning disable CS8765 // Nullability of type of parameter doesn't match overridden member (possibly because of nullability attributes).
     public override string ConnectionString { get; set; }
+#pragma warning restore CS8765 // Nullability of type of parameter doesn't match overridden member (possibly because of nullability attributes).
 
     public override string Database { get; }
 
     public override string DataSource { get; }
 
-    internal DuckDBNativeConnection NativeConnection => connectionReference.NativeConnection;
+    internal DuckDBNativeConnection? NativeConnection => connectionReference?.NativeConnection;
 
+#pragma warning disable CS8603 // Possible null reference return.
     public override string ServerVersion => NativeMethods.Startup.DuckDBLibraryVersion().ToManagedString(false);
+#pragma warning restore CS8603 // Possible null reference return.
 
     public override ConnectionState State => connectionState;
 
@@ -116,10 +124,10 @@ public class DuckDBConnection : DbConnection
 
     public DuckDBAppender CreateAppender(string table) => CreateAppender(null, table);
 
-    public DuckDBAppender CreateAppender(string schema, string table)
+    public DuckDBAppender CreateAppender(string? schema, string table)
     {
         EnsureConnectionOpen();
-        if (NativeMethods.Appender.DuckDBAppenderCreate(NativeConnection, schema, table, out var nativeAppender) == DuckDBState.Error)
+        if (NativeMethods.Appender.DuckDBAppenderCreate(NativeConnection!, schema, table, out var nativeAppender) == DuckDBState.Error)
         {
             try
             {
@@ -147,8 +155,8 @@ public class DuckDBConnection : DbConnection
 
         base.Dispose(disposing);
     }
-        
-    private void EnsureConnectionOpen([CallerMemberName]string operation = "")
+
+    private void EnsureConnectionOpen([CallerMemberName] string operation = "")
     {
         if (State != ConnectionState.Open)
         {
@@ -163,7 +171,7 @@ public class DuckDBConnection : DbConnection
             throw new InvalidOperationException("Duplication requires an open connection");
         }
 
-        if (!connectionString.InMemory)
+        if (!(connectionString?.InMemory ?? false))
         {
             throw new NotSupportedException();
         }

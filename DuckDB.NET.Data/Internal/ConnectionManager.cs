@@ -55,7 +55,7 @@ internal class ConnectionManager
 
                 using (var config = new DuckDBConfig())
                 {
-                    var resultOpen = NativeMethods.Startup.DuckDBOpen(path, out fileRef.Database, config, out var error);
+                    var resultOpen = NativeMethods.Startup.DuckDBOpen(path ?? string.Empty, out fileRef.Database, config, out var error);
 
                     if (!resultOpen.IsSuccess())
                     {
@@ -86,8 +86,13 @@ internal class ConnectionManager
         }
     }
 
-    internal void ReturnConnectionReference(ConnectionReference connectionReference)
+    internal void ReturnConnectionReference(ConnectionReference? connectionReference)
     {
+        if(connectionReference == null)
+        {
+            return;
+        }
+
         var fileRef = connectionReference.FileRefCounter;
 
         lock (fileRef)
@@ -105,7 +110,7 @@ internal class ConnectionManager
 
             if (current == 0)
             {
-                fileRef.Database.Dispose();
+                fileRef.Database?.Dispose();
                 fileRef.Database = null;
 
                 if (!string.IsNullOrEmpty(fileRef.FileName) && !ConnectionCache.TryRemove(fileRef.FileName, out _))
@@ -116,13 +121,18 @@ internal class ConnectionManager
         }
     }
 
-    internal ConnectionReference DuplicateConnectionReference(ConnectionReference connectionReference)
+    internal ConnectionReference DuplicateConnectionReference(ConnectionReference? connectionReference)
     {
+        if(connectionReference == null)
+        {
+            throw new ArgumentNullException(nameof(connectionReference));
+        }
+
         var fileRef = connectionReference.FileRefCounter;
 
         lock (fileRef)
         {
-            var resultConnect = NativeMethods.Startup.DuckDBConnect(fileRef.Database, out var duplicatedNativeConnection);
+            var resultConnect = NativeMethods.Startup.DuckDBConnect(fileRef.Database!, out var duplicatedNativeConnection);
             if (resultConnect.IsSuccess())
             {
                 fileRef.Increment();

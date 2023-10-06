@@ -13,11 +13,11 @@ public class DuckDBException : DbException
     {
     }
 
-    internal DuckDBException(string message) : base(message)
+    internal DuckDBException(string? message) : base(message)
     {
     }
 
-    internal DuckDBException(string message, DuckDBState state) : base(message, (int)state)
+    internal DuckDBException(string? message, DuckDBState state) : base(message, (int)state)
     {
 
     }

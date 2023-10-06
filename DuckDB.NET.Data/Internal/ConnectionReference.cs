@@ -14,5 +14,5 @@ internal class ConnectionReference
     public FileRef FileRefCounter { get; private set; }
     public DuckDBNativeConnection NativeConnection { get; private set; }
 
-    public override string ToString() => FileRefCounter?.ToString();
+    public override string ToString() => FileRefCounter?.ToString() ?? string.Empty;
 }

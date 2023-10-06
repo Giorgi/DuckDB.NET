@@ -1,6 +1,7 @@
 using System.Data;
 using System.Data.Common;
 using DuckDB.NET.Data.Internal;
+#nullable disable
 
 namespace DuckDB.NET.Data;
 
