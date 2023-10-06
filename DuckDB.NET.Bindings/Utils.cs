@@ -13,9 +13,9 @@ public static class Utils
         return duckDBState == DuckDBState.Success;
     }
 
-    public static string ToManagedString(this IntPtr unmanagedString, bool freeWhenCopied = true, int? length = null)
+    public static string? ToManagedString(this IntPtr unmanagedString, bool freeWhenCopied = true, int? length = null)
     {
-        string result;
+        string? result;
 #if NET6_0_OR_GREATER
         result = length.HasValue ? Marshal.PtrToStringUTF8(unmanagedString, length.Value) : Marshal.PtrToStringUTF8(unmanagedString);
 #else

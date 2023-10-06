@@ -209,7 +209,7 @@ public struct DuckDBInterval
     public static explicit operator TimeSpan(DuckDBInterval interval)
     {
         (var timeSpan, var exception) = ToTimeSpan(interval);
-        return timeSpan ?? throw exception;
+        return timeSpan ?? throw exception ?? new Exception();
     }
     public static implicit operator DuckDBInterval(TimeSpan timeSpan) => FromTimeSpan(timeSpan);
 
@@ -219,7 +219,7 @@ public struct DuckDBInterval
         return exception is null;
     }
 
-    private static (TimeSpan?, Exception) ToTimeSpan(DuckDBInterval interval)
+    private static (TimeSpan?, Exception?) ToTimeSpan(DuckDBInterval interval)
     {
         if (interval.Months > 0)
             return (null, new ArgumentOutOfRangeException(nameof(interval), $"Cannot convert a value of type {nameof(DuckDBInterval)} to type {nameof(TimeSpan)} when the attribute them is greater or equal to 1"));
