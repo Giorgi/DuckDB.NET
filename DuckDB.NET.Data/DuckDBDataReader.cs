@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.IO;
-using System.Numerics;
 
 namespace DuckDB.NET.Data;
 
@@ -71,13 +70,13 @@ public class DuckDBDataReader : DbDataReader
             currentChunk?.Dispose();
             currentChunk = NativeMethods.Types.DuckDBResultGetChunk(currentResult, currentChunkIndex);
             currentChunkRowCount = (ulong)NativeMethods.DataChunks.DuckDBDataChunkGetSize(currentChunk);
-            
+
             vectorReaders = new VectorDataReader[fieldCount];
 
             for (int i = 0; i < fieldCount; i++)
             {
                 var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(currentChunk, i);
-                
+
                 var vectorData = NativeMethods.DataChunks.DuckDBVectorGetData(vector);
                 var vectorValidityMask = NativeMethods.DataChunks.DuckDBVectorGetValidity(vector);
 
@@ -138,32 +137,7 @@ public class DuckDBDataReader : DbDataReader
 
     public override Type GetFieldType(int ordinal)
     {
-        return vectorReaders[ordinal].ColumnType switch
-        {
-            DuckDBType.Invalid => throw new DuckDBException("Invalid type"),
-            DuckDBType.Boolean => typeof(bool),
-            DuckDBType.TinyInt => typeof(sbyte),
-            DuckDBType.SmallInt => typeof(short),
-            DuckDBType.Integer => typeof(int),
-            DuckDBType.BigInt => typeof(long),
-            DuckDBType.UnsignedTinyInt => typeof(byte),
-            DuckDBType.UnsignedSmallInt => typeof(ushort),
-            DuckDBType.UnsignedInteger => typeof(uint),
-            DuckDBType.UnsignedBigInt => typeof(ulong),
-            DuckDBType.Float => typeof(float),
-            DuckDBType.Double => typeof(double),
-            DuckDBType.Timestamp => typeof(DateTime),
-            DuckDBType.Interval => typeof(DuckDBInterval),
-            DuckDBType.Date => typeof(DuckDBDateOnly),
-            DuckDBType.Time => typeof(DuckDBTimeOnly),
-            DuckDBType.HugeInt => typeof(BigInteger),
-            DuckDBType.Varchar => typeof(string),
-            DuckDBType.Decimal => typeof(decimal),
-            DuckDBType.Blob => typeof(Stream),
-            DuckDBType.Enum => typeof(Enum),
-            DuckDBType.List => typeof(List<>),
-            var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type}) in column {ordinal + 1}")
-        };
+        return vectorReaders[ordinal].ClrType;
     }
 
     public override float GetFloat(int ordinal)
@@ -217,9 +191,9 @@ public class DuckDBDataReader : DbDataReader
 
     public override T GetFieldValue<T>(int ordinal)
     {
-        return vectorReaders[ordinal].ColumnType switch
+        return vectorReaders[ordinal].ColumnDuckDBType switch
         {
-            DuckDBType.List => (T)vectorReaders[ordinal].GetList(rowsReadFromCurrentChunk - 1, typeof(T)),
+            DuckDBType.List => (T)vectorReaders[ordinal].GetList(rowsReadFromCurrentChunk - 1, (dynamic)Activator.CreateInstance<T>()),
             DuckDBType.Enum => vectorReaders[ordinal].GetEnum<T>(rowsReadFromCurrentChunk - 1),
             _ => (T)vectorReaders[ordinal].GetValue(rowsReadFromCurrentChunk - 1)
         };

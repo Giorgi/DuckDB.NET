@@ -15,7 +15,9 @@ internal class VectorDataReader : IDisposable
     private readonly unsafe void* dataPointer;
     private readonly unsafe ulong* validityMaskPointer;
     private readonly DuckDBLogicalType logicalType;
-    internal DuckDBType ColumnType { get; }
+    
+    internal Type ClrType { get; }
+    internal DuckDBType ColumnDuckDBType { get; }
 
     private readonly VectorDataReader listDataReader;
 
@@ -28,11 +30,38 @@ internal class VectorDataReader : IDisposable
         this.vector = vector;
         this.dataPointer = dataPointer;
         this.validityMaskPointer = validityMaskPointer;
-        ColumnType = columnType;
+        ColumnDuckDBType = columnType;
 
         logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
 
-        switch (ColumnType)
+        ClrType = ColumnDuckDBType switch
+        {
+            DuckDBType.Invalid => throw new DuckDBException("Invalid type"),
+            DuckDBType.Boolean => typeof(bool),
+            DuckDBType.TinyInt => typeof(sbyte),
+            DuckDBType.SmallInt => typeof(short),
+            DuckDBType.Integer => typeof(int),
+            DuckDBType.BigInt => typeof(long),
+            DuckDBType.UnsignedTinyInt => typeof(byte),
+            DuckDBType.UnsignedSmallInt => typeof(ushort),
+            DuckDBType.UnsignedInteger => typeof(uint),
+            DuckDBType.UnsignedBigInt => typeof(ulong),
+            DuckDBType.Float => typeof(float),
+            DuckDBType.Double => typeof(double),
+            DuckDBType.Timestamp => typeof(DateTime),
+            DuckDBType.Interval => typeof(DuckDBInterval),
+            DuckDBType.Date => typeof(DuckDBDateOnly),
+            DuckDBType.Time => typeof(DuckDBTimeOnly),
+            DuckDBType.HugeInt => typeof(BigInteger),
+            DuckDBType.Varchar => typeof(string),
+            DuckDBType.Decimal => typeof(decimal),
+            DuckDBType.Blob => typeof(Stream),
+            DuckDBType.Enum => typeof(Enum),
+            DuckDBType.List => typeof(List<>),
+            var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type})")
+        };
+
+        switch (ColumnDuckDBType)
         {
             case DuckDBType.Enum:
                 enumType = NativeMethods.LogicalType.DuckDBEnumInternalType(logicalType);
@@ -124,7 +153,7 @@ internal class VectorDataReader : IDisposable
 
     internal unsafe DateTime GetDateTime(ulong offset)
     {
-        if (ColumnType == DuckDBType.Date)
+        if (ColumnDuckDBType == DuckDBType.Date)
         {
             return GetDateOnly(offset).ToDateTime();
         }
@@ -170,99 +199,54 @@ internal class VectorDataReader : IDisposable
         return enumItem;
     }
 
-    internal unsafe object GetList(ulong offset, Type returnType = null)
+    private unsafe List<T> BuildList<T>(List<T> list, DuckDBListEntry* listData, bool allowNulls)
     {
-        var listData = (DuckDBListEntry*)dataPointer + offset;
+        var targetType = typeof(T);
 
-        var genericArgument = returnType?.GetGenericArguments()[0];
-
-        var allowNulls = returnType != null &&
-                         (!genericArgument.IsValueType || Nullable.GetUnderlyingType(genericArgument) != null);
-        
-        return listDataReader.ColumnType switch
+        if (Nullable.GetUnderlyingType(targetType) != null)
         {
-            DuckDBType.Invalid => throw new DuckDBException("Invalid type"),
-            DuckDBType.Boolean => allowNulls ? BuildList<bool?>() : BuildList<bool>(),
-            DuckDBType.TinyInt => allowNulls ? BuildList<sbyte?>() : BuildList<sbyte>(),
-            DuckDBType.SmallInt => allowNulls ? BuildList<short?>() : BuildList<short>(),
-            DuckDBType.Integer => allowNulls ? BuildList<int?>() : BuildList<int>(),
-            DuckDBType.BigInt => allowNulls ? BuildList<long?>() : BuildList<long>(),
-            DuckDBType.UnsignedTinyInt => allowNulls ? BuildList<byte?>() : BuildList<byte>(),
-            DuckDBType.UnsignedSmallInt => allowNulls ? BuildList<ushort?>() : BuildList<ushort>(),
-            DuckDBType.UnsignedInteger => allowNulls ? BuildList<uint?>() : BuildList<uint>(),
-            DuckDBType.UnsignedBigInt => allowNulls ? BuildList<ulong?>() : BuildList<ulong>(),
-            DuckDBType.Float => allowNulls ? BuildList<float?>() : BuildList<float>(),
-            DuckDBType.Double => allowNulls ? BuildList<double?>() : BuildList<double>(),
-            DuckDBType.Timestamp => allowNulls ? BuildList<DateTime?>() : BuildList<DateTime>(),
-#if NET6_0_OR_GREATER
-            DuckDBType.Date => allowNulls
-                ? genericArgument == null || genericArgument == typeof(DateTime)
-                    ? BuildList<DateTime?>()
-                    : BuildList<DateOnly?>()
-                : genericArgument == null || genericArgument == typeof(DateTime)
-                    ? BuildList<DateTime>()
-                    : BuildList<DateOnly>(),
-#else
-            DuckDBType.Date => allowNulls ? BuildList<DateTime?>() : BuildList<DateTime>(),
-#endif
-#if NET6_0_OR_GREATER
-            DuckDBType.Time => allowNulls
-                ? genericArgument == null || genericArgument == typeof(DateTime)
-                    ? BuildList<DateTime?>()
-                    : BuildList<TimeOnly?>()
-                : genericArgument == null || genericArgument == typeof(DateTime)
-                    ? BuildList<DateTime>()
-                    : BuildList<TimeOnly>(),
-#else
-            DuckDBType.Time => allowNulls ? BuildList<DateTime?>() : BuildList<DateTime>(),
-#endif
+            targetType = targetType.GetGenericArguments()[0];
+        }
 
-            DuckDBType.Interval => allowNulls ? BuildList<DuckDBInterval?>() : BuildList<DuckDBInterval>(),
-            DuckDBType.HugeInt => allowNulls ? BuildList<BigInteger?>() : BuildList<BigInteger>(),
-            DuckDBType.Varchar => BuildList<string>(),
-            DuckDBType.Decimal => allowNulls ? BuildList<decimal?>() : BuildList<decimal>(),
-            _ => throw new NotImplementedException()
-        };
-
-        List<T> BuildList<T>()
+        for (ulong i = 0; i < listData->Length; i++)
         {
-            var list = new List<T>();
-
-            var targetType = typeof(T);
-
-            if (Nullable.GetUnderlyingType(targetType) != null)
+            var childOffset = i + listData->Offset;
+            if (listDataReader.IsValid(childOffset))
             {
-                targetType = targetType.GetGenericArguments()[0];
+                var item = listDataReader.GetValue(childOffset, targetType);
+                list.Add((T)item);
             }
-
-            for (ulong i = 0; i < listData->Length; i++)
+            else
             {
-                var childOffset = i + listData->Offset;
-                if (listDataReader.IsValid(childOffset))
+                if (allowNulls)
                 {
-                    var item = listDataReader.GetValue(childOffset, targetType);
-                    list.Add((T)item);
+                    list.Add((T)(object)null);
                 }
                 else
                 {
-                    if (allowNulls)
-                    {
-                        list.Add((T)(object)null);
-                    }
-                    else
-                    {
-                        throw new NullReferenceException("The list contains null value");
-                    }
+                    throw new NullReferenceException("The list contains null value");
                 }
             }
-
-            return list;
         }
+
+        return list;
+    }
+
+    internal unsafe List<T> GetList<T>(ulong offset, List<T> list)
+    {
+        var listData = (DuckDBListEntry*)dataPointer + offset;
+        return BuildList(list, listData, !typeof(T).IsValueType);
+    }
+
+    internal unsafe List<T?> GetList<T>(ulong offset, List<T?> list) where T: struct
+    {
+        var listData = (DuckDBListEntry*)dataPointer + offset;
+        return BuildList(list, listData, true);
     }
 
     internal object GetValue(ulong offset, Type targetType = null)
     {
-        return ColumnType switch
+        return ColumnDuckDBType switch
         {
             DuckDBType.Invalid => throw new DuckDBException("Invalid type"),
             DuckDBType.Boolean => GetFieldData<bool>(offset),
@@ -284,7 +268,7 @@ internal class VectorDataReader : IDisposable
             DuckDBType.Varchar => GetString(offset),
             DuckDBType.Decimal => GetDecimal(offset),
             DuckDBType.Blob => GetStream(offset),
-            DuckDBType.List => GetList(offset),
+            DuckDBType.List => GetList(offset, (dynamic)Activator.CreateInstance(typeof(List<>).MakeGenericType(listDataReader.ClrType))),
             DuckDBType.Enum => GetEnum<string>(offset),
             var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type}) in column {offset + 1}")
         };
