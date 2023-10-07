@@ -142,6 +142,9 @@ public class DuckDBDataReaderListTests : DuckDBTestBase
 
         var dateList = reader.GetFieldValue<List<DateOnly>>(0);
         dateList.Should().BeEquivalentTo(new List<DateOnly> { new(2002, 4, 6), new(2008, 10, 12) });
+
+        var nullableList = reader.GetFieldValue<List<DateTime?>>(0);
+        nullableList.Should().BeEquivalentTo(new List<DateTime> { new(2002, 4, 6), new(2008, 10, 12) });
     }
 
     [Fact]
