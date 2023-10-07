@@ -53,15 +53,14 @@ internal class ConnectionManager
             {
                 var path = connectionString.InMemory ? null : filename;
 
-                using (var config = new DuckDBConfig())
-                {
-                    var resultOpen = NativeMethods.Startup.DuckDBOpen(path, out fileRef.Database, config, out var error);
+                using var config = new DuckDBConfig();
+                var resultOpen = NativeMethods.Startup.DuckDBOpen(path, out var db, config, out var error);
 
-                    if (!resultOpen.IsSuccess())
-                    {
-                        throw new DuckDBException($"DuckDBOpen failed: {error.ToManagedString()}", resultOpen);
-                    }
+                if (!resultOpen.IsSuccess())
+                {
+                    throw new DuckDBException($"DuckDBOpen failed: {error.ToManagedString()}", resultOpen);
                 }
+                fileRef.Database = db;
             }
 
             var resultConnect = NativeMethods.Startup.DuckDBConnect(fileRef.Database, out var nativeConnection);
@@ -105,7 +104,7 @@ internal class ConnectionManager
 
             if (current == 0)
             {
-                fileRef.Database.Dispose();
+                fileRef.Database?.Dispose();
                 fileRef.Database = null;
 
                 if (!string.IsNullOrEmpty(fileRef.FileName) && !ConnectionCache.TryRemove(fileRef.FileName, out _))
@@ -119,6 +118,9 @@ internal class ConnectionManager
     internal ConnectionReference DuplicateConnectionReference(ConnectionReference connectionReference)
     {
         var fileRef = connectionReference.FileRefCounter;
+
+        if (fileRef.Database is null)
+            throw new InvalidOperationException(); //shouldn't happen if we already have a connection reference
 
         lock (fileRef)
         {

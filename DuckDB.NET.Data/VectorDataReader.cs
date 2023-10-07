@@ -19,7 +19,7 @@ internal class VectorDataReader : IDisposable
     internal Type ClrType { get; }
     internal DuckDBType ColumnDuckDBType { get; }
 
-    private readonly VectorDataReader listDataReader;
+    private readonly VectorDataReader? listDataReader;
 
     private readonly byte scale;
     private readonly DuckDBType decimalType;
@@ -275,7 +275,7 @@ internal class VectorDataReader : IDisposable
         return NativeMethods.DateTime.DuckDBFromDate(GetFieldData<DuckDBDate>(offset));
     }
 
-    private object GetDate(ulong offset, Type targetType)
+    private object GetDate(ulong offset, Type? targetType = null)
     {
         var dateOnly = GetDateOnly(offset);
         if (targetType == typeof(DateTime))
@@ -293,7 +293,7 @@ internal class VectorDataReader : IDisposable
         return dateOnly;
     }
 
-    private object GetTime(ulong offset, Type targetType)
+    private object GetTime(ulong offset, Type? targetType = null)
     {
         var timeOnly = GetTime(offset);
         if (targetType == typeof(DateTime))

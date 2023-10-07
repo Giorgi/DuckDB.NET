@@ -32,14 +32,14 @@ internal static class DbTypeMap
     };
 
 
-    public static DbType GetDbTypeForValue(object value)
+    public static DbType GetDbTypeForValue(object? value)
     {
         if (value.IsNull())
         {
             return DbType.Object;
         }
 
-        var type = value.GetType();
+        var type = value!.GetType();
 
         if (TypeMap.TryGetValue(type, out var dbType))
         {

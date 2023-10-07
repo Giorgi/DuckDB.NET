@@ -7,7 +7,7 @@ namespace DuckDB.NET.Data.Internal;
 /// </summary>
 internal class FileRef
 {
-    public DuckDBDatabase Database;
+    public DuckDBDatabase? Database { get; internal set; }
         
     public FileRef(string filename)
     {

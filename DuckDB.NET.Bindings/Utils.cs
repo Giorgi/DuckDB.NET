@@ -17,33 +17,35 @@ public static class Utils
     {
         string result;
 #if NET6_0_OR_GREATER
-        result = length.HasValue ? Marshal.PtrToStringUTF8(unmanagedString, length.Value) : Marshal.PtrToStringUTF8(unmanagedString);
+        result = length.HasValue 
+                    ? Marshal.PtrToStringUTF8(unmanagedString, length.Value) 
+                    : Marshal.PtrToStringUTF8(unmanagedString) ?? string.Empty;
 #else
-            if (unmanagedString == IntPtr.Zero)
+        if (unmanagedString == IntPtr.Zero)
+        {
+            return "";
+        }
+
+        if (length == null)
+        {
+            length = 0;
+
+            while (Marshal.ReadByte(unmanagedString, length.Value) != 0)
             {
-                return "";
+                length++;
             }
+        }
 
-            if (length == null)
-            {
-                length = 0;
+        if (length == 0)
+        {
+            return string.Empty;
+        }
 
-                while (Marshal.ReadByte(unmanagedString, length.Value) != 0)
-                {
-                    length++;
-                }
-            }
+        var byteArray = new byte[length.Value];
 
-            if (length == 0)
-            {
-                return string.Empty;
-            }
+        Marshal.Copy(unmanagedString, byteArray, 0, length.Value);
 
-            var byteArray = new byte[length.Value];
-
-            Marshal.Copy(unmanagedString, byteArray, 0, length.Value);
-
-            result = Encoding.UTF8.GetString(byteArray, 0, length.Value);
+        result = Encoding.UTF8.GetString(byteArray, 0, length.Value);
 #endif
         if (freeWhenCopied)
         {
