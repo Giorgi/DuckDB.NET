@@ -195,13 +195,13 @@ public class DuckDBDataReader : DbDataReader
         {
             DuckDBType.List => (T)vectorReaders[ordinal].GetList(rowsReadFromCurrentChunk - 1, (dynamic)Activator.CreateInstance<T>()),
             DuckDBType.Enum => vectorReaders[ordinal].GetEnum<T>(rowsReadFromCurrentChunk - 1),
-            _ => (T)vectorReaders[ordinal].GetValue(rowsReadFromCurrentChunk - 1)
+            _ => vectorReaders[ordinal].GetValue<T>(rowsReadFromCurrentChunk - 1)
         };
     }
 
     public override object GetValue(int ordinal)
     {
-        return IsDBNull(ordinal) ? DBNull.Value : vectorReaders[ordinal].GetValue(rowsReadFromCurrentChunk - 1);
+        return IsDBNull(ordinal) ? DBNull.Value : vectorReaders[ordinal].GetValue<object>(rowsReadFromCurrentChunk - 1);
     }
 
     public override int GetValues(object[] values)

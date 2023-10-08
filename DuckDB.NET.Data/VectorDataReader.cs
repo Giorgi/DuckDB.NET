@@ -15,7 +15,7 @@ internal class VectorDataReader : IDisposable
     private readonly unsafe void* dataPointer;
     private readonly unsafe ulong* validityMaskPointer;
     private readonly DuckDBLogicalType logicalType;
-    
+
     internal Type ClrType { get; }
     internal DuckDBType ColumnDuckDBType { get; }
 
@@ -71,18 +71,18 @@ internal class VectorDataReader : IDisposable
                 decimalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
                 break;
             case DuckDBType.List:
-            {
-                using var childType = NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType);
-                var type = NativeMethods.LogicalType.DuckDBGetTypeId(childType);
+                {
+                    using var childType = NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType);
+                    var type = NativeMethods.LogicalType.DuckDBGetTypeId(childType);
 
-                var childVector = NativeMethods.DataChunks.DuckDBListVectorGetChild(vector);
+                    var childVector = NativeMethods.DataChunks.DuckDBListVectorGetChild(vector);
 
-                var childVectorData = NativeMethods.DataChunks.DuckDBVectorGetData(childVector);
-                var childVectorValidity = NativeMethods.DataChunks.DuckDBVectorGetValidity(childVector);
+                    var childVectorData = NativeMethods.DataChunks.DuckDBVectorGetData(childVector);
+                    var childVectorValidity = NativeMethods.DataChunks.DuckDBVectorGetValidity(childVector);
 
-                listDataReader = new VectorDataReader(childVector, childVectorData, childVectorValidity, type);
-                break;
-            }
+                    listDataReader = new VectorDataReader(childVector, childVectorData, childVectorValidity, type);
+                    break;
+                }
         }
     }
 
@@ -213,8 +213,8 @@ internal class VectorDataReader : IDisposable
             var childOffset = i + listData->Offset;
             if (listDataReader.IsValid(childOffset))
             {
-                var item = listDataReader.GetValue(childOffset, targetType);
-                list.Add((T)item);
+                var item = listDataReader.GetValue<T>(childOffset, targetType);
+                list.Add(item);
             }
             else
             {
@@ -238,13 +238,13 @@ internal class VectorDataReader : IDisposable
         return BuildList(list, listData, !typeof(T).IsValueType);
     }
 
-    internal unsafe List<T?> GetList<T>(ulong offset, List<T?> list) where T: struct
+    internal unsafe List<T?> GetList<T>(ulong offset, List<T?> list) where T : struct
     {
         var listData = (DuckDBListEntry*)dataPointer + offset;
         return BuildList(list, listData, true);
     }
 
-    internal object GetValue(ulong offset, Type targetType = null)
+    internal T GetValue<T>(ulong offset, Type targetType = null)
     {
         return ColumnDuckDBType switch
         {
@@ -268,8 +268,8 @@ internal class VectorDataReader : IDisposable
             DuckDBType.Varchar => GetString(offset),
             DuckDBType.Decimal => GetDecimal(offset),
             DuckDBType.Blob => GetStream(offset),
-            DuckDBType.List => GetList(offset, (dynamic)Activator.CreateInstance(typeof(List<>).MakeGenericType(listDataReader.ClrType))),
-            DuckDBType.Enum => GetEnum<string>(offset),
+            DuckDBType.List => GetList(offset, (dynamic)Activator.CreateInstance(typeof(T) == typeof(object) ? typeof(List<>).MakeGenericType(listDataReader.ClrType) : typeof(T))),
+            DuckDBType.Enum => typeof(T) == typeof(object) ? GetEnum<string>(offset) : GetEnum<T>(offset),
             var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type}) in column {offset + 1}")
         };
     }

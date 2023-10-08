@@ -1,4 +1,6 @@
-﻿using FluentAssertions;
+﻿using System;
+using System.Collections.Generic;
+using FluentAssertions;
 using Xunit;
 
 namespace DuckDB.NET.Test;
@@ -22,13 +24,13 @@ public class DuckDBDataReaderEnumTests : DuckDBTestBase
     {
         Command.CommandText = "Select * from person order by name desc";
         var reader = Command.ExecuteReader();
-        
+
         reader.Read();
         reader.GetFieldValue<Mood>(1).Should().Be(Mood.Happy);
-        
+
         reader.Read();
         reader.GetFieldValue<Mood>(1).Should().Be(Mood.Happy);
-        
+
         reader.Read();
         reader.GetFieldValue<Mood>(1).Should().Be(Mood.Sad);
 
@@ -37,23 +39,34 @@ public class DuckDBDataReaderEnumTests : DuckDBTestBase
     }
 
     [Fact]
+    public void SelectEnumList()
+    {
+        Command.CommandText = "Select ['happy'::mood, 'ok'::mood]";
+        var reader = Command.ExecuteReader();
+
+        reader.Read();
+        var list = reader.GetFieldValue<List<Mood>>(0);
+        list.Should().BeEquivalentTo(new List<Mood> { Mood.Happy, Mood.Ok });
+    }
+
+    [Fact]
     public void SelectEnumValuesAsNullable()
     {
         Command.CommandText = "Select * from person order by name desc";
         var reader = Command.ExecuteReader();
-        
+
         reader.Read();
         reader.GetFieldValue<Mood?>(1).Should().Be(Mood.Happy);
-        
+
         reader.Read();
         reader.GetFieldValue<Mood?>(1).Should().Be(Mood.Happy);
-        
+
         reader.Read();
         reader.GetFieldValue<Mood?>(1).Should().Be(Mood.Sad);
-        
+
         reader.Read();
         reader.GetFieldValue<Mood?>(1).Should().Be(Mood.Ok);
-        
+
         reader.Read();
         reader.GetFieldValue<Mood?>(1).Should().Be(null);
     }
@@ -63,13 +76,13 @@ public class DuckDBDataReaderEnumTests : DuckDBTestBase
     {
         Command.CommandText = "Select * from person order by name desc";
         var reader = Command.ExecuteReader();
-        
+
         reader.Read();
         reader.GetFieldValue<string>(1).Should().BeEquivalentTo(Mood.Happy.ToString());
-        
+
         reader.Read();
         reader.GetFieldValue<string>(1).Should().BeEquivalentTo(Mood.Happy.ToString());
-        
+
         reader.Read();
         reader.GetValue(1).ToString().Should().BeEquivalentTo(Mood.Sad.ToString());
     }
@@ -85,7 +98,7 @@ public class DuckDBDataReaderEnumTests : DuckDBTestBase
         base.Dispose();
     }
 
-    internal enum Mood
+    public enum Mood
     {
         Sad, Ok, Happy
     }

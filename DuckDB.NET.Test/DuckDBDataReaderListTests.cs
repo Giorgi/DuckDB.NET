@@ -24,6 +24,26 @@ public class DuckDBDataReaderListTests : DuckDBTestBase
     }
 
     [Fact]
+    public void ReadListOfListOfIntegers()
+    {
+        Command.CommandText = "SELECT [[1,2,3], [4,5], [6]];";
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+        var list = reader.GetFieldValue<List<List<int>>>(0);
+        list.Should().BeEquivalentTo(new List<List<int>> { new() { 1, 2, 3 }, new() { 4, 5 }, new() { 6 } });
+    }
+
+    [Fact]
+    public void ReadListOfListOfIntegersWithNulls()
+    {
+        Command.CommandText = "SELECT [[1,2,3], [4, NULL, 5], [6], NULL];";
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+        var list = reader.GetFieldValue<List<List<int?>>>(0);
+        list.Should().BeEquivalentTo(new List<List<int?>> { new() { 1, 2, 3 }, new() { 4, null, 5 }, new() { 6 }, null });
+    }
+
+    [Fact]
     public void ReadMultipleListOfIntegers()
     {
         Command.CommandText = "Select * from ( SELECT [1, 2, 3] Union Select [4, 5] Union Select []) order by 1";
