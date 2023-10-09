@@ -16,8 +16,9 @@ internal class VectorDataReader : IDisposable
     private readonly unsafe void* dataPointer;
     private readonly unsafe ulong* validityMaskPointer;
     private readonly DuckDBLogicalType logicalType;
+
     internal Type ClrType { get; }
-    internal DuckDBType ColumnDuckDBType { get; }
+    internal DuckDBType DuckDBType { get; }
 
     private readonly VectorDataReader? listDataReader;
 
@@ -31,11 +32,11 @@ internal class VectorDataReader : IDisposable
         this.dataPointer = dataPointer;
         this.validityMaskPointer = validityMaskPointer;
 
-        ColumnDuckDBType = columnType;
+        DuckDBType = columnType;
 
         logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
 
-        ClrType = ColumnDuckDBType switch
+        ClrType = DuckDBType switch
         {
             DuckDBType.Invalid => throw new DuckDBException("Invalid type"),
             DuckDBType.Boolean => typeof(bool),
@@ -62,7 +63,7 @@ internal class VectorDataReader : IDisposable
             var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type})")
         };
 
-        switch (ColumnDuckDBType)
+        switch (DuckDBType)
         {
             case DuckDBType.Enum:
                 enumType = NativeMethods.LogicalType.DuckDBEnumInternalType(logicalType);
@@ -154,7 +155,7 @@ internal class VectorDataReader : IDisposable
 
     internal unsafe DateTime GetDateTime(ulong offset)
     {
-        if (ColumnDuckDBType == DuckDBType.Date)
+        if (DuckDBType == DuckDBType.Date)
         {
             return GetDateOnly(offset).ToDateTime();
         }
@@ -162,7 +163,7 @@ internal class VectorDataReader : IDisposable
         return data->ToDateTime();
     }
 
-    internal unsafe BigInteger GetBigInteger(ulong offset)
+    private unsafe BigInteger GetBigInteger(ulong offset)
     {
         var data = (DuckDBHugeInt*)dataPointer + offset;
         return data->ToBigInteger();
@@ -201,7 +202,9 @@ internal class VectorDataReader : IDisposable
     internal unsafe object GetList(ulong offset, Type returnType)
     {
         if (listDataReader is null)
+        {
             throw new InvalidOperationException("Can't get a list from a non-list vector.");
+        }
 
         var listData = (DuckDBListEntry*)dataPointer + offset;
 
@@ -241,7 +244,7 @@ internal class VectorDataReader : IDisposable
 
     internal object GetValue(ulong offset, Type? targetType = null)
     {
-        return ColumnDuckDBType switch
+        return DuckDBType switch
         {
             DuckDBType.Invalid => throw new DuckDBException("Invalid type"),
             DuckDBType.Boolean => GetFieldData<bool>(offset),
@@ -269,7 +272,7 @@ internal class VectorDataReader : IDisposable
         };
     }
 
-    private DuckDBTimeOnly GetTime(ulong offset)
+    private DuckDBTimeOnly GetTimeOnly(ulong offset)
     {
         return NativeMethods.DateTime.DuckDBFromTime(GetFieldData<DuckDBTime>(offset));
     }
@@ -299,7 +302,7 @@ internal class VectorDataReader : IDisposable
 
     private object GetTime(ulong offset, Type? targetType = null)
     {
-        var timeOnly = GetTime(offset);
+        var timeOnly = GetTimeOnly(offset);
         if (targetType == typeof(DateTime))
         {
             return (DateTime)timeOnly;

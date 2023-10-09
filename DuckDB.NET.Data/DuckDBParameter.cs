@@ -8,7 +8,7 @@ namespace DuckDB.NET.Data;
 
 public class DuckDBParameter : DbParameter
 {
-    private const DbType DEFAULT_DB_TYPE = DbType.String;
+    private const DbType DefaultDbType = DbType.String;
 
     private object? value;
 
@@ -46,7 +46,7 @@ public class DuckDBParameter : DbParameter
     public override int Size { get; set; }
 
     public DuckDBParameter()
-        : this (string.Empty, DEFAULT_DB_TYPE, null)
+        : this (string.Empty, DefaultDbType, null)
     { }
 
     public DuckDBParameter(object value) 
@@ -73,5 +73,5 @@ public class DuckDBParameter : DbParameter
     }
 
     public override void ResetDbType()
-        => DbType = DEFAULT_DB_TYPE;
+        => DbType = DefaultDbType;
 }

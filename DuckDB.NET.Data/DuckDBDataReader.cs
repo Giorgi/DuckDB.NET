@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.IO;
-using System.Numerics;
 
 namespace DuckDB.NET.Data;
 
@@ -192,7 +191,7 @@ public class DuckDBDataReader : DbDataReader
 
     public override T GetFieldValue<T>(int ordinal)
     {
-        var value = vectorReaders[ordinal].ColumnDuckDBType switch
+        var value = vectorReaders[ordinal].DuckDBType switch
         {
             DuckDBType.List => (T)vectorReaders[ordinal].GetList(rowsReadFromCurrentChunk - 1, typeof(T)),
             DuckDBType.Enum => (T)vectorReaders[ordinal].GetEnum(rowsReadFromCurrentChunk - 1, typeof(T)),
