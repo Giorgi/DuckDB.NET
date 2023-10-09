@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -15,7 +16,6 @@ internal class VectorDataReader : IDisposable
     private readonly unsafe void* dataPointer;
     private readonly unsafe ulong* validityMaskPointer;
     private readonly DuckDBLogicalType logicalType;
-
     internal Type ClrType { get; }
     internal DuckDBType ColumnDuckDBType { get; }
 
@@ -30,6 +30,7 @@ internal class VectorDataReader : IDisposable
         this.vector = vector;
         this.dataPointer = dataPointer;
         this.validityMaskPointer = validityMaskPointer;
+        
         ColumnDuckDBType = columnType;
 
         logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
@@ -167,7 +168,7 @@ internal class VectorDataReader : IDisposable
         return data->ToBigInteger();
     }
 
-    internal T GetEnum<T>(ulong offset)
+    internal object GetEnum(ulong offset, Type returnType)
     {
         long enumValue = enumType switch
         {
@@ -177,31 +178,38 @@ internal class VectorDataReader : IDisposable
             _ => -1
         };
 
-        var targetType = typeof(T);
-
-        if (targetType == typeof(string))
+        if (returnType == typeof(string))
         {
             var value = NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType, enumValue).ToManagedString();
-            return (T)(object)value;
+            return value;
         }
 
-        var underlyingType = Nullable.GetUnderlyingType(targetType);
+        var underlyingType = Nullable.GetUnderlyingType(returnType);
         if (underlyingType != null)
         {
             if (!IsValid(offset))
             {
                 return default;
             }
-            targetType = underlyingType;
+            returnType = underlyingType;
         }
 
-        var enumItem = (T)Enum.Parse(targetType, enumValue.ToString(CultureInfo.InvariantCulture));
+        var enumItem = Enum.Parse(returnType, enumValue.ToString(CultureInfo.InvariantCulture));
         return enumItem;
     }
 
-    private unsafe List<T> BuildList<T>(List<T> list, DuckDBListEntry* listData, bool allowNulls)
+    internal unsafe object GetList(ulong offset, Type returnType)
     {
-        var targetType = typeof(T);
+        var listData = (DuckDBListEntry*)dataPointer + offset;
+
+        var genericArgument = returnType?.GetGenericArguments()[0];
+
+        var nullableType = genericArgument == null ? null : Nullable.GetUnderlyingType(genericArgument);
+        var allowNulls = returnType != null && (!genericArgument.IsValueType || nullableType != null);
+
+        var list = Activator.CreateInstance(returnType) as IList;
+
+        var targetType = returnType.GetGenericArguments()[0];
 
         if (Nullable.GetUnderlyingType(targetType) != null)
         {
@@ -213,14 +221,14 @@ internal class VectorDataReader : IDisposable
             var childOffset = i + listData->Offset;
             if (listDataReader.IsValid(childOffset))
             {
-                var item = listDataReader.GetValue<T>(childOffset, targetType);
+                var item = listDataReader.GetValue(childOffset, targetType);
                 list.Add(item);
             }
             else
             {
                 if (allowNulls)
                 {
-                    list.Add((T)(object)null);
+                    list.Add(null);
                 }
                 else
                 {
@@ -232,19 +240,7 @@ internal class VectorDataReader : IDisposable
         return list;
     }
 
-    internal unsafe List<T> GetList<T>(ulong offset, List<T> list)
-    {
-        var listData = (DuckDBListEntry*)dataPointer + offset;
-        return BuildList(list, listData, !typeof(T).IsValueType);
-    }
-
-    internal unsafe List<T?> GetList<T>(ulong offset, List<T?> list) where T : struct
-    {
-        var listData = (DuckDBListEntry*)dataPointer + offset;
-        return BuildList(list, listData, true);
-    }
-
-    internal T GetValue<T>(ulong offset, Type targetType = null)
+    internal object GetValue(ulong offset, Type targetType = null)
     {
         return ColumnDuckDBType switch
         {
@@ -268,8 +264,8 @@ internal class VectorDataReader : IDisposable
             DuckDBType.Varchar => GetString(offset),
             DuckDBType.Decimal => GetDecimal(offset),
             DuckDBType.Blob => GetStream(offset),
-            DuckDBType.List => GetList(offset, (dynamic)Activator.CreateInstance(typeof(T) == typeof(object) ? typeof(List<>).MakeGenericType(listDataReader.ClrType) : typeof(T))),
-            DuckDBType.Enum => typeof(T) == typeof(object) ? GetEnum<string>(offset) : GetEnum<T>(offset),
+            DuckDBType.List => GetList(offset, targetType ?? typeof(List<>).MakeGenericType(listDataReader.ClrType)),
+            DuckDBType.Enum => GetEnum(offset, targetType ?? typeof(string)),
             var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type}) in column {offset + 1}")
         };
     }

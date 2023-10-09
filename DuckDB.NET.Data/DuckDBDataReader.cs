@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.IO;
+using System.Numerics;
 
 namespace DuckDB.NET.Data;
 
@@ -70,13 +71,13 @@ public class DuckDBDataReader : DbDataReader
             currentChunk?.Dispose();
             currentChunk = NativeMethods.Types.DuckDBResultGetChunk(currentResult, currentChunkIndex);
             currentChunkRowCount = (ulong)NativeMethods.DataChunks.DuckDBDataChunkGetSize(currentChunk);
-
+            
             vectorReaders = new VectorDataReader[fieldCount];
 
             for (int i = 0; i < fieldCount; i++)
             {
                 var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(currentChunk, i);
-
+                
                 var vectorData = NativeMethods.DataChunks.DuckDBVectorGetData(vector);
                 var vectorValidityMask = NativeMethods.DataChunks.DuckDBVectorGetValidity(vector);
 
@@ -193,15 +194,15 @@ public class DuckDBDataReader : DbDataReader
     {
         return vectorReaders[ordinal].ColumnDuckDBType switch
         {
-            DuckDBType.List => (T)vectorReaders[ordinal].GetList(rowsReadFromCurrentChunk - 1, (dynamic)Activator.CreateInstance<T>()),
-            DuckDBType.Enum => vectorReaders[ordinal].GetEnum<T>(rowsReadFromCurrentChunk - 1),
-            _ => vectorReaders[ordinal].GetValue<T>(rowsReadFromCurrentChunk - 1)
+            DuckDBType.List => (T)vectorReaders[ordinal].GetList(rowsReadFromCurrentChunk - 1, typeof(T)),
+            DuckDBType.Enum => (T)vectorReaders[ordinal].GetEnum(rowsReadFromCurrentChunk - 1, typeof(T)),
+            _ => (T)vectorReaders[ordinal].GetValue(rowsReadFromCurrentChunk - 1)
         };
     }
 
     public override object GetValue(int ordinal)
     {
-        return IsDBNull(ordinal) ? DBNull.Value : vectorReaders[ordinal].GetValue<object>(rowsReadFromCurrentChunk - 1);
+        return IsDBNull(ordinal) ? DBNull.Value : vectorReaders[ordinal].GetValue(rowsReadFromCurrentChunk - 1);
     }
 
     public override int GetValues(object[] values)
