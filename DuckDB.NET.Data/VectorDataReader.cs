@@ -189,7 +189,7 @@ internal class VectorDataReader : IDisposable
         {
             if (!IsValid(offset))
             {
-                return default;
+                return default!;
             }
             returnType = underlyingType;
         }
@@ -200,6 +200,9 @@ internal class VectorDataReader : IDisposable
 
     internal unsafe object GetList(ulong offset, Type returnType)
     {
+        if (listDataReader is null)
+            throw new InvalidOperationException("Can't get a list from a non-list vector.");
+
         var listData = (DuckDBListEntry*)dataPointer + offset;
 
         var listType = returnType.GetGenericArguments()[0];
@@ -207,7 +210,8 @@ internal class VectorDataReader : IDisposable
         var nullableType = Nullable.GetUnderlyingType(listType);
         var allowNulls = !listType.IsValueType || nullableType != null;
 
-        var list = Activator.CreateInstance(returnType) as IList;
+        var list = Activator.CreateInstance(returnType) as IList
+                      ?? throw new ArgumentException($"The type '{returnType.Name}' specified in parameter {nameof(returnType)} cannot be instantiated as an IList.");
 
         var targetType = nullableType ?? listType;
 
@@ -235,7 +239,7 @@ internal class VectorDataReader : IDisposable
         return list;
     }
 
-    internal object GetValue(ulong offset, Type targetType = null)
+    internal object GetValue(ulong offset, Type? targetType = null)
     {
         return ColumnDuckDBType switch
         {
@@ -259,7 +263,7 @@ internal class VectorDataReader : IDisposable
             DuckDBType.Varchar => GetString(offset),
             DuckDBType.Decimal => GetDecimal(offset),
             DuckDBType.Blob => GetStream(offset),
-            DuckDBType.List => GetList(offset, targetType ?? typeof(List<>).MakeGenericType(listDataReader.ClrType)),
+            DuckDBType.List => GetList(offset, targetType ?? typeof(List<>).MakeGenericType(listDataReader!.ClrType)),
             DuckDBType.Enum => GetEnum(offset, targetType ?? typeof(string)),
             var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type})")
         };
