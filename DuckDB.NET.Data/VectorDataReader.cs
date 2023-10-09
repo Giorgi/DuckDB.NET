@@ -30,7 +30,7 @@ internal class VectorDataReader : IDisposable
         this.vector = vector;
         this.dataPointer = dataPointer;
         this.validityMaskPointer = validityMaskPointer;
-        
+
         ColumnDuckDBType = columnType;
 
         logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
@@ -202,19 +202,14 @@ internal class VectorDataReader : IDisposable
     {
         var listData = (DuckDBListEntry*)dataPointer + offset;
 
-        var genericArgument = returnType?.GetGenericArguments()[0];
+        var listType = returnType.GetGenericArguments()[0];
 
-        var nullableType = genericArgument == null ? null : Nullable.GetUnderlyingType(genericArgument);
-        var allowNulls = returnType != null && (!genericArgument.IsValueType || nullableType != null);
+        var nullableType = Nullable.GetUnderlyingType(listType);
+        var allowNulls = !listType.IsValueType || nullableType != null;
 
         var list = Activator.CreateInstance(returnType) as IList;
 
-        var targetType = returnType.GetGenericArguments()[0];
-
-        if (Nullable.GetUnderlyingType(targetType) != null)
-        {
-            targetType = targetType.GetGenericArguments()[0];
-        }
+        var targetType = nullableType ?? listType;
 
         for (ulong i = 0; i < listData->Length; i++)
         {
@@ -266,7 +261,7 @@ internal class VectorDataReader : IDisposable
             DuckDBType.Blob => GetStream(offset),
             DuckDBType.List => GetList(offset, targetType ?? typeof(List<>).MakeGenericType(listDataReader.ClrType)),
             DuckDBType.Enum => GetEnum(offset, targetType ?? typeof(string)),
-            var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type}) in column {offset + 1}")
+            var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type})")
         };
     }
 
