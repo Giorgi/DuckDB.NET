@@ -13,7 +13,7 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
     internal static readonly string[] DataSourceKeys = {"Data Source", "DataSource"};
     private const string DataSourceKey = "DataSource";
 
-    private string dataSource = null;
+    private string dataSource = string.Empty;
         
     public string DataSource
     {

@@ -14,7 +14,7 @@ public class DuckDBDataReader : DbDataReader
     private readonly CommandBehavior behavior;
 
     private DuckDBResult currentResult;
-    private DuckDBDataChunk currentChunk;
+    private DuckDBDataChunk? currentChunk;
     private readonly List<DuckDBResult> queryResults;
 
     private bool closed;
@@ -101,7 +101,7 @@ public class DuckDBDataReader : DbDataReader
         return GetFieldData<byte>(ordinal);
     }
 
-    public override long GetBytes(int ordinal, long dataOffset, byte[] buffer, int bufferOffset, int length)
+    public override long GetBytes(int ordinal, long dataOffset, byte[]? buffer, int bufferOffset, int length)
     {
         throw new NotImplementedException();
     }
@@ -111,7 +111,7 @@ public class DuckDBDataReader : DbDataReader
         throw new NotSupportedException();
     }
 
-    public override long GetChars(int ordinal, long dataOffset, char[] buffer, int bufferOffset, int length)
+    public override long GetChars(int ordinal, long dataOffset, char[]? buffer, int bufferOffset, int length)
     {
         throw new NotSupportedException();
     }
@@ -192,17 +192,28 @@ public class DuckDBDataReader : DbDataReader
 
     public override T GetFieldValue<T>(int ordinal)
     {
-        return vectorReaders[ordinal].ColumnDuckDBType switch
+        var value = vectorReaders[ordinal].ColumnDuckDBType switch
         {
             DuckDBType.List => (T)vectorReaders[ordinal].GetList(rowsReadFromCurrentChunk - 1, typeof(T)),
             DuckDBType.Enum => (T)vectorReaders[ordinal].GetEnum(rowsReadFromCurrentChunk - 1, typeof(T)),
             _ => (T)vectorReaders[ordinal].GetValue(rowsReadFromCurrentChunk - 1)
         };
+
+        if (value is not null)
+            return (T)value;
+
+        if (default(T) is null && typeof(T).IsValueType)
+            return default!;
+
+        if (typeof(T) == typeof(object))
+            return (T)(object)DBNull.Value;
+
+        throw new InvalidCastException();
     }
 
     public override object GetValue(int ordinal)
     {
-        return IsDBNull(ordinal) ? DBNull.Value : vectorReaders[ordinal].GetValue(rowsReadFromCurrentChunk - 1);
+        return IsDBNull(ordinal) ? DBNull.Value : vectorReaders[ordinal].GetValue(rowsReadFromCurrentChunk - 1) ?? DBNull.Value;
     }
 
     public override int GetValues(object[] values)

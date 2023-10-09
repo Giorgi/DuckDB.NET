@@ -17,11 +17,16 @@ internal static class DuckDBConnectionStringParser
             
         if (string.IsNullOrEmpty(dataSource))
         {
-            throw new InvalidOperationException($"Connection string '{connectionString}' is not valid.");
+            throw new InvalidOperationException($"Connection string '{connectionString}' is not valid, missing data source information.");
         }
 
         var inMemory = false;
+
+#if NET6_0_OR_GREATER
         if (dataSource.Equals(DuckDBConnectionStringBuilder.InMemoryDataSource, StringComparison.OrdinalIgnoreCase))
+#else
+        if (dataSource!.Equals(DuckDBConnectionStringBuilder.InMemoryDataSource, StringComparison.OrdinalIgnoreCase))
+#endif
         {
             inMemory = true;
             dataSource = "";
@@ -37,7 +42,7 @@ internal static class DuckDBConnectionStringParser
         return new DuckDBConnectionString(dataSource, inMemory, isShared);
     }
 
-    private static string GetDataSource(IReadOnlyDictionary<string, string> properties)
+    private static string? GetDataSource(IReadOnlyDictionary<string, string> properties)
     {
         foreach (var key in DuckDBConnectionStringBuilder.DataSourceKeys)
         {

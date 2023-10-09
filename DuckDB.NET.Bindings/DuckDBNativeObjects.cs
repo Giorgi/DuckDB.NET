@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.InteropServices;
 
@@ -209,17 +210,21 @@ public struct DuckDBInterval
     public static explicit operator TimeSpan(DuckDBInterval interval)
     {
         (var timeSpan, var exception) = ToTimeSpan(interval);
-        return timeSpan ?? throw exception;
+        return timeSpan ?? throw exception!;
     }
     public static implicit operator DuckDBInterval(TimeSpan timeSpan) => FromTimeSpan(timeSpan);
 
+#if NET6_0_OR_GREATER
+    public bool TryConvert([NotNullWhen(true)]out TimeSpan? timeSpan)
+#else
     public bool TryConvert(out TimeSpan? timeSpan)
+#endif
     {
         (timeSpan, var exception) = ToTimeSpan(this);
         return exception is null;
     }
 
-    private static (TimeSpan?, Exception) ToTimeSpan(DuckDBInterval interval)
+    private static (TimeSpan?, Exception?) ToTimeSpan(DuckDBInterval interval)
     {
         if (interval.Months > 0)
             return (null, new ArgumentOutOfRangeException(nameof(interval), $"Cannot convert a value of type {nameof(DuckDBInterval)} to type {nameof(TimeSpan)} when the attribute them is greater or equal to 1"));
@@ -250,8 +255,6 @@ public struct DuckDBInterval
             return (new TimeSpan(days, 0, 0, 0) + new TimeSpan((long)micros * 10), null);
         }
     }
-
-
 
     private static DuckDBInterval FromTimeSpan(TimeSpan timeSpan)
         => new(

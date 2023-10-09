@@ -185,7 +185,7 @@ internal sealed class PreparedStatement : IDisposable
             throw new InvalidOperationException($"Unable to bind value of type {parameter.DbType}.");
         }
 
-        var result = binder(preparedStatement, index, parameter.Value);
+        var result = binder(preparedStatement, index, parameter.Value!);
 
         if (!result.IsSuccess())
         {
@@ -195,7 +195,7 @@ internal sealed class PreparedStatement : IDisposable
     }
 
     private static DuckDBState BindObject(DuckDBPreparedStatement preparedStatement, long index, object value)
-        => BindString(preparedStatement, index, Convert.ToString(value, CultureInfo.InvariantCulture));
+        => BindString(preparedStatement, index, Convert.ToString(value, CultureInfo.InvariantCulture)!);
 
     private static DuckDBState BindBoolean(DuckDBPreparedStatement preparedStatement, long index, object value)
         => NativeMethods.PreparedStatements.DuckDBBindBoolean(preparedStatement, index, (bool)value);
@@ -233,7 +233,7 @@ internal sealed class PreparedStatement : IDisposable
 
     private static DuckDBState BindString(DuckDBPreparedStatement preparedStatement, long index, object value)
     {
-        using var unmanagedString = ((string)value).ToUnmanagedString();
+        using var unmanagedString = (value as string)?.ToUnmanagedString() ?? throw new ArgumentException(nameof(value));
         return NativeMethods.PreparedStatements.DuckDBBindVarchar(preparedStatement, index, unmanagedString);
     }
 

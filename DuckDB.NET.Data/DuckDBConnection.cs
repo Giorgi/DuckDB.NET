@@ -4,6 +4,8 @@ using System.Data;
 using System.Data.Common;
 using System.Runtime.CompilerServices;
 using DuckDB.NET.Data.ConnectionString;
+using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 
 namespace DuckDB.NET.Data;
 
@@ -11,35 +13,68 @@ public class DuckDBConnection : DbConnection
 {
     private readonly ConnectionManager connectionManager = ConnectionManager.Default;
     private ConnectionState connectionState = ConnectionState.Closed;
-    private DuckDBConnectionString connectionString;
-    private ConnectionReference connectionReference;
-    private bool inMemoryDuplication;
+    private DuckDBConnectionString? connectionString;
+    private ConnectionReference? connectionReference;
+    private bool inMemoryDuplication = false;
 
     #region Protected Properties
 
-    protected override DbProviderFactory DbProviderFactory => DuckDBClientFactory.Instance;
+    protected override DbProviderFactory? DbProviderFactory => DuckDBClientFactory.Instance;
 
     #endregion
 
-    internal DuckDBTransaction Transaction { get; set; }
+    internal DuckDBTransaction? Transaction { get; set; }
 
     public DuckDBConnection()
-    { }
+    {
+        ConnectionString = string.Empty;
+    }
 
     public DuckDBConnection(string connectionString)
     {
         ConnectionString = connectionString;
     }
 
+#if NET6_0_OR_GREATER
+    [AllowNull]
+#endif
+    [DefaultValue("")]
     public override string ConnectionString { get; set; }
 
-    public override string Database { get; }
+    public override string Database
+    {
+        get
+        {
+            if (connectionState == ConnectionState.Open)
+                return connectionString!.DataSource;
 
-    public override string DataSource { get; }
+            if (!string.IsNullOrEmpty(ConnectionString))
+                return DuckDBConnectionStringParser.Parse(ConnectionString).DataSource;
 
-    internal DuckDBNativeConnection NativeConnection => connectionReference.NativeConnection;
+            throw new InvalidOperationException("Connection should be opened or at least a connection string must be specified.");
+        }
+    }
 
-    public override string ServerVersion => NativeMethods.Startup.DuckDBLibraryVersion().ToManagedString(false);
+    public override string DataSource
+    {
+        get
+        {
+            if (connectionState == ConnectionState.Open)
+                return connectionString!.DataSource;
+
+            if (!string.IsNullOrEmpty(ConnectionString))
+                return DuckDBConnectionStringParser.Parse(ConnectionString).DataSource;
+
+            throw new InvalidOperationException("Connection should be opened or at least a connection string must be specified.");
+        }
+    }
+
+    internal DuckDBNativeConnection NativeConnection
+        => connectionReference?.NativeConnection 
+            ?? throw new InvalidOperationException("The DuckDBConnection must be open to access the native connection.");
+
+    public override string ServerVersion 
+        => NativeMethods.Startup.DuckDBLibraryVersion().ToManagedString(false);
 
     public override ConnectionState State => connectionState;
 
@@ -67,12 +102,12 @@ public class DuckDBConnection : DbConnection
 
         if (inMemoryDuplication)
         {
-            connectionReference = connectionManager.DuplicateConnectionReference(connectionReference);
+            //In case of inMemoryDuplication, we can safely take the hypothesis that connectionReference is already assigned
+            connectionReference = connectionManager.DuplicateConnectionReference(connectionReference!);
         }
         else
         {
             connectionString = DuckDBConnectionStringParser.Parse(ConnectionString);
-
             connectionReference = connectionManager.GetConnectionReference(connectionString);
         }
 
@@ -116,7 +151,7 @@ public class DuckDBConnection : DbConnection
 
     public DuckDBAppender CreateAppender(string table) => CreateAppender(null, table);
 
-    public DuckDBAppender CreateAppender(string schema, string table)
+    public DuckDBAppender CreateAppender(string? schema, string table)
     {
         EnsureConnectionOpen();
         if (NativeMethods.Appender.DuckDBAppenderCreate(NativeConnection, schema, table, out var nativeAppender) == DuckDBState.Error)
@@ -140,7 +175,8 @@ public class DuckDBConnection : DbConnection
         {
             if (connectionState == ConnectionState.Open)
             {
-                connectionManager.ReturnConnectionReference(connectionReference);
+                if (connectionReference is not null) //Should always be the case
+                    connectionManager.ReturnConnectionReference(connectionReference);
                 connectionState = ConnectionState.Closed;
             }
         }
@@ -163,9 +199,10 @@ public class DuckDBConnection : DbConnection
             throw new InvalidOperationException("Duplication requires an open connection");
         }
 
-        if (!connectionString.InMemory)
+        // We're sure that the connectionString is not null because we previously checked the connection was open
+        if (!connectionString!.InMemory)
         {
-            throw new NotSupportedException();
+            throw new NotSupportedException("Duplication of the connection is only supported for in-memory connections.");
         }
 
         var duplicatedConnection = new DuckDBConnection(ConnectionString)
