@@ -21,7 +21,7 @@ Note: The library is in the early stage and contributions are more than welcome.
 ## Usage
 
 ### Support
-If you encounter a bug with the library [Create an Issue](https://github.com/Giorgi/DuckDB.NET/issues/new). Join the [DuckDB .Net Channel](https://discord.com/channels/909674491309850675/1051088721996427265) for DuckDB.NET related topics.
+If you encounter a bug with the library [Create an Issue](https://github.com/Giorgi/DuckDB.NET/issues/new). Join the [DuckDB .Net Channel](https://discord.duckdb.org/) for DuckDB.NET related topics.
 
 ### Getting Started
 There are two ways to work with DuckDB from C#: You can use ADO.NET Provider or use low-level bindings library for DuckDB. The ADO.NET Provider is built on top of the low-level library and is the recommended and most straightforward approach to work with DuckDB.
