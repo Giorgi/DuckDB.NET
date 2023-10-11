@@ -30,12 +30,12 @@ public class DuckDBDataReaderStructTests : DuckDBTestBase
     [Fact]
     public void ReadBasicStructWithGetValue()
     {
-        Command.CommandText = "SELECT {'x': 1, 'y': 2, 'z': 'test'};";
+        Command.CommandText = "SELECT {'x': 1, 'y': 2, 'z': 'test', 'xy': null};";
         using var reader = Command.ExecuteReader();
         reader.Read();
 
         var value = reader.GetValue(0);
-        value.Should().BeEquivalentTo(new Dictionary<string, object> { { "x", 1 }, { "y", 2 }, { "z", "test" } });
+        value.Should().BeEquivalentTo(new Dictionary<string, object> { { "x", 1 }, { "y", 2 }, { "z", "test" }, {"xy", null} });
     }
 
     [Fact]
