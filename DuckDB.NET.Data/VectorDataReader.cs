@@ -383,7 +383,7 @@ internal class VectorDataReader : IDisposable
             {
                 if (isNotNullable)
                 {
-                    throw new NullReferenceException($"Property {propertyInfo.Name} not found in struct");
+                    throw new NullReferenceException($"Property '{propertyInfo.Name}' not found in struct");
                 }
 
                 continue;

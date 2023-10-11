@@ -100,6 +100,39 @@ public class DuckDBDataReaderStructTests : DuckDBTestBase
             Type = 1
         });
     }
+    
+    [Fact]
+    public void ReadStructWithNestedStruct()
+    {
+        Command.CommandText =
+            "SELECT {'birds': {'yes': 'duck', 'maybe': 'goose', 'huh': NULL, 'no': 'heron', 'type': 0}, " +
+                    "'aliens': NULL, " +
+                    "'amphibians': {'yes':'frog', 'maybe': 'salamander', 'huh': 'dragon', 'no':'toad', 'type':1} };";
+        using var reader = Command.ExecuteReader();
+
+        reader.Read();
+        var value = reader.GetFieldValue<Struct3>(0);
+        
+        value.Aliens.Should().BeNull();
+
+        value.Birds.Should().BeEquivalentTo(new Struct2
+        {
+            Huh = null,
+            Maybe = "goose",
+            No = "heron",
+            Yes = "duck",
+            Type = 0
+        });
+
+        value.Amphibians.Should().BeEquivalentTo(new Struct2
+        {
+            Huh = "dragon",
+            Maybe = "salamander",
+            No = "toad",
+            Yes = "frog",
+            Type = 1
+        });
+    }
 
     class Struct1
     {
@@ -116,5 +149,12 @@ public class DuckDBDataReaderStructTests : DuckDBTestBase
         public string Huh { get; set; }
         public string No { get; set; }
         public int Type { get; set; }
+    }
+
+    class Struct3
+    {
+        public Struct2 Birds { get; set; }
+        public Struct2 Aliens { get; set; }
+        public Struct2 Amphibians { get; set; }
     }
 }
