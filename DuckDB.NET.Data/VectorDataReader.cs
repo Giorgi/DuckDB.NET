@@ -221,6 +221,65 @@ internal class VectorDataReader : IDisposable
         return enumItem;
     }
 
+    internal object GetStruct(ulong offset, Type returnType)
+    {
+        if (structDataReaders is null)
+        {
+            throw new InvalidOperationException("Can't get a struct from a non-struct vector.");
+        }
+
+        var result = Activator.CreateInstance(returnType);
+
+        if (result is Dictionary<string, object?> dictionary)
+        {
+            //var dictionary = result as Dictionary<string, object?>;
+            foreach (var reader in structDataReaders)
+            {
+                var value = reader.Value.IsValid(offset) ? reader.Value.GetValue(offset) : null;
+                dictionary.Add(reader.Key, value);
+            }
+
+            return result;
+        }
+
+        var properties = returnType.GetProperties();
+        foreach (var propertyInfo in properties)
+        {
+            if (propertyInfo.SetMethod == null)
+            {
+                continue;
+            }
+
+            structDataReaders.TryGetValue(propertyInfo.Name, out var reader);
+            var isNotNullable = propertyInfo.PropertyType.IsValueType && Nullable.GetUnderlyingType(propertyInfo.PropertyType) == null;
+
+            if (reader == null)
+            {
+                if (isNotNullable)
+                {
+                    throw new NullReferenceException($"Property '{propertyInfo.Name}' not found in struct");
+                }
+
+                continue;
+            }
+
+            if (reader.IsValid(offset))
+            {
+                var value = reader.GetValue(offset, propertyInfo.PropertyType);
+                propertyInfo.SetValue(result, value);
+            }
+            else
+            {
+                if (isNotNullable)
+                {
+                    throw new NullReferenceException($"Property '{propertyInfo.Name}' is not nullable but struct contains null");
+                }
+            }
+        }
+
+        return result!;
+    }
+
     internal unsafe object GetList(ulong offset, Type returnType)
     {
         if (listDataReader is null)
@@ -345,64 +404,13 @@ internal class VectorDataReader : IDisposable
     {
         listDataReader?.Dispose();
         logicalType?.Dispose();
-    }
 
-    internal object GetStruct(ulong offset, Type type)
-    {
-        if (structDataReaders is null)
+        if (structDataReaders != null)
         {
-            throw new InvalidOperationException("Can't get a struct from a non-struct vector.");
-        }
-
-        var result = Activator.CreateInstance(type);
-
-        if (result is Dictionary<string, object?> dictionary)
-        {
-            //var dictionary = result as Dictionary<string, object?>;
-            foreach (var reader in structDataReaders)
+            foreach (var item in structDataReaders)
             {
-                var value = reader.Value.IsValid(offset) ? reader.Value.GetValue(offset) : null;
-                dictionary.Add(reader.Key, value);
-            }
-
-            return result;
-        }
-
-        var properties = type.GetProperties();
-        foreach (var propertyInfo in properties)
-        {
-            if (propertyInfo.SetMethod == null)
-            {
-                continue;
-            }
-
-            structDataReaders.TryGetValue(propertyInfo.Name, out var reader);
-            var isNotNullable = propertyInfo.PropertyType.IsValueType && Nullable.GetUnderlyingType(propertyInfo.PropertyType) == null;
-
-            if (reader == null)
-            {
-                if (isNotNullable)
-                {
-                    throw new NullReferenceException($"Property '{propertyInfo.Name}' not found in struct");
-                }
-
-                continue;
-            }
-
-            if (reader.IsValid(offset))
-            {
-                var value = reader.GetValue(offset, propertyInfo.PropertyType);
-                propertyInfo.SetValue(result, value);
-            }
-            else
-            {
-                if (isNotNullable)
-                {
-                    throw new NullReferenceException($"Property '{propertyInfo.Name}' is not nullable but struct contains null");
-                }
+                item.Value.Dispose();
             }
         }
-
-        return result!;
     }
 }
