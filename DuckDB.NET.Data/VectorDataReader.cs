@@ -21,6 +21,7 @@ internal class VectorDataReader : IDisposable
     internal DuckDBType DuckDBType { get; }
 
     private readonly VectorDataReader? listDataReader;
+    private readonly Dictionary<string, VectorDataReader>? structDataReaders;
 
     private readonly byte scale;
     private readonly DuckDBType decimalType;
@@ -60,6 +61,7 @@ internal class VectorDataReader : IDisposable
             DuckDBType.Blob => typeof(Stream),
             DuckDBType.Enum => typeof(Enum),
             DuckDBType.List => typeof(List<>),
+            DuckDBType.Struct => typeof(Dictionary<string, object>),
             var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type})")
         };
 
@@ -83,6 +85,26 @@ internal class VectorDataReader : IDisposable
                     var childVectorValidity = NativeMethods.DataChunks.DuckDBVectorGetValidity(childVector);
 
                     listDataReader = new VectorDataReader(childVector, childVectorData, childVectorValidity, type);
+                    break;
+                }
+            case DuckDBType.Struct:
+                {
+                    var memberCount = NativeMethods.LogicalType.DuckDBStructTypeChildCount(logicalType);
+                    structDataReaders = new Dictionary<string, VectorDataReader>(StringComparer.OrdinalIgnoreCase);
+
+                    for (int index = 0; index < memberCount; index++)
+                    {
+                        var name = NativeMethods.LogicalType.DuckDBStructTypeChildName(logicalType, index).ToManagedString();
+                        var childVector = NativeMethods.DataChunks.DuckDBStructVectorGetChild(vector, index);
+
+                        var childVectorData = NativeMethods.DataChunks.DuckDBVectorGetData(childVector);
+                        var childVectorValidity = NativeMethods.DataChunks.DuckDBVectorGetValidity(childVector);
+
+                        using var childType = NativeMethods.LogicalType.DuckDBStructTypeChildType(logicalType, index);
+                        var type = NativeMethods.LogicalType.DuckDBGetTypeId(childType);
+
+                        structDataReaders[name] = new VectorDataReader(childVector, childVectorData, childVectorValidity, type);
+                    }
                     break;
                 }
         }
@@ -268,6 +290,7 @@ internal class VectorDataReader : IDisposable
             DuckDBType.Blob => GetStream(offset),
             DuckDBType.List => GetList(offset, targetType ?? typeof(List<>).MakeGenericType(listDataReader!.ClrType)),
             DuckDBType.Enum => GetEnum(offset, targetType ?? typeof(string)),
+            DuckDBType.Struct => GetStruct(offset, targetType ?? typeof(Dictionary<string, object>)),
             var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type})")
         };
     }
@@ -322,5 +345,64 @@ internal class VectorDataReader : IDisposable
     {
         listDataReader?.Dispose();
         logicalType?.Dispose();
+    }
+
+    internal object GetStruct(ulong offset, Type type)
+    {
+        if (structDataReaders is null)
+        {
+            throw new InvalidOperationException("Can't get a struct from a non-struct vector.");
+        }
+
+        var result = Activator.CreateInstance(type);
+
+        if (result is Dictionary<string, object?> dictionary)
+        {
+            //var dictionary = result as Dictionary<string, object?>;
+            foreach (var reader in structDataReaders)
+            {
+                var value = reader.Value.IsValid(offset) ? reader.Value.GetValue(offset) : null;
+                dictionary.Add(reader.Key, value);
+            }
+
+            return result;
+        }
+
+        var properties = type.GetProperties();
+        foreach (var propertyInfo in properties)
+        {
+            if (propertyInfo.SetMethod == null)
+            {
+                continue;
+            }
+
+            structDataReaders.TryGetValue(propertyInfo.Name, out var reader);
+            var isNotNullable = propertyInfo.PropertyType.IsValueType && Nullable.GetUnderlyingType(propertyInfo.PropertyType) == null;
+
+            if (reader == null)
+            {
+                if (isNotNullable)
+                {
+                    throw new NullReferenceException($"Property {propertyInfo.Name} not found in struct");
+                }
+
+                continue;
+            }
+
+            if (reader.IsValid(offset))
+            {
+                var value = reader.GetValue(offset, propertyInfo.PropertyType);
+                propertyInfo.SetValue(result, value);
+            }
+            else
+            {
+                if (isNotNullable)
+                {
+                    throw new NullReferenceException("");
+                }
+            }
+        }
+
+        return result!;
     }
 }
