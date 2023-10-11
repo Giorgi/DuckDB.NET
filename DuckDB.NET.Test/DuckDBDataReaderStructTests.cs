@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using FluentAssertions;
 using Xunit;
 
@@ -104,10 +105,9 @@ public class DuckDBDataReaderStructTests : DuckDBTestBase
     [Fact]
     public void ReadStructWithNestedStruct()
     {
-        Command.CommandText =
-            "SELECT {'birds': {'yes': 'duck', 'maybe': 'goose', 'huh': NULL, 'no': 'heron', 'type': 0}, " +
-                    "'aliens': NULL, " +
-                    "'amphibians': {'yes':'frog', 'maybe': 'salamander', 'huh': 'dragon', 'no':'toad', 'type':1} };";
+        Command.CommandText = "SELECT {'birds': {'yes': 'duck', 'maybe': 'goose', 'huh': NULL, 'no': 'heron', 'type': 0}, " +
+                              "'aliens': NULL, " +
+                              "'amphibians': {'yes':'frog', 'maybe': 'salamander', 'huh': 'dragon', 'no':'toad', 'type':1} };";
         using var reader = Command.ExecuteReader();
 
         reader.Read();
@@ -134,6 +134,18 @@ public class DuckDBDataReaderStructTests : DuckDBTestBase
         });
     }
 
+    [Theory]
+    [InlineData("SELECT {'b': null};", $"Property '{nameof(Struct4.A)}' not found in struct")]
+    [InlineData("SELECT {'b': null, 'a': 4};", $"Property '{nameof(Struct4.B)}' is not nullable but struct contains null")]
+    public void ReadStructWithMissingDataThrowsException(string query, string error)
+    {
+        Command.CommandText = query;
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.Invoking(r => r.GetFieldValue<Struct4>(0)).Should().Throw<NullReferenceException>().WithMessage(error);
+    }
+
     class Struct1
     {
         public int X { get; set; }
@@ -156,5 +168,11 @@ public class DuckDBDataReaderStructTests : DuckDBTestBase
         public Struct2 Birds { get; set; }
         public Struct2 Aliens { get; set; }
         public Struct2 Amphibians { get; set; }
+    }
+
+    class Struct4
+    {
+        public int A { get; set; }
+        public int B { get; set; }
     }
 }

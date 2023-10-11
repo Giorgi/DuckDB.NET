@@ -398,7 +398,7 @@ internal class VectorDataReader : IDisposable
             {
                 if (isNotNullable)
                 {
-                    throw new NullReferenceException("");
+                    throw new NullReferenceException($"Property '{propertyInfo.Name}' is not nullable but struct contains null");
                 }
             }
         }
