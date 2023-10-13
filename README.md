@@ -35,7 +35,7 @@ In both cases, there are two NuGet packages available: The Full package that inc
 | DuckDB.NET.Data | :white_check_mark: | :x: |
 | DuckDB.NET.Data.**Full** | :white_check_mark: | :white_check_mark: |
 
-### Using ADO.NET Provider
+## Using ADO.NET Provider
 
 ```sh
 dotnet add package DuckDB.NET.Data.Full
@@ -86,7 +86,7 @@ private static void PrintQueryResults(DbDataReader queryResult)
   }
 }
 ```
-#### Efficient data loading with Appender
+### Efficient data loading with Appender
 
 Appenders are the most efficient way of loading data into DuckDB. Starting from version 0.6.1, you can use a managed Appender instead of using low-level DuckDB Api:
 
@@ -112,7 +112,7 @@ using (var appender = connection.CreateAppender("managedAppenderTest"))
 }
 ```
 
-#### Parameterized queries and DuckDB native types.
+### Parameterized queries and DuckDB native types.
 
 Starting from version 0.4.0.10, DuckDB.NET.Data supports executing parameterized queries and reading all built-in native DuckDB types. Starting from version 0.9.0 the library supports named parameters too:
 
@@ -149,7 +149,7 @@ To read DuckDB specific native types use `DuckDBDataReader.GetFieldValue<T>` met
 | TIME  | DuckDBTimeOnly  |
 | HUGEINT  | BigInteger  |
 
-#### List, Struct, Enum, and other composite types
+### List, Struct, Enum, and other composite types
 
 DuckDB.NET 0.9.0 supports reading a List of primitive types (int, string, double, etc). Reading a List of composite types or nested lists isn't supported.
 
@@ -184,7 +184,7 @@ reader.Read();
 var secondResult = reader.GetInt32(0);
 ```
 
-### Dapper
+## Dapper
 
 You can also use Dapper to query data:
 
@@ -192,13 +192,13 @@ You can also use Dapper to query data:
 var item = duckDBConnection.Query<FooBar>("SELECT foo, bar FROM integers");
 ```
 
-### In-Memory database
+## In-Memory database
 
 For an in-memory database use `Data Source=:memory:` connection string. When using an in-memory database no data is persisted on disk. Every in-memory connection results in a new, isolated database so tables created
 inside one in-memory connection aren't visible to another in-memory connection. If you want to create a shared in-memory database, you can use `DataSource=:memory:?cache=shared` connection string. Both connection strings
 are exposed by the library as `DuckDBConnectionStringBuilder.InMemoryDataSource` and `DuckDBConnectionStringBuilder.InMemorySharedDataSource` respectively.
 
-### Use low-level bindings library
+## Use low-level bindings library
 
 ```sh
 dotnet add package DuckDB.NET.Bindings.Full
