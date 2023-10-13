@@ -151,11 +151,15 @@ To read DuckDB specific native types use `DuckDBDataReader.GetFieldValue<T>` met
 
 ### List, Struct, Enum, and other composite types
 
-DuckDB.NET 0.9.0 supports reading a List of primitive types (int, string, double, etc). Reading a List of composite types or nested lists isn't supported.
+DuckDB.NET 0.9.1 supports reading [Enum](https://duckdb.org/docs/sql/data_types/enum), a [List](https://duckdb.org/docs/sql/data_types/list) of primitive types (int, string, double, etc) or an Enum, as well as nested List.
 
-To read a List use `DuckDBDataReader.GetFieldValue<T>`. For example, to read a list of doubles: `DuckDBDataReader.GetFieldValue<List<double>>` If the list contains null use `DuckDBDataReader.GetFieldValue<List<double?>>`, otherwise an exception will be thrown when null is encountered. If you don't know whether the list contains null or not but want to skip all null values, you can use `select [x for x in mylist if x IS NOT NULL] as filtered;` to remove null values from the list.
+To read an Enum, List or nested List use `DuckDBDataReader.GetFieldValue<T>`. For example, to read a list of doubles: `DuckDBDataReader.GetFieldValue<List<double>>` If the list contains null, use `DuckDBDataReader.GetFieldValue<List<double?>>`, otherwise an exception will be thrown when null is encountered. If you don't know whether the list contains null or not but want to skip all null values, you can use `select [x for x in mylist if x IS NOT NULL] as filtered;` to remove null values from the list.
 
-#### Executing multiple statements in a single go.
+Nested List can be read in a similar way: `reader.GetFieldValue<List<List<int>>>`
+
+Check [Tests](https://github.com/Giorgi/DuckDB.NET/tree/develop/DuckDB.NET.Test) for more examples.
+
+### Executing multiple statements in a single go.
 
 Starting from version 0.8, you can execute multiple statements in a single go:
 
