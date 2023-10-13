@@ -34,4 +34,16 @@
     <ProjectReference Include="..\DuckDB.NET.Bindings\Bindings.csproj" />
   </ItemGroup>
 
+  <Target Name="CallExecutable" BeforeTargets="GenerateAdditionalSources">
+    <MSBuild Projects="..\DuckDB.NET.Bindings\Bindings.csproj" Targets="DownloadNativeLibs" Properties="BuildType=Full;"/>
+  </Target>
+  <ItemGroup>
+    <None Include="..\DuckDB.NET.Bindings\obj\runtimes\**\*.dll;..\DuckDB.NET.Bindings\obj\runtimes\**\*.so;..\DuckDB.NET.Bindings\obj\runtimes\**\*.dylib;">
+      <Visible>false</Visible>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <PackagePath>\runtimes</PackagePath>
+      <Link>runtimes\%(RecursiveDir)\%(FileName)%(Extension)</Link>
+    </None>
+  </ItemGroup>
+
 </Project>
