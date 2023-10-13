@@ -64,8 +64,7 @@ namespace DuckDB.NET.Samples
             using var duckDBConnection = new DuckDBConnection("Data Source=file.db");
             duckDBConnection.Open();
 
-            var command = duckDBConnection.CreateCommand();
-
+            using var command = duckDBConnection.CreateCommand();
             command.CommandText = "CREATE TABLE integers(foo INTEGER, bar INTEGER);";
             var executeNonQuery = command.ExecuteNonQuery();
 

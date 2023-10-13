@@ -1,5 +1,4 @@
 next-version: 0.9.1
-assembly-file-versioning-format: '{Major}.{Minor}.{Patch}.{CommitsSinceVersionSource}' 
 branches:
   develop:
     increment: None

@@ -16,8 +16,6 @@
 
 ![Project Icon](https://raw.githubusercontent.com/Giorgi/DuckDB.NET/main/Logo.jpg "DuckDB.NET Project Icon")
 
-Note: The library is in the early stage and contributions are more than welcome.
-
 ## Usage
 
 ### Support
@@ -46,7 +44,7 @@ using (var duckDBConnection = new DuckDBConnection("Data Source=file.db"))
 {
   duckDBConnection.Open();
 
-  var command = duckDBConnection.CreateCommand();
+  using var command = duckDBConnection.CreateCommand();
 
   command.CommandText = "CREATE TABLE integers(foo INTEGER, bar INTEGER);";
   var executeNonQuery = command.ExecuteNonQuery();
@@ -68,7 +66,7 @@ private static void PrintQueryResults(DbDataReader queryResult)
   for (var index = 0; index < queryResult.FieldCount; index++)
   {
     var column = queryResult.GetName(index);
-     Console.Write($"{column} ");
+    Console.Write($"{column} ");
   }
 
   Console.WriteLine();
@@ -120,7 +118,7 @@ Starting from version 0.4.0.10, DuckDB.NET.Data supports executing parameterized
 using var connection = new DuckDBConnection("DataSource=:memory:");
 connection.Open();
 
-var command = connection.CreateCommand();
+using var command = connection.CreateCommand();
 
 //Named parameters
 command.CommandText = "INSERT INTO ParametersTestKeyValue (KEY, VALUE) VALUES ($key, $value)";
@@ -145,8 +143,8 @@ To read DuckDB specific native types use `DuckDBDataReader.GetFieldValue<T>` met
 | DuckDB Type  | .Net Type |
 | ------------- | ------------- |
 | INTERVAL   | DuckDBInterval  |
-| DATE  | DuckDBDateOnly  |
-| TIME  | DuckDBTimeOnly  |
+| DATE  | DuckDBDateOnly/DateOnly  |
+| TIME  | DuckDBTimeOnly/TimeOnly  |
 | HUGEINT  | BigInteger  |
 
 ### List, Struct, Enum, and other composite types
@@ -164,7 +162,7 @@ Check [Tests](https://github.com/Giorgi/DuckDB.NET/tree/develop/DuckDB.NET.Test)
 Starting from version 0.8, you can execute multiple statements in a single go:
 
 ```cs
- var command = duckDBConnection.CreateCommand();
+ using var command = duckDBConnection.CreateCommand();
 
  command.CommandText = "INSTALL 'httpfs'; Load 'httpfs';";
  command.ExecuteNonQuery();
@@ -173,7 +171,7 @@ Starting from version 0.8, you can execute multiple statements in a single go:
 To consume multiple result sets use `NextResult`:
 
 ```cs
-var duckDbCommand = connection.CreateCommand();
+using var duckDbCommand = connection.CreateCommand();
 duckDbCommand.CommandText = "Select 1; Select 2";
 
 using var reader = duckDbCommand.ExecuteReader();
