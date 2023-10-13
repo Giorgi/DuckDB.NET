@@ -37,6 +37,30 @@ internal class VectorDataReader : IDisposable
 
         logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
 
+        switch (DuckDBType)
+        {
+            case DuckDBType.Enum:
+                enumType = NativeMethods.LogicalType.DuckDBEnumInternalType(logicalType);
+                break;
+            case DuckDBType.Decimal:
+                scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
+                decimalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
+                break;
+            case DuckDBType.List:
+                {
+                    using var childType = NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType);
+                    var type = NativeMethods.LogicalType.DuckDBGetTypeId(childType);
+
+                    var childVector = NativeMethods.DataChunks.DuckDBListVectorGetChild(vector);
+
+                    var childVectorData = NativeMethods.DataChunks.DuckDBVectorGetData(childVector);
+                    var childVectorValidity = NativeMethods.DataChunks.DuckDBVectorGetValidity(childVector);
+
+                    listDataReader = new VectorDataReader(childVector, childVectorData, childVectorValidity, type);
+                    break;
+                }
+        }
+
         ClrType = DuckDBType switch
         {
             DuckDBType.Invalid => throw new DuckDBException("Invalid type"),
@@ -59,8 +83,8 @@ internal class VectorDataReader : IDisposable
             DuckDBType.Varchar => typeof(string),
             DuckDBType.Decimal => typeof(decimal),
             DuckDBType.Blob => typeof(Stream),
-            DuckDBType.Enum => typeof(Enum),
-            DuckDBType.List => typeof(List<>),
+            DuckDBType.Enum => typeof(string),
+            DuckDBType.List => typeof(List<>).MakeGenericType(listDataReader!.ClrType),
             DuckDBType.Struct => typeof(Dictionary<string, object>),
             var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type})")
         };
@@ -232,7 +256,6 @@ internal class VectorDataReader : IDisposable
 
         if (result is Dictionary<string, object?> dictionary)
         {
-            //var dictionary = result as Dictionary<string, object?>;
             foreach (var reader in structDataReaders)
             {
                 var value = reader.Value.IsValid(offset) ? reader.Value.GetValue(offset) : null;
@@ -347,9 +370,9 @@ internal class VectorDataReader : IDisposable
             DuckDBType.Varchar => GetString(offset),
             DuckDBType.Decimal => GetDecimal(offset),
             DuckDBType.Blob => GetStream(offset),
-            DuckDBType.List => GetList(offset, targetType ?? typeof(List<>).MakeGenericType(listDataReader!.ClrType)),
-            DuckDBType.Enum => GetEnum(offset, targetType ?? typeof(string)),
-            DuckDBType.Struct => GetStruct(offset, targetType ?? typeof(Dictionary<string, object>)),
+            DuckDBType.List => GetList(offset, targetType ?? ClrType),
+            DuckDBType.Enum => GetEnum(offset, targetType ?? ClrType),
+            DuckDBType.Struct => GetStruct(offset, targetType ?? ClrType),
             var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type})")
         };
     }
