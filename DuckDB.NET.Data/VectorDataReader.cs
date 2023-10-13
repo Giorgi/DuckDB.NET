@@ -36,33 +36,6 @@ internal class VectorDataReader : IDisposable
 
         logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
 
-        ClrType = DuckDBType switch
-        {
-            DuckDBType.Invalid => throw new DuckDBException("Invalid type"),
-            DuckDBType.Boolean => typeof(bool),
-            DuckDBType.TinyInt => typeof(sbyte),
-            DuckDBType.SmallInt => typeof(short),
-            DuckDBType.Integer => typeof(int),
-            DuckDBType.BigInt => typeof(long),
-            DuckDBType.UnsignedTinyInt => typeof(byte),
-            DuckDBType.UnsignedSmallInt => typeof(ushort),
-            DuckDBType.UnsignedInteger => typeof(uint),
-            DuckDBType.UnsignedBigInt => typeof(ulong),
-            DuckDBType.Float => typeof(float),
-            DuckDBType.Double => typeof(double),
-            DuckDBType.Timestamp => typeof(DateTime),
-            DuckDBType.Interval => typeof(DuckDBInterval),
-            DuckDBType.Date => typeof(DuckDBDateOnly),
-            DuckDBType.Time => typeof(DuckDBTimeOnly),
-            DuckDBType.HugeInt => typeof(BigInteger),
-            DuckDBType.Varchar => typeof(string),
-            DuckDBType.Decimal => typeof(decimal),
-            DuckDBType.Blob => typeof(Stream),
-            DuckDBType.Enum => typeof(Enum),
-            DuckDBType.List => typeof(List<>),
-            var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type})")
-        };
-
         switch (DuckDBType)
         {
             case DuckDBType.Enum:
@@ -86,6 +59,33 @@ internal class VectorDataReader : IDisposable
                     break;
                 }
         }
+
+        ClrType = DuckDBType switch
+        {
+            DuckDBType.Invalid => throw new DuckDBException("Invalid type"),
+            DuckDBType.Boolean => typeof(bool),
+            DuckDBType.TinyInt => typeof(sbyte),
+            DuckDBType.SmallInt => typeof(short),
+            DuckDBType.Integer => typeof(int),
+            DuckDBType.BigInt => typeof(long),
+            DuckDBType.UnsignedTinyInt => typeof(byte),
+            DuckDBType.UnsignedSmallInt => typeof(ushort),
+            DuckDBType.UnsignedInteger => typeof(uint),
+            DuckDBType.UnsignedBigInt => typeof(ulong),
+            DuckDBType.Float => typeof(float),
+            DuckDBType.Double => typeof(double),
+            DuckDBType.Timestamp => typeof(DateTime),
+            DuckDBType.Interval => typeof(DuckDBInterval),
+            DuckDBType.Date => typeof(DuckDBDateOnly),
+            DuckDBType.Time => typeof(DuckDBTimeOnly),
+            DuckDBType.HugeInt => typeof(BigInteger),
+            DuckDBType.Varchar => typeof(string),
+            DuckDBType.Decimal => typeof(decimal),
+            DuckDBType.Blob => typeof(Stream),
+            DuckDBType.Enum => typeof(string),
+            DuckDBType.List => typeof(List<>).MakeGenericType(listDataReader!.ClrType),
+            var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type})")
+        };
     }
 
     internal unsafe bool IsValid(ulong offset)
@@ -266,8 +266,8 @@ internal class VectorDataReader : IDisposable
             DuckDBType.Varchar => GetString(offset),
             DuckDBType.Decimal => GetDecimal(offset),
             DuckDBType.Blob => GetStream(offset),
-            DuckDBType.List => GetList(offset, targetType ?? typeof(List<>).MakeGenericType(listDataReader!.ClrType)),
-            DuckDBType.Enum => GetEnum(offset, targetType ?? typeof(string)),
+            DuckDBType.List => GetList(offset, targetType ?? ClrType),
+            DuckDBType.Enum => GetEnum(offset, targetType ?? ClrType),
             var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type})")
         };
     }
