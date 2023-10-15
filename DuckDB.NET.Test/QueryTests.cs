@@ -3,8 +3,12 @@ using Xunit;
 
 namespace DuckDB.NET.Test;
 
-public class QueryTests
+public class QueryTests : DuckDBTestBase
 {
+    public QueryTests(DuckDBDatabaseFixture db) : base(db)
+    {
+    }
+
     [Fact]
     public void QueryTest()
     {
