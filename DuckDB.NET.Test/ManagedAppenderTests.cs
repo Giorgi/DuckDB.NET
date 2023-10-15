@@ -7,25 +7,23 @@ using System.Collections.Generic;
 
 namespace DuckDB.NET.Test;
 
-public class DuckDBManagedAppenderTests
+public class DuckDBManagedAppenderTests : DuckDBTestBase
 {
+    public DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : base(db)
+    {
+    }
+
     [Fact]
     public void ManagedAppenderTests()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
-        using (var duckDbCommand = connection.CreateCommand())
-        {
-            var table = "CREATE TABLE managedAppenderTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, " +
-                        "g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR, m TIMESTAMP, n Date);";
-            duckDbCommand.CommandText = table;
-            duckDbCommand.ExecuteNonQuery();
-        }
+        var table = "CREATE TABLE managedAppenderTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, " +
+                       "g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR, m TIMESTAMP, n Date);";
+        Command.CommandText = table;
+        Command.ExecuteNonQuery();
 
         var rows = 10;
         var date = DateTime.Today;
-        using (var appender = connection.CreateAppender("managedAppenderTest"))
+        using (var appender = Connection.CreateAppender("managedAppenderTest"))
         {
             for (var i = 0; i < rows; i++)
             {
@@ -49,11 +47,10 @@ public class DuckDBManagedAppenderTests
             }
         }
 
-        using (var duckDbCommand = connection.CreateCommand())
+        Command.CommandText = "SELECT * FROM managedAppenderTest";
+        Command.ExecuteNonQuery();
+        using (var reader = Command.ExecuteReader())
         {
-            duckDbCommand.CommandText = "SELECT * FROM managedAppenderTest";
-            using var reader = duckDbCommand.ExecuteReader();
-
             var readRowIndex = 0;
             while (reader.Read())
             {
@@ -72,25 +69,18 @@ public class DuckDBManagedAppenderTests
                 readRowIndex++;
             }
             readRowIndex.Should().Be(rows);
-        }
+        }  
     }
 
     [Fact]
     public void ManagedAppenderUnicodeTests()
     {
         var words = new List<string> { "hello", "안녕하세요", "Ø3mm CHAIN", null, "" };
+        var table = "CREATE TABLE UnicodeAppenderTestTable (index INTEGER, words VARCHAR);";
+        Command.CommandText = table;
+        Command.ExecuteNonQuery();
 
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
-        using (var duckDbCommand = connection.CreateCommand())
-        {
-            var table = "CREATE TABLE UnicodeAppenderTestTable (index INTEGER, words VARCHAR);";
-            duckDbCommand.CommandText = table;
-            duckDbCommand.ExecuteNonQuery();
-        }
-
-        using (var appender = connection.CreateAppender("UnicodeAppenderTestTable"))
+        using (var appender = Connection.CreateAppender("UnicodeAppenderTestTable"))
         {
             for (int i = 0; i < words.Count; i++)
             {
@@ -103,11 +93,9 @@ public class DuckDBManagedAppenderTests
             appender.Close();
         }
 
-        using (var duckDbCommand = connection.CreateCommand())
+        Command.CommandText = "SELECT * FROM UnicodeAppenderTestTable";
+        using( var reader = Command.ExecuteReader())
         {
-            duckDbCommand.CommandText = "SELECT * FROM UnicodeAppenderTestTable";
-            using var reader = duckDbCommand.ExecuteReader();
-
             var results = new List<string>();
             while (reader.Read())
             {
@@ -116,24 +104,17 @@ public class DuckDBManagedAppenderTests
             }
 
             results.Should().BeEquivalentTo(words);
-        }
+        }       
     }
 
     [Fact]
     public void IncompleteRowThrowsException()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
+        var table = "CREATE TABLE managedAppenderIncompleteTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR);";
+        Command.CommandText = table;
+        Command.ExecuteNonQuery();
 
-        using (var duckDbCommand = connection.CreateCommand())
-        {
-
-            var table = "CREATE TABLE managedAppenderIncompleteTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR);";
-            duckDbCommand.CommandText = table;
-            duckDbCommand.ExecuteNonQuery();
-        }
-
-        connection.Invoking(dbConnection =>
+        Connection.Invoking(dbConnection =>
         {
             using var appender = dbConnection.CreateAppender("managedAppenderIncompleteTest");
             var row = appender.CreateRow();
@@ -147,10 +128,7 @@ public class DuckDBManagedAppenderTests
     [Fact]
     public void TableDoesNotExistsThrowsException()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
-        connection.Invoking(dbConnection =>
+        Connection.Invoking(dbConnection =>
         {
             using var appender = dbConnection.CreateAppender("managedAppenderMissingTableTest");
             var row = appender.CreateRow();
@@ -164,17 +142,11 @@ public class DuckDBManagedAppenderTests
     [Fact]
     public void TooManyAppendValueThrowsException()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
+        var table = "CREATE TABLE managedAppenderManyValuesTest(a BOOLEAN, b TINYINT);";
+        Command.CommandText = table;
+        Command.ExecuteNonQuery();
 
-        using (var duckDbCommand = connection.CreateCommand())
-        {
-            var table = "CREATE TABLE managedAppenderManyValuesTest(a BOOLEAN, b TINYINT);";
-            duckDbCommand.CommandText = table;
-            duckDbCommand.ExecuteNonQuery();
-        }
-
-        connection.Invoking(dbConnection =>
+        Connection.Invoking(dbConnection =>
         {
             using var appender = dbConnection.CreateAppender("managedAppenderManyValuesTest");
             var row = appender.CreateRow();
@@ -190,17 +162,11 @@ public class DuckDBManagedAppenderTests
     [Fact]
     public void WrongTypesThrowException()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
+        var table = "CREATE TABLE managedAppenderWrongTypeTest(a BOOLEAN, c Date, b TINYINT);";
+        Command.CommandText = table;
+        Command.ExecuteNonQuery();
 
-        using (var duckDbCommand = connection.CreateCommand())
-        {
-            var table = "CREATE TABLE managedAppenderWrongTypeTest(a BOOLEAN, c Date, b TINYINT);";
-            duckDbCommand.CommandText = table;
-            duckDbCommand.ExecuteNonQuery();
-        }
-
-        connection.Invoking(dbConnection =>
+        Connection.Invoking(dbConnection =>
         {
             using var appender = dbConnection.CreateAppender("managedAppenderWrongTypeTest");
             var row = appender.CreateRow();
@@ -215,17 +181,11 @@ public class DuckDBManagedAppenderTests
     [Fact]
     public void ClosedAdapterThrowException()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
+        var table = "CREATE TABLE managedAppenderClosedAdapterTest(a BOOLEAN, c Date, b TINYINT);";
+        Command.CommandText = table;
+        Command.ExecuteNonQuery();
 
-        using (var duckDbCommand = connection.CreateCommand())
-        {
-            var table = "CREATE TABLE managedAppenderClosedAdapterTest(a BOOLEAN, c Date, b TINYINT);";
-            duckDbCommand.CommandText = table;
-            duckDbCommand.ExecuteNonQuery();
-        }
-
-        connection.Invoking(dbConnection =>
+        Connection.Invoking(dbConnection =>
         {
             using var appender = dbConnection.CreateAppender("managedAppenderClosedAdapterTest");
             appender.Close();
@@ -243,18 +203,11 @@ public class DuckDBManagedAppenderTests
     [Fact]
     public void ManagedAppenderTestsWithSchema()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
+        var schema = "CREATE SCHEMA managedAppenderTestSchema";
+        Command.CommandText = schema;
+        Command.ExecuteNonQuery();
 
-
-        using (var duckDbCommand = connection.CreateCommand())
-        {
-            var schema = "CREATE SCHEMA managedAppenderTestSchema";
-            duckDbCommand.CommandText = schema;
-            duckDbCommand.ExecuteNonQuery();
-        }
-
-        using (var duckDbCommand = connection.CreateCommand())
+        using (var duckDbCommand = Connection.CreateCommand())
         {
             var table = "CREATE TABLE managedAppenderTestSchema.managedAppenderTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR, m Date);";
             duckDbCommand.CommandText = table;
@@ -262,7 +215,7 @@ public class DuckDBManagedAppenderTests
         }
 
         var rows = 10;
-        using (var appender = connection.CreateAppender("managedAppenderTestSchema", "managedAppenderTest"))
+        using (var appender = Connection.CreateAppender("managedAppenderTestSchema", "managedAppenderTest"))
         {
             for (var i = 0; i < rows; i++)
             {
@@ -285,10 +238,9 @@ public class DuckDBManagedAppenderTests
             }
         }
 
-        using (var duckDbCommand = connection.CreateCommand())
+        Command.CommandText = "SELECT * FROM managedAppenderTestSchema.managedAppenderTest";
+        using (var reader = Command.ExecuteReader())
         {
-            duckDbCommand.CommandText = "SELECT * FROM managedAppenderTestSchema.managedAppenderTest";
-            using var reader = duckDbCommand.ExecuteReader();
 
             var readRowIndex = 0;
             while (reader.Read())
