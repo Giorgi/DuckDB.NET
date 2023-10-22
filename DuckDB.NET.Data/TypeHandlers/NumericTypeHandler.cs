@@ -30,7 +30,8 @@ namespace DuckDB.NET.Data.TypeHandlers
 
         public override object GetValue(ulong offset)
             => GetNative(offset);
+
         public decimal GetDecimal(ulong offset)
-            => Convert.ToDecimal(GetValue(offset));
+            => Convert<decimal>(GetValue(offset));
     }
 }

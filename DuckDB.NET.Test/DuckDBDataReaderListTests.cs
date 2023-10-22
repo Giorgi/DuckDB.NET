@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.SqlTypes;
 using System.Linq;
 using Dapper;
 using FluentAssertions;
@@ -44,14 +45,14 @@ public class DuckDBDataReaderListTests : DuckDBTestBase
     [Fact]
     public void ReadListOfIntegersWithNulls()
     {
-        Command.CommandText = "Select * from ( SELECT [1, 2, NULL, 3, NULL] Union Select [NULL, NULL, 4, 5] Union Select null) order by 1";
+        Command.CommandText = "Select * from ( SELECT [1, 2, NULL, 3, NULL] Union Select [NULL, NULL, 4, 5] Union Select null) order by 1 nulls last";
         using var reader = Command.ExecuteReader();
         reader.Read();
         var list = reader.GetFieldValue<List<int?>>(0);
         list.Should().BeEquivalentTo(new List<int?> { 1, 2, null, 3, null });
 
         reader.Read();
-        reader.Invoking(rd => rd.GetFieldValue<List<int>>(0)).Should().Throw<NullReferenceException>();
+        reader.Invoking(rd => rd.GetFieldValue<List<int>>(0)).Should().Throw<SqlNullValueException>();
 
         reader.Read();
         reader.IsDBNull(0).Should().BeTrue();
@@ -60,7 +61,8 @@ public class DuckDBDataReaderListTests : DuckDBTestBase
     [Fact]
     public void ReadMultipleListOfDoubles()
     {
-        Command.CommandText = "Select * from ( SELECT [1/2, 3/2, 5/2] Union Select [4, 5] Union Select []) order by 1";
+        //Command.CommandText = "Select * from ( SELECT [1/2, 3/2, 5/2] Union Select [4, 5] Union Select []) order by 1";
+        Command.CommandText = "Select * from ( SELECT [CAST(0.5 AS DOUBLE), 1.5, 2.5] Union Select [4, 5] Union Select []) order by 1";
         using var reader = Command.ExecuteReader();
         reader.Read();
         var list = reader.GetFieldValue<List<double>>(0);

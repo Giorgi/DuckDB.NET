@@ -29,6 +29,7 @@ namespace DuckDB.NET.Data.TypeHandlers
                 DuckDBType.Double => new NumericTypeHandler<double>(vector, dataPointer, validityMaskPointer),
                 DuckDBType.Decimal => new DecimalTypeHandler(vector, dataPointer, validityMaskPointer),
                 DuckDBType.Enum => new EnumTypeHandler(vector, dataPointer, validityMaskPointer),
+                DuckDBType.List => new ListTypeHandler(vector, dataPointer, validityMaskPointer, this),
                 _ => throw new DuckDBException("Invalid type"),
             };
         }

@@ -18,6 +18,18 @@ namespace DuckDB.NET.Data.TypeHandlers
         public override object GetValue(ulong offset)
             => GetNative(offset);
 
+        protected override object Convert(object value, Type type)
+        {
+            return value switch
+            {
+                DuckDBDateOnly x when typeof(DateTime).IsAssignableFrom(type) => x.ToDateTime(),
+#if NET6_0_OR_GREATER
+                DuckDBDateOnly x when typeof(DateOnly).IsAssignableFrom(type) => (DateOnly)x,
+#endif
+                _ => base.Convert(value, type),
+            };
+        }
+
 #if NET6_0_OR_GREATER
         public DateOnly GetDateOnly(ulong offset)
             => (DateOnly)GetNative(offset);

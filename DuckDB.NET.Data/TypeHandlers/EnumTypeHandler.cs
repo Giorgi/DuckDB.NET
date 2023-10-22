@@ -39,7 +39,7 @@ namespace DuckDB.NET.Data.TypeHandlers
         protected long GetLong(ulong offset)
         {
             var value = InternalTypeHandler.GetValue(offset);
-            return value is long lg ? lg : Convert.ToInt64(value);
+            return Convert<long>(value);
         }
 
         public T? GetEnum<T>(ulong offset) where T : Enum
@@ -59,6 +59,13 @@ namespace DuckDB.NET.Data.TypeHandlers
 
             var enumItem = Enum.Parse(type, GetLong(offset).ToString(CultureInfo.InvariantCulture));
             return enumItem;
+        }
+
+        public override void Dispose()
+        {
+            InternalTypeHandler?.Dispose();
+            LogicalType?.Dispose();
+            base.Dispose();
         }
     }
 }

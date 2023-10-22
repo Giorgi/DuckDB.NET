@@ -41,8 +41,10 @@ namespace DuckDB.NET.Data.TypeHandlers
         {
             return InternalTypeHandler switch
             {
-                HugeIntTypeHandler hugeInt => processHugeInt(hugeInt.GetBigInteger(offset), Power),
-                IReadDecimalTypeHandler dec => decimal.Divide(dec.GetDecimal(offset), Power),
+                HugeIntTypeHandler typeHandler => processHugeInt(typeHandler.GetBigInteger(offset), Power),
+                NumericTypeHandler<long> typeHandler => processLong(typeHandler.GetValue<long>(offset), (long)Power),
+                NumericTypeHandler<int> typeHandler => processInt(typeHandler.GetValue<int>(offset), (int)Power),
+                NumericTypeHandler<short> typeHandler => processShort(typeHandler.GetValue<short>(offset), (short)Power),
                 _ => throw new NotSupportedException()
             };
 
@@ -50,6 +52,27 @@ namespace DuckDB.NET.Data.TypeHandlers
             {
                 var result = (decimal)BigInteger.DivRem(value, (BigInteger)power, out var remainder);
                 result += decimal.Divide((decimal)remainder, power);
+                return result;
+            }
+
+            decimal processLong(long value, long power)
+            {
+                var quotient = (decimal)Math.DivRem(value, power, out var remainder);
+                var result = quotient + decimal.Divide(remainder, power);
+                return result;
+            }
+
+            decimal processInt(int value, int power)
+            {
+                var quotient = (decimal)Math.DivRem(value, power, out var remainder);
+                var result = quotient + decimal.Divide(remainder, power);
+                return result;
+            }
+
+            decimal processShort(short value, short power)
+            {
+                var quotient = (decimal)Math.DivRem(value, power, out var remainder);
+                var result = quotient + decimal.Divide(remainder, power);
                 return result;
             }
         }

@@ -6,7 +6,8 @@ namespace DuckDB.NET.Data.TypeHandlers
 {
     public interface ITypeHandler : IDisposable
     {
-        T? GetValue<T>(ulong offset);
+        T GetValue<T>(ulong offset);
+        object? GetValue(ulong offset, Type type);
         object GetValue(ulong offset);
         bool IsValid(ulong offset);
         Type ClrType { get; }

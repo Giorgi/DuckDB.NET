@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Data.SqlTypes;
 using System.IO;
 
 namespace DuckDB.NET.Data;
@@ -208,11 +209,19 @@ public class DuckDBDataReader : DbDataReader
 
         //return value;
 
-        return vectorReaders[ordinal] switch
+        if (!vectorReaders[ordinal].IsValid(rowsReadFromCurrentChunk - 1))
         {
-            EnumTypeHandler enumTH when typeof(T)!=typeof(string) => (T)enumTH.GetEnum(rowsReadFromCurrentChunk - 1, typeof(T))!,
-            _ => (T)vectorReaders[ordinal].GetValue(rowsReadFromCurrentChunk - 1)
-        };
+            // When T is a Nullable<T> (and only in that case), we support returning null
+            if (default(T) is null && typeof(T).IsValueType)
+                return default!;
+            // When T is an object (and only in that case), we support returning DBNull.Value
+            if (typeof(T) == typeof(object))
+                return (T)(object)DBNull.Value;
+            //else we throw an exception GetFieldValue is not expected to return null
+            throw new SqlNullValueException();
+        }
+
+        return vectorReaders[ordinal].GetValue<T>(rowsReadFromCurrentChunk - 1);
     }
 
     public override object GetValue(int ordinal)
