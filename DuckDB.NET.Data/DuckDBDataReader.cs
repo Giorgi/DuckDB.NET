@@ -207,7 +207,12 @@ public class DuckDBDataReader : DbDataReader
         //};
 
         //return value;
-        return (T)vectorReaders[ordinal].GetValue(rowsReadFromCurrentChunk - 1);
+
+        return vectorReaders[ordinal] switch
+        {
+            EnumTypeHandler enumTH when typeof(T)!=typeof(string) => (T)enumTH.GetEnum(rowsReadFromCurrentChunk - 1, typeof(T))!,
+            _ => (T)vectorReaders[ordinal].GetValue(rowsReadFromCurrentChunk - 1)
+        };
     }
 
     public override object GetValue(int ordinal)
