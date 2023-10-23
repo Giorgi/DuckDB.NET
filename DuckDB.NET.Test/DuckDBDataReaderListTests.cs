@@ -61,8 +61,7 @@ public class DuckDBDataReaderListTests : DuckDBTestBase
     [Fact]
     public void ReadMultipleListOfDoubles()
     {
-        //Command.CommandText = "Select * from ( SELECT [1/2, 3/2, 5/2] Union Select [4, 5] Union Select []) order by 1";
-        Command.CommandText = "Select * from ( SELECT [CAST(0.5 AS DOUBLE), 1.5, 2.5] Union Select [4, 5] Union Select []) order by 1";
+        Command.CommandText = "Select * from ( SELECT [1/2, 3/2, 5/2] Union Select [4, 5] Union Select []) order by 1";
         using var reader = Command.ExecuteReader();
         reader.Read();
         var list = reader.GetFieldValue<List<double>>(0);
