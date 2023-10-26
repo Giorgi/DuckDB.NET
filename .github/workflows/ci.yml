@@ -44,13 +44,6 @@ jobs:
         dotnet pack DuckDB.NET.Bindings/Bindings.csproj   --configuration Release /p:BuildType=Full
         dotnet pack DuckDB.NET.Data/Data.csproj  --configuration Release /p:BuildType=Full
 
-    - name: Upload Artifacts
-      if: matrix.os == 'ubuntu-20.04' && github.event_name != 'pull_request'
-      uses: actions/upload-artifact@v3
-      with:
-        name: nugetPackages-${{github.ref_name}}
-        path: ./**/bin/Release/*.nupkg
-      
     - name: Run tests
       env:
         CoverletOutputFormat: lcov
@@ -64,6 +57,13 @@ jobs:
         path-to-lcov: DuckDB.NET.Test/coverage.net6.0.info
         parallel: true
 
+    - name: Upload Artifacts
+      if: matrix.os == 'ubuntu-20.04' && github.event_name != 'pull_request'
+      uses: actions/upload-artifact@v3
+      with:
+        name: nugetPackages-${{github.ref_name}}
+        path: ./**/bin/Release/*.nupkg
+      
 
 
   publish:
