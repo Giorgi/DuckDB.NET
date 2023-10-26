@@ -58,7 +58,7 @@ jobs:
         parallel: true
 
     - name: Upload Artifacts
-      if: matrix.os == 'ubuntu-20.04' && github.event_name != 'pull_request'
+      if: matrix.os == 'ubuntu-20.04' && github.event_name != 'pull_request' && github.actor == 'Giorgi'
       uses: actions/upload-artifact@v3
       with:
         name: nugetPackages-${{github.ref_name}}
