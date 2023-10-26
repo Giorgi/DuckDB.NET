@@ -1,8 +1,11 @@
-﻿using System;
+﻿using DuckDB.NET.Data.Internal;
+using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq.Expressions;
 using System.Numerics;
 using System.Text;
 
@@ -26,6 +29,8 @@ internal class VectorDataReader : IDisposable
     private readonly byte scale;
     private readonly DuckDBType decimalType;
     private readonly DuckDBType enumType;
+
+    private static readonly ConcurrentDictionary<Type, TypeDetails> TypeCache = new();
 
     internal unsafe VectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType)
     {
@@ -265,22 +270,44 @@ internal class VectorDataReader : IDisposable
             return result;
         }
 
-        var properties = returnType.GetProperties();
-        foreach (var propertyInfo in properties)
+        var typeDetails = TypeCache.GetOrAdd(returnType, type =>
         {
-            if (propertyInfo.SetMethod == null)
+            var propertyInfos = returnType.GetProperties();
+            var details = new TypeDetails();
+
+            foreach (var propertyInfo in propertyInfos)
             {
-                continue;
+                if (propertyInfo.SetMethod == null)
+                {
+                    continue;
+                }
+
+                var isNullable = !propertyInfo.PropertyType.IsValueType || Nullable.GetUnderlyingType(propertyInfo.PropertyType) != null;
+
+                var instanceParam = Expression.Parameter(typeof(object));
+                var argumentParam = Expression.Parameter(typeof(object));
+
+                var setAction = Expression.Lambda<Action<object, object>>(
+                    Expression.Call(Expression.Convert(instanceParam, type), propertyInfo.SetMethod, Expression.Convert(argumentParam, propertyInfo.PropertyType)),
+                    instanceParam, argumentParam
+                ).Compile();
+
+                details.Properties.Add(propertyInfo.Name, new PropertyDetails(propertyInfo.PropertyType, isNullable, setAction));
             }
 
-            structDataReaders.TryGetValue(propertyInfo.Name, out var reader);
-            var isNotNullable = propertyInfo.PropertyType.IsValueType && Nullable.GetUnderlyingType(propertyInfo.PropertyType) == null;
+            return details;
+        });
+
+        foreach (var properties in typeDetails.Properties)
+        {
+            structDataReaders.TryGetValue(properties.Key, out var reader);
+            var isNullable = properties.Value.Nullable;
 
             if (reader == null)
             {
-                if (isNotNullable)
+                if (!isNullable)
                 {
-                    throw new NullReferenceException($"Property '{propertyInfo.Name}' not found in struct");
+                    throw new NullReferenceException($"Property '{properties.Key}' not found in struct");
                 }
 
                 continue;
@@ -288,14 +315,14 @@ internal class VectorDataReader : IDisposable
 
             if (reader.IsValid(offset))
             {
-                var value = reader.GetValue(offset, propertyInfo.PropertyType);
-                propertyInfo.SetValue(result, value);
+                var value = reader.GetValue(offset, properties.Value.PropertyType);
+                properties.Value.Setter(result!, value);
             }
             else
             {
-                if (isNotNullable)
+                if (!isNullable)
                 {
-                    throw new NullReferenceException($"Property '{propertyInfo.Name}' is not nullable but struct contains null");
+                    throw new NullReferenceException($"Property '{properties.Key}' is not nullable but struct contains null value");
                 }
             }
         }
