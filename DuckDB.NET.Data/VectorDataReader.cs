@@ -93,50 +93,6 @@ internal class VectorDataReader : IDisposable
             DuckDBType.Struct => typeof(Dictionary<string, object>),
             var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type})")
         };
-
-        switch (DuckDBType)
-        {
-            case DuckDBType.Enum:
-                enumType = NativeMethods.LogicalType.DuckDBEnumInternalType(logicalType);
-                break;
-            case DuckDBType.Decimal:
-                scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
-                decimalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
-                break;
-            case DuckDBType.List:
-                {
-                    using var childType = NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType);
-                    var type = NativeMethods.LogicalType.DuckDBGetTypeId(childType);
-
-                    var childVector = NativeMethods.DataChunks.DuckDBListVectorGetChild(vector);
-
-                    var childVectorData = NativeMethods.DataChunks.DuckDBVectorGetData(childVector);
-                    var childVectorValidity = NativeMethods.DataChunks.DuckDBVectorGetValidity(childVector);
-
-                    listDataReader = new VectorDataReader(childVector, childVectorData, childVectorValidity, type);
-                    break;
-                }
-            case DuckDBType.Struct:
-                {
-                    var memberCount = NativeMethods.LogicalType.DuckDBStructTypeChildCount(logicalType);
-                    structDataReaders = new Dictionary<string, VectorDataReader>(StringComparer.OrdinalIgnoreCase);
-
-                    for (int index = 0; index < memberCount; index++)
-                    {
-                        var name = NativeMethods.LogicalType.DuckDBStructTypeChildName(logicalType, index).ToManagedString();
-                        var childVector = NativeMethods.DataChunks.DuckDBStructVectorGetChild(vector, index);
-
-                        var childVectorData = NativeMethods.DataChunks.DuckDBVectorGetData(childVector);
-                        var childVectorValidity = NativeMethods.DataChunks.DuckDBVectorGetValidity(childVector);
-
-                        using var childType = NativeMethods.LogicalType.DuckDBStructTypeChildType(logicalType, index);
-                        var type = NativeMethods.LogicalType.DuckDBGetTypeId(childType);
-
-                        structDataReaders[name] = new VectorDataReader(childVector, childVectorData, childVectorValidity, type);
-                    }
-                    break;
-                }
-        }
     }
 
     internal unsafe bool IsValid(ulong offset)
