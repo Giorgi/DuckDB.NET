@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.IO;
+using DuckDB.NET.Data.Internal.Reader;
 
 namespace DuckDB.NET.Data;
 
@@ -80,7 +81,7 @@ public class DuckDBDataReader : DbDataReader
                 var vectorData = NativeMethods.DataChunks.DuckDBVectorGetData(vector);
                 var vectorValidityMask = NativeMethods.DataChunks.DuckDBVectorGetValidity(vector);
 
-                vectorReaders[i] = new VectorDataReader(vector, vectorData, vectorValidityMask, NativeMethods.Query.DuckDBColumnType(ref currentResult, i));
+                vectorReaders[i] = VectorDataReaderFactory.CreateReader(vector, vectorData, vectorValidityMask, NativeMethods.Query.DuckDBColumnType(ref currentResult, i));
             }
         }
     }
