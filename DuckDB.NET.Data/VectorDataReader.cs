@@ -64,6 +64,26 @@ internal class VectorDataReader : IDisposable
                     listDataReader = new VectorDataReader(childVector, childVectorData, childVectorValidity, type);
                     break;
                 }
+            case DuckDBType.Struct:
+                {
+                    var memberCount = NativeMethods.LogicalType.DuckDBStructTypeChildCount(logicalType);
+                    structDataReaders = new Dictionary<string, VectorDataReader>(StringComparer.OrdinalIgnoreCase);
+
+                    for (int index = 0; index < memberCount; index++)
+                    {
+                        var name = NativeMethods.LogicalType.DuckDBStructTypeChildName(logicalType, index).ToManagedString();
+                        var childVector = NativeMethods.DataChunks.DuckDBStructVectorGetChild(vector, index);
+
+                        var childVectorData = NativeMethods.DataChunks.DuckDBVectorGetData(childVector);
+                        var childVectorValidity = NativeMethods.DataChunks.DuckDBVectorGetValidity(childVector);
+
+                        using var childType = NativeMethods.LogicalType.DuckDBStructTypeChildType(logicalType, index);
+                        var type = NativeMethods.LogicalType.DuckDBGetTypeId(childType);
+
+                        structDataReaders[name] = new VectorDataReader(childVector, childVectorData, childVectorValidity, type);
+                    }
+                    break;
+                }
         }
 
         ClrType = DuckDBType switch
