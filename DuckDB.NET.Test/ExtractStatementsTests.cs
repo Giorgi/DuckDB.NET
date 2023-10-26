@@ -5,28 +5,24 @@ using Xunit;
 
 namespace DuckDB.NET.Test;
 
-public class ExtractStatementsTests
+public class ExtractStatementsTests : DuckDBTestBase
 {
-    private readonly DuckDBConnection connection;
 
-    public ExtractStatementsTests()
+    public ExtractStatementsTests(DuckDBDatabaseFixture db) : base(db)
     {
-        connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
-        connection.Open();
     }
 
     [Fact]
     public void MultipleInsertsIntoTable()
     {
-        using var command = connection.CreateCommand();
-        command.CommandText = "CREATE TABLE Test(foo INTEGER, bar INTEGER);";
-        command.ExecuteNonQuery();
+        Command.CommandText = "CREATE TABLE Test(foo INTEGER, bar INTEGER);";
+        Command.ExecuteNonQuery();
 
-        command.CommandText = "Insert into Test (foo, bar) values (1,2); Insert into Test (foo, bar) values (3,4);";
-        command.ExecuteNonQuery().Should().Be(2);
+        Command.CommandText = "Insert into Test (foo, bar) values (1,2); Insert into Test (foo, bar) values (3,4);";
+        Command.ExecuteNonQuery().Should().Be(2);
 
-        command.CommandText = "Select * from Test";
-        var dataReader = command.ExecuteReader();
+        Command.CommandText = "Select * from Test";
+        var dataReader = Command.ExecuteReader();
 
         dataReader.Read();
         dataReader.GetInt32(0).Should().Be(1);
@@ -40,31 +36,28 @@ public class ExtractStatementsTests
     [Fact]
     public void WrongCommandThrowsException()
     {
-        using var command = connection.CreateCommand();
-        command.CommandText = "error";
+        Command.CommandText = "error";
         
-        command.Invoking(cmd => cmd.ExecuteNonQuery()).Should()
+        Command.Invoking(cmd => cmd.ExecuteNonQuery()).Should()
                .Throw<DuckDBException>().Where(e => e.Message.Contains("syntax error at or near"));
     }
 
     [Fact]
     public void NotExistingTableThrowsException()
     {
-        using var command = connection.CreateCommand();
-        command.CommandText = "Select 2; Select 1 from dummy";
+        Command.CommandText = "Select 2; Select 1 from dummy";
         
-        command.Invoking(cmd => cmd.ExecuteNonQuery()).Should()
+        Command.Invoking(cmd => cmd.ExecuteNonQuery()).Should()
                .Throw<DuckDBException>().Where(e => e.Message.Contains("Table with name dummy does not exist"));
     }
 
     [Fact]
     public void MissingParametersThrowsException()
     {
-        using var command = connection.CreateCommand();
-        command.CommandText = "Select ?1; Select ?1, ?2";
-        command.Parameters.Add(new DuckDBParameter(42));
+        Command.CommandText = "Select ?1; Select ?1, ?2";
+        Command.Parameters.Add(new DuckDBParameter(42));
 
-        command.Invoking(cmd => cmd.ExecuteReader()).Should()
+        Command.Invoking(cmd => cmd.ExecuteReader()).Should()
             .Throw<InvalidOperationException>().Where(e => e.Message.Contains("Invalid number of parameters. Expected 2, got 1"));
     }
 }

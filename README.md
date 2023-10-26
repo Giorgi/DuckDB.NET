@@ -16,8 +16,6 @@
 
 ![Project Icon](https://raw.githubusercontent.com/Giorgi/DuckDB.NET/main/Logo.jpg "DuckDB.NET Project Icon")
 
-Note: The library is in the early stage and contributions are more than welcome.
-
 ## Usage
 
 ### Support
@@ -35,7 +33,7 @@ In both cases, there are two NuGet packages available: The Full package that inc
 | DuckDB.NET.Data | :white_check_mark: | :x: |
 | DuckDB.NET.Data.**Full** | :white_check_mark: | :white_check_mark: |
 
-### Using ADO.NET Provider
+## Using ADO.NET Provider
 
 ```sh
 dotnet add package DuckDB.NET.Data.Full
@@ -46,7 +44,7 @@ using (var duckDBConnection = new DuckDBConnection("Data Source=file.db"))
 {
   duckDBConnection.Open();
 
-  var command = duckDBConnection.CreateCommand();
+  using var command = duckDBConnection.CreateCommand();
 
   command.CommandText = "CREATE TABLE integers(foo INTEGER, bar INTEGER);";
   var executeNonQuery = command.ExecuteNonQuery();
@@ -68,7 +66,7 @@ private static void PrintQueryResults(DbDataReader queryResult)
   for (var index = 0; index < queryResult.FieldCount; index++)
   {
     var column = queryResult.GetName(index);
-     Console.Write($"{column} ");
+    Console.Write($"{column} ");
   }
 
   Console.WriteLine();
@@ -86,7 +84,7 @@ private static void PrintQueryResults(DbDataReader queryResult)
   }
 }
 ```
-#### Efficient data loading with Appender
+### Efficient data loading with Appender
 
 Appenders are the most efficient way of loading data into DuckDB. Starting from version 0.6.1, you can use a managed Appender instead of using low-level DuckDB Api:
 
@@ -112,7 +110,7 @@ using (var appender = connection.CreateAppender("managedAppenderTest"))
 }
 ```
 
-#### Parameterized queries and DuckDB native types.
+### Parameterized queries and DuckDB native types.
 
 Starting from version 0.4.0.10, DuckDB.NET.Data supports executing parameterized queries and reading all built-in native DuckDB types. Starting from version 0.9.0 the library supports named parameters too:
 
@@ -120,7 +118,7 @@ Starting from version 0.4.0.10, DuckDB.NET.Data supports executing parameterized
 using var connection = new DuckDBConnection("DataSource=:memory:");
 connection.Open();
 
-var command = connection.CreateCommand();
+using var command = connection.CreateCommand();
 
 //Named parameters
 command.CommandText = "INSERT INTO ParametersTestKeyValue (KEY, VALUE) VALUES ($key, $value)";
@@ -145,22 +143,26 @@ To read DuckDB specific native types use `DuckDBDataReader.GetFieldValue<T>` met
 | DuckDB Type  | .Net Type |
 | ------------- | ------------- |
 | INTERVAL   | DuckDBInterval  |
-| DATE  | DuckDBDateOnly  |
-| TIME  | DuckDBTimeOnly  |
+| DATE  | DuckDBDateOnly/DateOnly  |
+| TIME  | DuckDBTimeOnly/TimeOnly  |
 | HUGEINT  | BigInteger  |
 
-#### List, Struct, Enum, and other composite types
+### List, Struct, Enum, and other composite types
 
-DuckDB.NET 0.9.0 supports reading a List of primitive types (int, string, double, etc). Reading a List of composite types or nested lists isn't supported.
+DuckDB.NET 0.9.1 supports reading [Enum](https://duckdb.org/docs/sql/data_types/enum), a [List](https://duckdb.org/docs/sql/data_types/list) of primitive types (int, string, double, etc) or an Enum, as well as nested List.
 
-To read a List use `DuckDBDataReader.GetFieldValue<T>`. For example, to read a list of doubles: `DuckDBDataReader.GetFieldValue<List<double>>` If the list contains null use `DuckDBDataReader.GetFieldValue<List<double?>>`, otherwise an exception will be thrown when null is encountered. If you don't know whether the list contains null or not but want to skip all null values, you can use `select [x for x in mylist if x IS NOT NULL] as filtered;` to remove null values from the list.
+To read an Enum, List or nested List use `DuckDBDataReader.GetFieldValue<T>`. For example, to read a list of doubles: `DuckDBDataReader.GetFieldValue<List<double>>` If the list contains null, use `DuckDBDataReader.GetFieldValue<List<double?>>`, otherwise an exception will be thrown when null is encountered. If you don't know whether the list contains null or not but want to skip all null values, you can use `select [x for x in mylist if x IS NOT NULL] as filtered;` to remove null values from the list.
 
-#### Executing multiple statements in a single go.
+Nested List can be read in a similar way: `reader.GetFieldValue<List<List<int>>>`
+
+Check [Tests](https://github.com/Giorgi/DuckDB.NET/tree/develop/DuckDB.NET.Test) for more examples.
+
+### Executing multiple statements in a single go.
 
 Starting from version 0.8, you can execute multiple statements in a single go:
 
 ```cs
- var command = duckDBConnection.CreateCommand();
+ using var command = duckDBConnection.CreateCommand();
 
  command.CommandText = "INSTALL 'httpfs'; Load 'httpfs';";
  command.ExecuteNonQuery();
@@ -169,7 +171,7 @@ Starting from version 0.8, you can execute multiple statements in a single go:
 To consume multiple result sets use `NextResult`:
 
 ```cs
-var duckDbCommand = connection.CreateCommand();
+using var duckDbCommand = connection.CreateCommand();
 duckDbCommand.CommandText = "Select 1; Select 2";
 
 using var reader = duckDbCommand.ExecuteReader();
@@ -184,7 +186,7 @@ reader.Read();
 var secondResult = reader.GetInt32(0);
 ```
 
-### Dapper
+## Dapper
 
 You can also use Dapper to query data:
 
@@ -192,13 +194,13 @@ You can also use Dapper to query data:
 var item = duckDBConnection.Query<FooBar>("SELECT foo, bar FROM integers");
 ```
 
-### In-Memory database
+## In-Memory database
 
 For an in-memory database use `Data Source=:memory:` connection string. When using an in-memory database no data is persisted on disk. Every in-memory connection results in a new, isolated database so tables created
 inside one in-memory connection aren't visible to another in-memory connection. If you want to create a shared in-memory database, you can use `DataSource=:memory:?cache=shared` connection string. Both connection strings
 are exposed by the library as `DuckDBConnectionStringBuilder.InMemoryDataSource` and `DuckDBConnectionStringBuilder.InMemorySharedDataSource` respectively.
 
-### Use low-level bindings library
+## Use low-level bindings library
 
 ```sh
 dotnet add package DuckDB.NET.Bindings.Full

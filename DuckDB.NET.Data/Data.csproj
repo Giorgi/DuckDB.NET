@@ -7,7 +7,7 @@
 
       Added named parameter support.
 
-      Added support for reading List types.
+      Added support for reading List types and nested List.
 
       Added support for reading Enum types.
     </PackageReleaseNotes>

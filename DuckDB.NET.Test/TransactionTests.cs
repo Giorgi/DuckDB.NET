@@ -6,62 +6,59 @@ using Xunit;
 
 namespace DuckDB.NET.Test;
 
-public class TransactionTests
+public class TransactionTests : DuckDBTestBase
 {
+    public TransactionTests(DuckDBDatabaseFixture db) : base(db)
+    {
+    }
+
     [Fact]
     public void SimpleTransactionTest()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
-        var command = connection.CreateCommand();
-
-        command.CommandText = "CREATE TABLE transactionUsers (id INTEGER, name TEXT);";
-        command.ExecuteNonQuery();
+        Command.CommandText = "CREATE TABLE transactionUsers (id INTEGER, name TEXT);";
+        Command.ExecuteNonQuery();
 
         object rowsInTable;
-        using (var transaction = connection.BeginTransaction(IsolationLevel.Snapshot))
+        using (var transaction = Connection.BeginTransaction(IsolationLevel.Snapshot))
         {
             transaction.IsolationLevel.Should().Be(IsolationLevel.Snapshot);
-            transaction.Connection.Should().Be(connection);
+            transaction.Connection.Should().Be(Connection);
 
-            command.CommandText = "INSERT INTO transactionUsers VALUES (1, 'user1'), (2, 'user2')";
-            command.ExecuteNonQuery();
+            Command.CommandText = "INSERT INTO transactionUsers VALUES (1, 'user1'), (2, 'user2')";
+            Command.ExecuteNonQuery();
 
-            command.CommandText = "SELECT count(*) FROM transactionUsers";
-            rowsInTable = command.ExecuteScalar();
+            Command.CommandText = "SELECT count(*) FROM transactionUsers";
+            rowsInTable = Command.ExecuteScalar();
             rowsInTable.Should().Be(2);
             transaction.Commit();
         }
 
-        command.CommandText = "SELECT count(*) FROM transactionUsers";
-        rowsInTable = command.ExecuteScalar();
+        Command.CommandText = "SELECT count(*) FROM transactionUsers";
+        rowsInTable = Command.ExecuteScalar();
         rowsInTable.Should().Be(2);
 
-        using (connection.BeginTransaction())
+        using (Connection.BeginTransaction())
         {
-            command.CommandText = "INSERT INTO transactionUsers VALUES (3, 'user3'), (4, 'user4')";
-            command.ExecuteNonQuery();
+            Command.CommandText = "INSERT INTO transactionUsers VALUES (3, 'user3'), (4, 'user4')";
+            Command.ExecuteNonQuery();
 
-            command.CommandText = "SELECT count(*) FROM transactionUsers";
-            rowsInTable = command.ExecuteScalar();
+            Command.CommandText = "SELECT count(*) FROM transactionUsers";
+            rowsInTable = Command.ExecuteScalar();
             rowsInTable.Should().Be(4);
         }
 
-        command.CommandText = "SELECT count(*) FROM transactionUsers";
-        rowsInTable = command.ExecuteScalar();
+        Command.CommandText = "SELECT count(*) FROM transactionUsers";
+        rowsInTable = Command.ExecuteScalar();
         rowsInTable.Should().Be(2);
     }
 
     [Fact]
     public void ParallelTransactionsTest()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
-        using (connection.BeginTransaction())
+        using (Connection.BeginTransaction())
         {
-            connection.Invoking(con => con.BeginTransaction())
+            Connection
+                .Invoking(con => con.BeginTransaction())
                 .Should().Throw<InvalidOperationException>();
         }
     }
@@ -69,10 +66,7 @@ public class TransactionTests
     [Fact]
     public void CommitTransactionTwiceTest()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
-        using (var transaction = connection.BeginTransaction())
+        using (var transaction = Connection.BeginTransaction())
         {
             transaction.Commit();
             transaction.Invoking(tr => tr.Commit())
@@ -83,10 +77,7 @@ public class TransactionTests
     [Fact]
     public void RollbackAndCommitTransactionTest()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
-        using (var transaction = connection.BeginTransaction())
+        using (var transaction = Connection.BeginTransaction())
         {
             transaction.Rollback();
             transaction.Invoking(tr => tr.Commit())
@@ -97,10 +88,7 @@ public class TransactionTests
     [Fact]
     public void RollbackTransactionTwiceTest()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
-        using (var transaction = connection.BeginTransaction())
+        using (var transaction = Connection.BeginTransaction())
         {
             transaction.Rollback();
             transaction.Invoking(tr => tr.Rollback())
@@ -111,10 +99,7 @@ public class TransactionTests
     [Fact]
     public void CommitAndRollbackTransactionTest()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
-        using (var transaction = connection.BeginTransaction())
+        using (var transaction = Connection.BeginTransaction())
         {
             transaction.Commit();
             transaction.Invoking(tr => tr.Rollback())
