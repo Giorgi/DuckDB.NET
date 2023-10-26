@@ -26,11 +26,6 @@ class ListVectorDataReader : VectorDataReader
 
     internal override unsafe object GetList(ulong offset, Type returnType)
     {
-        if (listDataReader is null)
-        {
-            throw new InvalidOperationException("Can't get a list from a non-list vector.");
-        }
-
         var listData = (DuckDBListEntry*)DataPointer + offset;
 
         var listType = returnType.GetGenericArguments()[0];
