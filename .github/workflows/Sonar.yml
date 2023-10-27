@@ -6,10 +6,21 @@ on:
     paths-ignore:
       - '**.md'
       - '**/NuGet.yml'      
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened]
 jobs:
+  authorize:
+    environment:
+      ${{ github.event_name == 'pull_request_target' &&
+      github.event.pull_request.head.repo.full_name != github.repository &&
+      'external' || 'internal' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: true
+
+
   build:
+    needs: authorize
     name: Build and analyze
     runs-on: ubuntu-latest
     steps:
@@ -20,6 +31,7 @@ jobs:
           distribution: 'zulu' # Alternative distribution options are available.
       - uses: actions/checkout@v3
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}      
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
       - name: Cache SonarCloud packages
         uses: actions/cache@v3
