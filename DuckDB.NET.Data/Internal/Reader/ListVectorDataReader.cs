@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-class ListVectorDataReader : VectorDataReader
+internal class ListVectorDataReader : VectorDataReader
 {
     private readonly VectorDataReader listDataReader;
 

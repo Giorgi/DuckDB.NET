@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Numerics;
 using System.Text;
@@ -13,15 +12,10 @@ internal class VectorDataReader : IDisposable
 
     private readonly IntPtr vector;
     private readonly unsafe ulong* validityMaskPointer;
-    private readonly DuckDBLogicalType logicalType;
 
     internal Type ClrType { get; set; }
     internal DuckDBType DuckDBType { get; }
     public unsafe void* DataPointer { get; }
-
-    private readonly byte scale;
-    private readonly DuckDBType decimalType;
-    private readonly DuckDBType enumType;
 
     internal unsafe VectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType)
     {
@@ -30,19 +24,6 @@ internal class VectorDataReader : IDisposable
         this.validityMaskPointer = validityMaskPointer;
 
         DuckDBType = columnType;
-
-        logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
-
-        switch (DuckDBType)
-        {
-            case DuckDBType.Enum:
-                enumType = NativeMethods.LogicalType.DuckDBEnumInternalType(logicalType);
-                break;
-            case DuckDBType.Decimal:
-                scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
-                decimalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
-                break;
-        }
 
         ClrType = DuckDBType switch
         {
@@ -87,29 +68,9 @@ internal class VectorDataReader : IDisposable
 
     internal unsafe T GetFieldData<T>(ulong offset) where T : unmanaged => *((T*)DataPointer + offset);
 
-    internal decimal GetDecimal(ulong offset)
+    internal virtual decimal GetDecimal(ulong offset)
     {
-        var pow = (decimal)Math.Pow(10, scale);
-        switch (decimalType)
-        {
-            case DuckDBType.SmallInt:
-                return decimal.Divide(GetFieldData<short>(offset), pow);
-            case DuckDBType.Integer:
-                return decimal.Divide(GetFieldData<int>(offset), pow);
-            case DuckDBType.BigInt:
-                return decimal.Divide(GetFieldData<long>(offset), pow);
-            case DuckDBType.HugeInt:
-                {
-                    var hugeInt = GetBigInteger(offset);
-
-                    var result = (decimal)BigInteger.DivRem(hugeInt, (BigInteger)pow, out var remainder);
-
-                    result += decimal.Divide((decimal)remainder, pow);
-                    return result;
-                }
-            default:
-                throw new ArgumentOutOfRangeException();
-        }
+        throw new InvalidOperationException($"Cannot read Decimal from a non-{nameof(DecimalVectorDataReader)}");
     }
 
     internal unsafe string GetString(ulong offset)
@@ -148,45 +109,20 @@ internal class VectorDataReader : IDisposable
         return data->ToDateTime();
     }
 
-    private unsafe BigInteger GetBigInteger(ulong offset)
+    protected unsafe BigInteger GetBigInteger(ulong offset)
     {
         var data = (DuckDBHugeInt*)DataPointer + offset;
         return data->ToBigInteger();
     }
 
-    internal object GetEnum(ulong offset, Type returnType)
+    internal virtual object GetEnum(ulong offset, Type returnType)
     {
-        long enumValue = enumType switch
-        {
-            DuckDBType.UnsignedTinyInt => GetFieldData<byte>(offset),
-            DuckDBType.UnsignedSmallInt => GetFieldData<ushort>(offset),
-            DuckDBType.UnsignedInteger => GetFieldData<uint>(offset),
-            _ => -1
-        };
-
-        if (returnType == typeof(string))
-        {
-            var value = NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType, enumValue).ToManagedString();
-            return value;
-        }
-
-        var underlyingType = Nullable.GetUnderlyingType(returnType);
-        if (underlyingType != null)
-        {
-            if (!IsValid(offset))
-            {
-                return default!;
-            }
-            returnType = underlyingType;
-        }
-
-        var enumItem = Enum.Parse(returnType, enumValue.ToString(CultureInfo.InvariantCulture));
-        return enumItem;
+        throw new InvalidOperationException($"Cannot read Enum from a non-{nameof(EnumVectorDataReader)}");
     }
 
     internal virtual object GetStruct(ulong offset, Type returnType)
     {
-        throw new InvalidOperationException($"Cannot read List from a non-{nameof(StructVectorDataReader)}");
+        throw new InvalidOperationException($"Cannot read Struct from a non-{nameof(StructVectorDataReader)}");
     }
 
     internal virtual object GetList(ulong offset, Type returnType)
@@ -273,6 +209,5 @@ internal class VectorDataReader : IDisposable
 
     public virtual void Dispose()
     {
-        logicalType?.Dispose();
     }
 }

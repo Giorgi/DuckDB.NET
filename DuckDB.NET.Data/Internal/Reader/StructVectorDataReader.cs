@@ -2,11 +2,10 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq.Expressions;
-using DuckDB.NET.Data.Internal;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-class StructVectorDataReader : VectorDataReader
+internal class StructVectorDataReader : VectorDataReader
 {
     private static readonly ConcurrentDictionary<Type, TypeDetails> TypeCache = new();
     private readonly Dictionary<string, VectorDataReader> structDataReaders;
