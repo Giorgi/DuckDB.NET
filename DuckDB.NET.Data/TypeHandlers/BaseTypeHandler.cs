@@ -2,6 +2,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Reflection;
 using System.Text;
 
 namespace DuckDB.NET.Data.TypeHandlers
@@ -13,6 +16,7 @@ namespace DuckDB.NET.Data.TypeHandlers
         protected unsafe void* DataPointer { get; }
         private unsafe ulong* ValidityMaskPointer { get; }
         public abstract Type ClrType { get; }
+        private KeyValuePair<Type, Delegate> Cache { get; set; } = new();
 
         public unsafe BaseTypeHandler(IntPtr vector, void* dataPointer, ulong* validityMaskPointer)
         {
@@ -21,21 +25,40 @@ namespace DuckDB.NET.Data.TypeHandlers
             ValidityMaskPointer = validityMaskPointer;
         }
 
-        public virtual T GetValue<T>(ulong offset)
-        {
-            var value = GetValue(offset);
-            return Convert<T>(value);
-        }
-
+        public abstract T GetValue<T>(ulong offset);
+        
         public virtual object GetValue(ulong offset, Type type)
         {
-            var value = GetValue(offset);
-            var converted = Convert(value, type);
-            return converted;
+            if (Cache.Key != type)
+            {
+                var methodInfo = typeof(BaseTypeHandler)
+                                            .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                                            .Where(x => x.Name == nameof(GetValue))
+                                            .Where(x => x.GetParameters().Length == 1)
+                                            .Where(x => x.ContainsGenericParameters)
+                                            .First()
+                                            .MakeGenericMethod(new[] { type });
+
+                var param = Expression.Parameter(typeof(ulong));
+                var callRef = Expression.Call(Expression.Constant(this), methodInfo, param);
+                var lambda = Expression.Lambda(callRef, new[] { param });
+                var compiled = lambda.Compile();
+                Cache = new(type, compiled);
+            }
+            var expression = (Func<ulong, object>)Cache.Value;
+            var value = expression.Invoke(offset);
+            return value;
         }
 
+        public virtual object GetValue(ulong offset)
+            => GetValue(offset, ClrType);
+
         protected virtual T Convert<T>(object value)
-            => (T)Convert(value, typeof(T));
+        {
+            if (typeof(T).IsAssignableFrom(value.GetType()))
+                return (T)value;
+            return (T)Convert(value, typeof(T));
+        }
 
         protected virtual object Convert(object value, Type type)
         {
@@ -45,8 +68,6 @@ namespace DuckDB.NET.Data.TypeHandlers
                 return TypeDescriptor.GetConverter(type).ConvertFrom(value)!;
             return System.Convert.ChangeType(value, type);
         }
-
-        public abstract object GetValue(ulong offset);
 
         protected unsafe T GetFieldData<T>(ulong offset) where T : unmanaged
             => *((T*)DataPointer + offset);

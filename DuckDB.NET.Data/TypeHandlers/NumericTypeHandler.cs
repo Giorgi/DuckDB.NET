@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace DuckDB.NET.Data.TypeHandlers
@@ -25,13 +26,16 @@ namespace DuckDB.NET.Data.TypeHandlers
                 throw new NotSupportedException();
         }
 
-        protected unsafe internal T GetNative(ulong offset)
-            => GetFieldData<T>(offset);
-
-        public override object GetValue(ulong offset)
-            => GetNative(offset);
+        public override U GetValue<U>(ulong offset)
+        {
+            var numeric = GetFieldData<T>(offset);
+            if (typeof(T) == typeof(U))
+                return Unsafe.As<T, U>(ref numeric);
+            else
+                return Convert<U>(numeric);
+        }
 
         public decimal GetDecimal(ulong offset)
-            => Convert<decimal>(GetValue(offset));
+            => Convert<decimal>(GetValue<T>(offset));
     }
 }

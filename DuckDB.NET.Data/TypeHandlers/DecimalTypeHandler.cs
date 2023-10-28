@@ -34,9 +34,6 @@ namespace DuckDB.NET.Data.TypeHandlers
         protected internal decimal GetNative(ulong offset)
             => GetDecimal(offset);
 
-        public override object GetValue(ulong offset)
-            => GetDecimal(offset);
-
         public decimal GetDecimal(ulong offset)
         {
             return InternalTypeHandler switch
@@ -76,5 +73,7 @@ namespace DuckDB.NET.Data.TypeHandlers
                 return result;
             }
         }
+        public override T GetValue<T>(ulong offset)
+            => throw new NotImplementedException();
     }
 }

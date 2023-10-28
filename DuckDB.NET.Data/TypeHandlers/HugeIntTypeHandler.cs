@@ -16,10 +16,9 @@ namespace DuckDB.NET.Data.TypeHandlers
         protected unsafe internal DuckDBHugeInt GetNative(ulong offset)
             => GetFieldData<DuckDBHugeInt>(offset);
 
-        public override object GetValue(ulong offset)
-            => GetBigInteger(offset);
-
         public BigInteger GetBigInteger(ulong offset)
             => GetNative(offset).ToBigInteger();
+        public override T GetValue<T>(ulong offset)
+            => throw new NotImplementedException();
     }
 }

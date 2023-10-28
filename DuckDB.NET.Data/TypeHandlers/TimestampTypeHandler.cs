@@ -19,5 +19,8 @@ namespace DuckDB.NET.Data.TypeHandlers
 
         public DateTime GetDateTime(ulong offset)
             => GetNative(offset).ToDateTime();
+        
+        public override T GetValue<T>(ulong offset)
+            => throw new NotImplementedException();
     }
 }

@@ -15,10 +15,10 @@ namespace DuckDB.NET.Data.TypeHandlers
         protected internal DuckDBInterval GetNative(ulong offset)
             => GetFieldData<DuckDBInterval>(offset);
 
-        public override object GetValue(ulong offset)
-            => GetNative(offset);
-
         public TimeSpan GetTimeSpan(ulong offset)
             => (TimeSpan)GetNative(offset);
+        
+        public override T GetValue<T>(ulong offset)
+            => throw new NotImplementedException();
     }
 }

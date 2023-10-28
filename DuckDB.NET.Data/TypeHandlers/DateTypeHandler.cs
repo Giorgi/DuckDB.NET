@@ -15,9 +15,6 @@ namespace DuckDB.NET.Data.TypeHandlers
         protected internal DuckDBDateOnly GetNative(ulong offset)
             => NativeMethods.DateTime.DuckDBFromDate(GetFieldData<DuckDBDate>(offset));
 
-        public override object GetValue(ulong offset)
-            => GetNative(offset);
-
         protected override object Convert(object value, Type type)
         {
             return value switch
@@ -37,5 +34,8 @@ namespace DuckDB.NET.Data.TypeHandlers
         
         public DateTime GetDateTime(ulong offset)
             => (DateTime)GetNative(offset);
+
+        public override T GetValue<T>(ulong offset)
+            => throw new NotImplementedException();
     }
 }

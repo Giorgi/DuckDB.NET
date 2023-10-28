@@ -32,5 +32,8 @@ namespace DuckDB.NET.Data.TypeHandlers
 
             return new UnmanagedMemoryStream((byte*)data->value.pointer.ptr, length, length, FileAccess.Read);
         }
-}
+
+        public override T GetValue<T>(ulong offset)
+            => throw new NotImplementedException();
+    }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace DuckDB.NET.Data.TypeHandlers
@@ -23,7 +24,12 @@ namespace DuckDB.NET.Data.TypeHandlers
             return new string(pointer, 0, length, Encoding.UTF8);
         }
 
-        public override object GetValue(ulong offset)
-            => GetString(offset);
+        public override T GetValue<T>(ulong offset)
+        {
+            if (typeof(T) != typeof(string))
+                throw new InvalidCastException();
+            var str = GetString(offset);
+            return Unsafe.As<string, T>(ref str);
+        }
     }
 }

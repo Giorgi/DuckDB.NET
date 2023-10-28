@@ -27,9 +27,6 @@ namespace DuckDB.NET.Data.TypeHandlers
             };
         }
 
-        public override object GetValue(ulong offset)
-            => GetString(offset);
-
         public string GetString(ulong offset)
         {
             var value = NativeMethods.LogicalType.DuckDBEnumDictionaryValue(LogicalType, GetLong(offset)).ToManagedString();
@@ -67,5 +64,7 @@ namespace DuckDB.NET.Data.TypeHandlers
             LogicalType?.Dispose();
             base.Dispose();
         }
+        public override T GetValue<T>(ulong offset)
+            => throw new NotImplementedException();
     }
 }
