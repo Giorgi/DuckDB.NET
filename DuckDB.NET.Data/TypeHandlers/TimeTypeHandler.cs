@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace DuckDB.NET.Data.TypeHandlers
 {
     internal class TimeTypeHandler : BaseTypeHandler, IReadDateTimeTypeHandler
     {
-        public override Type ClrType { get => typeof(DuckDBTimeOnly); }
+        public override Type ClrType { get; } = typeof(DuckDBTimeOnly);
 
         public unsafe TimeTypeHandler(IntPtr vector, void* dataPointer, ulong* validityMaskPointer)
             : base(vector, dataPointer, validityMaskPointer) { }
@@ -23,8 +24,10 @@ namespace DuckDB.NET.Data.TypeHandlers
             return value switch
             {
                 DuckDBTimeOnly x when typeof(DateTime).IsAssignableFrom(type) => x.ToDateTime(),
+                DuckDBTimeOnly x when typeof(DateTime?).IsAssignableFrom(type) => x.ToDateTime(),
 #if NET6_0_OR_GREATER
                 DuckDBTimeOnly x when typeof(TimeOnly).IsAssignableFrom(type) => (TimeOnly)x,
+                DuckDBTimeOnly x when typeof(TimeOnly?).IsAssignableFrom(type) => (TimeOnly)x,
 #endif
                 _ => base.Convert(value, type),
             };
@@ -39,6 +42,12 @@ namespace DuckDB.NET.Data.TypeHandlers
             => (DateTime)GetNative(offset);
 
         public override T GetValue<T>(ulong offset)
-            => throw new NotImplementedException();
+        {
+            var duckDbTimeOnly = GetNative(offset);
+            if (typeof(T) == typeof(DuckDBTimeOnly))
+                return Unsafe.As<DuckDBTimeOnly, T>(ref duckDbTimeOnly);
+            else
+                return Convert<T>(duckDbTimeOnly);
+        }
     }
 }

@@ -8,7 +8,7 @@ namespace DuckDB.NET.Data.TypeHandlers
 {
     internal class BlobTypeHandler : BaseTypeHandler, IStreamTypeHandler
     {
-        public override Type ClrType => typeof(Stream);
+        public override Type ClrType { get; } = typeof(Stream);
 
         public unsafe BlobTypeHandler(IntPtr vector, void* dataPointer, ulong* validityMaskPointer)
             : base(vector, dataPointer, validityMaskPointer) { }

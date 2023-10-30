@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace DuckDB.NET.Data.TypeHandlers
@@ -11,7 +12,7 @@ namespace DuckDB.NET.Data.TypeHandlers
         private decimal Power { get; }
         private readonly ITypeHandler InternalTypeHandler;
 
-        public override Type ClrType { get => typeof(decimal); }
+        public override Type ClrType { get; } = typeof(decimal);
 
         public unsafe DecimalTypeHandler(IntPtr vector, void* dataPointer, ulong* validityMaskPointer)
             : base(vector, dataPointer, validityMaskPointer) 
@@ -74,6 +75,12 @@ namespace DuckDB.NET.Data.TypeHandlers
             }
         }
         public override T GetValue<T>(ulong offset)
-            => throw new NotImplementedException();
+        {
+            var dec = GetDecimal(offset);
+            if (typeof(T) == typeof(decimal))
+                return Unsafe.As<decimal, T>(ref dec);
+            else
+                return Convert<T>(dec);
+        }
     }
 }

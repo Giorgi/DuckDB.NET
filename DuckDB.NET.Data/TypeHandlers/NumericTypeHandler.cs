@@ -8,7 +8,7 @@ namespace DuckDB.NET.Data.TypeHandlers
 {
     internal class NumericTypeHandler<T> : BaseTypeHandler, IReadDecimalTypeHandler where T : unmanaged
     {
-        public override Type ClrType { get => typeof(T); }
+        public override Type ClrType { get; } = typeof(T); 
 
         private Type[] NumericTypes = new[] {
             typeof(bool)

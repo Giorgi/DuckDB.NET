@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace DuckDB.NET.Data.TypeHandlers
@@ -65,6 +66,12 @@ namespace DuckDB.NET.Data.TypeHandlers
             base.Dispose();
         }
         public override T GetValue<T>(ulong offset)
-            => throw new NotImplementedException();
+        {
+            var enumString = GetString(offset);
+            if (typeof(T) == typeof(string))
+                return Unsafe.As<string, T>(ref enumString);
+            else
+                return Convert<T>(enumString);
+        }
     }
 }

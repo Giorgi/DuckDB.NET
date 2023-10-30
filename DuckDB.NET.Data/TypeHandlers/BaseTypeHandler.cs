@@ -42,12 +42,13 @@ namespace DuckDB.NET.Data.TypeHandlers
 
                 var param = Expression.Parameter(typeof(ulong));
                 var callRef = Expression.Call(Expression.Constant(this), methodInfo, param);
-                var lambda = Expression.Lambda(callRef, new[] { param });
+                var convertRef = Expression.Convert(callRef, typeof(object));
+                var lambda = Expression.Lambda(convertRef, new[] { param });
                 var compiled = lambda.Compile();
                 Cache = new(type, compiled);
             }
-            var expression = Cache.Value;
-            var value = expression.DynamicInvoke(offset);
+            var expression = (Func<ulong, object>)Cache.Value;
+            var value = expression.Invoke(offset);
             return value!;
         }
 

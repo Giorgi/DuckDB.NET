@@ -7,7 +7,7 @@ namespace DuckDB.NET.Data.TypeHandlers
 {
     internal class VarcharTypeHandler : BaseTypeHandler, IReadStringTypeHandler
     {
-        public override Type ClrType { get => typeof(string); }
+        public override Type ClrType { get; } = typeof(string);
 
         public unsafe VarcharTypeHandler(IntPtr vector, void* dataPointer, ulong* validityMaskPointer)
             : base(vector, dataPointer, validityMaskPointer) { }
