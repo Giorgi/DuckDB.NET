@@ -4,6 +4,7 @@ using System.IO;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Text;
+using DuckDB.NET.Data.Extensions;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
@@ -140,9 +141,8 @@ internal class VectorDataReader : IDisposable
 
     internal T GetValue<T>(ulong offset)
     {
-        var targetType = typeof(T);
-        var isNullable = default(T) is null && targetType.IsValueType;
-
+        var (isNullable, targetType) = TypeExtensions.IsNullable<T>();
+        
         //If nullable we can't use Unsafe.As because we don't have the underlying type as T so use the non-generic GetValue method.
         //Otherwise use the switch below to avoid boxing for numeric types, bool, etc
         if (isNullable)
