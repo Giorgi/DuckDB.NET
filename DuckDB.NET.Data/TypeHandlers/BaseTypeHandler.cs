@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace DuckDB.NET.Data.TypeHandlers
@@ -31,13 +32,13 @@ namespace DuckDB.NET.Data.TypeHandlers
         {
             if (Cache.Key != type)
             {
-                var methodInfo = typeof(BaseTypeHandler)
-                                            .GetMethods(BindingFlags.Instance | BindingFlags.Public)
-                                            .Where(x => x.Name == nameof(GetValue))
-                                            .Where(x => x.GetParameters().Length == 1)
-                                            .Where(x => x.ContainsGenericParameters)
-                                            .First()
-                                            .MakeGenericMethod(new[] { type });
+                var methodInfo = GetType()
+                                    .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                                    .Where(x => x.Name == nameof(GetValue))
+                                    .Where(x => x.GetParameters().Length == 1)
+                                    .Where(x => x.ContainsGenericParameters)
+                                    .First()
+                                    .MakeGenericMethod(new[] { type });
 
                 var param = Expression.Parameter(typeof(ulong));
                 var callRef = Expression.Call(Expression.Constant(this), methodInfo, param);
@@ -45,9 +46,9 @@ namespace DuckDB.NET.Data.TypeHandlers
                 var compiled = lambda.Compile();
                 Cache = new(type, compiled);
             }
-            var expression = (Func<ulong, object>)Cache.Value;
-            var value = expression.Invoke(offset);
-            return value;
+            var expression = Cache.Value;
+            var value = expression.DynamicInvoke(offset);
+            return value!;
         }
 
         public virtual object GetValue(ulong offset)
