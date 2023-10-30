@@ -86,19 +86,14 @@ public class DuckDBDataReader : DbDataReader
         }
     }
 
-    private T GetFieldData<T>(int ordinal) where T : unmanaged
-    {
-        return vectorReaders[ordinal].GetFieldData<T>(rowsReadFromCurrentChunk - 1);
-    }
-
     public override bool GetBoolean(int ordinal)
     {
-        return GetByte(ordinal) != 0;
+        return GetFieldValue<bool>(ordinal);
     }
 
     public override byte GetByte(int ordinal)
     {
-        return GetFieldData<byte>(ordinal);
+        return GetFieldValue<byte>(ordinal);
     }
 
     public override long GetBytes(int ordinal, long dataOffset, byte[]? buffer, int bufferOffset, int length)
@@ -133,7 +128,7 @@ public class DuckDBDataReader : DbDataReader
 
     public override double GetDouble(int ordinal)
     {
-        return GetFieldData<double>(ordinal);
+        return GetFieldValue<double>(ordinal);
     }
 
     public override Type GetFieldType(int ordinal)
@@ -143,7 +138,7 @@ public class DuckDBDataReader : DbDataReader
 
     public override float GetFloat(int ordinal)
     {
-        return GetFieldData<float>(ordinal);
+        return GetFieldValue<float>(ordinal);
     }
 
     public override Guid GetGuid(int ordinal)
@@ -153,17 +148,17 @@ public class DuckDBDataReader : DbDataReader
 
     public override short GetInt16(int ordinal)
     {
-        return GetFieldData<short>(ordinal);
+        return GetFieldValue<short>(ordinal);
     }
 
     public override int GetInt32(int ordinal)
     {
-        return GetFieldData<int>(ordinal);
+        return GetFieldValue<int>(ordinal);
     }
 
     public override long GetInt64(int ordinal)
     {
-        return GetFieldData<long>(ordinal);
+        return GetFieldValue<long>(ordinal);
     }
 
     public override string GetName(int ordinal)
@@ -192,15 +187,7 @@ public class DuckDBDataReader : DbDataReader
 
     public override T GetFieldValue<T>(int ordinal)
     {
-        var value = vectorReaders[ordinal].DuckDBType switch
-        {
-            DuckDBType.List => (T)vectorReaders[ordinal].GetList(rowsReadFromCurrentChunk - 1, typeof(T)),
-            DuckDBType.Enum => (T)vectorReaders[ordinal].GetEnum(rowsReadFromCurrentChunk - 1, typeof(T)),
-            DuckDBType.Struct => (T)vectorReaders[ordinal].GetStruct(rowsReadFromCurrentChunk - 1, typeof(T)),
-            _ => (T)vectorReaders[ordinal].GetValue(rowsReadFromCurrentChunk - 1)
-        };
-
-        return value;
+        return vectorReaders[ordinal].GetValue<T>(rowsReadFromCurrentChunk - 1);
     }
 
     public override object GetValue(int ordinal)

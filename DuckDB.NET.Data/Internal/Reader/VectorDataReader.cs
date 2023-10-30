@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace DuckDB.NET.Data.Internal.Reader;
@@ -66,7 +67,14 @@ internal class VectorDataReader : IDisposable
         return isValid;
     }
 
-    internal unsafe T GetFieldData<T>(ulong offset) where T : unmanaged => *((T*)DataPointer + offset);
+    protected unsafe T GetFieldData<T>(ulong offset) where T : unmanaged => *((T*)DataPointer + offset);
+
+    private TResult GetUnmanagedTypeValue<TResult, TQuery>(ulong offset) where TQuery : unmanaged
+    {
+        var fieldData = GetFieldData<TQuery>(offset);
+
+        return Unsafe.As<TQuery, TResult>(ref fieldData);
+    }
 
     internal virtual decimal GetDecimal(ulong offset)
     {
@@ -128,6 +136,61 @@ internal class VectorDataReader : IDisposable
     internal virtual object GetList(ulong offset, Type returnType)
     {
         throw new InvalidOperationException($"Cannot read List from a non-{nameof(ListVectorDataReader)}");
+    }
+
+    internal T GetValue<T>(ulong offset)
+    {
+        var targetType = typeof(T);
+        var isNullable = default(T) is null && targetType.IsValueType;
+
+        //If nullable we can't use Unsafe.As because we don't have the underlying type as T so use the non-generic GetValue method.
+        //Otherwise use the switch below to avoid boxing for numeric types, bool, etc
+        if (isNullable)
+        {
+            return IsValid(offset)
+                ? (T)GetValue(offset, targetType)
+                : default!; //T is Nullable<> and we are returning null so suppress compiler warning.
+        }
+
+        switch (DuckDBType)
+        {
+            case DuckDBType.Boolean:
+                return GetUnmanagedTypeValue<T, bool>(offset);
+            case DuckDBType.TinyInt:
+                return GetUnmanagedTypeValue<T, sbyte>(offset);
+            case DuckDBType.SmallInt:
+                return GetUnmanagedTypeValue<T, short>(offset);
+            case DuckDBType.Integer:
+                return GetUnmanagedTypeValue<T, int>(offset);
+            case DuckDBType.BigInt:
+                return GetUnmanagedTypeValue<T, long>(offset);
+            case DuckDBType.UnsignedTinyInt:
+                return GetUnmanagedTypeValue<T, byte>(offset);
+            case DuckDBType.UnsignedSmallInt:
+                return GetUnmanagedTypeValue<T, ushort>(offset);
+            case DuckDBType.UnsignedInteger:
+                return GetUnmanagedTypeValue<T, uint>(offset);
+            case DuckDBType.UnsignedBigInt:
+                return GetUnmanagedTypeValue<T, ulong>(offset);
+            case DuckDBType.Float:
+                return GetUnmanagedTypeValue<T, float>(offset);
+            case DuckDBType.Double:
+                return GetUnmanagedTypeValue<T, double>(offset);
+            case DuckDBType.Interval:
+                return GetUnmanagedTypeValue<T, DuckDBInterval>(offset);
+            case DuckDBType.Varchar:
+                {
+                    var value = GetString(offset);
+                    return Unsafe.As<string, T>(ref value);
+                }
+            case DuckDBType.Decimal:
+                {
+                    var value = GetDecimal(offset);
+                    return Unsafe.As<decimal, T>(ref value);
+                }
+        }
+
+        return (T)GetValue(offset, targetType);
     }
 
     internal object GetValue(ulong offset, Type? targetType = null)
