@@ -1,6 +1,5 @@
 ﻿using System;
 
-#nullable enable
 namespace DuckDB.NET.Data;
 
 public class DuckDBAppender : IDisposable

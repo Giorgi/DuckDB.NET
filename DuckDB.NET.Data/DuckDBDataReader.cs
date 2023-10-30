@@ -307,6 +307,11 @@ public class DuckDBDataReader : DbDataReader
             result.Dispose();
         }
 
+        foreach (var reader in vectorReaders)
+        {
+            reader.Dispose();
+        }
+
         if (behavior == CommandBehavior.CloseConnection)
         {
             command.CloseConnection();
