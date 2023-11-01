@@ -8,13 +8,18 @@ internal class EnumVectorDataReader : VectorDataReader
     private readonly DuckDBType enumType;
     private readonly DuckDBLogicalType logicalType;
 
-    internal unsafe EnumVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType) : base(vector, dataPointer, validityMaskPointer, columnType)
+    internal unsafe EnumVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType) : base(dataPointer, validityMaskPointer, columnType)
     {
         logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector); 
         enumType = NativeMethods.LogicalType.DuckDBEnumInternalType(logicalType);
     }
 
-    internal override object GetEnum(ulong offset, Type returnType)
+    public override object GetValue(ulong offset, Type? targetType = null)
+    {
+        return GetEnum(offset, targetType ?? ClrType);
+    }
+
+    private object GetEnum(ulong offset, Type returnType)
     {
         long enumValue = enumType switch
         {

@@ -1,21 +1,41 @@
 ﻿using System;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-internal class DecimalVectorDataReader : VectorDataReader
+internal class DecimalVectorDataReader : NumericVectorDataReader
 {
     private readonly byte scale;
     private readonly DuckDBType decimalType;
 
-    internal unsafe DecimalVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType) : base(vector, dataPointer, validityMaskPointer, columnType)
+    internal unsafe DecimalVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType) : base(dataPointer, validityMaskPointer, columnType)
     {
         using var logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
         scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
         decimalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
     }
 
-    internal override decimal GetDecimal(ulong offset)
+    public override T GetValue<T>(ulong offset)
+    {
+        switch (DuckDBType)
+        {
+            case DuckDBType.Decimal:
+            {
+                var value = GetDecimal(offset);
+                return Unsafe.As<decimal, T>(ref value);
+            }
+            default:
+                return base.GetValue<T>(offset);
+        }
+    }
+
+    public override object GetValue(ulong offset, Type? targetType = null)
+    {
+        return GetDecimal(offset);
+    }
+
+    private decimal GetDecimal(ulong offset)
     {
         var pow = (decimal)Math.Pow(10, scale);
         switch (decimalType)

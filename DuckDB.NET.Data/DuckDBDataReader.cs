@@ -31,7 +31,7 @@ public class DuckDBDataReader : DbDataReader
     private ulong rowsReadFromCurrentChunk;
     private ulong currentChunkRowCount;
 
-    private VectorDataReader[] vectorReaders = Array.Empty<VectorDataReader>();
+    private IVectorDataReader[] vectorReaders = Array.Empty<IVectorDataReader>();
 
     internal DuckDBDataReader(DuckDbCommand command, List<DuckDBResult> queryResults, CommandBehavior behavior)
     {
@@ -72,7 +72,7 @@ public class DuckDBDataReader : DbDataReader
             currentChunk = NativeMethods.Types.DuckDBResultGetChunk(currentResult, currentChunkIndex);
             currentChunkRowCount = (ulong)NativeMethods.DataChunks.DuckDBDataChunkGetSize(currentChunk);
             
-            vectorReaders = new VectorDataReader[fieldCount];
+            vectorReaders = new IVectorDataReader[fieldCount];
 
             for (int i = 0; i < fieldCount; i++)
             {
@@ -118,12 +118,12 @@ public class DuckDBDataReader : DbDataReader
 
     public override DateTime GetDateTime(int ordinal)
     {
-        return vectorReaders[ordinal].GetDateTime(rowsReadFromCurrentChunk - 1);
+        return GetFieldValue<DateTime>(ordinal);
     }
 
     public override decimal GetDecimal(int ordinal)
     {
-        return vectorReaders[ordinal].GetDecimal(rowsReadFromCurrentChunk - 1);
+        return GetFieldValue<decimal>(ordinal);
     }
 
     public override double GetDouble(int ordinal)
@@ -182,7 +182,7 @@ public class DuckDBDataReader : DbDataReader
 
     public override string GetString(int ordinal)
     {
-        return vectorReaders[ordinal].GetString(rowsReadFromCurrentChunk - 1);
+        return GetFieldValue<string>(ordinal);
     }
 
     public override T GetFieldValue<T>(int ordinal)
@@ -207,7 +207,7 @@ public class DuckDBDataReader : DbDataReader
 
     public override Stream GetStream(int ordinal)
     {
-        return vectorReaders[ordinal].GetStream(rowsReadFromCurrentChunk - 1);
+        return GetFieldValue<Stream>(ordinal);
     }
 
     public override bool IsDBNull(int ordinal)

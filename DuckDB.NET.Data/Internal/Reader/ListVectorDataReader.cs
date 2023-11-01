@@ -8,7 +8,7 @@ internal class ListVectorDataReader : VectorDataReader
 {
     private readonly VectorDataReader listDataReader;
 
-    internal unsafe ListVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType) : base(vector, dataPointer, validityMaskPointer, columnType)
+    internal unsafe ListVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType) : base(dataPointer, validityMaskPointer, columnType)
     {
         using var logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
         using var childType = NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType);
@@ -24,7 +24,12 @@ internal class ListVectorDataReader : VectorDataReader
         ClrType = typeof(List<>).MakeGenericType(listDataReader.ClrType);
     }
 
-    internal override unsafe object GetList(ulong offset, Type returnType)
+    public override object GetValue(ulong offset, Type? targetType = null)
+    {
+        return GetList(offset, targetType ?? ClrType);
+    }
+
+    private unsafe object GetList(ulong offset, Type returnType)
     {
         var listData = (DuckDBListEntry*)DataPointer + offset;
 

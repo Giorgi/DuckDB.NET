@@ -3,9 +3,9 @@ using System.Collections.Generic;
 
 namespace DuckDB.NET.Data.Internal;
 
-class TypeDetails
+internal class TypeDetails
 {
     public Dictionary<string, PropertyDetails> Properties { get; set; } = new();
 }
 
-record PropertyDetails(Type PropertyType, bool Nullable, Action<object, object> Setter);
+internal record PropertyDetails(Type PropertyType, bool Nullable, Action<object, object> Setter);
