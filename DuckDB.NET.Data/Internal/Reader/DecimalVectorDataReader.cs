@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Numerics;
-using System.Runtime.CompilerServices;
+using DuckDB.NET.Data.Extensions;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
@@ -16,22 +16,35 @@ internal class DecimalVectorDataReader : NumericVectorDataReader
         decimalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
     }
 
-    public override T GetValue<T>(ulong offset)
+    internal override T GetValue<T>(ulong offset)
     {
-        switch (DuckDBType)
+        if (DuckDBType != DuckDBType.Decimal)
         {
-            case DuckDBType.Decimal:
-            {
-                var value = GetDecimal(offset);
-                return Unsafe.As<decimal, T>(ref value);
-            }
-            default:
-                return base.GetValue<T>(offset);
+            return base.GetValue<T>(offset);
         }
+
+        if (IsValid(offset))
+        {
+            var value = GetDecimal(offset);
+            return (T)(object)value; //JIT will optimize the casts at least for not nullable T
+        }
+
+        var (isNullable, _) = TypeExtensions.IsNullable<T>();
+        if (isNullable)
+        {
+            return default!;
+        }
+
+        throw new InvalidCastException("Column value is null");
     }
 
-    public override object GetValue(ulong offset, Type? targetType = null)
+    internal override object GetValue(ulong offset, Type? targetType = null)
     {
+        if (DuckDBType != DuckDBType.Decimal)
+        {
+            return base.GetValue(offset, targetType);
+        }
+
         return GetDecimal(offset);
     }
 

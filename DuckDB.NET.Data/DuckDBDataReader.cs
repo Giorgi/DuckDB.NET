@@ -31,7 +31,7 @@ public class DuckDBDataReader : DbDataReader
     private ulong rowsReadFromCurrentChunk;
     private ulong currentChunkRowCount;
 
-    private IVectorDataReader[] vectorReaders = Array.Empty<IVectorDataReader>();
+    private VectorDataReaderBase[] vectorReaders = Array.Empty<VectorDataReaderBase>();
 
     internal DuckDBDataReader(DuckDbCommand command, List<DuckDBResult> queryResults, CommandBehavior behavior)
     {
@@ -72,7 +72,7 @@ public class DuckDBDataReader : DbDataReader
             currentChunk = NativeMethods.Types.DuckDBResultGetChunk(currentResult, currentChunkIndex);
             currentChunkRowCount = (ulong)NativeMethods.DataChunks.DuckDBDataChunkGetSize(currentChunk);
             
-            vectorReaders = new IVectorDataReader[fieldCount];
+            vectorReaders = new VectorDataReaderBase[fieldCount];
 
             for (int i = 0; i < fieldCount; i++)
             {

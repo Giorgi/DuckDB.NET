@@ -1,73 +1,88 @@
 ﻿using System;
-using System.Runtime.CompilerServices;
 using DuckDB.NET.Data.Extensions;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-internal class DateTimeVectorDataReader : VectorDataReader
+internal class DateTimeVectorDataReader : VectorDataReaderBase
 {
+    private static readonly Type DateTimeType = typeof(DateTime);
+    private static readonly Type DateTimeNullableType = typeof(DateTime?);
+
+    #if NET6_0_OR_GREATER
+    private static readonly Type DateOnlyType = typeof(DateOnly);
+    private static readonly Type DateOnlyNullableType = typeof(DateOnly?);
+
+    private static readonly Type TimeOnlyType = typeof(TimeOnly);
+    private static readonly Type TimeOnlyNullableType = typeof(TimeOnly?); 
+    #endif
+
     internal unsafe DateTimeVectorDataReader(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType) : base(dataPointer, validityMaskPointer, columnType)
     {
     }
 
-    public override T GetValue<T>(ulong offset)
+    internal override T GetValue<T>(ulong offset)
     {
         var (isNullable, targetType) = TypeExtensions.IsNullable<T>();
+
+        if (!isNullable && !IsValid(offset))
+        {
+            throw new InvalidCastException("Column value is null");
+        }
 
         if (DuckDBType == DuckDBType.Date)
         {
             var dateOnly = GetDateOnly(offset);
 
-            if (targetType == typeof(DateTime))
+            if (targetType == DateTimeType || targetType == DateTimeNullableType)
             {
                 var dateTime = (DateTime)dateOnly;
-                return Unsafe.As<DateTime, T>(ref dateTime);
+                return (T)(object)dateTime;
             }
 
-#if NET6_0_OR_GREATER
-            if (targetType == typeof(DateOnly))
+            #if NET6_0_OR_GREATER
+            if (targetType == DateOnlyType || targetType == DateOnlyNullableType)
             {
                 var dateTime = (DateOnly)dateOnly;
-                return Unsafe.As<DateOnly, T>(ref dateTime);
+                return (T)(object)dateTime;
             }
-#endif
+            #endif
         }
-        
+
         if (DuckDBType == DuckDBType.Time)
         {
             var dateOnly = GetTimeOnly(offset);
 
-            if (targetType == typeof(DateTime))
+            if (targetType == DateTimeType || targetType == DateTimeNullableType)
             {
                 var dateTime = (DateTime)dateOnly;
-                return Unsafe.As<DateTime, T>(ref dateTime);
+                return (T)(object)dateTime;
             }
 
-#if NET6_0_OR_GREATER
-            if (targetType == typeof(TimeOnly))
+            #if NET6_0_OR_GREATER
+            if (targetType == TimeOnlyType || targetType == TimeOnlyNullableType)
             {
                 var dateTime = (TimeOnly)dateOnly;
-                return Unsafe.As<TimeOnly, T>(ref dateTime);
+                return (T)(object)dateTime;
             }
-#endif
+            #endif
         }
 
         if (DuckDBType == DuckDBType.Timestamp)
         {
             var dateTime = GetDateTime(offset);
-            return Unsafe.As<DateTime, T>(ref dateTime);
+            return (T)(object)dateTime;
         }
 
         if (DuckDBType == DuckDBType.Interval)
         {
             var interval = GetFieldData<DuckDBInterval>(offset);
-            return Unsafe.As<DuckDBInterval, T>(ref interval);
+            return (T)(object)interval;
         }
 
         return base.GetValue<T>(offset);
     }
 
-    public override object GetValue(ulong offset, Type? targetType = null)
+    internal override object GetValue(ulong offset, Type? targetType = null)
     {
         return DuckDBType switch
         {
@@ -98,17 +113,17 @@ internal class DateTimeVectorDataReader : VectorDataReader
     private object GetDate(ulong offset, Type? targetType = null)
     {
         var dateOnly = GetDateOnly(offset);
-        if (targetType == typeof(DateTime))
+        if (targetType == DateTimeType)
         {
             return (DateTime)dateOnly;
         }
 
-#if NET6_0_OR_GREATER
-        if (targetType == typeof(DateOnly))
+        #if NET6_0_OR_GREATER
+        if (targetType == DateOnlyType)
         {
             return (DateOnly)dateOnly;
         }
-#endif
+        #endif
 
         return dateOnly;
     }
@@ -116,17 +131,17 @@ internal class DateTimeVectorDataReader : VectorDataReader
     private object GetTime(ulong offset, Type? targetType = null)
     {
         var timeOnly = GetTimeOnly(offset);
-        if (targetType == typeof(DateTime))
+        if (targetType == DateTimeType)
         {
             return (DateTime)timeOnly;
         }
 
-#if NET6_0_OR_GREATER
-        if (targetType == typeof(TimeOnly))
+        #if NET6_0_OR_GREATER
+        if (targetType == TimeOnlyType)
         {
             return (TimeOnly)timeOnly;
         }
-#endif
+        #endif
 
         return timeOnly;
     }

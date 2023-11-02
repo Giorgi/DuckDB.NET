@@ -46,8 +46,8 @@ public class IntegerParametersTests
             var value = getValue(reader);
 
             value.Should().Be(expectedValue);
-            
-            reader.GetFieldType(0).Should().Be(typeof(TValue));
+
+            reader.GetFieldType(0).Should().Match(type => type == typeof(TValue) || type == Nullable.GetUnderlyingType(typeof(TValue)));
         }
         finally
         {
@@ -132,6 +132,8 @@ public class IntegerParametersTests
         
         TestSimple(connection, "INTEGER", value, r => r.GetInt32(0));
         TestBind(connection, value, new DuckDBParameter(value), r => r.GetInt32(0));
+
+        TestSimple(connection, "INTEGER", value, r => r.GetFieldValue<int?>(0));
     }
     
     [Theory]
@@ -145,12 +147,14 @@ public class IntegerParametersTests
         
         TestSimple(connection, "UBIGINT", value, r => r.GetFieldValue<ulong>(0));
         TestBind(connection, value, new DuckDBParameter(value), r => r.GetFieldValue<ulong>(0));
+
+        TestSimple(connection, "UBIGINT", value, r => r.GetFieldValue<ulong?>(0));
     }
     
     [Theory]
     [InlineData(0)]
     [InlineData(long.MinValue)]
-    [InlineData(int.MaxValue)]
+    [InlineData(long.MaxValue)]
     public void Int64Test(long value)
     {
         using var connection = new DuckDBConnection("DataSource=:memory:");
@@ -158,5 +162,7 @@ public class IntegerParametersTests
         
         TestSimple(connection, "BIGINT", value, r => r.GetInt64(0));
         TestBind(connection, value, new DuckDBParameter(value), r => r.GetInt64(0));
+
+        TestSimple(connection, "BIGINT", value, r => r.GetFieldValue<long?>(0));
     }
 }

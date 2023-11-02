@@ -1,16 +1,22 @@
 ﻿using System;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-internal class NumericVectorDataReader : VectorDataReader
+internal class NumericVectorDataReader : VectorDataReaderBase
 {
     internal unsafe NumericVectorDataReader(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType) : base(dataPointer, validityMaskPointer, columnType)
     {
     }
 
-    public override T GetValue<T>(ulong offset)
+    protected override T GetValueInternal<T>(ulong offset, Type targetType)
     {
+        if (!IsValid(offset))
+        {
+            throw new InvalidCastException("Column value is null");
+        }
+
         return DuckDBType switch
         {
             DuckDBType.TinyInt => GetUnmanagedTypeValue<sbyte, T>(offset),
@@ -23,11 +29,11 @@ internal class NumericVectorDataReader : VectorDataReader
             DuckDBType.UnsignedBigInt => GetUnmanagedTypeValue<ulong, T>(offset),
             DuckDBType.Float => GetUnmanagedTypeValue<float, T>(offset),
             DuckDBType.Double => GetUnmanagedTypeValue<double, T>(offset),
-            _ => base.GetValue<T>(offset)
+            _ => base.GetValueInternal<T>(offset, targetType)
         };
     }
 
-    public override object GetValue(ulong offset, Type? targetType = null)
+    internal override object GetValue(ulong offset, Type? targetType = null)
     {
         return DuckDBType switch
         {
@@ -50,5 +56,12 @@ internal class NumericVectorDataReader : VectorDataReader
     {
         var data = (DuckDBHugeInt*)DataPointer + offset;
         return data->ToBigInteger();
+    }
+
+    private TResult GetUnmanagedTypeValue<TQuery, TResult>(ulong offset) where TQuery : unmanaged
+    {
+        var fieldData = GetFieldData<TQuery>(offset);
+
+        return Unsafe.As<TQuery, TResult>(ref fieldData);
     }
 }

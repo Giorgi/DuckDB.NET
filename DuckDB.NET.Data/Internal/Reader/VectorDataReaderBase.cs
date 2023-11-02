@@ -2,12 +2,11 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
-using System.Runtime.CompilerServices;
 using DuckDB.NET.Data.Extensions;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-internal class VectorDataReader : IVectorDataReader
+internal class VectorDataReaderBase : IDisposable
 {
     private readonly unsafe ulong* validityMaskPointer;
 
@@ -15,7 +14,7 @@ internal class VectorDataReader : IVectorDataReader
     public DuckDBType DuckDBType { get; }
     private protected unsafe void* DataPointer { get; }
 
-    internal unsafe VectorDataReader(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType)
+    internal unsafe VectorDataReaderBase(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType)
     {
         DataPointer = dataPointer;
         this.validityMaskPointer = validityMaskPointer;
@@ -63,16 +62,9 @@ internal class VectorDataReader : IVectorDataReader
         return isValid;
     }
 
-    protected unsafe T GetFieldData<T>(ulong offset) where T : unmanaged => *((T*)DataPointer + offset);
+    internal unsafe T GetFieldData<T>(ulong offset) where T : unmanaged => *((T*)DataPointer + offset);
 
-    protected TResult GetUnmanagedTypeValue<TQuery, TResult>(ulong offset) where TQuery : unmanaged
-    {
-        var fieldData = GetFieldData<TQuery>(offset);
-
-        return Unsafe.As<TQuery, TResult>(ref fieldData);
-    }
-
-    public virtual T GetValue<T>(ulong offset)
+    internal virtual T GetValue<T>(ulong offset)
     {
         var (isNullable, targetType) = TypeExtensions.IsNullable<T>();
 
@@ -85,19 +77,19 @@ internal class VectorDataReader : IVectorDataReader
                 : default!; //T is Nullable<> and we are returning null so suppress compiler warning.
         }
 
-        return DuckDBType switch
-        {
-            DuckDBType.Boolean => GetUnmanagedTypeValue<bool, T>(offset),
-            _ => (T)GetValue(offset, targetType)
-        };
+        return GetValueInternal<T>(offset, targetType);
     }
 
-    public virtual object GetValue(ulong offset, Type? targetType = null)
+    protected virtual T GetValueInternal<T>(ulong offset, Type targetType)
+    {
+        return (T)GetValue(offset, targetType);
+    }
+
+    internal virtual object GetValue(ulong offset, Type? targetType = null)
     {
         return DuckDBType switch
         {
             DuckDBType.Invalid => throw new DuckDBException("Invalid type"),
-            DuckDBType.Boolean => GetFieldData<bool>(offset),
             _ => throw new ArgumentException($"Unrecognised type {DuckDBType} ({(int)DuckDBType})")
         };
     }

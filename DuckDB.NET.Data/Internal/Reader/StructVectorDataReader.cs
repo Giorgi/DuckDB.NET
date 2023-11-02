@@ -5,16 +5,16 @@ using System.Linq.Expressions;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-internal class StructVectorDataReader : VectorDataReader
+internal class StructVectorDataReader : VectorDataReaderBase
 {
     private static readonly ConcurrentDictionary<Type, TypeDetails> TypeCache = new();
-    private readonly Dictionary<string, VectorDataReader> structDataReaders;
+    private readonly Dictionary<string, VectorDataReaderBase> structDataReaders;
 
     internal unsafe StructVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType) : base(dataPointer, validityMaskPointer, columnType)
     {
         using var logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
         var memberCount = NativeMethods.LogicalType.DuckDBStructTypeChildCount(logicalType);
-        structDataReaders = new Dictionary<string, VectorDataReader>(StringComparer.OrdinalIgnoreCase);
+        structDataReaders = new Dictionary<string, VectorDataReaderBase>(StringComparer.OrdinalIgnoreCase);
 
         for (int index = 0; index < memberCount; index++)
         {
@@ -31,9 +31,14 @@ internal class StructVectorDataReader : VectorDataReader
         }
     }
 
-    public override object GetValue(ulong offset, Type? targetType = null)
+    internal override object GetValue(ulong offset, Type? targetType = null)
     {
-        return GetStruct(offset, targetType ?? ClrType);
+        if (DuckDBType == DuckDBType.Struct)
+        {
+            return GetStruct(offset, targetType ?? ClrType);
+        }
+
+        return base.GetValue(offset, targetType);
     }
 
     private object GetStruct(ulong offset, Type returnType)

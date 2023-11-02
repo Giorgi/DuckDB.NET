@@ -4,7 +4,7 @@ using System.Text;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-internal class StringVectorDataReader : VectorDataReader
+internal class StringVectorDataReader : VectorDataReaderBase
 {
     private const int InlineStringMaxLength = 12;
 
@@ -12,7 +12,7 @@ internal class StringVectorDataReader : VectorDataReader
     {
     }
 
-    public override T GetValue<T>(ulong offset)
+    internal override T GetValue<T>(ulong offset)
     {
         return DuckDBType switch
         {
@@ -22,7 +22,7 @@ internal class StringVectorDataReader : VectorDataReader
         };
     }
 
-    public override object GetValue(ulong offset, Type? targetType = null)
+    internal override object GetValue(ulong offset, Type? targetType = null)
     {
         return DuckDBType switch
         {

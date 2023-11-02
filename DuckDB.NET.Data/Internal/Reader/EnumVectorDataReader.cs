@@ -3,19 +3,23 @@ using System.Globalization;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-internal class EnumVectorDataReader : VectorDataReader
+internal class EnumVectorDataReader : VectorDataReaderBase
 {
     private readonly DuckDBType enumType;
     private readonly DuckDBLogicalType logicalType;
 
     internal unsafe EnumVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType) : base(dataPointer, validityMaskPointer, columnType)
     {
-        logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector); 
+        logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
         enumType = NativeMethods.LogicalType.DuckDBEnumInternalType(logicalType);
     }
 
-    public override object GetValue(ulong offset, Type? targetType = null)
+    internal override object GetValue(ulong offset, Type? targetType = null)
     {
+        if (DuckDBType != DuckDBType.Enum)
+        {
+            return base.GetValue(offset, targetType);
+        }
         return GetEnum(offset, targetType ?? ClrType);
     }
 

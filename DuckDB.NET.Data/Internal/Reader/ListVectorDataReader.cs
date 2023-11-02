@@ -4,9 +4,9 @@ using System.Collections.Generic;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-internal class ListVectorDataReader : VectorDataReader
+internal class ListVectorDataReader : VectorDataReaderBase
 {
-    private readonly VectorDataReader listDataReader;
+    private readonly VectorDataReaderBase listDataReader;
 
     internal unsafe ListVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType) : base(dataPointer, validityMaskPointer, columnType)
     {
@@ -24,8 +24,13 @@ internal class ListVectorDataReader : VectorDataReader
         ClrType = typeof(List<>).MakeGenericType(listDataReader.ClrType);
     }
 
-    public override object GetValue(ulong offset, Type? targetType = null)
+    internal override object GetValue(ulong offset, Type? targetType = null)
     {
+        if (DuckDBType!= DuckDBType.List)
+        {
+            return base.GetValue(offset, targetType);
+        }
+
         return GetList(offset, targetType ?? ClrType);
     }
 

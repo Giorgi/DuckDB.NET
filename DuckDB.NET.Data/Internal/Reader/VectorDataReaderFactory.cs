@@ -4,7 +4,7 @@ namespace DuckDB.NET.Data.Internal.Reader;
 
 internal static class VectorDataReaderFactory
 {
-    public static unsafe VectorDataReader CreateReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType)
+    public static unsafe VectorDataReaderBase CreateReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType)
     {
         return columnType switch
         {
@@ -12,6 +12,8 @@ internal static class VectorDataReaderFactory
             DuckDBType.Time => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType),
             DuckDBType.Interval => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType),
             DuckDBType.Timestamp => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType),
+            
+            DuckDBType.Boolean => new BooleanVectorDataReader(dataPointer, validityMaskPointer, columnType),
 
             DuckDBType.List => new ListVectorDataReader(vector, dataPointer, validityMaskPointer, columnType),
             DuckDBType.Blob => new StringVectorDataReader(dataPointer, validityMaskPointer, columnType),
