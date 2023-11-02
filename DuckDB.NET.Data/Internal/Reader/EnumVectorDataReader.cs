@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
@@ -12,6 +13,50 @@ internal class EnumVectorDataReader : VectorDataReaderBase
     {
         logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
         enumType = NativeMethods.LogicalType.DuckDBEnumInternalType(logicalType);
+    }
+
+    protected override T GetValueInternal<T>(ulong offset, Type targetType)
+    {
+        if (DuckDBType != DuckDBType.Enum)
+        {
+            return base.GetValueInternal<T>(offset, targetType);
+        }
+
+        if (!IsValid(offset))
+        {
+            throw new InvalidCastException("Column value is null");
+        }
+
+        switch (enumType)
+        {
+            case DuckDBType.UnsignedTinyInt:
+            {
+                var enumValue = GetFieldData<byte>(offset);
+                return ToEnumOrString(enumValue);
+            }
+            case DuckDBType.UnsignedSmallInt:
+            {
+                var enumValue = GetFieldData<ushort>(offset);
+                return ToEnumOrString(enumValue);
+            }
+            case DuckDBType.UnsignedInteger:
+            {
+                var enumValue = GetFieldData<uint>(offset);
+                return ToEnumOrString(enumValue);
+            }
+            default:
+                throw new InvalidCastException("Column has wrong Enum type");
+        }
+
+        T ToEnumOrString<TSource>(TSource enumValue) where TSource: unmanaged
+        {
+            if (typeof(T) == typeof(string))
+            {
+                var value = NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType, Convert.ToInt64(enumValue)).ToManagedString();
+                return (T)(object)value;
+            }
+            return Unsafe.As<TSource, T>(ref enumValue);
+        }
     }
 
     internal override object GetValue(ulong offset, Type? targetType = null)
