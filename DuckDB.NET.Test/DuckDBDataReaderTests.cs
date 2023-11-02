@@ -51,7 +51,7 @@ public class DuckDBDataReaderTests : DuckDBTestBase
         Command.CommandText = "Insert Into IndexerValuesTests values (1, 2.4, true, null, null, null)";
         Command.ExecuteNonQuery();
 
-        Command.CommandText = "Insert Into IndexerValuesTests values (2, 4.8, false, null, null, null)";
+        Command.CommandText = "Insert Into IndexerValuesTests values (2, 4.8, null, null, null, null)";
         Command.ExecuteNonQuery();
 
         Command.CommandText = "select * from IndexerValuesTests";
@@ -63,6 +63,7 @@ public class DuckDBDataReaderTests : DuckDBTestBase
         reader[0].Should().Be(reader["key"]);
         reader[1].Should().Be(reader.GetDecimal(1));
         reader.GetValue(2).Should().Be(reader.GetBoolean(2));
+        reader.GetFieldValue<bool?>(2).Should().Be(reader.GetBoolean(2));
         reader[3].Should().Be(DBNull.Value);
 
         var values = new object[6];
@@ -76,6 +77,9 @@ public class DuckDBDataReaderTests : DuckDBTestBase
 
         reader.Read();
         reader.GetDecimal(1).Should().Be(4.8m);
+        reader.GetFieldValue<bool?>(2).Should().BeNull();
+
+        reader.Invoking(dataReader => dataReader.GetFieldValue<bool>(2)).Should().Throw<InvalidCastException>();
     }
 
     [Fact]
