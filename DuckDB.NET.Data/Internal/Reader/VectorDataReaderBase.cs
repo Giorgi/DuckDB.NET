@@ -69,7 +69,6 @@ internal class VectorDataReaderBase : IDisposable
         var (isNullable, targetType) = TypeExtensions.IsNullable<T>();
 
         //If nullable we can't use Unsafe.As because we don't have the underlying type as T so use the non-generic GetValue method.
-        //Otherwise use the switch below to avoid boxing for numeric types, bool, etc
         if (isNullable)
         {
             return IsValid(offset)
