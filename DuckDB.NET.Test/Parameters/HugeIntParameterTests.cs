@@ -25,6 +25,11 @@ public class HugeIntParameterTests
         var receivedValue = reader.GetFieldValue<BigInteger>(0);
         receivedValue.Should().Be(125);
 
+        reader.GetFieldValue<sbyte>(0).Should().Be(125);
+        reader.GetFieldValue<short>(0).Should().Be(125);
+        reader.GetFieldValue<int>(0).Should().Be(125);
+        reader.GetFieldValue<long>(0).Should().Be(125);
+
         reader.GetFieldType(0).Should().Be(typeof(BigInteger));
     }
 
