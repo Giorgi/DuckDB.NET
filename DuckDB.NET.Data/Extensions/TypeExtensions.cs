@@ -1,9 +1,25 @@
 using System;
+using System.Collections.Generic;
+using System.Numerics;
 
 namespace DuckDB.NET.Data.Extensions;
 
 internal static class TypeExtensions
 {
+    private static readonly HashSet<Type> FloatingNumericTypes = new()
+    {
+        typeof(decimal), typeof(float), typeof(double)
+    };
+
+    private static readonly HashSet<Type> IntegralNumericTypes = new()
+    {
+        typeof(byte), typeof(sbyte),
+        typeof(short), typeof(ushort), 
+        typeof(int), typeof(uint), 
+        typeof(long),typeof(ulong),
+        typeof(BigInteger)
+    };
+
     public static bool IsNull(this object? value) => value is null or DBNull;
 
     public static (bool isNullable, Type type) IsNullable<T>()
@@ -15,38 +31,13 @@ internal static class TypeExtensions
         return (isNullable, targetType);
     }
 
-    public static bool IsNumericType<T>()
+    public static bool IsFloatingNumericType<T>()
     {
-        return Type.GetTypeCode(typeof(T)) switch
-        {
-            TypeCode.Byte => true,
-            TypeCode.SByte => true,
-            TypeCode.UInt16 => true,
-            TypeCode.UInt32 => true,
-            TypeCode.UInt64 => true,
-            TypeCode.Int16 => true,
-            TypeCode.Int32 => true,
-            TypeCode.Int64 => true,
-            TypeCode.Decimal => true,
-            TypeCode.Double => true,
-            TypeCode.Single => true,
-            _ => false
-        };
+        return FloatingNumericTypes.Contains(typeof(T));
     }
 
     public static bool IsIntegralNumericType<T>()
     {
-        return Type.GetTypeCode(typeof(T)) switch
-        {
-            TypeCode.Byte => true,
-            TypeCode.SByte => true,
-            TypeCode.UInt16 => true,
-            TypeCode.UInt32 => true,
-            TypeCode.UInt64 => true,
-            TypeCode.Int16 => true,
-            TypeCode.Int32 => true,
-            TypeCode.Int64 => true,
-            _ => false
-        };
+        return IntegralNumericTypes.Contains(typeof(T));
     }
 }

@@ -18,12 +18,13 @@ internal class NumericVectorDataReader : VectorDataReaderBase
             throw new InvalidCastException("Column value is null");
         }
 
-        if (!TypeExtensions.IsNumericType<T>())
+        var isFloatingNumericType = TypeExtensions.IsFloatingNumericType<T>();
+        var isIntegralNumericType = TypeExtensions.IsIntegralNumericType<T>();
+
+        if (!(isIntegralNumericType || isFloatingNumericType))
         {
             return base.GetValueInternal<T>(offset, targetType);
         }
-
-        var isIntegralNumericType = TypeExtensions.IsIntegralNumericType<T>();
 
         //If T is integral type and column is also integral read the data and use Unsafe.As<> to change type
         //If T is floating and column is floating too, read data and cast to T
