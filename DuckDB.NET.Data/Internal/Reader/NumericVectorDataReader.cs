@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using DuckDB.NET.Data.Extensions;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
@@ -17,18 +18,37 @@ internal class NumericVectorDataReader : VectorDataReaderBase
             throw new InvalidCastException("Column value is null");
         }
 
+        if (!TypeExtensions.IsNumericType<T>())
+        {
+            return base.GetValueInternal<T>(offset, targetType);
+        }
+
+        var isIntegralNumericType = TypeExtensions.IsIntegralNumericType<T>();
+
+        //If T is integral type and column is also integral read the data and use Unsafe.As<> to change type
+        //If T is floating and column is floating too, read data and cast to T
+        //Otherwise use the non-generic path
+        if (isIntegralNumericType)
+        {
+            return DuckDBType switch
+            {
+                DuckDBType.TinyInt => GetUnmanagedTypeValue<sbyte, T>(offset),
+                DuckDBType.SmallInt => GetUnmanagedTypeValue<short, T>(offset),
+                DuckDBType.Integer => GetUnmanagedTypeValue<int, T>(offset),
+                DuckDBType.BigInt => GetUnmanagedTypeValue<long, T>(offset),
+                DuckDBType.UnsignedTinyInt => GetUnmanagedTypeValue<byte, T>(offset),
+                DuckDBType.UnsignedSmallInt => GetUnmanagedTypeValue<ushort, T>(offset),
+                DuckDBType.UnsignedInteger => GetUnmanagedTypeValue<uint, T>(offset),
+                DuckDBType.UnsignedBigInt => GetUnmanagedTypeValue<ulong, T>(offset),
+                DuckDBType.HugeInt => GetBigInteger<T>(offset),
+                _ => base.GetValueInternal<T>(offset, targetType)
+            };
+        }
+
         return DuckDBType switch
         {
-            DuckDBType.TinyInt => GetUnmanagedTypeValue<sbyte, T>(offset),
-            DuckDBType.SmallInt => GetUnmanagedTypeValue<short, T>(offset),
-            DuckDBType.Integer => GetUnmanagedTypeValue<int, T>(offset),
-            DuckDBType.BigInt => GetUnmanagedTypeValue<long, T>(offset),
-            DuckDBType.UnsignedTinyInt => GetUnmanagedTypeValue<byte, T>(offset),
-            DuckDBType.UnsignedSmallInt => GetUnmanagedTypeValue<ushort, T>(offset),
-            DuckDBType.UnsignedInteger => GetUnmanagedTypeValue<uint, T>(offset),
-            DuckDBType.UnsignedBigInt => GetUnmanagedTypeValue<ulong, T>(offset),
-            DuckDBType.Float => GetUnmanagedTypeValue<float, T>(offset),
-            DuckDBType.Double => GetUnmanagedTypeValue<double, T>(offset),
+            DuckDBType.Float => (T)(object)GetFieldData<float>(offset),
+            DuckDBType.Double => (T)(object)GetFieldData<double>(offset),
             _ => base.GetValueInternal<T>(offset, targetType)
         };
     }
@@ -56,6 +76,33 @@ internal class NumericVectorDataReader : VectorDataReaderBase
     {
         var data = (DuckDBHugeInt*)DataPointer + offset;
         return data->ToBigInteger();
+    }
+
+    protected T GetBigInteger<T>(ulong offset)
+    {
+        var bigInteger = GetBigInteger(offset);
+
+        if (typeof(T) == typeof(sbyte))
+        {
+            return (T)(object)(sbyte)bigInteger;
+        }
+
+        if (typeof(T) == typeof(short))
+        {
+            return (T)(object)(short)bigInteger;
+        }
+
+        if (typeof(T) == typeof(int))
+        {
+            return (T)(object)(int)bigInteger;
+        }
+
+        if (typeof(T) == typeof(long))
+        {
+            return (T)(object)(long)bigInteger;
+        }
+
+        return (T)(object)bigInteger;
     }
 
     private TResult GetUnmanagedTypeValue<TQuery, TResult>(ulong offset) where TQuery : unmanaged
