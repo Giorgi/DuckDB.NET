@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using FluentAssertions;
 using Xunit;
 
@@ -23,8 +22,7 @@ public class DuckDBDataReaderEnumTests : DuckDBTestBase
     public void SelectEnumValues()
     {
         Command.CommandText = "Select * from person order by name desc";
-        var reader = Command.ExecuteReader();
-
+        using var reader = Command.ExecuteReader();
         reader.Read();
         reader.GetFieldValue<Mood>(1).Should().Be(Mood.Happy);
 
@@ -42,10 +40,10 @@ public class DuckDBDataReaderEnumTests : DuckDBTestBase
     public void SelectEnumList()
     {
         Command.CommandText = "Select ['happy'::mood, 'ok'::mood]";
-        var reader = Command.ExecuteReader();
-
+        using var reader = Command.ExecuteReader();
         reader.Read();
         var list = reader.GetFieldValue<List<Mood>>(0);
+
         list.Should().BeEquivalentTo(new List<Mood> { Mood.Happy, Mood.Ok });
     }
 
@@ -53,8 +51,7 @@ public class DuckDBDataReaderEnumTests : DuckDBTestBase
     public void SelectEnumValuesAsNullable()
     {
         Command.CommandText = "Select * from person order by name desc";
-        var reader = Command.ExecuteReader();
-
+        using var reader = Command.ExecuteReader();
         reader.Read();
         reader.GetFieldValue<Mood?>(1).Should().Be(Mood.Happy);
 
@@ -75,8 +72,7 @@ public class DuckDBDataReaderEnumTests : DuckDBTestBase
     public void SelectEnumValuesAsString()
     {
         Command.CommandText = "Select * from person order by name desc";
-        var reader = Command.ExecuteReader();
-
+        using var reader = Command.ExecuteReader();
         reader.Read();
         reader.GetFieldValue<string>(1).Should().BeEquivalentTo(Mood.Happy.ToString());
 

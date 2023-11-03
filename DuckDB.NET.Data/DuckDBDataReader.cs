@@ -195,19 +195,11 @@ public class DuckDBDataReader : DbDataReader
         {
             DuckDBType.List => (T)vectorReaders[ordinal].GetList(rowsReadFromCurrentChunk - 1, typeof(T)),
             DuckDBType.Enum => (T)vectorReaders[ordinal].GetEnum(rowsReadFromCurrentChunk - 1, typeof(T)),
+            DuckDBType.Struct => (T)vectorReaders[ordinal].GetStruct(rowsReadFromCurrentChunk - 1, typeof(T)),
             _ => (T)vectorReaders[ordinal].GetValue(rowsReadFromCurrentChunk - 1)
         };
 
-        if (value is not null)
-            return (T)value;
-
-        if (default(T) is null && typeof(T).IsValueType)
-            return default!;
-
-        if (typeof(T) == typeof(object))
-            return (T)(object)DBNull.Value;
-
-        throw new InvalidCastException();
+        return value;
     }
 
     public override object GetValue(int ordinal)

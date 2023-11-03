@@ -1,8 +1,11 @@
-﻿using System;
+﻿using DuckDB.NET.Data.Internal;
+using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq.Expressions;
 using System.Numerics;
 using System.Text;
 
@@ -21,10 +24,13 @@ internal class VectorDataReader : IDisposable
     internal DuckDBType DuckDBType { get; }
 
     private readonly VectorDataReader? listDataReader;
+    private readonly Dictionary<string, VectorDataReader>? structDataReaders;
 
     private readonly byte scale;
     private readonly DuckDBType decimalType;
     private readonly DuckDBType enumType;
+
+    private static readonly ConcurrentDictionary<Type, TypeDetails> TypeCache = new();
 
     internal unsafe VectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType)
     {
@@ -58,6 +64,26 @@ internal class VectorDataReader : IDisposable
                     listDataReader = new VectorDataReader(childVector, childVectorData, childVectorValidity, type);
                     break;
                 }
+            case DuckDBType.Struct:
+                {
+                    var memberCount = NativeMethods.LogicalType.DuckDBStructTypeChildCount(logicalType);
+                    structDataReaders = new Dictionary<string, VectorDataReader>(StringComparer.OrdinalIgnoreCase);
+
+                    for (int index = 0; index < memberCount; index++)
+                    {
+                        var name = NativeMethods.LogicalType.DuckDBStructTypeChildName(logicalType, index).ToManagedString();
+                        var childVector = NativeMethods.DataChunks.DuckDBStructVectorGetChild(vector, index);
+
+                        var childVectorData = NativeMethods.DataChunks.DuckDBVectorGetData(childVector);
+                        var childVectorValidity = NativeMethods.DataChunks.DuckDBVectorGetValidity(childVector);
+
+                        using var childType = NativeMethods.LogicalType.DuckDBStructTypeChildType(logicalType, index);
+                        var type = NativeMethods.LogicalType.DuckDBGetTypeId(childType);
+
+                        structDataReaders[name] = new VectorDataReader(childVector, childVectorData, childVectorValidity, type);
+                    }
+                    break;
+                }
         }
 
         ClrType = DuckDBType switch
@@ -84,6 +110,7 @@ internal class VectorDataReader : IDisposable
             DuckDBType.Blob => typeof(Stream),
             DuckDBType.Enum => typeof(string),
             DuckDBType.List => typeof(List<>).MakeGenericType(listDataReader!.ClrType),
+            DuckDBType.Struct => typeof(Dictionary<string, object>),
             var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type})")
         };
     }
@@ -199,6 +226,86 @@ internal class VectorDataReader : IDisposable
         return enumItem;
     }
 
+    internal object GetStruct(ulong offset, Type returnType)
+    {
+        if (structDataReaders is null)
+        {
+            throw new InvalidOperationException("Can't get a struct from a non-struct vector.");
+        }
+
+        var result = Activator.CreateInstance(returnType);
+
+        if (result is Dictionary<string, object?> dictionary)
+        {
+            foreach (var reader in structDataReaders)
+            {
+                var value = reader.Value.IsValid(offset) ? reader.Value.GetValue(offset) : null;
+                dictionary.Add(reader.Key, value);
+            }
+
+            return result;
+        }
+
+        var typeDetails = TypeCache.GetOrAdd(returnType, type =>
+        {
+            var propertyInfos = returnType.GetProperties();
+            var details = new TypeDetails();
+
+            foreach (var propertyInfo in propertyInfos)
+            {
+                if (propertyInfo.SetMethod == null)
+                {
+                    continue;
+                }
+
+                var isNullable = !propertyInfo.PropertyType.IsValueType || Nullable.GetUnderlyingType(propertyInfo.PropertyType) != null;
+
+                var instanceParam = Expression.Parameter(typeof(object));
+                var argumentParam = Expression.Parameter(typeof(object));
+
+                var setAction = Expression.Lambda<Action<object, object>>(
+                    Expression.Call(Expression.Convert(instanceParam, type), propertyInfo.SetMethod, Expression.Convert(argumentParam, propertyInfo.PropertyType)),
+                    instanceParam, argumentParam
+                ).Compile();
+
+                details.Properties.Add(propertyInfo.Name, new PropertyDetails(propertyInfo.PropertyType, isNullable, setAction));
+            }
+
+            return details;
+        });
+
+        foreach (var properties in typeDetails.Properties)
+        {
+            structDataReaders.TryGetValue(properties.Key, out var reader);
+            var isNullable = properties.Value.Nullable;
+
+            if (reader == null)
+            {
+                if (!isNullable)
+                {
+                    throw new NullReferenceException($"Property '{properties.Key}' not found in struct");
+                }
+
+                continue;
+            }
+
+            if (reader.IsValid(offset))
+            {
+                var value = reader.GetValue(offset, properties.Value.PropertyType);
+                properties.Value.Setter(result!, value);
+            }
+            else
+            {
+                if (!isNullable)
+                {
+                    throw new NullReferenceException($"Property '{properties.Key}' is not nullable but struct contains null value");
+                }
+            }
+        }
+
+        return result!;
+    }
+
     internal unsafe object GetList(ulong offset, Type returnType)
     {
         if (listDataReader is null)
@@ -268,6 +375,7 @@ internal class VectorDataReader : IDisposable
             DuckDBType.Blob => GetStream(offset),
             DuckDBType.List => GetList(offset, targetType ?? ClrType),
             DuckDBType.Enum => GetEnum(offset, targetType ?? ClrType),
+            DuckDBType.Struct => GetStruct(offset, targetType ?? ClrType),
             var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type})")
         };
     }
@@ -322,5 +430,13 @@ internal class VectorDataReader : IDisposable
     {
         listDataReader?.Dispose();
         logicalType?.Dispose();
+
+        if (structDataReaders != null)
+        {
+            foreach (var item in structDataReaders)
+            {
+                item.Value.Dispose();
+            }
+        }
     }
 }
