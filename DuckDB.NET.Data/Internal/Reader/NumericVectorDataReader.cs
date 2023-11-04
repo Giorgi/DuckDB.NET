@@ -15,7 +15,7 @@ internal class NumericVectorDataReader : VectorDataReaderBase
     {
         if (!IsValid(offset))
         {
-            throw new InvalidCastException("Column value is null");
+            throw new InvalidCastException($"Column '{ColumnName}' value is null");
         }
 
         var isFloatingNumericType = TypeExtensions.IsFloatingNumericType<T>();

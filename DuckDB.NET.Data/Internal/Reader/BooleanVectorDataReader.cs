@@ -28,7 +28,7 @@ internal class BooleanVectorDataReader : VectorDataReaderBase
             return default!;
         }
 
-        throw new InvalidCastException("Column value is null");
+        throw new InvalidCastException($"Column '{ColumnName}' value is null");
     }
 
     internal override object GetValue(ulong offset, Type? targetType = null)

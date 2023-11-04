@@ -24,7 +24,7 @@ internal class EnumVectorDataReader : VectorDataReaderBase
 
         if (!IsValid(offset))
         {
-            throw new InvalidCastException("Column value is null");
+            throw new InvalidCastException($"Column '{ColumnName}' value is null");
         }
 
         switch (enumType)
@@ -45,7 +45,7 @@ internal class EnumVectorDataReader : VectorDataReaderBase
                 return ToEnumOrString(enumValue);
             }
             default:
-                throw new InvalidCastException("Column has wrong Enum type");
+                throw new InvalidCastException($"Column {ColumnName} has wrong Enum type");
         }
 
         T ToEnumOrString<TSource>(TSource enumValue) where TSource: unmanaged

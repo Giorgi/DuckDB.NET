@@ -26,7 +26,7 @@ internal class DateTimeVectorDataReader : VectorDataReaderBase
 
         if (!isNullable && !IsValid(offset))
         {
-            throw new InvalidCastException("Column value is null");
+            throw new InvalidCastException($"Column '{ColumnName}' value is null");
         }
 
         if (DuckDBType == DuckDBType.Date)
