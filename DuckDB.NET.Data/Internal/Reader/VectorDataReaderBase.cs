@@ -10,47 +10,24 @@ internal class VectorDataReaderBase : IDisposable
 {
     private readonly unsafe ulong* validityMaskPointer;
 
-    public Type ClrType { get; set; }
+    private Type? clrType;
+
+    public Type ClrType => clrType ??= GetColumnType();
+
+    public string ColumnName { get; }
     public DuckDBType DuckDBType { get; }
     private protected unsafe void* DataPointer { get; }
 
-    internal unsafe VectorDataReaderBase(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType)
+    internal unsafe VectorDataReaderBase(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName)
     {
         DataPointer = dataPointer;
         this.validityMaskPointer = validityMaskPointer;
 
         DuckDBType = columnType;
-
-        ClrType = DuckDBType switch
-        {
-            DuckDBType.Invalid => throw new DuckDBException("Invalid type"),
-            DuckDBType.Boolean => typeof(bool),
-            DuckDBType.TinyInt => typeof(sbyte),
-            DuckDBType.SmallInt => typeof(short),
-            DuckDBType.Integer => typeof(int),
-            DuckDBType.BigInt => typeof(long),
-            DuckDBType.UnsignedTinyInt => typeof(byte),
-            DuckDBType.UnsignedSmallInt => typeof(ushort),
-            DuckDBType.UnsignedInteger => typeof(uint),
-            DuckDBType.UnsignedBigInt => typeof(ulong),
-            DuckDBType.Float => typeof(float),
-            DuckDBType.Double => typeof(double),
-            DuckDBType.Timestamp => typeof(DateTime),
-            DuckDBType.Interval => typeof(DuckDBInterval),
-            DuckDBType.Date => typeof(DuckDBDateOnly),
-            DuckDBType.Time => typeof(DuckDBTimeOnly),
-            DuckDBType.HugeInt => typeof(BigInteger),
-            DuckDBType.Varchar => typeof(string),
-            DuckDBType.Decimal => typeof(decimal),
-            DuckDBType.Blob => typeof(Stream),
-            DuckDBType.Enum => typeof(string),
-            DuckDBType.List => typeof(List<>),
-            DuckDBType.Struct => typeof(Dictionary<string, object>),
-            var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type})")
-        };
+        ColumnName = columnName;
     }
 
-    public unsafe bool IsValid(ulong offset)
+    internal unsafe bool IsValid(ulong offset)
     {
         var validityMaskEntryIndex = offset / 64;
         var validityBitIndex = (int)(offset % 64);
@@ -61,8 +38,6 @@ internal class VectorDataReaderBase : IDisposable
         var isValid = (*validityMaskEntryPtr & validityBit) != 0;
         return isValid;
     }
-
-    internal unsafe T GetFieldData<T>(ulong offset) where T : unmanaged => *((T*)DataPointer + offset);
 
     internal virtual T GetValue<T>(ulong offset)
     {
@@ -88,10 +63,42 @@ internal class VectorDataReaderBase : IDisposable
     {
         return DuckDBType switch
         {
-            DuckDBType.Invalid => throw new DuckDBException("Invalid type"),
-            _ => throw new ArgumentException($"Unrecognised type {DuckDBType} ({(int)DuckDBType})")
+            DuckDBType.Invalid => throw new DuckDBException($"Invalid type for column {ColumnName}"),
+            _ => throw new ArgumentException($"Unrecognised type {DuckDBType} ({(int)DuckDBType}) for column {ColumnName}")
         };
     }
+
+    protected virtual Type GetColumnType()
+    {
+        return DuckDBType switch
+        {
+            DuckDBType.Invalid => throw new DuckDBException("Invalid type"),
+            DuckDBType.Boolean => typeof(bool),
+            DuckDBType.TinyInt => typeof(sbyte),
+            DuckDBType.SmallInt => typeof(short),
+            DuckDBType.Integer => typeof(int),
+            DuckDBType.BigInt => typeof(long),
+            DuckDBType.UnsignedTinyInt => typeof(byte),
+            DuckDBType.UnsignedSmallInt => typeof(ushort),
+            DuckDBType.UnsignedInteger => typeof(uint),
+            DuckDBType.UnsignedBigInt => typeof(ulong),
+            DuckDBType.Float => typeof(float),
+            DuckDBType.Double => typeof(double),
+            DuckDBType.Timestamp => typeof(DateTime),
+            DuckDBType.Interval => typeof(DuckDBInterval),
+            DuckDBType.Date => typeof(DuckDBDateOnly),
+            DuckDBType.Time => typeof(DuckDBTimeOnly),
+            DuckDBType.HugeInt => typeof(BigInteger),
+            DuckDBType.Varchar => typeof(string),
+            DuckDBType.Decimal => typeof(decimal),
+            DuckDBType.Blob => typeof(Stream),
+            DuckDBType.Enum => typeof(string),
+            DuckDBType.Struct => typeof(Dictionary<string, object>),
+            var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type})")
+        };
+    }
+
+    protected unsafe T GetFieldData<T>(ulong offset) where T : unmanaged => *((T*)DataPointer + offset);
 
     public virtual void Dispose()
     {

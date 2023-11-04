@@ -16,7 +16,7 @@ internal class DateTimeVectorDataReader : VectorDataReaderBase
     private static readonly Type TimeOnlyNullableType = typeof(TimeOnly?); 
     #endif
 
-    internal unsafe DateTimeVectorDataReader(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType) : base(dataPointer, validityMaskPointer, columnType)
+    internal unsafe DateTimeVectorDataReader(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
     }
 

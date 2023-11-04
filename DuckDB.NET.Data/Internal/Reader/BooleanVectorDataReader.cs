@@ -5,7 +5,7 @@ namespace DuckDB.NET.Data.Internal.Reader;
 
 internal class BooleanVectorDataReader : VectorDataReaderBase
 {
-    internal unsafe BooleanVectorDataReader(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType) : base(dataPointer, validityMaskPointer, columnType)
+    internal unsafe BooleanVectorDataReader(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
     }
 

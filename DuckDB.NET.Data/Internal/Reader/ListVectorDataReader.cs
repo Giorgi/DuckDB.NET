@@ -8,7 +8,7 @@ internal class ListVectorDataReader : VectorDataReaderBase
 {
     private readonly VectorDataReaderBase listDataReader;
 
-    internal unsafe ListVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType) : base(dataPointer, validityMaskPointer, columnType)
+    internal unsafe ListVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
         using var logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
         using var childType = NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType);
@@ -20,8 +20,12 @@ internal class ListVectorDataReader : VectorDataReaderBase
         var childVectorData = NativeMethods.DataChunks.DuckDBVectorGetData(childVector);
         var childVectorValidity = NativeMethods.DataChunks.DuckDBVectorGetValidity(childVector);
 
-        listDataReader = VectorDataReaderFactory.CreateReader(childVector, childVectorData, childVectorValidity, type);
-        ClrType = typeof(List<>).MakeGenericType(listDataReader.ClrType);
+        listDataReader = VectorDataReaderFactory.CreateReader(childVector, childVectorData, childVectorValidity, type, columnName);
+    }
+
+    protected override Type GetColumnType()
+    {
+        return typeof(List<>).MakeGenericType(listDataReader.ClrType);
     }
 
     internal override object GetValue(ulong offset, Type? targetType = null)

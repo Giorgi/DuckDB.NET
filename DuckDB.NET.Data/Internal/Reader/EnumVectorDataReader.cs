@@ -9,7 +9,7 @@ internal class EnumVectorDataReader : VectorDataReaderBase
     private readonly DuckDBType enumType;
     private readonly DuckDBLogicalType logicalType;
 
-    internal unsafe EnumVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType) : base(dataPointer, validityMaskPointer, columnType)
+    internal unsafe EnumVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
         logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
         enumType = NativeMethods.LogicalType.DuckDBEnumInternalType(logicalType);

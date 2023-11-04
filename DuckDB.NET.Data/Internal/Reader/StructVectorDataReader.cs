@@ -10,7 +10,7 @@ internal class StructVectorDataReader : VectorDataReaderBase
     private static readonly ConcurrentDictionary<Type, TypeDetails> TypeCache = new();
     private readonly Dictionary<string, VectorDataReaderBase> structDataReaders;
 
-    internal unsafe StructVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType) : base(dataPointer, validityMaskPointer, columnType)
+    internal unsafe StructVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
         using var logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
         var memberCount = NativeMethods.LogicalType.DuckDBStructTypeChildCount(logicalType);
@@ -27,7 +27,7 @@ internal class StructVectorDataReader : VectorDataReaderBase
             using var childType = NativeMethods.LogicalType.DuckDBStructTypeChildType(logicalType, index);
             var type = NativeMethods.LogicalType.DuckDBGetTypeId(childType);
 
-            structDataReaders[name] = VectorDataReaderFactory.CreateReader(childVector, childVectorData, childVectorValidity, type);
+            structDataReaders[name] = VectorDataReaderFactory.CreateReader(childVector, childVectorData, childVectorValidity, type, columnName);
         }
     }
 

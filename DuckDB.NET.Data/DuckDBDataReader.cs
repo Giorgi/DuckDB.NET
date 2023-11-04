@@ -81,7 +81,9 @@ public class DuckDBDataReader : DbDataReader
                 var vectorData = NativeMethods.DataChunks.DuckDBVectorGetData(vector);
                 var vectorValidityMask = NativeMethods.DataChunks.DuckDBVectorGetValidity(vector);
 
-                vectorReaders[i] = VectorDataReaderFactory.CreateReader(vector, vectorData, vectorValidityMask, NativeMethods.Query.DuckDBColumnType(ref currentResult, i));
+                vectorReaders[i] = VectorDataReaderFactory.CreateReader(vector, vectorData, vectorValidityMask, 
+                                                                        NativeMethods.Query.DuckDBColumnType(ref currentResult, i),
+                                                                        NativeMethods.Query.DuckDBColumnName(ref currentResult, i).ToManagedString(false));
             }
         }
     }
@@ -113,7 +115,7 @@ public class DuckDBDataReader : DbDataReader
 
     public override string GetDataTypeName(int ordinal)
     {
-        return NativeMethods.Query.DuckDBColumnType(ref currentResult, ordinal).ToString();
+        return vectorReaders[ordinal].DuckDBType.ToString();
     }
 
     public override DateTime GetDateTime(int ordinal)
@@ -163,15 +165,14 @@ public class DuckDBDataReader : DbDataReader
 
     public override string GetName(int ordinal)
     {
-        return NativeMethods.Query.DuckDBColumnName(ref currentResult, ordinal).ToManagedString(false);
+        return vectorReaders[ordinal].ColumnName;
     }
 
     public override int GetOrdinal(string name)
     {
         for (var i = 0; i < fieldCount; i++)
         {
-            var columnName = NativeMethods.Query.DuckDBColumnName(ref currentResult, i).ToManagedString(false);
-            if (name == columnName)
+            if (GetName(i) == name)
             {
                 return i;
             }
@@ -301,15 +302,15 @@ public class DuckDBDataReader : DbDataReader
     {
         if (closed) return;
 
+        foreach (var reader in vectorReaders)
+        {
+            reader.Dispose();
+        }
+
         currentChunk?.Dispose();
         foreach (var result in queryResults)
         {
             result.Dispose();
-        }
-
-        foreach (var reader in vectorReaders)
-        {
-            reader.Dispose();
         }
 
         if (behavior == CommandBehavior.CloseConnection)

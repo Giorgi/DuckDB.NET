@@ -9,7 +9,7 @@ internal class DecimalVectorDataReader : NumericVectorDataReader
     private readonly byte scale;
     private readonly DuckDBType decimalType;
 
-    internal unsafe DecimalVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType) : base(dataPointer, validityMaskPointer, columnType)
+    internal unsafe DecimalVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
         using var logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
         scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
