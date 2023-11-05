@@ -117,24 +117,30 @@ public class DuckDBDataReaderTests : DuckDBTestBase
         reader.GetDataTypeName(0).Should().Be(DuckDBType.Interval.ToString());
 
         var interval = reader.GetFieldValue<DuckDBInterval>(0);
+        var value = (DuckDBInterval)reader.GetValue(0);
 
         interval.Months.Should().Be(12);
+        value.Months.Should().Be(12);
 
         Command.CommandText = "SELECT INTERVAL '28' DAYS;";
         reader = Command.ExecuteReader();
         reader.Read();
 
         interval = reader.GetFieldValue<DuckDBInterval>(0);
-
+        value = (DuckDBInterval)reader.GetValue(0);
+        
         interval.Days.Should().Be(28);
+        value.Days.Should().Be(28);
 
         Command.CommandText = "SELECT INTERVAL 30 SECONDS;";
         reader = Command.ExecuteReader();
         reader.Read();
 
         interval = reader.GetFieldValue<DuckDBInterval>(0);
+        value = (DuckDBInterval)reader.GetValue(0);
 
         interval.Micros.Should().Be(30_000_000);
+        value.Micros.Should().Be(30_000_000);
     }
 
     [Fact]

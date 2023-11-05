@@ -26,7 +26,7 @@ public class TimeTests
 
         scalar.Should().BeOfType<DuckDBTimeOnly>();
 
-        var timeOnly = (DuckDBTimeOnly) scalar;
+        var timeOnly = (DuckDBTimeOnly)scalar;
 
         timeOnly.Hour.Should().Be((byte)hour);
         timeOnly.Min.Should().Be((byte)minute);
@@ -42,10 +42,10 @@ public class TimeTests
         dateTime.Second.Should().Be(second);
         dateTime.Millisecond.Should().Be(microsecond / 1000);
 
-        var convertedValue = (DateTime) timeOnly;
+        var convertedValue = (DateTime)timeOnly;
         convertedValue.Should().Be(dateTime);
     }
-    
+
     [Theory]
     [InlineData(12, 15, 17, 350_000)]
     [InlineData(12, 17, 15, 450_000)]
@@ -60,7 +60,7 @@ public class TimeTests
 
         var expectedValue = new DateTime(DateTime.MinValue.Year, DateTime.MinValue.Month, DateTime.MinValue.Day,
             hour, minute, second).AddTicks(microsecond * 10);
-        
+
         using var cmd = connection.CreateCommand();
         cmd.CommandText = "SELECT ?;";
         cmd.Parameters.Add(new DuckDBParameter((DuckDBTimeOnly)expectedValue));
@@ -69,7 +69,7 @@ public class TimeTests
 
         scalar.Should().BeOfType<DuckDBTimeOnly>();
 
-        var timeOnly = (DuckDBTimeOnly) scalar;
+        var timeOnly = (DuckDBTimeOnly)scalar;
 
         timeOnly.Hour.Should().Be((byte)hour);
         timeOnly.Min.Should().Be((byte)minute);
@@ -85,10 +85,10 @@ public class TimeTests
         dateTime.Second.Should().Be(second);
         dateTime.Millisecond.Should().Be(microsecond / 1000);
 
-        var convertedValue = (DateTime) timeOnly;
+        var convertedValue = (DateTime)timeOnly;
         convertedValue.Should().Be(dateTime);
     }
-    
+
     [Theory]
     [InlineData(12, 15, 17, 350)]
     [InlineData(12, 17, 15, 450)]
@@ -111,7 +111,7 @@ public class TimeTests
         cmd.CommandText = "INSERT INTO TimeOnlyTestTable (a, b) VALUES (42, ?);";
         cmd.Parameters.Add(new DuckDBParameter((DuckDBTimeOnly)expectedValue));
         cmd.ExecuteNonQuery();
-        
+
         cmd.Parameters.Clear();
         cmd.CommandText = "SELECT * FROM TimeOnlyTestTable LIMIT 1;";
 
@@ -120,14 +120,14 @@ public class TimeTests
 
         reader.GetFieldType(1).Should().Be(typeof(DuckDBTimeOnly));
 
-        var timeOnly = reader.GetFieldValue<DuckDBTimeOnly>(1);
+        var duckDBTimeOnly = reader.GetFieldValue<DuckDBTimeOnly>(1);
 
-        timeOnly.Hour.Should().Be(hour);
-        timeOnly.Min.Should().Be(minute);
-        timeOnly.Sec.Should().Be(second);
-        timeOnly.Microsecond.Should().Be(microsecond);
+        duckDBTimeOnly.Hour.Should().Be(hour);
+        duckDBTimeOnly.Min.Should().Be(minute);
+        duckDBTimeOnly.Sec.Should().Be(second);
+        duckDBTimeOnly.Microsecond.Should().Be(microsecond);
 
-        var dateTime = timeOnly.ToDateTime();
+        var dateTime = duckDBTimeOnly.ToDateTime();
         dateTime.Year.Should().Be(DateTime.MinValue.Year);
         dateTime.Month.Should().Be(DateTime.MinValue.Month);
         dateTime.Day.Should().Be(DateTime.MinValue.Day);
@@ -136,8 +136,11 @@ public class TimeTests
         dateTime.Second.Should().Be(second);
         dateTime.Millisecond.Should().Be(microsecond / 1000);
 
-        var convertedValue = (DateTime) timeOnly;
+        var convertedValue = (DateTime)duckDBTimeOnly;
         convertedValue.Should().Be(dateTime);
+
+        var timeOnly = reader.GetFieldValue<TimeOnly>(1);
+        timeOnly.Should().Be(new TimeOnly(hour, minute, second).Add(TimeSpan.FromTicks(microsecond * 10)));
 
         cmd.CommandText = "DROP TABLE TimeOnlyTestTable;";
         cmd.ExecuteNonQuery();
