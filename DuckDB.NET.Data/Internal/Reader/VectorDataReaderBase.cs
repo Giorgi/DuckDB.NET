@@ -72,7 +72,7 @@ internal class VectorDataReaderBase : IDisposable
     {
         return DuckDBType switch
         {
-            DuckDBType.Invalid => throw new DuckDBException("Invalid type"),
+            DuckDBType.Invalid => throw new DuckDBException($"Invalid type for column {ColumnName}"),
             DuckDBType.Boolean => typeof(bool),
             DuckDBType.TinyInt => typeof(sbyte),
             DuckDBType.SmallInt => typeof(short),
@@ -94,7 +94,7 @@ internal class VectorDataReaderBase : IDisposable
             DuckDBType.Blob => typeof(Stream),
             DuckDBType.Enum => typeof(string),
             DuckDBType.Struct => typeof(Dictionary<string, object>),
-            var type => throw new ArgumentException($"Unrecognised type {type} ({(int)type})")
+            _ => throw new ArgumentException($"Unrecognised type {DuckDBType} ({(int)DuckDBType}) for column {ColumnName}")
         };
     }
 

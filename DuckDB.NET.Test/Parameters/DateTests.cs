@@ -88,7 +88,7 @@ public class DateTests
         connection.Open();
 
         using var cmd = connection.CreateCommand();
-        cmd.CommandText = "CREATE TABLE DateOnlyTestTable (a INTEGER, b DATE);";
+        cmd.CommandText = "CREATE TABLE DateOnlyTestTable (a INTEGER, b DATE not null, c Date);";
         cmd.ExecuteNonQuery();
 
         cmd.CommandText = "INSERT INTO DateOnlyTestTable (a, b) VALUES (42, ?);";

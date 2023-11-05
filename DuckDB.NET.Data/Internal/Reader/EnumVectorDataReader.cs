@@ -45,7 +45,7 @@ internal class EnumVectorDataReader : VectorDataReaderBase
                 return ToEnumOrString(enumValue);
             }
             default:
-                throw new InvalidCastException($"Column {ColumnName} has wrong Enum type");
+                throw new DuckDBException($"Invalid type {DuckDBType} ({(int)DuckDBType}) for column {ColumnName}");
         }
 
         T ToEnumOrString<TSource>(TSource enumValue) where TSource: unmanaged

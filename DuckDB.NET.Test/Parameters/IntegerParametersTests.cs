@@ -47,6 +47,8 @@ public class IntegerParametersTests
 
             value.Should().Be(expectedValue);
 
+            reader.Invoking(r => r.GetFieldValue<string>(0)).Should().Throw<InvalidCastException>();
+
             reader.GetFieldType(0).Should().Match(type => type == typeof(TValue) || type == Nullable.GetUnderlyingType(typeof(TValue)));
         }
         finally

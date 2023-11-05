@@ -60,16 +60,15 @@ internal class DecimalVectorDataReader : NumericVectorDataReader
             case DuckDBType.BigInt:
                 return decimal.Divide(GetFieldData<long>(offset), pow);
             case DuckDBType.HugeInt:
-            {
-                var hugeInt = GetBigInteger(offset);
+                {
+                    var hugeInt = GetBigInteger(offset);
 
-                var result = (decimal)BigInteger.DivRem(hugeInt, (BigInteger)pow, out var remainder);
+                    var result = (decimal)BigInteger.DivRem(hugeInt, (BigInteger)pow, out var remainder);
 
-                result += decimal.Divide((decimal)remainder, pow);
-                return result;
-            }
-            default:
-                throw new ArgumentOutOfRangeException();
+                    result += decimal.Divide((decimal)remainder, pow);
+                    return result;
+                }
+            default: throw new DuckDBException($"Invalid type {DuckDBType} ({(int)DuckDBType}) for column {ColumnName}");
         }
     }
 }

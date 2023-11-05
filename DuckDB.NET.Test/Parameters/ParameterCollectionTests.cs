@@ -87,10 +87,10 @@ public class ParameterCollectionTests
         connection.Open();
 
         var duckDbCommand = connection.CreateCommand();
-        duckDbCommand.CommandText = "CREATE TABLE ParameterConstructorTests (key INTEGER, value double, State Boolean, ErrorCode Long)";
+        duckDbCommand.CommandText = "CREATE TABLE ParameterConstructorTests (key INTEGER, value double, State Boolean, ErrorCode Long, value2 float)";
         duckDbCommand.ExecuteNonQuery();
 
-        duckDbCommand.CommandText = "Insert Into ParameterConstructorTests values (?,?,?,?)";
+        duckDbCommand.CommandText = "Insert Into ParameterConstructorTests values (?,?,?,?,?)";
         duckDbCommand.Parameters.Add(new DuckDBParameter(DbType.Double, 2.4));
         duckDbCommand.Parameters.Add(new DuckDBParameter(true));
         duckDbCommand.Parameters.Insert(0, new DuckDBParameter(2));
@@ -98,7 +98,7 @@ public class ParameterCollectionTests
         duckDbCommand.Parameters.AddRange(new List<DuckDBParameter>{new()
         {
             Value = true
-        }, new(24)});
+        }, new(24), new(2.0f)});
 
         duckDbCommand.ExecuteNonQuery();
 
@@ -112,6 +112,7 @@ public class ParameterCollectionTests
         dataReader.GetDouble(1).Should().Be(2.4);
         dataReader.GetBoolean(2).Should().Be(true);
         dataReader.GetInt32(3).Should().Be(24);
+        dataReader.GetFloat(4).Should().Be(2.0f);
     }
 
     [Fact]
