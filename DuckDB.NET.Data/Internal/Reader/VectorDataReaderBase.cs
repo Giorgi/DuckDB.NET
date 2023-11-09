@@ -47,7 +47,7 @@ internal class VectorDataReaderBase : IDisposable
         if (isNullable)
         {
             return IsValid(offset)
-                ? (T)GetValue(offset, targetType)
+                ? (T)GetValue(offset, Nullable.GetUnderlyingType(targetType))
                 : default!; //T is Nullable<> and we are returning null so suppress compiler warning.
         }
 

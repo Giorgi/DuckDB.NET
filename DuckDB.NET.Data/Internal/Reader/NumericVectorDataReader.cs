@@ -26,7 +26,7 @@ internal class NumericVectorDataReader : VectorDataReaderBase
             return base.GetValueInternal<T>(offset, targetType);
         }
 
-        //If T is integral type and column is also integral read the data and use Unsafe.As<> to change type
+        //If T is integral type and column is also integral read the data and use Unsafe.As<> or Convert.ChangeType to change type
         //If T is floating and column is floating too, read data and cast to T
         //Otherwise use the non-generic path
         if (isIntegralNumericType)
@@ -56,7 +56,7 @@ internal class NumericVectorDataReader : VectorDataReaderBase
 
     internal override object GetValue(ulong offset, Type? targetType = null)
     {
-        return DuckDBType switch
+        var value = DuckDBType switch
         {
             DuckDBType.TinyInt => GetFieldData<sbyte>(offset),
             DuckDBType.SmallInt => GetFieldData<short>(offset),
@@ -71,6 +71,18 @@ internal class NumericVectorDataReader : VectorDataReaderBase
             DuckDBType.HugeInt => GetBigInteger(offset),
             _ => base.GetValue(offset, targetType)
         };
+
+        if (targetType == null)
+        {
+            return value;
+        }
+
+        if (targetType.IsNumeric())
+        {
+            return Convert.ChangeType(value, targetType);
+        }
+
+        throw new InvalidCastException($"Cannot cast from {value.GetType().Name} to {targetType.Name} in column {ColumnName}");
     }
 
     protected unsafe BigInteger GetBigInteger(ulong offset)
@@ -108,8 +120,13 @@ internal class NumericVectorDataReader : VectorDataReaderBase
 
     private TResult GetUnmanagedTypeValue<TQuery, TResult>(ulong offset) where TQuery : unmanaged
     {
-        var fieldData = GetFieldData<TQuery>(offset);
+        var value = GetFieldData<TQuery>(offset);
 
-        return Unsafe.As<TQuery, TResult>(ref fieldData);
+        if (typeof(TQuery) == typeof(TResult))
+        {
+            return Unsafe.As<TQuery, TResult>(ref value);
+        }
+
+        return (TResult)Convert.ChangeType(value, typeof(TResult));
     }
 }

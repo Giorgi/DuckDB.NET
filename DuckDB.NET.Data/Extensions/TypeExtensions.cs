@@ -14,8 +14,8 @@ internal static class TypeExtensions
     private static readonly HashSet<Type> IntegralNumericTypes = new()
     {
         typeof(byte), typeof(sbyte),
-        typeof(short), typeof(ushort), 
-        typeof(int), typeof(uint), 
+        typeof(short), typeof(ushort),
+        typeof(int), typeof(uint),
         typeof(long),typeof(ulong),
         typeof(BigInteger)
     };
@@ -39,5 +39,10 @@ internal static class TypeExtensions
     public static bool IsIntegralNumericType<T>()
     {
         return IntegralNumericTypes.Contains(typeof(T));
+    }
+
+    public static bool IsNumeric(this Type type)
+    {
+        return IntegralNumericTypes.Contains(type) || FloatingNumericTypes.Contains(type);
     }
 }
