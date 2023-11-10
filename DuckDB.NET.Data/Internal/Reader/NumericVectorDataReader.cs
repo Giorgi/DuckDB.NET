@@ -79,7 +79,14 @@ internal class NumericVectorDataReader : VectorDataReaderBase
 
         if (targetType.IsNumeric())
         {
-            return Convert.ChangeType(value, targetType);
+            try
+            {
+                return Convert.ChangeType(value, targetType);
+            }
+            catch (OverflowException)
+            {
+                throw new InvalidCastException($"Cannot cast from {value.GetType().Name} to {targetType.Name} in column {ColumnName}");
+            }
         }
 
         throw new InvalidCastException($"Cannot cast from {value.GetType().Name} to {targetType.Name} in column {ColumnName}");
@@ -127,6 +134,13 @@ internal class NumericVectorDataReader : VectorDataReaderBase
             return Unsafe.As<TQuery, TResult>(ref value);
         }
 
-        return (TResult)Convert.ChangeType(value, typeof(TResult));
+        try
+        {
+            return (TResult)Convert.ChangeType(value, typeof(TResult));
+        }
+        catch (OverflowException)
+        {
+            throw new InvalidCastException($"Cannot cast from {value.GetType().Name} to {typeof(TResult).Name} in column {ColumnName}");
+        }
     }
 }
