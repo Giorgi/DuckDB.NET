@@ -171,6 +171,49 @@ public class DuckDBDataReaderListTests : DuckDBTestBase
         person.Mood.Should().Be(DuckDBDataReaderEnumTests.Mood.Happy);
     }
 
+    [Fact]
+    public void ReadListAsEveryNumericType()
+    {
+        Command.CommandText = "SELECT [1, 2, 3];";
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        TestReadValueAs<byte>();
+        TestReadValueAs<sbyte>();
+        TestReadValueAs<ushort>();
+        TestReadValueAs<short>();
+        TestReadValueAs<uint>();
+        TestReadValueAs<int>();
+        TestReadValueAs<ulong>();
+        TestReadValueAs<long>();
+
+        void TestReadValueAs<T>()
+        {
+            var list = reader.GetFieldValue<List<T>>(0);
+            list.Should().BeEquivalentTo(new List<long> { 1, 2, 3 });
+        }
+    }
+
+    [Fact]
+    public void ReadListWithLargeValuesAsEveryNumericTypeThrowsException()
+    {
+        Command.CommandText = $"SELECT [{long.MaxValue - 1}, {long.MaxValue}];";
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        TestReadValueAs<byte>();
+        TestReadValueAs<sbyte>();
+        TestReadValueAs<ushort>();
+        TestReadValueAs<short>();
+        TestReadValueAs<uint>();
+        TestReadValueAs<int>();
+
+        void TestReadValueAs<T>()
+        {
+            reader.Invoking(dataReader => dataReader.GetFieldValue<List<T>>(0)).Should().Throw<InvalidCastException>();
+        }
+    }
+
     class Person
     {
         public List<int> Ids { get; set; }
