@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using FluentAssertions;
 using Xunit;
 
@@ -34,6 +35,11 @@ public class DuckDBDataReaderEnumTests : DuckDBTestBase
 
         reader.Read();
         reader.GetFieldValue<Mood>(1).Should().Be(Mood.Ok);
+
+        reader.Read();
+        reader.GetFieldValue<Mood?>(1).Should().BeNull();
+
+        reader.Invoking(dataReader => dataReader.GetFieldValue<Mood>(1)).Should().Throw<InvalidCastException>();
     }
 
     [Fact]

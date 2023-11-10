@@ -51,7 +51,10 @@ public class DuckDBDataReaderTests : DuckDBTestBase
         Command.CommandText = "Insert Into IndexerValuesTests values (1, 2.4, true, null, null, null)";
         Command.ExecuteNonQuery();
 
-        Command.CommandText = "Insert Into IndexerValuesTests values (2, 4.8, false, null, null, null)";
+        Command.CommandText = "Insert Into IndexerValuesTests values (2, 4.8, null, null, null, null)";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "Insert Into IndexerValuesTests values (3, null, null, null, null, null)";
         Command.ExecuteNonQuery();
 
         Command.CommandText = "select * from IndexerValuesTests";
@@ -63,6 +66,7 @@ public class DuckDBDataReaderTests : DuckDBTestBase
         reader[0].Should().Be(reader["key"]);
         reader[1].Should().Be(reader.GetDecimal(1));
         reader.GetValue(2).Should().Be(reader.GetBoolean(2));
+        reader.GetFieldValue<bool?>(2).Should().Be(reader.GetBoolean(2));
         reader[3].Should().Be(DBNull.Value);
 
         var values = new object[6];
@@ -76,6 +80,14 @@ public class DuckDBDataReaderTests : DuckDBTestBase
 
         reader.Read();
         reader.GetDecimal(1).Should().Be(4.8m);
+        reader.GetFieldValue<bool?>(2).Should().BeNull();
+
+        reader.Invoking(dataReader => dataReader.GetFieldValue<bool>(2)).Should().Throw<InvalidCastException>();
+        reader.Invoking(dataReader => dataReader.GetFieldValue<int>(3)).Should().Throw<InvalidCastException>();
+
+        reader.Read();
+        reader.GetFieldValue<decimal?>(1).Should().BeNull();
+        reader.Invoking(dataReader => dataReader.GetFieldValue<decimal>(1)).Should().Throw<InvalidCastException>();
     }
 
     [Fact]
@@ -105,24 +117,30 @@ public class DuckDBDataReaderTests : DuckDBTestBase
         reader.GetDataTypeName(0).Should().Be(DuckDBType.Interval.ToString());
 
         var interval = reader.GetFieldValue<DuckDBInterval>(0);
+        var value = (DuckDBInterval)reader.GetValue(0);
 
         interval.Months.Should().Be(12);
+        value.Months.Should().Be(12);
 
         Command.CommandText = "SELECT INTERVAL '28' DAYS;";
         reader = Command.ExecuteReader();
         reader.Read();
 
         interval = reader.GetFieldValue<DuckDBInterval>(0);
-
+        value = (DuckDBInterval)reader.GetValue(0);
+        
         interval.Days.Should().Be(28);
+        value.Days.Should().Be(28);
 
         Command.CommandText = "SELECT INTERVAL 30 SECONDS;";
         reader = Command.ExecuteReader();
         reader.Read();
 
         interval = reader.GetFieldValue<DuckDBInterval>(0);
+        value = (DuckDBInterval)reader.GetValue(0);
 
         interval.Micros.Should().Be(30_000_000);
+        value.Micros.Should().Be(30_000_000);
     }
 
     [Fact]
