@@ -50,6 +50,27 @@ internal class ListVectorDataReader : VectorDataReaderBase
         var list = Activator.CreateInstance(returnType) as IList
                    ?? throw new ArgumentException($"The type '{returnType.Name}' specified in parameter {nameof(returnType)} cannot be instantiated as an IList.");
 
+        //Special case for specific types to avoid boxing
+        switch (list)
+        {
+            case List<int> theList:
+                return BuildList<int>(theList);
+            case List<int?> theList:
+                return BuildList<int?>(theList);
+            case List<float> theList:
+                return BuildList<float>(theList);
+            case List<float?> theList:
+                return BuildList<float?>(theList);
+            case List<double> theList:
+                return BuildList<double>(theList);
+            case List<double?> theList:
+                return BuildList<double?>(theList);
+            case List<decimal> theList:
+                return BuildList<decimal>(theList);
+            case List<decimal?> theList:
+                return BuildList<decimal?>(theList);
+        }
+
         var targetType = nullableType ?? listType;
 
         for (ulong i = 0; i < listData->Length; i++)
@@ -74,6 +95,31 @@ internal class ListVectorDataReader : VectorDataReaderBase
         }
 
         return list;
+
+        List<T> BuildList<T>(List<T> list)
+        {
+            for (ulong i = 0; i < listData->Length; i++)
+            {
+                var childOffset = i + listData->Offset;
+                if (listDataReader.IsValid(childOffset))
+                {
+                    var item = listDataReader.GetValue<T>(childOffset);
+                    list.Add(item);
+                }
+                else
+                {
+                    if (allowNulls)
+                    {
+                        list.Add(default!);
+                    }
+                    else
+                    {
+                        throw new NullReferenceException("The list contains null value");
+                    }
+                }
+            }
+            return list;
+        }
     }
 
     public override void Dispose()
