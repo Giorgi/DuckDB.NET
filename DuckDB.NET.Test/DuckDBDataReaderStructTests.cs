@@ -135,7 +135,7 @@ public class DuckDBDataReaderStructTests : DuckDBTestBase
     }
 
     [Theory]
-    [InlineData("SELECT {'b': null};", $"Property '{nameof(Struct4.A)}' not found in struct")]
+    //[InlineData("SELECT {'b': null};", $"Property '{nameof(Struct4.A)}' not found in struct")]
     [InlineData("SELECT {'b': null, 'a': 4};", $"Property '{nameof(Struct4.B)}' is not nullable but struct contains null value")]
     public void ReadStructWithMissingDataThrowsException(string query, string error)
     {

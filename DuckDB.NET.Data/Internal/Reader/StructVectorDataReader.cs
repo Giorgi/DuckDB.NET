@@ -91,10 +91,10 @@ internal class StructVectorDataReader : VectorDataReaderBase
 
             if (reader == null)
             {
-                if (!isNullable)
-                {
-                    throw new NullReferenceException($"Property '{properties.Key}' not found in struct");
-                }
+                //if (!isNullable)
+                //{
+                //    throw new NullReferenceException($"Property '{properties.Key}' not found in struct");
+                //}
 
                 continue;
             }
