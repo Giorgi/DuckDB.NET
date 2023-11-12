@@ -11,30 +11,30 @@ namespace DuckDB.NET.Test.Parameters;
 
 public class ParameterCollectionTests : DuckDBTestBase
 {
-	public ParameterCollectionTests(DuckDBDatabaseFixture db) : base(db)
-	{
-	}
+    public ParameterCollectionTests(DuckDBDatabaseFixture db) : base(db)
+    {
+    }
 
-	[Theory]
+    [Theory]
     [InlineData("SELECT ?1;")]
     [InlineData("SELECT ?;")]
     [InlineData("SELECT $1;")]
     public void BindSingleValueTest(string query)
     {
         Command.Parameters.Add(new DuckDBParameter("1", 42));
-		Command.CommandText = query;
+        Command.CommandText = query;
         var scalar = Command.ExecuteScalar();
         scalar.Should().Be(42);
     }
-    
+
     [Theory]
     [InlineData("SELECT ?1;")]
     [InlineData("SELECT ?;")]
     [InlineData("SELECT $1;")]
     public void BindSingleValueNullTest(string query)
     {
-		Command.Parameters.Add(new DuckDBParameter("1", null));
-		Command.CommandText = query;
+        Command.Parameters.Add(new DuckDBParameter("1", null));
+        Command.CommandText = query;
         var scalar = Command.ExecuteScalar();
         scalar.Should().Be(DBNull.Value);
     }
@@ -53,37 +53,37 @@ public class ParameterCollectionTests : DuckDBTestBase
     [Fact]
     public void ParameterCountMismatchTest()
     {
-		Command.CommandText = "SELECT ?";
-		Command.Invoking(dbCommand => dbCommand.ExecuteScalar()).Should().Throw<InvalidOperationException>();
+        Command.CommandText = "SELECT ?";
+        Command.Invoking(dbCommand => dbCommand.ExecuteScalar()).Should().Throw<InvalidOperationException>();
     }
 
     [Fact]
     public void PrepareCommandNoOperationTest()
     {
         Command.CommandText = "SELECT ? FROM nowhere";
-		Command.Invoking(dbCommand => dbCommand.Prepare()).Should().NotThrow();
+        Command.Invoking(dbCommand => dbCommand.Prepare()).Should().NotThrow();
     }
 
     [Fact]
     public void ParameterConstructorTests()
     {
         Command.CommandText = "CREATE TABLE ParameterConstructorTests (key INTEGER, value double, State Boolean, ErrorCode Long, value2 float)";
-		Command.ExecuteNonQuery();
+        Command.ExecuteNonQuery();
 
-		Command.CommandText = "Insert Into ParameterConstructorTests values (?,?,?,?,?)";
-		Command.Parameters.Add(new DuckDBParameter(DbType.Double, 2.4));
-		Command.Parameters.Add(new DuckDBParameter(true));
+        Command.CommandText = "Insert Into ParameterConstructorTests values (?,?,?,?,?)";
+        Command.Parameters.Add(new DuckDBParameter(DbType.Double, 2.4));
+        Command.Parameters.Add(new DuckDBParameter(true));
         Command.Parameters.Insert(0, new DuckDBParameter(2));
-		Command.Parameters.RemoveAt(2);
-		Command.Parameters.AddRange(new List<DuckDBParameter>{new()
+        Command.Parameters.RemoveAt(2);
+        Command.Parameters.AddRange(new List<DuckDBParameter>{new()
         {
             Value = true
         }, new(24), new(2.0f)});
 
-		Command.ExecuteNonQuery();
+        Command.ExecuteNonQuery();
 
-		Command.CommandText = "select * from ParameterConstructorTests";
-		Command.Parameters.Clear();
+        Command.CommandText = "select * from ParameterConstructorTests";
+        Command.Parameters.Clear();
 
         var dataReader = Command.ExecuteReader();
         dataReader.Read();
@@ -113,7 +113,7 @@ public class ParameterCollectionTests : DuckDBTestBase
         parameters[0] = duckDBParameterLong;
         parameters.Contains(duckDBParameterLong).Should().BeTrue();
 
-        var duckDBParameterFloat = new DuckDBParameter("param1",2f);
+        var duckDBParameterFloat = new DuckDBParameter("param1", 2f);
         parameters["param0"] = duckDBParameterFloat;
         parameters["param1"].Should().Be(duckDBParameterFloat);
 
@@ -133,13 +133,13 @@ public class ParameterCollectionTests : DuckDBTestBase
         using var defer = new Defer(() => Connection.Execute("DROP TABLE ParametersTestKeyValue;"));
 
         Command.CommandText = "CREATE TABLE ParametersTestKeyValue (KEY INTEGER, VALUE TEXT)";
-		Command.ExecuteNonQuery();
-		Command.CommandText = "INSERT INTO ParametersTestKeyValue (KEY, VALUE) VALUES (42, 'test string');";
-		Command.ExecuteNonQuery();
+        Command.ExecuteNonQuery();
+        Command.CommandText = "INSERT INTO ParametersTestKeyValue (KEY, VALUE) VALUES (42, 'test string');";
+        Command.ExecuteNonQuery();
 
-		Command.CommandText = queryStatement;
-		Command.Parameters.Add(new DuckDBParameter("1", 42));
-		Command.Parameters.Add(new DuckDBParameter("2", "hello"));
+        Command.CommandText = queryStatement;
+        Command.Parameters.Add(new DuckDBParameter("1", 42));
+        Command.Parameters.Add(new DuckDBParameter("2", "hello"));
         var affectedRows = Command.ExecuteNonQuery();
         affectedRows.Should().NotBe(0);
     }
@@ -151,14 +151,14 @@ public class ParameterCollectionTests : DuckDBTestBase
     {
         using var defer = new Defer(() => Connection.Execute("DROP TABLE ParametersTestKeyValue;"));
 
-		Command.CommandText = "CREATE TABLE ParametersTestKeyValue (KEY INTEGER, VALUE TEXT)";
-		Command.ExecuteNonQuery();
-		Command.CommandText = "INSERT INTO ParametersTestKeyValue (KEY, VALUE) VALUES (42, 'test string');";
-		Command.ExecuteNonQuery();
+        Command.CommandText = "CREATE TABLE ParametersTestKeyValue (KEY INTEGER, VALUE TEXT)";
+        Command.ExecuteNonQuery();
+        Command.CommandText = "INSERT INTO ParametersTestKeyValue (KEY, VALUE) VALUES (42, 'test string');";
+        Command.ExecuteNonQuery();
 
-		Command.CommandText = queryStatement;
-		Command.Parameters.Add(new DuckDBParameter("key", 42));
-		Command.Parameters.Add(new DuckDBParameter("value", "hello"));
+        Command.CommandText = queryStatement;
+        Command.Parameters.Add(new DuckDBParameter("key", 42));
+        Command.Parameters.Add(new DuckDBParameter("value", "hello"));
         var affectedRows = Command.ExecuteNonQuery();
         affectedRows.Should().NotBe(0);
     }
@@ -172,7 +172,7 @@ public class ParameterCollectionTests : DuckDBTestBase
     {
         using var defer = new Defer(() => Connection.Execute("DROP TABLE ParametersTestInvalidOrderKeyValue;"));
 
-		Command.CommandText = "CREATE TABLE ParametersTestInvalidOrderKeyValue (KEY INTEGER, VALUE TEXT)";
+        Command.CommandText = "CREATE TABLE ParametersTestInvalidOrderKeyValue (KEY INTEGER, VALUE TEXT)";
         Command.ExecuteNonQuery();
         Command.CommandText = "INSERT INTO ParametersTestInvalidOrderKeyValue (KEY, VALUE) VALUES (42, 'test string');";
         Command.ExecuteNonQuery();
@@ -222,7 +222,7 @@ public class ParameterCollectionTests : DuckDBTestBase
         var dp = new DynamicParameters();
         dp.Add("foo", 1);
         dp.Add("bar", "test");
-        
+
         Connection.Execute(queryStatement, dp).Should().BeGreaterOrEqualTo(1);
         Connection.Execute(queryStatement, new { foo = 1, bar = "test" }).Should().BeGreaterOrEqualTo(1, "Passing parameters as object should work");
     }
@@ -245,7 +245,7 @@ public class ParameterCollectionTests : DuckDBTestBase
 
         Connection.Execute(queryStatement, dp).Should().BeLessOrEqualTo(1);
     }
-    
+
     [Theory]
     [InlineData("SELECT ?1;")]
     [InlineData("SELECT ?;")]
@@ -274,31 +274,31 @@ public class ParameterCollectionTests : DuckDBTestBase
             .Should().ThrowExactly<InvalidOperationException>();
     }
 
-	[Fact]
-	public void BindUnreferencedNamedParameterInParameterlessQueryTest()
-	{
-		Command.CommandText = "SELECT 42";
-		Command.Parameters.Add(new DuckDBParameter("unused", 24));
-		var scalar = Command.ExecuteScalar();
-		scalar.Should().Be(42);
-	}
+    [Fact]
+    public void BindUnreferencedNamedParameterInParameterlessQueryTest()
+    {
+        Command.CommandText = "SELECT 42";
+        Command.Parameters.Add(new DuckDBParameter("unused", 24));
+        var scalar = Command.ExecuteScalar();
+        scalar.Should().Be(42);
+    }
 
 
-	[Fact]
+    [Fact]
     public void BindUnreferencedNamedParameterTest()
     {
-		Command.CommandText = "SELECT $used";
-		Command.Parameters.Add(new DuckDBParameter("unused", 24));
-		Command.Parameters.Add(new DuckDBParameter("used", 42));
-		var scalar = Command.ExecuteScalar();
+        Command.CommandText = "SELECT $used";
+        Command.Parameters.Add(new DuckDBParameter("unused", 24));
+        Command.Parameters.Add(new DuckDBParameter("used", 42));
+        var scalar = Command.ExecuteScalar();
         scalar.Should().Be(42);
     }
 
     [Fact]
     public void BindUnreferencedPositionalParameterTest()
     {
-		Command.CommandText = "SELECT 1";
-		Command.Parameters.Add(new DuckDBParameter(42));    // unused
+        Command.CommandText = "SELECT 1";
+        Command.Parameters.Add(new DuckDBParameter(42));    // unused
         var scalar = Command.ExecuteScalar();
         scalar.Should().Be(1);
     }
