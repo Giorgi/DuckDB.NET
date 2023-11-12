@@ -210,7 +210,7 @@ public class ParameterCollectionTests
         command.Parameters.Add(new DuckDBParameter("param1", 42));
         command.Parameters.Add(new DuckDBParameter("param2", "hello"));
         command.Invoking(cmd => cmd.ExecuteNonQuery())
-            .Should().ThrowExactly<InvalidOperationException>();
+            .Should().ThrowExactly<DuckDBException>();
 
         command.Parameters.Clear();
         command.Parameters.Add(new DuckDBParameter(42));
@@ -312,5 +312,31 @@ public class ParameterCollectionTests
 
         connection.Invoking(con => con.Execute(queryStatement, new { param1 = 1, param2 = "hello" }))
             .Should().ThrowExactly<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void BindUnreferencedNamedParameterTest()
+    {
+        using var connection = new DuckDBConnection("DataSource=:memory:");
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = "SELECT 1";
+        command.Parameters.Add(new DuckDBParameter("unused", 42));
+        var scalar = command.ExecuteScalar();
+        scalar.Should().Be(1);
+    }
+
+    [Fact]
+    public void BindUnreferencedPositionalParameterTest()
+    {
+        using var connection = new DuckDBConnection("DataSource=:memory:");
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = "SELECT 1";
+        command.Parameters.Add(new DuckDBParameter(42));    // unused
+        var scalar = command.ExecuteScalar();
+        scalar.Should().Be(1);
     }
 }

@@ -142,7 +142,7 @@ internal sealed class PreparedStatement : IDisposable
     private static void BindParameters(DuckDBPreparedStatement preparedStatement, DuckDBParameterCollection parameterCollection)
     {
         var expectedParameters = NativeMethods.PreparedStatements.DuckDBParams(preparedStatement);
-        if (expectedParameters != parameterCollection.Count)
+        if (parameterCollection.Count < expectedParameters)
         {
             throw new InvalidOperationException($"Invalid number of parameters. Expected {expectedParameters}, got {parameterCollection.Count}");
         }
@@ -156,15 +156,11 @@ internal sealed class PreparedStatement : IDisposable
                 {
                     BindParameter(preparedStatement, index, param);
                 }
-                else
-                {
-                    throw new InvalidOperationException($"Cannot get parameter '{param.ParameterName}' index.");
-                }
             }
         }
         else
         {
-            for (var i = 0; i < parameterCollection.Count; ++i)
+            for (var i = 0; i < expectedParameters; ++i)
             {
                 var param = parameterCollection[i];
                 BindParameter(preparedStatement, i + 1, param);
