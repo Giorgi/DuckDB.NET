@@ -52,7 +52,7 @@ public class DuckDbCommand : DbCommand
         CommandText = commandText;
     }
 
-    public DuckDbCommand(string commandText, DuckDBConnection connection) 
+    public DuckDbCommand(string commandText, DuckDBConnection connection)
         : this(commandText)
     {
         Connection = connection;
@@ -65,7 +65,7 @@ public class DuckDbCommand : DbCommand
     {
         EnsureConnectionOpen();
 
-        var (preparedStatements, results) = PreparedStatement.PrepareMultiple(connection!.NativeConnection, CommandText, parameters);
+        var results = PreparedStatement.PrepareMultiple(connection!.NativeConnection, CommandText, parameters);
 
         var count = 0;
 
@@ -75,11 +75,6 @@ public class DuckDbCommand : DbCommand
             count += (int)NativeMethods.Query.DuckDBRowsChanged(ref result);
 
             result.Dispose();
-        }
-
-        foreach (var statement in preparedStatements)
-        {
-            statement.Dispose();
         }
 
         return count;
@@ -107,14 +102,9 @@ public class DuckDbCommand : DbCommand
     {
         EnsureConnectionOpen();
 
-        var (preparedStatements, results) = PreparedStatement.PrepareMultiple(connection!.NativeConnection, CommandText, parameters);
+        var results = PreparedStatement.PrepareMultiple(connection!.NativeConnection, CommandText, parameters);
 
         var reader = new DuckDBDataReader(this, results, behavior);
-
-        foreach (var statement in preparedStatements)
-        {
-            statement.Dispose();
-        }
 
         return reader;
     }
@@ -122,7 +112,7 @@ public class DuckDbCommand : DbCommand
     public override void Prepare() { }
 
     protected override DbParameter CreateDbParameter() => new DuckDBParameter();
-        
+
     internal void CloseConnection()
         => Connection?.Close();
 

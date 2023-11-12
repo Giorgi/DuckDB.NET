@@ -57,15 +57,15 @@ internal sealed class PreparedStatement : IDisposable
         return result;
     }
 
-    public static (List<PreparedStatement> statements, List<DuckDBResult> results) PrepareMultiple(DuckDBNativeConnection connection, string query, DuckDBParameterCollection parameters)
+    public static List<DuckDBResult> PrepareMultiple(DuckDBNativeConnection connection, string query, DuckDBParameterCollection parameters)
     {
         var statements = new List<PreparedStatement>();
         var results = new List<DuckDBResult>();
 
         using var unmanagedQuery = query.ToUnmanagedString();
-        
+
         var statementCount = NativeMethods.ExtractStatements.DuckDBExtractStatements(connection, unmanagedQuery, out var extractedStatements);
-        
+
         using (extractedStatements)
         {
             if (statementCount <= 0)
@@ -92,29 +92,34 @@ internal sealed class PreparedStatement : IDisposable
                     {
                         var capture = ExceptionDispatchInfo.Capture(ex);
 
-                        CleanUp();
-                        
+                        CleanUp(true);
+
                         capture.Throw();
                     }
                 }
                 else
                 {
                     var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(statement).ToManagedString(false);
-                    
-                    CleanUp();
+
+                    CleanUp(true);
 
                     throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, status);
                 }
             }
         }
 
-        return (statements, results);
+        CleanUp(false);
 
-        void CleanUp()
+        return results;
+
+        void CleanUp(bool isError)
         {
-            foreach (var result in results)
+            if (isError)
             {
-                result.Dispose();
+                foreach (var result in results)
+                {
+                    result.Dispose();
+                }
             }
 
             foreach (var statement in statements)
