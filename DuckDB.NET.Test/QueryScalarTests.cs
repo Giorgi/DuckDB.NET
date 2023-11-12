@@ -22,7 +22,7 @@ public class QueryScalarTests : DuckDBTestBase
             {"SELECT sin(1);", Math.Sin(1)},
             {"SELECT sin(10);", Math.Sin(10)},
         };
-            
+
         foreach (var (query, expectedResult) in queries)
         {
             Command.CommandText = query;
@@ -35,7 +35,6 @@ public class QueryScalarTests : DuckDBTestBase
     [Fact]
     public void TableQueryTest()
     {
-
         Command.CommandText = "CREATE TABLE scalarUsers (id INTEGER, name TEXT);";
         Command.ExecuteNonQuery();
 
@@ -46,9 +45,13 @@ public class QueryScalarTests : DuckDBTestBase
         Command.CommandText = "SELECT name FROM scalarUsers LIMIT 1;";
         var scalar = Command.ExecuteScalar();
         scalar.Should().Be("user1");
-            
+
         Command.CommandText = "SELECT name, id FROM scalarUsers WHERE id = 1;";
         scalar = Command.ExecuteScalar();
         scalar.Should().Be("user1");
+
+        Command.CommandText = "Select id from scalarUsers where 1=2";
+        scalar = Command.ExecuteScalar();
+        scalar.Should().BeNull();
     }
 }
