@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using DuckDB.NET.Data;
 using FluentAssertions;
+using Microsoft.VisualStudio.TestPlatform.PlatformAbstractions.Interfaces;
 using Xunit;
 
 namespace DuckDB.NET.Test.Parameters;
@@ -27,6 +28,15 @@ public class BlobParameterTests
             stream.CanWrite.Should().Be(false);
 
             using (var streamReader = new StreamReader(stream, leaveOpen: true))
+            {
+                var text = streamReader.ReadToEnd();
+                text.Should().Be("ABCD");
+            }
+        }
+
+        using (var streamItem = (Stream)reader.GetValue(0))
+        {
+            using (var streamReader = new StreamReader(streamItem, leaveOpen: true))
             {
                 var text = streamReader.ReadToEnd();
                 text.Should().Be("ABCD");

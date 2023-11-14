@@ -88,7 +88,7 @@ public class DateTests
         connection.Open();
 
         using var cmd = connection.CreateCommand();
-        cmd.CommandText = "CREATE TABLE DateOnlyTestTable (a INTEGER, b DATE);";
+        cmd.CommandText = "CREATE TABLE DateOnlyTestTable (a INTEGER, b DATE not null, nullableDateColumn Date);";
         cmd.ExecuteNonQuery();
 
         cmd.CommandText = "INSERT INTO DateOnlyTestTable (a, b) VALUES (42, ?);";
@@ -117,8 +117,13 @@ public class DateTests
         dateTime.Minute.Should().Be(0);
         dateTime.Second.Should().Be(0);
 
+        reader.GetFieldValue<DateOnly>(1).Should().Be(new DateOnly(year, mon, day));
+
         var convertedValue = (DateTime) dateOnly;
         convertedValue.Should().Be(dateTime);
+
+        reader.GetFieldValue<DuckDBDateOnly?>(2).Should().BeNull();
+        reader.Invoking(dataReader => dataReader.GetFieldValue<DuckDBDateOnly>(2)).Should().Throw<InvalidCastException>().Where(ex => ex.Message.Contains("nullableDateColumn"));
 
         cmd.CommandText = "DROP TABLE DateOnlyTestTable;";
         cmd.ExecuteNonQuery();

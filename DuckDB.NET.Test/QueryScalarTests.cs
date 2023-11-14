@@ -6,8 +6,12 @@ using Xunit;
 
 namespace DuckDB.NET.Test;
 
-public class QueryScalarTests
+public class QueryScalarTests : DuckDBTestBase
 {
+    public QueryScalarTests(DuckDBDatabaseFixture db) : base(db)
+    {
+    }
+
     [Fact]
     public void SimpleQueryTest()
     {
@@ -18,16 +22,11 @@ public class QueryScalarTests
             {"SELECT sin(1);", Math.Sin(1)},
             {"SELECT sin(10);", Math.Sin(10)},
         };
-            
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
 
-        var command = connection.CreateCommand();
-            
         foreach (var (query, expectedResult) in queries)
         {
-            command.CommandText = query;
-            var scalar = command.ExecuteScalar();
+            Command.CommandText = query;
+            var scalar = Command.ExecuteScalar();
 
             scalar.Should().Be(expectedResult);
         }
@@ -36,23 +35,23 @@ public class QueryScalarTests
     [Fact]
     public void TableQueryTest()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
+        Command.CommandText = "CREATE TABLE scalarUsers (id INTEGER, name TEXT);";
+        Command.ExecuteNonQuery();
 
-        var command = connection.CreateCommand();
-        command.CommandText = "CREATE TABLE scalarUsers (id INTEGER, name TEXT);";
-        command.ExecuteNonQuery();
-
-        command.CommandText = "INSERT INTO scalarUsers VALUES (1, 'user1'), (2, 'user2'), (3, 'user3');";
-        var affectedRows = command.ExecuteNonQuery();
+        Command.CommandText = "INSERT INTO scalarUsers VALUES (1, 'user1'), (2, 'user2'), (3, 'user3');";
+        var affectedRows = Command.ExecuteNonQuery();
         affectedRows.Should().Be(3);
 
-        command.CommandText = "SELECT name FROM scalarUsers LIMIT 1;";
-        var scalar = command.ExecuteScalar();
+        Command.CommandText = "SELECT name FROM scalarUsers LIMIT 1;";
+        var scalar = Command.ExecuteScalar();
         scalar.Should().Be("user1");
-            
-        command.CommandText = "SELECT name, id FROM scalarUsers WHERE id = 1;";
-        scalar = command.ExecuteScalar();
+
+        Command.CommandText = "SELECT name, id FROM scalarUsers WHERE id = 1;";
+        scalar = Command.ExecuteScalar();
         scalar.Should().Be("user1");
+
+        Command.CommandText = "Select id from scalarUsers where 1=2";
+        scalar = Command.ExecuteScalar();
+        scalar.Should().BeNull();
     }
 }

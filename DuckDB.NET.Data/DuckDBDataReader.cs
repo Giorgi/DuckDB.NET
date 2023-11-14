@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.IO;
+using DuckDB.NET.Data.Internal.Reader;
 
 namespace DuckDB.NET.Data;
 
@@ -30,7 +31,7 @@ public class DuckDBDataReader : DbDataReader
     private ulong rowsReadFromCurrentChunk;
     private ulong currentChunkRowCount;
 
-    private VectorDataReader[] vectorReaders = Array.Empty<VectorDataReader>();
+    private VectorDataReaderBase[] vectorReaders = Array.Empty<VectorDataReaderBase>();
 
     internal DuckDBDataReader(DuckDbCommand command, List<DuckDBResult> queryResults, CommandBehavior behavior)
     {
@@ -71,7 +72,7 @@ public class DuckDBDataReader : DbDataReader
             currentChunk = NativeMethods.Types.DuckDBResultGetChunk(currentResult, currentChunkIndex);
             currentChunkRowCount = (ulong)NativeMethods.DataChunks.DuckDBDataChunkGetSize(currentChunk);
             
-            vectorReaders = new VectorDataReader[fieldCount];
+            vectorReaders = new VectorDataReaderBase[fieldCount];
 
             for (int i = 0; i < fieldCount; i++)
             {
@@ -80,24 +81,21 @@ public class DuckDBDataReader : DbDataReader
                 var vectorData = NativeMethods.DataChunks.DuckDBVectorGetData(vector);
                 var vectorValidityMask = NativeMethods.DataChunks.DuckDBVectorGetValidity(vector);
 
-                vectorReaders[i] = new VectorDataReader(vector, vectorData, vectorValidityMask, NativeMethods.Query.DuckDBColumnType(ref currentResult, i));
+                vectorReaders[i] = VectorDataReaderFactory.CreateReader(vector, vectorData, vectorValidityMask, 
+                                                                        NativeMethods.Query.DuckDBColumnType(ref currentResult, i),
+                                                                        NativeMethods.Query.DuckDBColumnName(ref currentResult, i).ToManagedString(false));
             }
         }
     }
 
-    private T GetFieldData<T>(int ordinal) where T : unmanaged
-    {
-        return vectorReaders[ordinal].GetFieldData<T>(rowsReadFromCurrentChunk - 1);
-    }
-
     public override bool GetBoolean(int ordinal)
     {
-        return GetByte(ordinal) != 0;
+        return GetFieldValue<bool>(ordinal);
     }
 
     public override byte GetByte(int ordinal)
     {
-        return GetFieldData<byte>(ordinal);
+        return GetFieldValue<byte>(ordinal);
     }
 
     public override long GetBytes(int ordinal, long dataOffset, byte[]? buffer, int bufferOffset, int length)
@@ -117,22 +115,22 @@ public class DuckDBDataReader : DbDataReader
 
     public override string GetDataTypeName(int ordinal)
     {
-        return NativeMethods.Query.DuckDBColumnType(ref currentResult, ordinal).ToString();
+        return vectorReaders[ordinal].DuckDBType.ToString();
     }
 
     public override DateTime GetDateTime(int ordinal)
     {
-        return vectorReaders[ordinal].GetDateTime(rowsReadFromCurrentChunk - 1);
+        return GetFieldValue<DateTime>(ordinal);
     }
 
     public override decimal GetDecimal(int ordinal)
     {
-        return vectorReaders[ordinal].GetDecimal(rowsReadFromCurrentChunk - 1);
+        return GetFieldValue<decimal>(ordinal);
     }
 
     public override double GetDouble(int ordinal)
     {
-        return GetFieldData<double>(ordinal);
+        return GetFieldValue<double>(ordinal);
     }
 
     public override Type GetFieldType(int ordinal)
@@ -142,7 +140,7 @@ public class DuckDBDataReader : DbDataReader
 
     public override float GetFloat(int ordinal)
     {
-        return GetFieldData<float>(ordinal);
+        return GetFieldValue<float>(ordinal);
     }
 
     public override Guid GetGuid(int ordinal)
@@ -152,30 +150,29 @@ public class DuckDBDataReader : DbDataReader
 
     public override short GetInt16(int ordinal)
     {
-        return GetFieldData<short>(ordinal);
+        return GetFieldValue<short>(ordinal);
     }
 
     public override int GetInt32(int ordinal)
     {
-        return GetFieldData<int>(ordinal);
+        return GetFieldValue<int>(ordinal);
     }
 
     public override long GetInt64(int ordinal)
     {
-        return GetFieldData<long>(ordinal);
+        return GetFieldValue<long>(ordinal);
     }
 
     public override string GetName(int ordinal)
     {
-        return NativeMethods.Query.DuckDBColumnName(ref currentResult, ordinal).ToManagedString(false);
+        return vectorReaders[ordinal].ColumnName;
     }
 
     public override int GetOrdinal(string name)
     {
         for (var i = 0; i < fieldCount; i++)
         {
-            var columnName = NativeMethods.Query.DuckDBColumnName(ref currentResult, i).ToManagedString(false);
-            if (name == columnName)
+            if (GetName(i) == name)
             {
                 return i;
             }
@@ -186,28 +183,12 @@ public class DuckDBDataReader : DbDataReader
 
     public override string GetString(int ordinal)
     {
-        return vectorReaders[ordinal].GetString(rowsReadFromCurrentChunk - 1);
+        return GetFieldValue<string>(ordinal);
     }
 
     public override T GetFieldValue<T>(int ordinal)
     {
-        var value = vectorReaders[ordinal].DuckDBType switch
-        {
-            DuckDBType.List => (T)vectorReaders[ordinal].GetList(rowsReadFromCurrentChunk - 1, typeof(T)),
-            DuckDBType.Enum => (T)vectorReaders[ordinal].GetEnum(rowsReadFromCurrentChunk - 1, typeof(T)),
-            _ => (T)vectorReaders[ordinal].GetValue(rowsReadFromCurrentChunk - 1)
-        };
-
-        if (value is not null)
-            return (T)value;
-
-        if (default(T) is null && typeof(T).IsValueType)
-            return default!;
-
-        if (typeof(T) == typeof(object))
-            return (T)(object)DBNull.Value;
-
-        throw new InvalidCastException();
+        return vectorReaders[ordinal].GetValue<T>(rowsReadFromCurrentChunk - 1);
     }
 
     public override object GetValue(int ordinal)
@@ -227,7 +208,7 @@ public class DuckDBDataReader : DbDataReader
 
     public override Stream GetStream(int ordinal)
     {
-        return vectorReaders[ordinal].GetStream(rowsReadFromCurrentChunk - 1);
+        return GetFieldValue<Stream>(ordinal);
     }
 
     public override bool IsDBNull(int ordinal)
@@ -320,6 +301,11 @@ public class DuckDBDataReader : DbDataReader
     public override void Close()
     {
         if (closed) return;
+
+        foreach (var reader in vectorReaders)
+        {
+            reader.Dispose();
+        }
 
         currentChunk?.Dispose();
         foreach (var result in queryResults)

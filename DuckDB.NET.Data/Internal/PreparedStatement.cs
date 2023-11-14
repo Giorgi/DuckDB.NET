@@ -57,15 +57,15 @@ internal sealed class PreparedStatement : IDisposable
         return result;
     }
 
-    public static (List<PreparedStatement> statements, List<DuckDBResult> results) PrepareMultiple(DuckDBNativeConnection connection, string query, DuckDBParameterCollection parameters)
+    public static List<DuckDBResult> PrepareMultiple(DuckDBNativeConnection connection, string query, DuckDBParameterCollection parameters)
     {
         var statements = new List<PreparedStatement>();
         var results = new List<DuckDBResult>();
 
         using var unmanagedQuery = query.ToUnmanagedString();
-        
+
         var statementCount = NativeMethods.ExtractStatements.DuckDBExtractStatements(connection, unmanagedQuery, out var extractedStatements);
-        
+
         using (extractedStatements)
         {
             if (statementCount <= 0)
@@ -92,29 +92,34 @@ internal sealed class PreparedStatement : IDisposable
                     {
                         var capture = ExceptionDispatchInfo.Capture(ex);
 
-                        CleanUp();
-                        
+                        CleanUp(true);
+
                         capture.Throw();
                     }
                 }
                 else
                 {
                     var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(statement).ToManagedString(false);
-                    
-                    CleanUp();
+
+                    CleanUp(true);
 
                     throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, status);
                 }
             }
         }
 
-        return (statements, results);
+        CleanUp(false);
 
-        void CleanUp()
+        return results;
+
+        void CleanUp(bool isError)
         {
-            foreach (var result in results)
+            if (isError)
             {
-                result.Dispose();
+                foreach (var result in results)
+                {
+                    result.Dispose();
+                }
             }
 
             foreach (var statement in statements)
@@ -142,7 +147,7 @@ internal sealed class PreparedStatement : IDisposable
     private static void BindParameters(DuckDBPreparedStatement preparedStatement, DuckDBParameterCollection parameterCollection)
     {
         var expectedParameters = NativeMethods.PreparedStatements.DuckDBParams(preparedStatement);
-        if (expectedParameters != parameterCollection.Count)
+        if (parameterCollection.Count < expectedParameters)
         {
             throw new InvalidOperationException($"Invalid number of parameters. Expected {expectedParameters}, got {parameterCollection.Count}");
         }
@@ -156,15 +161,11 @@ internal sealed class PreparedStatement : IDisposable
                 {
                     BindParameter(preparedStatement, index, param);
                 }
-                else
-                {
-                    throw new InvalidOperationException($"Cannot get parameter '{param.ParameterName}' index.");
-                }
             }
         }
         else
         {
-            for (var i = 0; i < parameterCollection.Count; ++i)
+            for (var i = 0; i < expectedParameters; ++i)
             {
                 var param = parameterCollection[i];
                 BindParameter(preparedStatement, i + 1, param);

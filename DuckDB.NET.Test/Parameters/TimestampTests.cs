@@ -118,7 +118,20 @@ public class TimestampTests
         dateTime.Second.Should().Be(second);
         dateTime.Millisecond.Should().Be(microsecond / 1000);
 
-        expectedValue.TimeOfDay.Should().Be(dateTime.TimeOfDay);
+        dateTime.TimeOfDay.Should().Be(expectedValue.TimeOfDay);
+
+        var dateTimeNullable = reader.GetFieldValue<DateTime?>(1);
+        dateTime = dateTimeNullable.Value;
+
+        dateTime.Year.Should().Be(year);
+        dateTime.Month.Should().Be(mon);
+        dateTime.Day.Should().Be(day);
+        dateTime.Hour.Should().Be(hour);
+        dateTime.Minute.Should().Be(minute);
+        dateTime.Second.Should().Be(second);
+        dateTime.Millisecond.Should().Be(microsecond / 1000);
+
+        dateTime.TimeOfDay.Should().Be(expectedValue.TimeOfDay);
 
         cmd.CommandText = "DROP TABLE TimestampTestTable;";
         cmd.ExecuteNonQuery();

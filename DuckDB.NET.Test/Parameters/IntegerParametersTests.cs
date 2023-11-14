@@ -7,8 +7,7 @@ namespace DuckDB.NET.Test.Parameters;
 
 public class IntegerParametersTests
 {
-    private static void TestBind<TValue>(DuckDBConnection connection, TValue expectedValue, 
-        DuckDBParameter parameter, Func<DuckDBDataReader, TValue> getValue)
+    private static void TestBind<TValue>(DuckDBConnection connection, TValue expectedValue, DuckDBParameter parameter, Func<DuckDBDataReader, TValue> getValue)
     {
         var command = connection.CreateCommand();
         command.CommandText = "SELECT ?;";
@@ -24,8 +23,7 @@ public class IntegerParametersTests
         value.Should().Be(expectedValue);
     }
     
-    private static void TestSimple<TValue>(DuckDBConnection connection, string duckDbType, TValue expectedValue,
-        Func<DuckDBDataReader, TValue> getValue)
+    private static void TestSimple<TValue>(DuckDBConnection connection, string duckDbType, TValue expectedValue, Func<DuckDBDataReader, TValue> getValue)
     {
         var command = connection.CreateCommand();
         command.CommandText = $"CREATE TABLE {duckDbType}_test (a {duckDbType});";
@@ -46,13 +44,36 @@ public class IntegerParametersTests
             var value = getValue(reader);
 
             value.Should().Be(expectedValue);
-            
-            reader.GetFieldType(0).Should().Be(typeof(TValue));
+
+            reader.Invoking(r => r.GetFieldValue<string>(0)).Should().Throw<InvalidCastException>();
+            reader.GetFieldType(0).Should().Match(type => type == typeof(TValue) || type == Nullable.GetUnderlyingType(typeof(TValue)));
+
+            TestReadValueAs<byte>(reader);
+            TestReadValueAs<sbyte>(reader);
+            TestReadValueAs<ushort>(reader);
+            TestReadValueAs<short>(reader);
+            TestReadValueAs<uint>(reader);
+            TestReadValueAs<int>(reader);
+            TestReadValueAs<ulong>(reader);
+            TestReadValueAs<long>(reader);
         }
         finally
         {
             command.CommandText = $"DROP TABLE {duckDbType}_test;";
             command.ExecuteNonQuery();
+        }
+
+        void TestReadValueAs<T>(DuckDBDataReader reader)
+        {
+            try
+            {
+                var convertedExpectedValue = (T)Convert.ChangeType(expectedValue, typeof(T));
+                convertedExpectedValue.Should().Be(reader.GetFieldValue<T>(0));
+            }
+            catch (Exception)
+            {
+                reader.Invoking(dataReader => dataReader.GetFieldValue<T>(0)).Should().Throw<InvalidCastException>();
+            }
         }
     }
     
@@ -132,6 +153,8 @@ public class IntegerParametersTests
         
         TestSimple(connection, "INTEGER", value, r => r.GetInt32(0));
         TestBind(connection, value, new DuckDBParameter(value), r => r.GetInt32(0));
+
+        TestSimple(connection, "INTEGER", value, r => r.GetFieldValue<int?>(0));
     }
     
     [Theory]
@@ -145,12 +168,14 @@ public class IntegerParametersTests
         
         TestSimple(connection, "UBIGINT", value, r => r.GetFieldValue<ulong>(0));
         TestBind(connection, value, new DuckDBParameter(value), r => r.GetFieldValue<ulong>(0));
+
+        TestSimple(connection, "UBIGINT", value, r => r.GetFieldValue<ulong?>(0));
     }
     
     [Theory]
     [InlineData(0)]
     [InlineData(long.MinValue)]
-    [InlineData(int.MaxValue)]
+    [InlineData(long.MaxValue)]
     public void Int64Test(long value)
     {
         using var connection = new DuckDBConnection("DataSource=:memory:");
@@ -158,5 +183,7 @@ public class IntegerParametersTests
         
         TestSimple(connection, "BIGINT", value, r => r.GetInt64(0));
         TestBind(connection, value, new DuckDBParameter(value), r => r.GetInt64(0));
+
+        TestSimple(connection, "BIGINT", value, r => r.GetFieldValue<long?>(0));
     }
 }
