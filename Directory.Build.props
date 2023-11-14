@@ -2,26 +2,26 @@
   <PropertyGroup Label="Ensure SolutionName is defined for project level pipeline">
     <SolutionName Condition="'$(SolutionName)' == ''">$([System.IO.Path]::GetFileNameWithoutExtension($([System.IO.Directory]::GetFiles("$(MSBuildThisFileDirectory)", "*.sln")[0])))</SolutionName>
   </PropertyGroup>
-  
+
   <PropertyGroup Label="Configure assembly names and namespaces">
     <AssemblyName>$(SolutionName).$(MSBuildProjectName)</AssemblyName>
     <RootNamespace>$(AssemblyName)</RootNamespace>
   </PropertyGroup>
-  
+
   <PropertyGroup Label="Common assembly attributes">
     <TargetFrameworks>netstandard2.0;net6.0</TargetFrameworks>
     <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
     <LangVersion>default</LangVersion>
 
-	<Year>$([System.DateTime]::Today.Year)</Year>
+    <Year>$([System.DateTime]::Today.Year)</Year>
 
     <Authors>Giorgi Dalakishvili</Authors>
     <Company>Giorgi Dalakishvili</Company>
     <Copyright>Copyright © 2020 - $(Year) Giorgi Dalakishvili</Copyright>
 
-	<Product>DuckDB.NET.$(MSBuildProjectName)</Product>
-	<PackageId>DuckDB.NET.$(MSBuildProjectName)</PackageId>
-	<PackageTags>DuckDB;ADO.NET;Database;Olap;Embedded</PackageTags>
+    <Product>DuckDB.NET.$(MSBuildProjectName)</Product>
+    <PackageId>DuckDB.NET.$(MSBuildProjectName)</PackageId>
+    <PackageTags>DuckDB;ADO.NET;Database;Olap;Embedded</PackageTags>
     <PackageIcon>Logo.jpg</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
@@ -40,7 +40,7 @@
 
   <PropertyGroup>
     <BuildType>ManagedOnly</BuildType>
-	<NoNativeText>This package does not include a copy of the native DuckDB library.</NoNativeText>
+    <NoNativeText>This package does not include a copy of the native DuckDB library.</NoNativeText>
   </PropertyGroup>
   <PropertyGroup Condition="'$(BuildType)' == 'Full' ">
     <PackageId>$(PackageId).Full</PackageId>
@@ -54,7 +54,7 @@
     <None Include="..\LICENSE-DuckDB.txt" Condition="'$(BuildType)' == 'Full' ">
       <Pack>True</Pack>
       <PackagePath></PackagePath>
-    </None>	
+    </None>
     <None Include="..\Logo.jpg">
       <Pack>True</Pack>
       <PackagePath></PackagePath>
@@ -64,7 +64,7 @@
       <PackagePath></PackagePath>
     </None>
   </ItemGroup>
-  
+
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1">
       <PrivateAssets>all</PrivateAssets>
