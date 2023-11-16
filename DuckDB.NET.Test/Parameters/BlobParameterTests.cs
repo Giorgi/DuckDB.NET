@@ -7,19 +7,19 @@ using Xunit;
 
 namespace DuckDB.NET.Test.Parameters;
 
-public class BlobParameterTests
+public class BlobParameterTests : DuckDBTestBase
 {
+    public BlobParameterTests(DuckDBDatabaseFixture db) : base(db)
+    {
+    }
+
     [Fact]
     public void SimpleTest()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
+        Command.CommandText = "SELECT 'ABCD'::BLOB;";
+        Command.ExecuteNonQuery();
 
-        var command = connection.CreateCommand();
-        command.CommandText = "SELECT 'ABCD'::BLOB;";
-        command.ExecuteNonQuery();
-
-        var reader = command.ExecuteReader();
+        var reader = Command.ExecuteReader();
         reader.Read();
 
         using (var stream = reader.GetStream(0))
@@ -43,10 +43,10 @@ public class BlobParameterTests
             }
         }
 
-        command.CommandText = "SELECT 'AB\\x0aCD'::BLOB";
-        command.ExecuteNonQuery();
+        Command.CommandText = "SELECT 'AB\\x0aCD'::BLOB";
+        Command.ExecuteNonQuery();
 
-        reader = command.ExecuteReader();
+        reader = Command.ExecuteReader();
         reader.Read();
 
         using (var stream = reader.GetStream(0))
@@ -68,15 +68,11 @@ public class BlobParameterTests
     [Fact]
     public void SeekTest()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
-        var command = connection.CreateCommand();
         var blobValue = "ABCDEFGHIJKLMNOPQR";
-        command.CommandText = $"SELECT '{blobValue}'::BLOB;";
-        command.ExecuteNonQuery();
+        Command.CommandText = $"SELECT '{blobValue}'::BLOB;";
+        Command.ExecuteNonQuery();
 
-        var reader = command.ExecuteReader();
+        var reader = Command.ExecuteReader();
         reader.Read();
 
         using var stream = reader.GetStream(0);
@@ -110,19 +106,15 @@ public class BlobParameterTests
     [Fact]
     public void BindValueTest()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
+        Command.CommandText = "CREATE TABLE BlobTests (key INTEGER, value Blob)";
+        Command.ExecuteNonQuery();
 
-        var duckDbCommand = connection.CreateCommand();
-        duckDbCommand.CommandText = "CREATE TABLE BlobTests (key INTEGER, value Blob)";
-        duckDbCommand.ExecuteNonQuery();
+        Command.CommandText = "INSERT INTO BlobTests VALUES (9, ?);";
 
-        duckDbCommand.CommandText = "INSERT INTO BlobTests VALUES (9, ?);";
+        Command.Parameters.Add(new DuckDBParameter(new byte[] { 65, 66 }));
+        Command.ExecuteNonQuery();
 
-        duckDbCommand.Parameters.Add(new DuckDBParameter(new byte[] { 65, 66 }));
-        duckDbCommand.ExecuteNonQuery();
-
-        var command = connection.CreateCommand();
+        var command = Connection.CreateCommand();
         command.CommandText = "SELECT * from BlobTests;";
 
         var reader = command.ExecuteReader();

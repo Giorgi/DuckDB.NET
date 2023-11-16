@@ -5,22 +5,22 @@ using Xunit;
 
 namespace DuckDB.NET.Test.Parameters;
 
-public class HugeIntParameterTests
+public class HugeIntParameterTests : DuckDBTestBase
 {
+    public HugeIntParameterTests(DuckDBDatabaseFixture db) : base(db)
+    {
+    }
+
     [Fact]
     public void SimpleTest()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
+        Command.CommandText = "SELECT 125::HUGEINT;";
+        Command.ExecuteNonQuery();
 
-        var command = connection.CreateCommand();
-        command.CommandText = "SELECT 125::HUGEINT;";
-        command.ExecuteNonQuery();
-
-        var scalar = command.ExecuteScalar();
+        var scalar = Command.ExecuteScalar();
         scalar.Should().Be(new BigInteger(125));
 
-        var reader = command.ExecuteReader();
+        var reader = Command.ExecuteReader();
         reader.Read();
         var receivedValue = reader.GetFieldValue<BigInteger>(0);
         receivedValue.Should().Be(125);
@@ -36,23 +36,18 @@ public class HugeIntParameterTests
     [Fact]
     public void BindValueTest()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
+        Command.CommandText = "CREATE TABLE HugeIntTests (key INTEGER, value HugeInt)";
+        Command.ExecuteNonQuery();
 
-        var duckDbCommand = connection.CreateCommand();
-        duckDbCommand.CommandText = "CREATE TABLE HugeIntTests (key INTEGER, value HugeInt)";
-        duckDbCommand.ExecuteNonQuery();
-
-        duckDbCommand.CommandText = "INSERT INTO HugeIntTests VALUES (9, ?);";
+        Command.CommandText = "INSERT INTO HugeIntTests VALUES (9, ?);";
         
         var value = BigInteger.Add(ulong.MaxValue, 125);
-        duckDbCommand.Parameters.Add(new DuckDBParameter(value));
-        duckDbCommand.ExecuteNonQuery();
+        Command.Parameters.Add(new DuckDBParameter(value));
+        Command.ExecuteNonQuery();
 
-        var command = connection.CreateCommand();
-        command.CommandText = "SELECT * from HugeIntTests;";
+        Command.CommandText = "SELECT * from HugeIntTests;";
         
-        var reader = command.ExecuteReader();
+        var reader = Command.ExecuteReader();
         reader.Read();
         
         var receivedValue = reader.GetFieldValue<BigInteger>(1);

@@ -5,21 +5,21 @@ using Xunit;
 
 namespace DuckDB.NET.Test.Parameters;
 
-public class DateTests
+public class DateTests : DuckDBTestBase
 {
+    public DateTests(DuckDBDatabaseFixture db) : base(db)
+    {
+    }
+
     [Theory]
     [InlineData(1992, 09, 20)]
     [InlineData(2022, 05, 04)]
     [InlineData(2022, 04, 05)]
     public void QueryScalarTest(int year, int mon, int day)
     {
-        using var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
-        connection.Open();
+        Command.CommandText = $"SELECT DATE '{year}-{mon}-{day}';";
 
-        using var cmd = connection.CreateCommand();
-        cmd.CommandText = $"SELECT DATE '{year}-{mon}-{day}';";
-
-        var scalar = cmd.ExecuteScalar();
+        var scalar = Command.ExecuteScalar();
 
         scalar.Should().BeOfType<DuckDBDateOnly>();
 
@@ -40,23 +40,19 @@ public class DateTests
         var convertedValue = (DateTime) dateOnly;
         convertedValue.Should().Be(dateTime);
     }
-    
+
     [Theory]
     [InlineData(1992, 09, 20)]
     [InlineData(2022, 05, 04)]
     [InlineData(2022, 04, 05)]
     public void BindWithCastTest(int year, int mon, int day)
     {
-        using var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
-        connection.Open();
-        
         var expectedValue = new DateTime(year, mon, day);
         
-        using var cmd = connection.CreateCommand();
-        cmd.CommandText = "SELECT ?;";
-        cmd.Parameters.Add(new DuckDBParameter((DuckDBDateOnly)expectedValue));
+        Command.CommandText = "SELECT ?;";
+        Command.Parameters.Add(new DuckDBParameter((DuckDBDateOnly)expectedValue));
 
-        var scalar = cmd.ExecuteScalar();
+        var scalar = Command.ExecuteScalar();
 
         scalar.Should().BeOfType<DuckDBDateOnly>();
 
@@ -77,28 +73,24 @@ public class DateTests
         var convertedValue = (DateTime) dateOnly;
         convertedValue.Should().Be(dateTime);
     }
-    
+
     [Theory]
     [InlineData(1992, 09, 20)]
     [InlineData(2022, 05, 04)]
     [InlineData(2022, 04, 05)]
     public void InsertAndQueryTest(int year, byte mon, byte day)
     {
-        using var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
-        connection.Open();
+        Command.CommandText = "CREATE TABLE DateOnlyTestTable (a INTEGER, b DATE not null, nullableDateColumn Date);";
+        Command.ExecuteNonQuery();
 
-        using var cmd = connection.CreateCommand();
-        cmd.CommandText = "CREATE TABLE DateOnlyTestTable (a INTEGER, b DATE not null, nullableDateColumn Date);";
-        cmd.ExecuteNonQuery();
-
-        cmd.CommandText = "INSERT INTO DateOnlyTestTable (a, b) VALUES (42, ?);";
-        cmd.Parameters.Add(new DuckDBParameter(new DuckDBDateOnly (year,mon,day)));
-        cmd.ExecuteNonQuery();
+        Command.CommandText = "INSERT INTO DateOnlyTestTable (a, b) VALUES (42, ?);";
+        Command.Parameters.Add(new DuckDBParameter(new DuckDBDateOnly (year,mon,day)));
+        Command.ExecuteNonQuery();
         
-        cmd.Parameters.Clear();
-        cmd.CommandText = "SELECT * FROM DateOnlyTestTable LIMIT 1;";
+        Command.Parameters.Clear();
+        Command.CommandText = "SELECT * FROM DateOnlyTestTable LIMIT 1;";
 
-        var reader = cmd.ExecuteReader();
+        var reader = Command.ExecuteReader();
         reader.Read();
 
         reader.GetFieldType(1).Should().Be(typeof(DuckDBDateOnly));
@@ -125,7 +117,7 @@ public class DateTests
         reader.GetFieldValue<DuckDBDateOnly?>(2).Should().BeNull();
         reader.Invoking(dataReader => dataReader.GetFieldValue<DuckDBDateOnly>(2)).Should().Throw<InvalidCastException>().Where(ex => ex.Message.Contains("nullableDateColumn"));
 
-        cmd.CommandText = "DROP TABLE DateOnlyTestTable;";
-        cmd.ExecuteNonQuery();
+        Command.CommandText = "DROP TABLE DateOnlyTestTable;";
+        Command.ExecuteNonQuery();
     }
 }

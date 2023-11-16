@@ -5,9 +5,12 @@ using Xunit;
 
 namespace DuckDB.NET.Test.Parameters;
 
-public class TimestampTests
+public class TimestampTests : DuckDBTestBase
 {
-    
+    public TimestampTests(DuckDBDatabaseFixture db) : base(db)
+    {
+    }
+
     [Theory]
     [InlineData(1992, 09, 20, 12, 15, 17, 350_000)]
     [InlineData(2022, 05, 04, 12, 17, 15, 450_000)]
@@ -17,19 +20,15 @@ public class TimestampTests
     [InlineData(2022, 04, 05, 18, 15, 17, 125_700)]
     public void QueryScalarTest(int year, int mon, int day, int hour, int minute, int second, int microsecond)
     {
-        using var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
-        connection.Open();
-
         var expectedValue = new DateTime(year, mon, day, hour, minute, second).AddTicks(microsecond * 10);
 
-        using var cmd = connection.CreateCommand();
-        cmd.CommandText = $"SELECT TIMESTAMP '{year}-{mon}-{day} {hour}:{minute}:{second}.{microsecond:000000}';";
-        
-        var scalar = cmd.ExecuteScalar();
+        Command.CommandText = $"SELECT TIMESTAMP '{year}-{mon}-{day} {hour}:{minute}:{second}.{microsecond:000000}';";
+
+        var scalar = Command.ExecuteScalar();
 
         scalar.Should().BeOfType<DateTime>();
 
-        var receivedTime = (DateTime) scalar;
+        var receivedTime = (DateTime)scalar;
 
         receivedTime.Year.Should().Be(year);
         receivedTime.Month.Should().Be(mon);
@@ -41,8 +40,7 @@ public class TimestampTests
 
         receivedTime.TimeOfDay.Should().Be(expectedValue.TimeOfDay);
     }
-    
-    
+
     [Theory]
     [InlineData(1992, 09, 20, 12, 15, 17, 350_000)]
     [InlineData(2022, 05, 04, 12, 17, 15, 450_000)]
@@ -52,20 +50,16 @@ public class TimestampTests
     [InlineData(2022, 04, 05, 18, 15, 17, 125_700)]
     public void BindTest(int year, int mon, int day, int hour, int minute, int second, int microsecond)
     {
-        using var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
-        connection.Open();
-
         var expectedValue = new DateTime(year, mon, day, hour, minute, second).AddTicks(microsecond * 10);
 
-        using var cmd = connection.CreateCommand();
-        cmd.CommandText = "SELECT ?;";
-        cmd.Parameters.Add(new DuckDBParameter(expectedValue));
+        Command.CommandText = "SELECT ?;";
+        Command.Parameters.Add(new DuckDBParameter(expectedValue));
 
-        var scalar = cmd.ExecuteScalar();
+        var scalar = Command.ExecuteScalar();
 
         scalar.Should().BeOfType<DateTime>();
 
-        var receivedTime = (DateTime) scalar;
+        var receivedTime = (DateTime)scalar;
 
         receivedTime.Year.Should().Be(year);
         receivedTime.Month.Should().Be(mon);
@@ -77,7 +71,7 @@ public class TimestampTests
 
         receivedTime.TimeOfDay.Should().Be(expectedValue.TimeOfDay);
     }
-    
+
     [Theory]
     [InlineData(1992, 09, 20, 12, 15, 17, 350_000)]
     [InlineData(2022, 05, 04, 12, 17, 15, 450_000)]
@@ -87,23 +81,19 @@ public class TimestampTests
     [InlineData(2022, 04, 05, 18, 15, 17, 125_700)]
     public void InsertAndQueryTest(int year, int mon, int day, byte hour, byte minute, byte second, int microsecond)
     {
-        using var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
-        connection.Open();
-
         var expectedValue = new DateTime(year, mon, day, hour, minute, second).AddTicks(microsecond * 10);
 
-        using var cmd = connection.CreateCommand();
-        cmd.CommandText = "CREATE TABLE TimestampTestTable (a INTEGER, b TIMESTAMP);";
-        cmd.ExecuteNonQuery();
+        Command.CommandText = "CREATE TABLE TimestampTestTable (a INTEGER, b TIMESTAMP);";
+        Command.ExecuteNonQuery();
 
-        cmd.CommandText = "INSERT INTO TimestampTestTable (a, b) VALUES (42, ?);";
-        cmd.Parameters.Add(new DuckDBParameter(expectedValue));
-        cmd.ExecuteNonQuery();
-        
-        cmd.Parameters.Clear();
-        cmd.CommandText = "SELECT * FROM TimestampTestTable LIMIT 1;";
+        Command.CommandText = "INSERT INTO TimestampTestTable (a, b) VALUES (42, ?);";
+        Command.Parameters.Add(new DuckDBParameter(expectedValue));
+        Command.ExecuteNonQuery();
 
-        var reader = cmd.ExecuteReader();
+        Command.Parameters.Clear();
+        Command.CommandText = "SELECT * FROM TimestampTestTable LIMIT 1;";
+
+        var reader = Command.ExecuteReader();
         reader.Read();
 
         reader.GetFieldType(1).Should().Be(typeof(DateTime));
@@ -133,7 +123,7 @@ public class TimestampTests
 
         dateTime.TimeOfDay.Should().Be(expectedValue.TimeOfDay);
 
-        cmd.CommandText = "DROP TABLE TimestampTestTable;";
-        cmd.ExecuteNonQuery();
+        Command.CommandText = "DROP TABLE TimestampTestTable;";
+        Command.ExecuteNonQuery();
     }
 }

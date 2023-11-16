@@ -6,14 +6,15 @@ using Xunit;
 
 namespace DuckDB.NET.Test.Parameters;
 
-public class DecimalParameterTests
+public class DecimalParameterTests : DuckDBTestBase
 {
+    public DecimalParameterTests(DuckDBDatabaseFixture db) : base(db)
+    {
+    }
+
     [Fact]
     public void SimpleTest()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
         var values = new[]{0m, decimal.Zero, decimal.MinValue,
             decimal.MaxValue, decimal.MaxValue / 3, decimal.One,
             decimal.One / 2,  decimal.MinusOne,
@@ -21,14 +22,13 @@ public class DecimalParameterTests
 
         foreach (var value in values)
         {
-            var command = connection.CreateCommand();
-            command.CommandText = $"SELECT {Convert.ToString(value, CultureInfo.InvariantCulture)}::DECIMAL(38,9);";
-            command.ExecuteNonQuery();
+            Command.CommandText = $"SELECT {Convert.ToString(value, CultureInfo.InvariantCulture)}::DECIMAL(38,9);";
+            Command.ExecuteNonQuery();
 
-            var scalar = command.ExecuteScalar();
+            var scalar = Command.ExecuteScalar();
             scalar.Should().Be(value);
 
-            var reader = command.ExecuteReader();
+            var reader = Command.ExecuteReader();
             reader.Read();
             var receivedValue = reader.GetDecimal(0);
             receivedValue.Should().Be(value);
@@ -39,14 +39,13 @@ public class DecimalParameterTests
 
         foreach (var value in values)
         {
-            var command = connection.CreateCommand();
-            command.CommandText = $"SELECT {Convert.ToString(value, CultureInfo.InvariantCulture)}::DECIMAL(38,28);";
-            command.ExecuteNonQuery();
+            Command.CommandText = $"SELECT {Convert.ToString(value, CultureInfo.InvariantCulture)}::DECIMAL(38,28);";
+            Command.ExecuteNonQuery();
 
-            var scalar = command.ExecuteScalar();
+            var scalar = Command.ExecuteScalar();
             scalar.Should().Be(value);
 
-            var reader = command.ExecuteReader();
+            var reader = Command.ExecuteReader();
             reader.Read();
             var receivedValue = reader.GetDecimal(0);
             receivedValue.Should().Be(value);
@@ -56,10 +55,6 @@ public class DecimalParameterTests
     [Fact]
     public void InsertSelectValueTest()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
-        var command = connection.CreateCommand();
         DecimalTests(new[]
         {
             0m, decimal.Zero,
@@ -90,22 +85,22 @@ public class DecimalParameterTests
 
         void DecimalTests(decimal[] values, int precision, int scale)
         {
-            command.CommandText = $"CREATE TABLE DecimalValuesTests (key INTEGER, value decimal({precision}, {scale}))";
-            command.ExecuteNonQuery();
+            Command.CommandText = $"CREATE TABLE DecimalValuesTests (key INTEGER, value decimal({precision}, {scale}))";
+            Command.ExecuteNonQuery();
 
             foreach (var value in values)
             {
-                command.CommandText = "Insert Into DecimalValuesTests (key, value) values (1, ?)";
-                command.Parameters.Add(new DuckDBParameter(value));
-                command.ExecuteNonQuery();
+                Command.CommandText = "Insert Into DecimalValuesTests (key, value) values (1, ?)";
+                Command.Parameters.Add(new DuckDBParameter(value));
+                Command.ExecuteNonQuery();
 
-                command.Parameters.Clear();
-                command.CommandText = "SELECT value from DecimalValuesTests;";
+                Command.Parameters.Clear();
+                Command.CommandText = "SELECT value from DecimalValuesTests;";
 
-                var scalar = command.ExecuteScalar();
+                var scalar = Command.ExecuteScalar();
                 scalar.Should().Be(value);
 
-                var reader = command.ExecuteReader();
+                var reader = Command.ExecuteReader();
                 reader.Read();
 
                 var receivedValue = reader.GetDecimal(0);
@@ -113,12 +108,12 @@ public class DecimalParameterTests
 
                 reader.GetFieldType(0).Should().Be(typeof(decimal));
 
-                command.CommandText = "Delete from DecimalValuesTests";
-                command.ExecuteNonQuery();
+                Command.CommandText = "Delete from DecimalValuesTests";
+                Command.ExecuteNonQuery();
             }
 
-            command.CommandText = "Drop TABLE DecimalValuesTests";
-            command.ExecuteNonQuery();
+            Command.CommandText = "Drop TABLE DecimalValuesTests";
+            Command.ExecuteNonQuery();
         }
     }
 
@@ -126,31 +121,28 @@ public class DecimalParameterTests
     public void InsertSelectValueTestWithCulture()
     {
         var defaultCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
 
-        var command = connection.CreateCommand();
         DecimalTests(new[] { "fr-fr", "en-us" }, decimal.One / 2, 38, 15);
 
         void DecimalTests(string[] cultures, decimal value, int precision, int scale)
         {
-            command.CommandText = $"CREATE TABLE DecimalValuesTests (key INTEGER, value decimal({precision}, {scale}))";
-            command.ExecuteNonQuery();
+            Command.CommandText = $"CREATE TABLE DecimalValuesTests (key INTEGER, value decimal({precision}, {scale}))";
+            Command.ExecuteNonQuery();
 
             foreach (var culture in cultures)
             {
                 System.Threading.Thread.CurrentThread.CurrentCulture = CultureInfo.GetCultureInfo(culture);
-                command.CommandText = "Insert Into DecimalValuesTests (key, value) values (1, ?)";
-                command.Parameters.Add(new DuckDBParameter(value));
-                command.ExecuteNonQuery();
+                Command.CommandText = "Insert Into DecimalValuesTests (key, value) values (1, ?)";
+                Command.Parameters.Add(new DuckDBParameter(value));
+                Command.ExecuteNonQuery();
 
-                command.Parameters.Clear();
-                command.CommandText = "SELECT value from DecimalValuesTests;";
+                Command.Parameters.Clear();
+                Command.CommandText = "SELECT value from DecimalValuesTests;";
 
-                var scalar = command.ExecuteScalar();
+                var scalar = Command.ExecuteScalar();
                 scalar.Should().Be(value);
 
-                var reader = command.ExecuteReader();
+                var reader = Command.ExecuteReader();
                 reader.Read();
 
                 var receivedValue = reader.GetDecimal(0);
@@ -158,12 +150,12 @@ public class DecimalParameterTests
 
                 reader.GetFieldType(0).Should().Be(typeof(decimal));
 
-                command.CommandText = "Delete from DecimalValuesTests";
-                command.ExecuteNonQuery();
+                Command.CommandText = "Delete from DecimalValuesTests";
+                Command.ExecuteNonQuery();
             }
 
-            command.CommandText = "Drop TABLE DecimalValuesTests";
-            command.ExecuteNonQuery();
+            Command.CommandText = "Drop TABLE DecimalValuesTests";
+            Command.ExecuteNonQuery();
             System.Threading.Thread.CurrentThread.CurrentCulture = defaultCulture;
         }
     }

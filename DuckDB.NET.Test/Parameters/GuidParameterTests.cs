@@ -5,26 +5,26 @@ using Xunit;
 
 namespace DuckDB.NET.Test.Parameters;
 
-public class GuidParameterTests
+public class GuidParameterTests : DuckDBTestBase
 {
+    public GuidParameterTests(DuckDBDatabaseFixture db) : base(db)
+    {
+    }
+
     [Fact]
     public void SimpleTest()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
         var guids = new[] { Guid.NewGuid(), Guid.Empty };
 
         foreach (var guid in guids)
         {
-            var command = connection.CreateCommand();
-            command.CommandText = $"SELECT '{guid}';";
-            command.ExecuteNonQuery();
+            Command.CommandText = $"SELECT '{guid}';";
+            Command.ExecuteNonQuery();
 
-            var scalar = command.ExecuteScalar();
+            var scalar = Command.ExecuteScalar();
             scalar.Should().Be(guid.ToString());
 
-            var reader = command.ExecuteReader();
+            var reader = Command.ExecuteReader();
             reader.Read();
             var receivedValue = reader.GetGuid(0);
             receivedValue.Should().Be(guid);
@@ -34,22 +34,20 @@ public class GuidParameterTests
     [Fact]
     public void BindValueTest()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
         var guids = new[] { Guid.NewGuid(), Guid.Empty };
 
         foreach (var guid in guids)
         {
-            var command = connection.CreateCommand();
-            command.CommandText = "SELECT ?;";
-            command.Parameters.Add(new DuckDBParameter(guid));
-            command.ExecuteNonQuery();
+            Command.CommandText = "SELECT ?;";
 
-            var scalar = command.ExecuteScalar();
+            Command.Parameters.Clear();
+            Command.Parameters.Add(new DuckDBParameter(guid));
+            Command.ExecuteNonQuery();
+
+            var scalar = Command.ExecuteScalar();
             scalar.Should().Be(guid.ToString());
 
-            var reader = command.ExecuteReader();
+            var reader = Command.ExecuteReader();
             reader.Read();
             var receivedValue = reader.GetGuid(0);
             receivedValue.Should().Be(guid);

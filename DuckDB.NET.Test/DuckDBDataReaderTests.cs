@@ -146,9 +146,6 @@ public class DuckDBDataReaderTests : DuckDBTestBase
     [Fact]
     public void LoadDataTable()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
         Command.CommandText = "select 1 as num, 'text' as str, TIMESTAMP '1992-09-20 20:38:40' as tme";
         var reader = Command.ExecuteReader();
         var dt = new DataTable();
@@ -159,9 +156,6 @@ public class DuckDBDataReaderTests : DuckDBTestBase
     [Fact]
     public void MultipleStatementsQueryData()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
-
         Command.CommandText = "Select 1; Select 2";
 
         using var reader = Command.ExecuteReader();

@@ -110,11 +110,11 @@ public class TransactionTests : DuckDBTestBase
     [Fact]
     public void TransactionInvalidStateTest()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Invoking(connection => connection.BeginTransaction()).Should().Throw<InvalidOperationException>();
-        connection.Open();
+        Connection.Close();
+        Connection.Invoking(connection => connection.BeginTransaction()).Should().Throw<InvalidOperationException>();
+        Connection.Open();
 
-        connection.Invoking(connection => connection.BeginTransaction(IsolationLevel.Serializable)).Should()
+        Connection.Invoking(connection => connection.BeginTransaction(IsolationLevel.Serializable)).Should()
             .Throw<ArgumentException>();
     }
 }
