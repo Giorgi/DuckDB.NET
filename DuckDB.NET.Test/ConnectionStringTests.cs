@@ -31,7 +31,7 @@ public class ConnectionStringTests
 
         connection.State.Should().Be(ConnectionState.Open);
     }
-        
+
     [Theory]
     [InlineData("DataSource = ")]
     [InlineData("Source=:memory:")]
@@ -45,7 +45,7 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    public void ConnectionStringBuilderTest()
+    public void ConnectionStringBuilderDataSourceTest()
     {
         var builder = new DuckDBConnectionStringBuilder
         {
@@ -54,6 +54,46 @@ public class ConnectionStringTests
 
         using var connection = new DuckDBConnection(builder.ToString());
         connection.Open();
+
+        connection.Database.Should().Be(DuckDBConnectionStringBuilder.InMemoryDataSource);
+        connection.DataSource.Should().Be(DuckDBConnectionStringBuilder.InMemoryDataSource);
         connection.State.Should().Be(ConnectionState.Open);
+    }
+
+    [Fact]
+    public void ConnectionStringBuilderSetPropertiesTest()
+    {
+        var builder = new DuckDBConnectionStringBuilder
+        {
+            DataSource = DuckDBConnectionStringBuilder.InMemoryDataSource,
+            ["threads"] = 8,
+            ["ACCESS_MODE"] = "automatic"
+        };
+
+        builder.ConnectionString.Should().Be("DataSource=:memory:;threads=8;ACCESS_MODE=automatic");
+    }
+
+    [Fact]
+    public void ConnectionStringBuilderSetNotExistingProperty()
+    {
+        var builder = new DuckDBConnectionStringBuilder
+        {
+            DataSource = DuckDBConnectionStringBuilder.InMemoryDataSource,
+        };
+
+        builder.Invoking(b => b["dummy"] = "prop").Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void ConnectionStringBuilderGetPropertiesTest()
+    {
+        var builder = new DuckDBConnectionStringBuilder
+        {
+            ConnectionString = "DataSource = :memory:;Threads = 8;ACCESS_MODE=automatic"
+        };
+
+        builder.DataSource.Should().Be(DuckDBConnectionStringBuilder.InMemoryDataSource);
+        builder["threads"].Should().Be("8");
+        builder["access_mode"].Should().Be("automatic");
     }
 }

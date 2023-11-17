@@ -25,7 +25,7 @@ public class DuckDBConnection : DbConnection
 
     internal DuckDBTransaction? Transaction { get; set; }
 
-    internal DuckDBConnectionString ParsedConnection => parsedConnection ??= DuckDBConnectionStringParser.Parse(ConnectionString);
+    internal DuckDBConnectionString ParsedConnection => parsedConnection ??= DuckDBConnectionStringBuilder.Parse(ConnectionString);
 
     public DuckDBConnection()
     {
