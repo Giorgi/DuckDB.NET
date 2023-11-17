@@ -35,6 +35,7 @@ public class ConnectionStringTests
     [Theory]
     [InlineData("Source=:memory:")]
     [InlineData("Data=:memory:")]
+    [InlineData("DataSource = :memory:;Something=else")]
     public void InvalidConnectionStringTests(string connectionString)
     {
         using var connection = new DuckDBConnection(connectionString);

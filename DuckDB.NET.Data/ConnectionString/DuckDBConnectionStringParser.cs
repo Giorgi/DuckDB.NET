@@ -7,7 +7,18 @@ namespace DuckDB.NET.Data.ConnectionString;
 
 internal static class DuckDBConnectionStringParser
 {
-    private static readonly List<string> ConfigurationOptions = new() { "access_mode", "threads", "max_memory" };
+    private static readonly HashSet<string> ConfigurationOptions = new(StringComparer.OrdinalIgnoreCase);
+
+    static DuckDBConnectionStringParser()
+    {
+        var configCount = NativeMethods.Configure.DuckDBConfigCount();
+
+        for (var index = 0; index < configCount; index++)
+        {
+            NativeMethods.Configure.DuckDBGetConfigFlag(index, out var name, out _);
+            ConfigurationOptions.Add(name.ToManagedString(false));
+        }
+    }
 
     public static DuckDBConnectionString Parse(string connectionString)
     {
@@ -16,8 +27,29 @@ internal static class DuckDBConnectionStringParser
             ConnectionString = connectionString
         };
 
-        var dataSource = GetDataSource(builder);
+        var dataSource = "";
 
+        var configurations = new Dictionary<string, string>();
+
+        foreach (KeyValuePair<string, object> pair in builder)
+        {
+            if (DuckDBConnectionStringBuilder.DataSourceKeys.Contains(pair.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                dataSource = pair.Value.ToString();
+            }
+            else
+            {
+                if (ConfigurationOptions.Contains(pair.Key))
+                {
+                    configurations.Add(pair.Key, pair.Value.ToString()!);
+                }
+                else
+                {
+                    throw new InvalidOperationException($"Unrecognized connection string property '{pair.Key}'");
+                }
+            }
+        }
+        
         if (string.IsNullOrEmpty(dataSource))
         {
             throw new InvalidOperationException($"Connection string '{connectionString}' is not valid, missing data source information.");
@@ -42,21 +74,6 @@ internal static class DuckDBConnectionStringParser
             dataSource = "";
         }
 
-        var configs = ConfigurationOptions.Where(option => builder.ContainsKey(option))
-                                                               .ToDictionary(option => option, option => builder[option].ToString()!);
-
-        return new DuckDBConnectionString(dataSource, inMemory, isShared, configs);
-    }
-
-    private static string? GetDataSource(DbConnectionStringBuilder properties)
-    {
-        foreach (var key in DuckDBConnectionStringBuilder.DataSourceKeys)
-        {
-            if (properties.TryGetValue(key, out var dataSource))
-            {
-                return dataSource.ToString();
-            }
-        }
-        return null;
+        return new DuckDBConnectionString(dataSource, inMemory, isShared, configurations);
     }
 }
