@@ -55,9 +55,27 @@ public class ConnectionStringTests
         using var connection = new DuckDBConnection(builder.ToString());
         connection.Open();
 
+        connection.State.Should().Be(ConnectionState.Open);
+    }
+
+    [Fact]
+    public void ConnectionStringPropertiesTest()
+    {
+        var builder = new DuckDBConnectionStringBuilder
+        {
+            DataSource = DuckDBConnectionStringBuilder.InMemoryDataSource
+        };
+
+        using var connection = new DuckDBConnection(builder.ToString());
+        connection.Open();
+
         connection.Database.Should().Be(DuckDBConnectionStringBuilder.InMemoryDataSource);
         connection.DataSource.Should().Be(DuckDBConnectionStringBuilder.InMemoryDataSource);
-        connection.State.Should().Be(ConnectionState.Open);
+
+        connection.ConnectionString = "";
+
+        connection.Invoking(c => c.Database).Should().Throw<InvalidOperationException>();
+        connection.Invoking(c => c.DataSource).Should().Throw<InvalidOperationException>();
     }
 
     [Fact]
