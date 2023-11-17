@@ -33,6 +33,7 @@ public class ConnectionStringTests
     }
         
     [Theory]
+    [InlineData("DataSource = ")]
     [InlineData("Source=:memory:")]
     [InlineData("Data=:memory:")]
     [InlineData("DataSource = :memory:;Something=else")]
