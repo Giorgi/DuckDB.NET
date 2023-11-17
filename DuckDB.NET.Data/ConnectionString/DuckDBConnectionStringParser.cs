@@ -1,20 +1,23 @@
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Linq;
 
 namespace DuckDB.NET.Data.ConnectionString;
 
 internal static class DuckDBConnectionStringParser
 {
+    private static readonly List<string> ConfigurationOptions = new() { "access_mode", "threads", "max_memory" };
+
     public static DuckDBConnectionString Parse(string connectionString)
     {
-        var properties = connectionString
-            .Split(new[] {';'}, StringSplitOptions.RemoveEmptyEntries)
-            .Select(pair => pair.Split(new[] {'='}, 2, StringSplitOptions.RemoveEmptyEntries))
-            .ToDictionary(pair => pair[0].Trim(), pair => pair[1].Trim(), StringComparer.InvariantCultureIgnoreCase);
+        var builder = new DbConnectionStringBuilder
+        {
+            ConnectionString = connectionString
+        };
 
-        var dataSource = GetDataSource(properties);
-            
+        var dataSource = GetDataSource(builder);
+
         if (string.IsNullOrEmpty(dataSource))
         {
             throw new InvalidOperationException($"Connection string '{connectionString}' is not valid, missing data source information.");
@@ -38,17 +41,20 @@ internal static class DuckDBConnectionStringParser
             inMemory = true;
             dataSource = "";
         }
-            
-        return new DuckDBConnectionString(dataSource, inMemory, isShared);
+
+        var configs = ConfigurationOptions.Where(option => builder.ContainsKey(option))
+                                                               .ToDictionary(option => option, option => builder[option].ToString()!);
+
+        return new DuckDBConnectionString(dataSource, inMemory, isShared, configs);
     }
 
-    private static string? GetDataSource(IReadOnlyDictionary<string, string> properties)
+    private static string? GetDataSource(DbConnectionStringBuilder properties)
     {
         foreach (var key in DuckDBConnectionStringBuilder.DataSourceKeys)
         {
             if (properties.TryGetValue(key, out var dataSource))
             {
-                return dataSource;
+                return dataSource.ToString();
             }
         }
         return null;

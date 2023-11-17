@@ -428,4 +428,64 @@ public class DuckDBConnectionTests
 
         Assert.Equal(2, tableCount);
     }
+
+    [Theory]
+    [InlineData("threads", 2)]
+    [InlineData("Threads", 8)]
+    [InlineData("threads", 20)]
+    [InlineData("Threads", 100)]
+    [InlineData("Threads", 0)]
+    [InlineData("threads", -100)]
+    public void ConnectionStringSetThreadsOption(string optionName, int threads)
+    {
+        using var connection = new DuckDBConnection($"DataSource=:memory:;{optionName}={threads}");
+        if (threads > 0)
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT current_setting('threads');";
+            var value = command.ExecuteScalar();
+            value.Should().Be(threads);
+        }
+        else
+        {
+            connection.Invoking(c => c.Open()).Should().Throw<DuckDBException>();
+        }
+    }
+
+    [Theory]
+    [InlineData("automatic")]
+    [InlineData("AUTOMATIC")]
+    [InlineData("READ_WRITE")]
+    public void ConnectionStringSetAccessModeOption(string accessMode)
+    {
+        using var connection = new DuckDBConnection($"DataSource=:memory:;access_mode={accessMode}");
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT current_setting('access_mode');";
+            var value = command.ExecuteScalar();
+            value.Should().Be(accessMode.ToLower());
+        }
+    }
+
+    [Theory]
+    [InlineData("automatic", 2)]
+    [InlineData("AUTOMATIC", 8)]
+    [InlineData("READ_WRITE", 100)]
+    public void ConnectionStringSetThreadsAndAccessModeOption(string accessMode, int threads)
+    {
+        using var connection = new DuckDBConnection($"DataSource=:memory:;Access_Mode={accessMode};Threads={threads}");
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT current_setting('access_mode');";
+            var value = command.ExecuteScalar();
+            value.Should().Be(accessMode.ToLower());
+
+            command.CommandText = "SELECT current_setting('threads');";
+            value = command.ExecuteScalar();
+            value.Should().Be(threads);
+        }
+    }
 }

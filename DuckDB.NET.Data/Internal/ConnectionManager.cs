@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using DuckDB.NET.Data.ConnectionString;
 
@@ -53,14 +55,27 @@ internal class ConnectionManager
             {
                 var path = connectionString.InMemory ? null : filename;
 
-                using var config = new DuckDBConfig();
-                var resultOpen = NativeMethods.Startup.DuckDBOpen(path, out var db, config, out var error);
-
-                if (!resultOpen.IsSuccess())
+                NativeMethods.Configure.DuckDBCreateConfig(out var config);
+                using (config)
                 {
-                    throw new DuckDBException($"DuckDBOpen failed: {error.ToManagedString()}", resultOpen);
+                    foreach (var (option, value) in connectionString.Configuration)
+                    {
+                        var state = NativeMethods.Configure.DuckDBSetConfig(config, option, value);
+
+                        if (!state.IsSuccess())
+                        {
+                            throw new DuckDBException($"Error setting '{option}' to '{value}'");
+                        }
+                    }
+
+                    var resultOpen = NativeMethods.Startup.DuckDBOpen(path, out var db, config, out var error);
+
+                    if (!resultOpen.IsSuccess())
+                    {
+                        throw new DuckDBException($"DuckDBOpen failed: {error.ToManagedString()}", resultOpen);
+                    }
+                    fileRef.Database = db; 
                 }
-                fileRef.Database = db;
             }
 
             var resultConnect = NativeMethods.Startup.DuckDBConnect(fileRef.Database, out var nativeConnection);

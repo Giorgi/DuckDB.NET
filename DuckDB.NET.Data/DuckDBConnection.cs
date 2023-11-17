@@ -65,16 +65,14 @@ public class DuckDBConnection : DbConnection
             if (!string.IsNullOrEmpty(ConnectionString))
                 return DuckDBConnectionStringParser.Parse(ConnectionString).DataSource;
 
-            throw new InvalidOperationException("Connection should be opened or at least a connection string must be specified.");
+            throw new InvalidOperationException("Connection should be open or at least a connection string must be specified.");
         }
     }
 
-    internal DuckDBNativeConnection NativeConnection
-        => connectionReference?.NativeConnection 
-            ?? throw new InvalidOperationException("The DuckDBConnection must be open to access the native connection.");
+    internal DuckDBNativeConnection NativeConnection => connectionReference?.NativeConnection 
+                                                        ?? throw new InvalidOperationException("The DuckDBConnection must be open to access the native connection.");
 
-    public override string ServerVersion 
-        => NativeMethods.Startup.DuckDBLibraryVersion().ToManagedString(false);
+    public override string ServerVersion => NativeMethods.Startup.DuckDBLibraryVersion().ToManagedString(false);
 
     public override ConnectionState State => connectionState;
 
