@@ -44,7 +44,7 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
 
         foreach (KeyValuePair<string, object> pair in builder)
         {
-            if (DuckDBConnectionStringBuilder.DataSourceKeys.Contains(pair.Key, StringComparer.OrdinalIgnoreCase))
+            if (DuckDBConnectionStringBuilder.DataSourceKeys.Contains(pair.Key))
             {
                 continue;
             }
