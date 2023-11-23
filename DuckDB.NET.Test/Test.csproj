@@ -11,7 +11,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Dapper" Version="2.1.4" />
+    <PackageReference Include="Dapper" Version="2.1.24" />
     <PackageReference Include="FluentAssertions" Version="6.8.0" />
     <PackageReference Include="coverlet.collector" Version="6.0.0">
       <PrivateAssets>all</PrivateAssets>
@@ -35,7 +35,7 @@
   </ItemGroup>
 
   <Target Name="CallExecutable" BeforeTargets="GenerateAdditionalSources">
-    <MSBuild Projects="..\DuckDB.NET.Bindings\Bindings.csproj" Targets="DownloadNativeLibs" Properties="BuildType=Full;"/>
+    <MSBuild Projects="..\DuckDB.NET.Bindings\Bindings.csproj" Targets="DownloadNativeLibs" Properties="BuildType=Full;" />
   </Target>
   <ItemGroup>
     <None Include="..\DuckDB.NET.Bindings\obj\runtimes\**\*.dll;..\DuckDB.NET.Bindings\obj\runtimes\**\*.so;..\DuckDB.NET.Bindings\obj\runtimes\**\*.dylib;">
