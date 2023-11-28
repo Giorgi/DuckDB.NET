@@ -12,9 +12,10 @@ internal static class VectorDataReaderFactory
             DuckDBType.Time => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.Interval => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.Timestamp => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
-            
+
             DuckDBType.Boolean => new BooleanVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
 
+            DuckDBType.Map => new MapVectorDataReader(vector, dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.List => new ListVectorDataReader(vector, dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.Blob => new StringVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.Varchar => new StringVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
