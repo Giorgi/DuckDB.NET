@@ -107,6 +107,16 @@ public class DuckDBDataReaderMapTests : DuckDBTestBase
         }
     }
 
+    [Fact]
+    public void ReadMapWrongTypeThrowsException()
+    {
+        Command.CommandText = "SELECT MAP { ['a', 'b']: [1.1, 2.2], ['c', 'd']: [3.3, 4.4] };";
+        var reader = Command.ExecuteReader();
+
+        reader.Read();
+        reader.Invoking(r => r.GetFieldValue<List<KeyValuePair<string, int>>>(0)).Should().Throw<InvalidOperationException>();
+    }
+
     class ListEqualityClass : IEqualityComparer<List<string>>
     {
         public bool Equals(List<string> x, List<string> y)
