@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using FluentAssertions;
 using Xunit;
@@ -20,7 +21,7 @@ public class DuckDBDataReaderMapTests : DuckDBTestBase
         reader.Read();
         var value = reader.GetValue(0);
 
-        value.Should().BeOfType<Dictionary<string, int>>();
+        value.Should().BeOfType<Dictionary<string, int?>>();
 
         var expectation = new Dictionary<string, int>() { { "key1", 1 }, { "key2", 5 }, { "key3", 7 } };
         value.Should().BeEquivalentTo(expectation);
@@ -35,7 +36,7 @@ public class DuckDBDataReaderMapTests : DuckDBTestBase
         reader.Read();
         var value = reader.GetValue(0);
 
-        value.Should().BeOfType<Dictionary<string, int>>();
+        value.Should().BeOfType<Dictionary<string, int?>>();
 
         var expectation = new Dictionary<string, int>() { { "key1", 1 }, { "key2", 5 }, { "key3", 7 } };
         value.Should().BeEquivalentTo(expectation);
@@ -59,6 +60,29 @@ public class DuckDBDataReaderMapTests : DuckDBTestBase
 
         var expectation = new Dictionary<string, int>() { { "key1", 1 }, { "key2", 5 }, { "key3", 7 } };
         value.Should().BeEquivalentTo(expectation);
+    }
+
+    [Fact]
+    public void ReadMapWithNullInNullableDictionary()
+    {
+        Command.CommandText = "SELECT MAP { 'key1': 1, 'key2': NULL, 'key3': 7 }";
+        var reader = Command.ExecuteReader();
+
+        reader.Read();
+        var value = reader.GetFieldValue<Dictionary<string, int?>>(0);
+
+        var expectation = new Dictionary<string, int?>() { { "key1", 1 }, { "key2", null }, { "key3", 7 } };
+        value.Should().BeEquivalentTo(expectation);
+    }
+
+    [Fact]
+    public void ReadMapWithNullInNotNullableDictionaryThrowsException()
+    {
+        Command.CommandText = "SELECT MAP { 'key1': 1, 'key2': NULL, 'key3': 7 }";
+        var reader = Command.ExecuteReader();
+
+        reader.Read();
+        reader.Invoking(r => r.GetFieldValue<Dictionary<string, int>>(0)).Should().Throw<NullReferenceException>();
     }
 
     [Fact]

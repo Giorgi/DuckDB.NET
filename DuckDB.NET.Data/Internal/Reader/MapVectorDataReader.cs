@@ -33,7 +33,27 @@ internal class MapVectorDataReader : VectorDataReaderBase
 
     internal override unsafe object GetValue(ulong offset, Type? targetType = null)
     {
-        targetType ??= typeof(Dictionary<,>).MakeGenericType(keyReader.ClrType, valueReader.ClrType);
+        //If targetType is null we create a Dictionary<keyReader.ClrType, valueReader.ClrType> or
+        //Dictionary<keyReader.ClrType, valueReader.ClrType?>
+        var allowsNullValues = true;
+
+        if (targetType == null)
+        {
+            var valueType = valueReader.ClrType;
+
+            if (valueType.IsPrimitive)
+            {
+                valueType = typeof(Nullable<>).MakeGenericType(valueType);
+            }
+
+            targetType = typeof(Dictionary<,>).MakeGenericType(keyReader.ClrType, valueType);
+        }
+        else
+        {
+            var arguments = targetType.GetGenericArguments();
+
+            allowsNullValues = arguments.Length == 2 && (!arguments[1].IsPrimitive || Nullable.GetUnderlyingType(arguments[1]) == typeof(Nullable<>));
+        }
 
         if (Activator.CreateInstance(targetType) is IDictionary instance)
         {
@@ -42,10 +62,18 @@ internal class MapVectorDataReader : VectorDataReaderBase
             for (ulong i = 0; i < listData->Length; i++)
             {
                 var childOffset = i + listData->Offset;
-                var key = keyReader.GetValue(childOffset);
-                var value = valueReader.GetValue(childOffset);
 
-                instance.Add(key, value);
+                var key = keyReader.GetValue(childOffset);
+                var value = valueReader.IsValid(childOffset) ? valueReader.GetValue(childOffset) : null;
+
+                if (allowsNullValues || value != null)
+                {
+                    instance.Add(key, value);
+                }
+                else
+                {
+                    throw new NullReferenceException($"The Map in column {ColumnName} contains null value but dictionary does not allow null values");
+                }
             }
 
             return instance;
