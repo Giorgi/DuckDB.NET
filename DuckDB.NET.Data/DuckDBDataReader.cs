@@ -145,7 +145,7 @@ public class DuckDBDataReader : DbDataReader
 
     public override Guid GetGuid(int ordinal)
     {
-        return new Guid(GetString(ordinal));
+        return GetFieldValue<Guid>(ordinal);
     }
 
     public override short GetInt16(int ordinal)

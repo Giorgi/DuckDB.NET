@@ -18,14 +18,14 @@ public class GuidParameterTests : DuckDBTestBase
 
         foreach (var guid in guids)
         {
-            Command.CommandText = $"SELECT '{guid}';";
-            Command.ExecuteNonQuery();
+            Command.CommandText = $"SELECT '{guid}'::uuid;";
 
             var scalar = Command.ExecuteScalar();
-            scalar.Should().Be(guid.ToString());
+            scalar.Should().Be(guid);
 
             var reader = Command.ExecuteReader();
             reader.Read();
+
             var receivedValue = reader.GetGuid(0);
             receivedValue.Should().Be(guid);
         }
@@ -38,14 +38,14 @@ public class GuidParameterTests : DuckDBTestBase
 
         foreach (var guid in guids)
         {
-            Command.CommandText = "SELECT ?;";
+            Command.CommandText = "SELECT ?::uuid;";
 
             Command.Parameters.Clear();
             Command.Parameters.Add(new DuckDBParameter(guid));
             Command.ExecuteNonQuery();
 
             var scalar = Command.ExecuteScalar();
-            scalar.Should().Be(guid.ToString());
+            scalar.Should().Be(guid);
 
             var reader = Command.ExecuteReader();
             reader.Read();

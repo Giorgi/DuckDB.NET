@@ -8,6 +8,7 @@ internal static class VectorDataReaderFactory
     {
         return columnType switch
         {
+            DuckDBType.Uuid => new GuidVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.Date => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.Time => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.Interval => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),

@@ -93,6 +93,8 @@ internal class VectorDataReaderBase : IDisposable
             DuckDBType.Decimal => typeof(decimal),
             DuckDBType.Blob => typeof(Stream),
             DuckDBType.Enum => typeof(string),
+            DuckDBType.Map => typeof(Dictionary<object, object>),
+            DuckDBType.Uuid => typeof(Guid),
             DuckDBType.Struct => typeof(Dictionary<string, object>),
             _ => throw new ArgumentException($"Unrecognised type {DuckDBType} ({(int)DuckDBType}) for column {ColumnName}")
         };
