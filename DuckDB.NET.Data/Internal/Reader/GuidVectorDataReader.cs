@@ -20,7 +20,7 @@ internal class GuidVectorDataReader : VectorDataReaderBase
 
         if (IsValid(offset))
         {
-            var input = *((DuckDBHugeInt*)DataPointer + offset);
+            var input = GetFieldData<DuckDBHugeInt>(offset);
 
             var guid = ConvertToGuid(input);
             return (T)(object)guid;
@@ -42,7 +42,7 @@ internal class GuidVectorDataReader : VectorDataReaderBase
             return base.GetValue(offset, targetType);
         }
 
-        var input = *((DuckDBHugeInt*)DataPointer + offset);
+        var input = GetFieldData<DuckDBHugeInt>(offset);
 
         var guid = ConvertToGuid(input);
         return guid;
