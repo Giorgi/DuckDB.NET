@@ -48,6 +48,8 @@ internal class GuidVectorDataReader : VectorDataReaderBase
         return guid;
     }
 
+    //Ported from duckdb source code UUID::ToString
+    //https://github.com/duckdb/duckdb/blob/9c91b3a329073ea1767b0aaff94b51da98dd03e2/src/common/types/uuid.cpp#L56
     private static Guid ConvertToGuid(DuckDBHugeInt input)
     {
         var buffer = new char[36];
