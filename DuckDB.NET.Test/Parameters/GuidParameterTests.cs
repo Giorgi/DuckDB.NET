@@ -1,4 +1,5 @@
 using System;
+using System.Data;
 using DuckDB.NET.Data;
 using FluentAssertions;
 using Xunit;
@@ -12,7 +13,7 @@ public class GuidParameterTests : DuckDBTestBase
     }
 
     [Fact]
-    public void SimpleTest()
+    public void ReadGuid()
     {
         var guids = new[] { Guid.NewGuid(), Guid.Empty };
 
@@ -29,6 +30,21 @@ public class GuidParameterTests : DuckDBTestBase
             var receivedValue = reader.GetGuid(0);
             receivedValue.Should().Be(guid);
         }
+    }
+
+    [Fact]
+    public void ReadGuidNullable()
+    {
+        Command.CommandText = $"SELECT ?::uuid;";
+        Command.Parameters.Add(new DuckDBParameter(DbType.Guid, null));
+
+        var reader = Command.ExecuteReader();
+        reader.Read();
+
+        var receivedValue = reader.GetFieldValue<Guid?>(0);
+        receivedValue.Should().BeNull();
+
+        reader.Invoking(r => r.GetFieldValue<Guid>(0)).Should().Throw<InvalidCastException>();
     }
 
     [Fact]
