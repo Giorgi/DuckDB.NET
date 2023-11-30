@@ -20,6 +20,7 @@ internal static class VectorDataReaderFactory
             DuckDBType.List => new ListVectorDataReader(vector, dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.Blob => new StringVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.Varchar => new StringVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.Bit => new StringVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.Enum => new EnumVectorDataReader(vector, dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.Struct => new StructVectorDataReader(vector, dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.Decimal => new DecimalVectorDataReader(vector, dataPointer, validityMaskPointer, columnType, columnName),

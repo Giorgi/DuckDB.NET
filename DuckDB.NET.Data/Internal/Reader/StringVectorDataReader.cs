@@ -6,8 +6,6 @@ namespace DuckDB.NET.Data.Internal.Reader;
 
 internal class StringVectorDataReader : VectorDataReaderBase
 {
-    private const int InlineStringMaxLength = 12;
-
     internal unsafe StringVectorDataReader(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
     }
@@ -35,26 +33,14 @@ internal class StringVectorDataReader : VectorDataReaderBase
     private unsafe string GetString(ulong offset)
     {
         var data = (DuckDBString*)DataPointer + offset;
-        var length = *(int*)data;
 
-        var pointer = length <= InlineStringMaxLength
-            ? data->value.inlined.inlined
-            : data->value.pointer.ptr;
-
-        return new string(pointer, 0, length, Encoding.UTF8);
+        return new string(data->Data, 0, data->Length, Encoding.UTF8);
     }
 
     private unsafe Stream GetStream(ulong offset)
     {
         var data = (DuckDBString*)DataPointer + offset;
-        var length = *(int*)data;
 
-        if (length <= InlineStringMaxLength)
-        {
-            var value = new string(data->value.inlined.inlined, 0, length, Encoding.UTF8);
-            return new MemoryStream(Encoding.UTF8.GetBytes(value), false);
-        }
-
-        return new UnmanagedMemoryStream((byte*)data->value.pointer.ptr, length, length, FileAccess.Read);
+        return new UnmanagedMemoryStream((byte*)data->Data, data->Length, data->Length, FileAccess.Read);
     }
 }

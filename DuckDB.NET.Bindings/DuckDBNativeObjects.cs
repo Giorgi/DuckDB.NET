@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.Design;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -267,6 +265,28 @@ public struct DuckDBInterval
 public partial struct DuckDBString
 {
     public _value_e__Union value;
+
+    private const int InlineStringMaxLength = 12;
+
+    public readonly int Length => (int)value.inlined.length;
+
+    public readonly unsafe sbyte* Data
+    {
+        get
+        {
+            if (Length <= InlineStringMaxLength)
+            {
+                fixed (sbyte* pointerToFirst = value.inlined.inlined)
+                {
+                    return pointerToFirst;
+                }
+            }
+            else
+            {
+                return value.pointer.ptr;
+            }
+        }
+    }
 
     [StructLayout(LayoutKind.Explicit)]
     public partial struct _value_e__Union
