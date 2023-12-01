@@ -1,8 +1,8 @@
-﻿using System;
+﻿using DuckDB.NET.Data;
+using FluentAssertions;
+using System;
 using System.Collections.Generic;
 using System.Data;
-using DuckDB.NET.Data;
-using FluentAssertions;
 using Xunit;
 
 namespace DuckDB.NET.Test;
@@ -40,6 +40,17 @@ public class DuckDBDataReaderTests : DuckDBTestBase
 
         reader.IsClosed.Should().BeTrue();
         Connection.State.Should().Be(ConnectionState.Closed);
+    }
+
+    [Fact]
+    public void ReadValueBeforeReadThrowsException()
+    {
+        Command.CommandText = "select 24";
+        var reader = Command.ExecuteReader();
+
+        reader.Invoking(r => r.IsDBNull(0)).Should().Throw<InvalidOperationException>();
+        reader.Invoking(r => r.GetValue(0)).Should().Throw<InvalidOperationException>();
+        reader.Invoking(r => r.GetFieldValue<int>(0)).Should().Throw<InvalidOperationException>();
     }
 
     [Fact]

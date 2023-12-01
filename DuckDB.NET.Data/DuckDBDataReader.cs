@@ -71,13 +71,13 @@ public class DuckDBDataReader : DbDataReader
             currentChunk?.Dispose();
             currentChunk = NativeMethods.Types.DuckDBResultGetChunk(currentResult, currentChunkIndex);
             currentChunkRowCount = (ulong)NativeMethods.DataChunks.DuckDBDataChunkGetSize(currentChunk);
-            
+
             vectorReaders = new VectorDataReaderBase[fieldCount];
 
             for (int i = 0; i < fieldCount; i++)
             {
                 var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(currentChunk, i);
-                
+
                 var vectorData = NativeMethods.DataChunks.DuckDBVectorGetData(vector);
                 var vectorValidityMask = NativeMethods.DataChunks.DuckDBVectorGetValidity(vector);
 
@@ -188,11 +188,15 @@ public class DuckDBDataReader : DbDataReader
 
     public override T GetFieldValue<T>(int ordinal)
     {
+        CheckRowRead();
+
         return vectorReaders[ordinal].GetValue<T>(rowsReadFromCurrentChunk - 1);
     }
 
     public override object GetValue(int ordinal)
     {
+        CheckRowRead();
+
         return IsDBNull(ordinal) ? DBNull.Value : vectorReaders[ordinal].GetValue(rowsReadFromCurrentChunk - 1) ?? DBNull.Value;
     }
 
@@ -213,6 +217,8 @@ public class DuckDBDataReader : DbDataReader
 
     public override bool IsDBNull(int ordinal)
     {
+        CheckRowRead();
+
         return !vectorReaders[ordinal].IsValid(rowsReadFromCurrentChunk - 1);
     }
 
@@ -319,5 +325,13 @@ public class DuckDBDataReader : DbDataReader
         }
 
         closed = true;
+    }
+
+    private void CheckRowRead()
+    {
+        if (currentRow < 0)
+        {
+            throw new InvalidOperationException("No row has been read");
+        }
     }
 }
