@@ -65,7 +65,7 @@ public class DuckDBDataReader : DbDataReader
         {
             foreach (var reader in vectorReaders)
             {
-                reader?.Dispose();
+                reader.Dispose();
             }
 
             currentChunk?.Dispose();
