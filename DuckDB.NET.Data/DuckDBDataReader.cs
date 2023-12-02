@@ -197,7 +197,7 @@ public class DuckDBDataReader : DbDataReader
     {
         CheckRowRead();
 
-        return IsDBNull(ordinal) ? DBNull.Value : vectorReaders[ordinal].GetValue(rowsReadFromCurrentChunk - 1) ?? DBNull.Value;
+        return IsDBNull(ordinal) ? DBNull.Value : vectorReaders[ordinal].GetValue(rowsReadFromCurrentChunk - 1);
     }
 
     public override int GetValues(object[] values)
