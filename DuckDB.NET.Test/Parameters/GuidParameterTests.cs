@@ -27,6 +27,8 @@ public class GuidParameterTests : DuckDBTestBase
             var reader = Command.ExecuteReader();
             reader.Read();
 
+            reader.GetFieldType(0).Should().Be(typeof(Guid));
+
             var receivedValue = reader.GetGuid(0);
             receivedValue.Should().Be(guid);
         }

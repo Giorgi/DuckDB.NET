@@ -18,6 +18,8 @@ public class DuckDBBitStringReaderTests : DuckDBTestBase
         var reader = Command.ExecuteReader();
         reader.Read();
 
+        reader.GetFieldType(0).Should().Be(typeof(string));
+
         var value = reader.GetValue(0);
         value.Should().Be("000000101011");
 

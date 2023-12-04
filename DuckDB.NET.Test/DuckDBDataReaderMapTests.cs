@@ -17,6 +17,7 @@ public class DuckDBDataReaderMapTests : DuckDBTestBase
     {
         Command.CommandText = "SELECT MAP { 'key1': 1, 'key2': 5, 'key3': 7 }";
         var reader = Command.ExecuteReader();
+        reader.GetFieldType(0).Should().Be(typeof(Dictionary<object, object>));
 
         reader.Read();
         var value = reader.GetValue(0);
