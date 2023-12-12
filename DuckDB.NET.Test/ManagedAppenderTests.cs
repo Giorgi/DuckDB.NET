@@ -4,6 +4,7 @@ using DuckDB.NET.Data;
 using Xunit;
 using FluentAssertions;
 using System.Collections.Generic;
+using System.Text;
 
 namespace DuckDB.NET.Test;
 
@@ -258,6 +259,42 @@ public class DuckDBManagedAppenderTests : DuckDBTestBase
                 readRowIndex++;
             }
             readRowIndex.Should().Be(rows);
+        }
+    }
+
+    [Fact]
+    public void ManagedAppenderOnTableAndColumnsWithSpecialCharacters()
+    {
+        var specialTableName = "SPÉçÏÃL - TÁBLÈ_";
+        var specialColumnName = "SPÉçÏÃL @ CÓlümn";
+        var specialStringValues = new string[] { "Válüe 1", "Öthér V@L", "Lãst" };
+
+        Command.CommandText = @$"CREATE TABLE ""{specialTableName}"" (""{specialColumnName}"" TEXT)";
+        Command.ExecuteNonQuery();
+
+        using (var appender = Connection.CreateAppender(specialTableName))
+        {
+            foreach (var spValue in specialStringValues)
+            {
+                var row = appender.CreateRow();
+                row.AppendValue(spValue);
+                row.EndRow();
+            }
+        }
+
+        Command.CommandText = @$"SELECT ""{specialColumnName}"" FROM ""{specialTableName}""";
+        using (var reader = Command.ExecuteReader())
+        {
+            var colOrdinal = reader.GetOrdinal(specialColumnName);
+            colOrdinal.Should().Be(0);
+
+            int valueIdx = 0;
+            while (reader.Read())
+            {
+                string expected = specialStringValues[valueIdx];
+                reader.GetString(colOrdinal).Should().BeEquivalentTo(expected);
+                valueIdx++;
+            }
         }
     }
 }

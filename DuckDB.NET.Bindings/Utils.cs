@@ -55,7 +55,7 @@ public static class Utils
         return result;
     }
 
-    public static SafeUnmanagedMemoryHandle ToUnmanagedString(this string managedString)
+    public static SafeUnmanagedMemoryHandle ToUnmanagedString(this string? managedString)
     {
 #if NET6_0_OR_GREATER
         var pointer = Marshal.StringToCoTaskMemUTF8(managedString);

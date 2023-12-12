@@ -145,7 +145,9 @@ public class DuckDBConnection : DbConnection
     public DuckDBAppender CreateAppender(string? schema, string table)
     {
         EnsureConnectionOpen();
-        if (NativeMethods.Appender.DuckDBAppenderCreate(NativeConnection, schema, table, out var nativeAppender) == DuckDBState.Error)
+        using var hStrSchemaName = schema.ToUnmanagedString();
+        using var hStrTableName = table.ToUnmanagedString();
+        if (NativeMethods.Appender.DuckDBAppenderCreate(NativeConnection, hStrSchemaName, hStrTableName, out var nativeAppender) == DuckDBState.Error)
         {
             try
             {
