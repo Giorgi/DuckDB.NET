@@ -4,7 +4,7 @@ using DuckDB.NET.Data;
 using Xunit;
 using FluentAssertions;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
 
 namespace DuckDB.NET.Test;
 
@@ -70,7 +70,7 @@ public class DuckDBManagedAppenderTests : DuckDBTestBase
                 readRowIndex++;
             }
             readRowIndex.Should().Be(rows);
-        }  
+        }
     }
 
     [Fact]
@@ -95,7 +95,7 @@ public class DuckDBManagedAppenderTests : DuckDBTestBase
         }
 
         Command.CommandText = "SELECT * FROM UnicodeAppenderTestTable";
-        using( var reader = Command.ExecuteReader())
+        using (var reader = Command.ExecuteReader())
         {
             var results = new List<string>();
             while (reader.Read())
@@ -105,7 +105,7 @@ public class DuckDBManagedAppenderTests : DuckDBTestBase
             }
 
             results.Should().BeEquivalentTo(words);
-        }       
+        }
     }
 
     [Fact]
@@ -262,17 +262,26 @@ public class DuckDBManagedAppenderTests : DuckDBTestBase
         }
     }
 
-    [Fact]
-    public void ManagedAppenderOnTableAndColumnsWithSpecialCharacters()
+    [Theory]
+    [InlineData("")]
+    [InlineData("MY # SÇHËMÁ")]
+    public void ManagedAppenderOnTableAndColumnsWithSpecialCharacters(string schemaName)
     {
+        if (!string.IsNullOrWhiteSpace(schemaName))
+        {
+            var schema = $"CREATE SCHEMA {GetQualifiedObjectName(schemaName)}";
+            Command.CommandText = schema;
+            Command.ExecuteNonQuery();
+        }
+
         var specialTableName = "SPÉçÏÃL - TÁBLÈ_";
         var specialColumnName = "SPÉçÏÃL @ CÓlümn";
         var specialStringValues = new string[] { "Válüe 1", "Öthér V@L", "Lãst" };
 
-        Command.CommandText = @$"CREATE TABLE ""{specialTableName}"" (""{specialColumnName}"" TEXT)";
+        Command.CommandText = $"CREATE TABLE {GetQualifiedObjectName(schemaName, specialTableName)} ({GetQualifiedObjectName(specialColumnName)} TEXT)";
         Command.ExecuteNonQuery();
 
-        using (var appender = Connection.CreateAppender(specialTableName))
+        using (var appender = Connection.CreateAppender(schemaName, specialTableName))
         {
             foreach (var spValue in specialStringValues)
             {
@@ -282,7 +291,7 @@ public class DuckDBManagedAppenderTests : DuckDBTestBase
             }
         }
 
-        Command.CommandText = @$"SELECT ""{specialColumnName}"" FROM ""{specialTableName}""";
+        Command.CommandText = $"SELECT {GetQualifiedObjectName(specialTableName, specialColumnName)} FROM {GetQualifiedObjectName(schemaName, specialTableName)}";
         using (var reader = Command.ExecuteReader())
         {
             var colOrdinal = reader.GetOrdinal(specialColumnName);
@@ -296,5 +305,13 @@ public class DuckDBManagedAppenderTests : DuckDBTestBase
                 valueIdx++;
             }
         }
+    }
+
+    private static string GetQualifiedObjectName(params string[] parts)
+    {
+        return string.Join('.', parts.
+                                  Where(p => !string.IsNullOrWhiteSpace(p)).
+                                  Select(p => '"' + p + '"')
+                          );
     }
 }
