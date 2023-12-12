@@ -147,6 +147,7 @@ public class DuckDBConnection : DbConnection
         EnsureConnectionOpen();
         using var unmanagedSchema = schema.ToUnmanagedString();
         using var unmanagedTable = table.ToUnmanagedString();
+
         if (NativeMethods.Appender.DuckDBAppenderCreate(NativeConnection, unmanagedSchema, unmanagedTable, out var nativeAppender) == DuckDBState.Error)
         {
             try

@@ -297,21 +297,19 @@ public class DuckDBManagedAppenderTests : DuckDBTestBase
             var colOrdinal = reader.GetOrdinal(specialColumnName);
             colOrdinal.Should().Be(0);
 
-            int valueIdx = 0;
+            var valueIdx = 0;
             while (reader.Read())
             {
-                string expected = specialStringValues[valueIdx];
+                var expected = specialStringValues[valueIdx];
                 reader.GetString(colOrdinal).Should().BeEquivalentTo(expected);
                 valueIdx++;
             }
         }
     }
 
-    private static string GetQualifiedObjectName(params string[] parts)
-    {
-        return string.Join('.', parts.
-                                  Where(p => !string.IsNullOrWhiteSpace(p)).
-                                  Select(p => '"' + p + '"')
-                          );
-    }
+    private static string GetQualifiedObjectName(params string[] parts) =>
+        string.Join('.', parts.
+            Where(p => !string.IsNullOrWhiteSpace(p)).
+            Select(p => '"' + p + '"')
+        );
 }
