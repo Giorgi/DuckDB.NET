@@ -8,7 +8,7 @@ public partial class NativeMethods
     public static class Startup
     {
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_open")]
-        public static extern DuckDBState DuckDBOpen(string path, out DuckDBDatabase database);
+        public static extern DuckDBState DuckDBOpen(string? path, out DuckDBDatabase database);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_open_ext")]
         public static extern DuckDBState DuckDBOpen(string? path, out DuckDBDatabase database, DuckDBConfig config, out IntPtr error);
