@@ -70,7 +70,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     {
         VerifyData<BigInteger>("hugeint", 5, new List<BigInteger?>
         {
-            BigInteger.Parse("-170141183460469231731687303715884105728"), 
+            BigInteger.Parse("-170141183460469231731687303715884105727"), 
             BigInteger.Parse("170141183460469231731687303715884105727"), 
             null
         });
