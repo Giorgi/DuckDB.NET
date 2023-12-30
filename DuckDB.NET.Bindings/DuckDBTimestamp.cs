@@ -6,6 +6,12 @@ namespace DuckDB.NET;
 [StructLayout(LayoutKind.Sequential)]
 public struct DuckDBTimestamp
 {
+    public DuckDBTimestamp(DuckDBDateOnly date, DuckDBTimeOnly time)
+    {
+        Date = date;
+        Time = time;
+    }
+
     public DuckDBDateOnly Date { get; private set; }
     public DuckDBTimeOnly Time { get; private set; }
 
