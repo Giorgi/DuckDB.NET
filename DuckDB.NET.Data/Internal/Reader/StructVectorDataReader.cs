@@ -68,7 +68,10 @@ internal class StructVectorDataReader : VectorDataReaderBase
                     continue;
                 }
 
-                var isNullable = !propertyInfo.PropertyType.IsValueType || Nullable.GetUnderlyingType(propertyInfo.PropertyType) != null;
+                var underlyingType = Nullable.GetUnderlyingType(propertyInfo.PropertyType);
+                var isNullableValueType = underlyingType != null;
+
+                var isNullable = isNullableValueType || !propertyInfo.PropertyType.IsValueType;
 
                 var instanceParam = Expression.Parameter(typeof(object));
                 var argumentParam = Expression.Parameter(typeof(object));
@@ -78,16 +81,16 @@ internal class StructVectorDataReader : VectorDataReaderBase
                     instanceParam, argumentParam
                 ).Compile();
 
-                details.Properties.Add(propertyInfo.Name, new PropertyDetails(propertyInfo.PropertyType, isNullable, setAction));
+                details.Properties.Add(propertyInfo.Name, new PropertyDetails(propertyInfo.PropertyType, isNullable, isNullableValueType, underlyingType, setAction));
             }
 
             return details;
         });
 
-        foreach (var properties in typeDetails.Properties)
+        foreach (var property in typeDetails.Properties)
         {
-            structDataReaders.TryGetValue(properties.Key, out var reader);
-            var isNullable = properties.Value.Nullable;
+            structDataReaders.TryGetValue(property.Key, out var reader);
+            var isNullable = property.Value.Nullable;
 
             if (reader == null)
             {
@@ -101,14 +104,14 @@ internal class StructVectorDataReader : VectorDataReaderBase
 
             if (reader.IsValid(offset))
             {
-                var value = reader.GetValue(offset, isNullable ? Nullable.GetUnderlyingType(properties.Value.PropertyType) : properties.Value.PropertyType);
-                properties.Value.Setter(result!, value);
+                var value = reader.GetValue(offset, property.Value.NullableValueType ? property.Value.NullableType : property.Value.PropertyType);
+                property.Value.Setter(result!, value);
             }
             else
             {
                 if (!isNullable)
                 {
-                    throw new NullReferenceException($"Property '{properties.Key}' is not nullable but struct contains null value");
+                    throw new NullReferenceException($"Property '{property.Key}' is not nullable but struct contains null value");
                 }
             }
         }

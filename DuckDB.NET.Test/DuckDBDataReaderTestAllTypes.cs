@@ -153,8 +153,8 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     {
         VerifyDataStruct<DuckDBDateOnly>("date", 10, new List<DuckDBDateOnly>
         {
-            new DuckDBDateOnly(-5877641, 6, 25),
-            new DuckDBDateOnly(5881580, 7, 10)
+            new(-5877641, 6, 25),
+            new(5881580, 7, 10)
         });
     }
 
@@ -163,8 +163,8 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     {
         VerifyDataStruct<DuckDBTimeOnly>("time", 11, new List<DuckDBTimeOnly>
         {
-            new DuckDBTimeOnly(0,0,0),
-            new DuckDBTimeOnly(23, 59, 59,999999)
+            new(0,0,0),
+            new(23, 59, 59,999999)
         });
     }
 
@@ -173,8 +173,8 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     {
         VerifyDataStruct<DuckDBTimestamp>("timestamp", 12, new List<DuckDBTimestamp>
         {
-            new DuckDBTimestamp(new DuckDBDateOnly(-290308, 12, 22), new DuckDBTimeOnly(0,0,0)),
-            new DuckDBTimestamp(new DuckDBDateOnly(294247, 1, 10), new DuckDBTimeOnly(4,0,54,775806))
+            new(new(-290308, 12, 22), new(0,0,0)),
+            new(new(294247, 1, 10), new(4,0,54,775806))
         });
     }
 
@@ -284,13 +284,13 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadNestedIntList()
     {
-        var data = new List<int?>() {   42,999, null, null, -42};
+        var data = new List<int?>() { 42, 999, null, null, -42 };
         VerifyDataListClass<List<int?>>("nested_int_array", 38, new List<List<List<int?>>> {new (), new()
         {
-            new List<int?>(),
+            new(),
             data,
             null,
-            new List<int?>(),
+            new(),
             data,
         } });
     }
@@ -301,12 +301,12 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         var columnIndex = 39;
         reader.GetOrdinal("struct").Should().Be(columnIndex);
 
-        reader.GetValue(columnIndex).Should().BeEquivalentTo(new Dictionary<string, object>() {{"a", null}, {"b", null}});
+        reader.GetValue(columnIndex).Should().BeEquivalentTo(new Dictionary<string, object>() { { "a", null }, { "b", null } });
         reader.GetFieldValue<StructTest>(columnIndex).Should().BeEquivalentTo(new StructTest());
 
         reader.Read();
 
-        reader.GetValue(columnIndex).Should().BeEquivalentTo(new Dictionary<string, object>(){{"a", 42}, {"b", "🦆🦆🦆🦆🦆🦆"}});
+        reader.GetValue(columnIndex).Should().BeEquivalentTo(new Dictionary<string, object>() { { "a", 42 }, { "b", "🦆🦆🦆🦆🦆🦆" } });
         reader.GetFieldValue<StructTest>(columnIndex).Should().BeEquivalentTo(new StructTest()
         {
             A = 42,
@@ -318,9 +318,62 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         reader.IsDBNull(columnIndex).Should().Be(true);
     }
 
-    class StructTest 
+    [Fact]
+    public void ReadStructOfArray()
+    {
+        var columnIndex = 40;
+        reader.GetOrdinal("struct_of_arrays").Should().Be(columnIndex);
+
+        reader.GetFieldValue<StructOfArrayTest>(columnIndex).Should().BeEquivalentTo(new StructOfArrayTest());
+
+        reader.Read();
+
+        reader.GetFieldValue<StructOfArrayTest>(columnIndex).Should().BeEquivalentTo(new StructOfArrayTest()
+        {
+            A = new() { 42, 999, null, null, -42 },
+            B = new() { "🦆🦆🦆🦆🦆🦆", "goose", null, "" }
+        });
+
+        reader.Read();
+
+        reader.IsDBNull(columnIndex).Should().Be(true);
+    }
+
+    [Fact]
+    public void ReadArrayOfStructs()
+    {
+        var columnIndex = 41;
+        reader.GetOrdinal("array_of_structs").Should().Be(columnIndex);
+
+        reader.GetFieldValue<List<StructTest>>(columnIndex).Should().BeEquivalentTo(new List<StructTest>());
+
+        reader.Read();
+
+        reader.GetFieldValue<List<StructTest>>(columnIndex).Should().BeEquivalentTo(new List<StructTest>()
+        {
+            new(),
+            new()
+            {
+                A = 42,
+                B = "🦆🦆🦆🦆🦆🦆"
+            },
+            null
+        });
+
+        reader.Read();
+
+        reader.IsDBNull(columnIndex).Should().Be(true);
+    }
+
+    class StructTest
     {
         public int? A { get; set; }
         public string B { get; set; }
+    }
+
+    class StructOfArrayTest
+    {
+        public List<int?> A { get; set; }
+        public List<string> B { get; set; }
     }
 }
