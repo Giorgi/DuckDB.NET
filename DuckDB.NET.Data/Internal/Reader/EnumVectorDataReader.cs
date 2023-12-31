@@ -83,17 +83,7 @@ internal class EnumVectorDataReader : VectorDataReaderBase
             var value = NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType, enumValue).ToManagedString();
             return value;
         }
-
-        var underlyingType = Nullable.GetUnderlyingType(returnType);
-        if (underlyingType != null)
-        {
-            if (!IsValid(offset))
-            {
-                return default!;
-            }
-            returnType = underlyingType;
-        }
-
+        
         var enumItem = Enum.Parse(returnType, enumValue.ToString(CultureInfo.InvariantCulture));
         return enumItem;
     }
