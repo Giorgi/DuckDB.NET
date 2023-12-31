@@ -53,6 +53,37 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         reader.IsDBNull(columnIndex).Should().Be(true);
     }
 
+    private void VerifyDataList<T>(string columnName, int columnIndex, IReadOnlyList<List<T?>> data) where T : struct
+    {
+        reader.GetOrdinal(columnName).Should().Be(columnIndex);
+
+        reader.GetFieldValue<List<T?>>(columnIndex).Should().BeEquivalentTo(data[0]);
+
+        reader.Read();
+
+        reader.GetFieldValue<List<T?>>(columnIndex).Should().BeEquivalentTo(data[1]);
+
+        reader.Read();
+
+        reader.IsDBNull(columnIndex).Should().Be(true);
+    }
+
+    private void VerifyDataListClass<T>(string columnName, int columnIndex, IReadOnlyList<List<T>> data) where T : class
+    {
+        reader.GetOrdinal(columnName).Should().Be(columnIndex);
+
+        var fieldValue = reader.GetFieldValue<List<T>>(columnIndex);
+        fieldValue.Should().BeEquivalentTo(data[0]);
+
+        reader.Read();
+
+        reader.GetFieldValue<List<T>>(columnIndex).Should().BeEquivalentTo(data[1]);
+
+        reader.Read();
+
+        reader.IsDBNull(columnIndex).Should().Be(true);
+    }
+
     [Fact]
     public void ReadBool()
     {
@@ -204,7 +235,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadSmallEnum()
     {
-        VerifyDataClass<string>("small_enum", 29, new List<string> { "DUCK_DUCK_ENUM", "GOOSE"});
+        VerifyDataClass<string>("small_enum", 29, new List<string> { "DUCK_DUCK_ENUM", "GOOSE" });
     }
 
     [Fact]
@@ -217,5 +248,79 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     public void ReadLargeEnum()
     {
         VerifyDataClass<string>("large_enum", 31, new List<string> { "enum_0", "enum_69999" });
+    }
+
+    [Fact]
+    public void ReadIntList()
+    {
+        VerifyDataList<int>("int_array", 32, new List<List<int?>> { new(), new() { 42, 999, null, null, -42 } });
+    }
+
+    [Fact]
+    public void ReadDoubleList()
+    {
+        VerifyDataList<double>("double_array", 33, new List<List<double?>> { new(), new() { 42.0, double.NaN, double.PositiveInfinity, double.NegativeInfinity, null, -42.0 } });
+    }
+
+    [Fact]
+    public void ReadDateList()
+    {
+        VerifyDataList<DuckDBDateOnly>("date_array", 34, new List<List<DuckDBDateOnly?>> { new(), new()
+        {
+            new DuckDBDateOnly(1970, 1, 1),
+            new DuckDBDateOnly(5881580, 7, 11),
+            new DuckDBDateOnly(-5877641, 6, 24),
+            null,
+            new DuckDBDateOnly(2022,5,12),
+        } });
+    }
+
+    [Fact]
+    public void ReadStringList()
+    {
+        VerifyDataListClass<string>("varchar_array", 37, new List<List<string>> { new(), new() { "🦆🦆🦆🦆🦆🦆", "goose", null, "" } });
+    }
+
+    [Fact]
+    public void ReadNestedIntList()
+    {
+        var data = new List<int?>() {   42,999, null, null, -42};
+        VerifyDataListClass<List<int?>>("nested_int_array", 38, new List<List<List<int?>>> {new (), new()
+        {
+            new List<int?>(),
+            data,
+            null,
+            new List<int?>(),
+            data,
+        } });
+    }
+
+    [Fact]
+    public void ReadStruct()
+    {
+        var columnIndex = 39;
+        reader.GetOrdinal("struct").Should().Be(columnIndex);
+
+        reader.GetValue(columnIndex).Should().BeEquivalentTo(new Dictionary<string, object>() {{"a", null}, {"b", null}});
+        reader.GetFieldValue<StructTest>(columnIndex).Should().BeEquivalentTo(new StructTest());
+
+        reader.Read();
+
+        reader.GetValue(columnIndex).Should().BeEquivalentTo(new Dictionary<string, object>(){{"a", 42}, {"b", "🦆🦆🦆🦆🦆🦆"}});
+        reader.GetFieldValue<StructTest>(columnIndex).Should().BeEquivalentTo(new StructTest()
+        {
+            A = 42,
+            B = "🦆🦆🦆🦆🦆🦆"
+        });
+
+        reader.Read();
+
+        reader.IsDBNull(columnIndex).Should().Be(true);
+    }
+
+    class StructTest 
+    {
+        public int? A { get; set; }
+        public string B { get; set; }
     }
 }

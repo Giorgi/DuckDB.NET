@@ -101,7 +101,7 @@ internal class StructVectorDataReader : VectorDataReaderBase
 
             if (reader.IsValid(offset))
             {
-                var value = reader.GetValue(offset, properties.Value.PropertyType);
+                var value = reader.GetValue(offset, isNullable ? Nullable.GetUnderlyingType(properties.Value.PropertyType) : properties.Value.PropertyType);
                 properties.Value.Setter(result!, value);
             }
             else
