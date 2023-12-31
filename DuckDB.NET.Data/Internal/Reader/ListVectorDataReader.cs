@@ -30,7 +30,7 @@ internal class ListVectorDataReader : VectorDataReaderBase
 
     internal override object GetValue(ulong offset, Type? targetType = null)
     {
-        if (DuckDBType!= DuckDBType.List)
+        if (DuckDBType != DuckDBType.List)
         {
             return base.GetValue(offset, targetType);
         }

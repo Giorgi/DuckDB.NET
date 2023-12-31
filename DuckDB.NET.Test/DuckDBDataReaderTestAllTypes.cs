@@ -365,6 +365,23 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         reader.IsDBNull(columnIndex).Should().Be(true);
     }
 
+    [Fact]
+    public void ReadMap()
+    {
+        var columnIndex = 42;
+        reader.GetOrdinal("map").Should().Be(columnIndex);
+
+        reader.GetValue(columnIndex).Should().BeEquivalentTo(new Dictionary<string, object>());
+
+        reader.Read();
+
+        reader.GetValue(columnIndex).Should().BeEquivalentTo(new Dictionary<string, object>() { { "key1", "🦆🦆🦆🦆🦆🦆" }, { "key2", "goose" } });
+
+        reader.Read();
+
+        reader.IsDBNull(columnIndex).Should().Be(true);
+    }
+
     class StructTest
     {
         public int? A { get; set; }
