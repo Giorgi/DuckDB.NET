@@ -78,15 +78,15 @@ public class DuckDBDataReaderListTests : DuckDBTestBase
     [Fact]
     public void ReadMultipleListOfFloats()
     {
-        Command.CommandText = "Select * from ( SELECT [1/2::REAL, 3/2::REAL, 5/2::REAL] Union Select [4::REAL, 5::REAL] Union Select []) order by 1";
+        Command.CommandText = "Select * from ( SELECT [1/2::REAL, 3/2::REAL, 5/2::REAL, NULL] Union Select [4::REAL, 5::REAL] Union Select []) order by 1";
         using var reader = Command.ExecuteReader();
         reader.Read();
         var list = reader.GetFieldValue<List<float>>(0);
         list.Should().BeEquivalentTo(new List<float>());
 
         reader.Read();
-        list = reader.GetFieldValue<List<float>>(0);
-        list.Should().BeEquivalentTo(new List<float> { 0.5f, 1.5f, 2.5f });
+        var listWithNull = reader.GetFieldValue<List<float?>>(0);
+        listWithNull.Should().BeEquivalentTo(new List<float?> { 0.5f, 1.5f, 2.5f, null });
 
         reader.Read();
         list = reader.GetFieldValue<List<float>>(0);
