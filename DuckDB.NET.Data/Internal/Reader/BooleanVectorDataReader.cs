@@ -31,7 +31,7 @@ internal class BooleanVectorDataReader : VectorDataReaderBase
         throw new InvalidCastException($"Column '{ColumnName}' value is null");
     }
 
-    internal override object GetValue(ulong offset, Type? targetType = null)
+    internal override object GetValue(ulong offset, Type targetType)
     {
         return DuckDBType == DuckDBType.Boolean ? GetFieldData<bool>(offset) : base.GetValue(offset, targetType);
     }

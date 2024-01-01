@@ -17,12 +17,12 @@ public class DuckDBDataReaderMapTests : DuckDBTestBase
     {
         Command.CommandText = "SELECT MAP { 'key1': 1, 'key2': 5, 'key3': 7 }";
         var reader = Command.ExecuteReader();
-        reader.GetFieldType(0).Should().Be(typeof(Dictionary<object, object>));
+        reader.GetFieldType(0).Should().Be(typeof(Dictionary<string, int>));
 
         reader.Read();
         var value = reader.GetValue(0);
 
-        value.Should().BeOfType<Dictionary<string, int?>>();
+        value.Should().BeOfType<Dictionary<string, int>>();
 
         var expectation = new Dictionary<string, int>() { { "key1", 1 }, { "key2", 5 }, { "key3", 7 } };
         value.Should().BeEquivalentTo(expectation);
@@ -37,7 +37,7 @@ public class DuckDBDataReaderMapTests : DuckDBTestBase
         reader.Read();
         var value = reader.GetValue(0);
 
-        value.Should().BeOfType<Dictionary<string, int?>>();
+        value.Should().BeOfType<Dictionary<string, int>>();
 
         var expectation = new Dictionary<string, int>() { { "key1", 1 }, { "key2", 5 }, { "key3", 7 } };
         value.Should().BeEquivalentTo(expectation);

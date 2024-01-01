@@ -35,7 +35,7 @@ internal class GuidVectorDataReader : VectorDataReaderBase
         throw new InvalidCastException($"Column '{ColumnName}' value is null");
     }
 
-    internal override unsafe object GetValue(ulong offset, Type? targetType = null)
+    internal override unsafe object GetValue(ulong offset, Type targetType)
     {
         if (DuckDBType != DuckDBType.Uuid)
         {

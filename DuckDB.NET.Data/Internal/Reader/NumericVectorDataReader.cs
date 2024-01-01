@@ -54,7 +54,7 @@ internal class NumericVectorDataReader : VectorDataReaderBase
         };
     }
 
-    internal override object GetValue(ulong offset, Type? targetType = null)
+    internal override object GetValue(ulong offset, Type targetType)
     {
         var value = DuckDBType switch
         {

@@ -59,13 +59,14 @@ internal class EnumVectorDataReader : VectorDataReaderBase
         }
     }
 
-    internal override object GetValue(ulong offset, Type? targetType = null)
+    internal override object GetValue(ulong offset, Type targetType)
     {
-        if (DuckDBType != DuckDBType.Enum)
+        if (DuckDBType == DuckDBType.Enum)
         {
-            return base.GetValue(offset, targetType);
+            return GetEnum(offset, targetType);
         }
-        return GetEnum(offset, targetType ?? ClrType);
+
+        return base.GetValue(offset, targetType);
     }
 
     private object GetEnum(ulong offset, Type returnType)

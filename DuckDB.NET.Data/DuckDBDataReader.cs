@@ -138,6 +138,11 @@ public class DuckDBDataReader : DbDataReader
         return vectorReaders[ordinal].ClrType;
     }
 
+    public override Type GetProviderSpecificFieldType(int ordinal)
+    {
+        return vectorReaders[ordinal].ProviderSpecificClrType;
+    }
+
     public override float GetFloat(int ordinal)
     {
         return GetFieldValue<float>(ordinal);
@@ -198,6 +203,13 @@ public class DuckDBDataReader : DbDataReader
         CheckRowRead();
 
         return IsDBNull(ordinal) ? DBNull.Value : vectorReaders[ordinal].GetValue(rowsReadFromCurrentChunk - 1);
+    }
+
+    public override object GetProviderSpecificValue(int ordinal)
+    {
+        CheckRowRead();
+
+        return IsDBNull(ordinal) ? DBNull.Value : vectorReaders[ordinal].GetProviderSpecificValue(rowsReadFromCurrentChunk - 1);
     }
 
     public override int GetValues(object[] values)

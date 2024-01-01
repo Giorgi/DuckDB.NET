@@ -28,14 +28,19 @@ internal class ListVectorDataReader : VectorDataReaderBase
         return typeof(List<>).MakeGenericType(listDataReader.ClrType);
     }
 
-    internal override object GetValue(ulong offset, Type? targetType = null)
+    internal override object GetProviderSpecificValue(ulong offset)
     {
-        if (DuckDBType != DuckDBType.List)
+        return typeof(List<>).MakeGenericType(listDataReader.ProviderSpecificClrType);
+    }
+
+    internal override object GetValue(ulong offset, Type targetType)
+    {
+        if (DuckDBType == DuckDBType.List)
         {
-            return base.GetValue(offset, targetType);
+            return GetList(offset, targetType);
         }
 
-        return GetList(offset, targetType ?? ClrType);
+        return base.GetValue(offset, targetType);
     }
 
     private unsafe object GetList(ulong offset, Type returnType)

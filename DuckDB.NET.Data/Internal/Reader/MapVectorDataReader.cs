@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
+using DuckDB.NET.Data.Extensions;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
@@ -31,29 +32,22 @@ internal class MapVectorDataReader : VectorDataReaderBase
                                                                         NativeMethods.DataChunks.DuckDBVectorGetValidity(valueVector), valueType, columnName);
     }
 
-    internal override unsafe object GetValue(ulong offset, Type? targetType = null)
+    protected override Type GetColumnType()
     {
-        //If targetType is null we create a Dictionary<keyReader.ClrType, valueReader.ClrType> or
-        //Dictionary<keyReader.ClrType, valueReader.ClrType?>
+        return typeof(Dictionary<,>).MakeGenericType(keyReader.ClrType, valueReader.ClrType);
+    }
+
+    internal override object GetProviderSpecificValue(ulong offset)
+    {
+        return typeof(Dictionary<,>).MakeGenericType(keyReader.ProviderSpecificClrType, valueReader.ProviderSpecificClrType);
+    }
+
+    internal override unsafe object GetValue(ulong offset, Type targetType)
+    {
         var allowsNullValues = true;
+        var arguments = targetType.GetGenericArguments();
 
-        if (targetType == null)
-        {
-            var valueType = valueReader.ClrType;
-
-            if (valueType.IsPrimitive)
-            {
-                valueType = typeof(Nullable<>).MakeGenericType(valueType);
-            }
-
-            targetType = typeof(Dictionary<,>).MakeGenericType(keyReader.ClrType, valueType);
-        }
-        else
-        {
-            var arguments = targetType.GetGenericArguments();
-
-            allowsNullValues = arguments.Length == 2 && (!arguments[1].IsPrimitive || Nullable.GetUnderlyingType(arguments[1]) == typeof(Nullable<>));
-        }
+        allowsNullValues = arguments.Length == 2 && Nullable.GetUnderlyingType(arguments[1]) != null;
 
         if (Activator.CreateInstance(targetType) is IDictionary instance)
         {

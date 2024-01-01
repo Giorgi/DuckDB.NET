@@ -22,7 +22,7 @@ internal class StringVectorDataReader : VectorDataReaderBase
         };
     }
 
-    internal override object GetValue(ulong offset, Type? targetType = null)
+    internal override object GetValue(ulong offset, Type targetType)
     {
         return DuckDBType switch
         {

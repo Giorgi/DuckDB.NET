@@ -213,7 +213,7 @@ public struct DuckDBInterval
     public static implicit operator DuckDBInterval(TimeSpan timeSpan) => FromTimeSpan(timeSpan);
 
 #if NET6_0_OR_GREATER
-    public bool TryConvert([NotNullWhen(true)]out TimeSpan? timeSpan)
+    public bool TryConvert([NotNullWhen(true)] out TimeSpan? timeSpan)
 #else
     public bool TryConvert(out TimeSpan? timeSpan)
 #endif
@@ -225,33 +225,42 @@ public struct DuckDBInterval
     private static (TimeSpan?, Exception?) ToTimeSpan(DuckDBInterval interval)
     {
         if (interval.Months > 0)
-            return (null, new ArgumentOutOfRangeException(nameof(interval), $"Cannot convert a value of type {nameof(DuckDBInterval)} to type {nameof(TimeSpan)} when the attribute them is greater or equal to 1"));
-        else
         {
-            var milliSecondsByDay = (ulong)(24 * 60 * 60 * 1e6);
-            int days = 0;
-            ulong micros = interval.Micros;
-            if (interval.Micros >= milliSecondsByDay)
-            {
-                days = Convert.ToInt32(Math.Floor((double)(interval.Micros / milliSecondsByDay)));
-                if (days > int.MaxValue - interval.Days)
-                    return (null, new ArgumentOutOfRangeException(nameof(interval), $"Cannot convert a value of type {nameof(DuckDBInterval)} to type {nameof(TimeSpan)} when the total days value is larger than {int.MaxValue}"));
-
-                if (days > 0)
-                    micros = interval.Micros - ((ulong)days * milliSecondsByDay);
-                days = interval.Days + days;
-            }
-            else
-                days = interval.Days;
-
-            if (micros * 10 > long.MaxValue)
-                return (null, new ArgumentOutOfRangeException(nameof(interval), $"Cannot convert a value of type {nameof(DuckDBInterval)} to type {nameof(TimeSpan)} when the value of microseconds is larger than {long.MaxValue / 10}"));
-
-            if ((ulong)days * milliSecondsByDay * 100 + micros * 10 > long.MaxValue)
-                return (null, new ArgumentOutOfRangeException(nameof(interval), $"Cannot convert a value of type {nameof(DuckDBInterval)} to type {nameof(TimeSpan)} when the value of total microseconds is larger than {long.MaxValue}"));
-
-            return (new TimeSpan(days, 0, 0, 0) + new TimeSpan((long)micros * 10), null);
+            return (null, new ArgumentOutOfRangeException(nameof(interval), $"Cannot convert a value of type {nameof(DuckDBInterval)} to type {nameof(TimeSpan)} when the attribute 'Months' is greater or equal to 1"));
         }
+
+        var millisecondsByDay = (ulong)(24 * 60 * 60 * 1e6);
+        int days = 0;
+        ulong micros = interval.Micros;
+
+        if (interval.Micros >= millisecondsByDay)
+        {
+            days = Convert.ToInt32(Math.Floor((double)(interval.Micros / millisecondsByDay)));
+            if (days > int.MaxValue - interval.Days)
+            {
+                return (null, new ArgumentOutOfRangeException(nameof(interval), $"Cannot convert a value of type {nameof(DuckDBInterval)} to type {nameof(TimeSpan)} when the total days value is larger than {int.MaxValue}"));
+            }
+
+            if (days > 0)
+            {
+                micros = interval.Micros - ((ulong)days * millisecondsByDay);
+            }
+            days = interval.Days + days;
+        }
+        else
+            days = interval.Days;
+
+        if (micros * 10 > long.MaxValue)
+        {
+            return (null, new ArgumentOutOfRangeException(nameof(interval), $"Cannot convert a value of type {nameof(DuckDBInterval)} to type {nameof(TimeSpan)} when the value of microseconds is larger than {long.MaxValue / 10}"));
+        }
+
+        if ((ulong)days * millisecondsByDay * 100 + micros * 10 > long.MaxValue)
+        {
+            return (null, new ArgumentOutOfRangeException(nameof(interval), $"Cannot convert a value of type {nameof(DuckDBInterval)} to type {nameof(TimeSpan)} when the value of total microseconds is larger than {long.MaxValue}"));
+        }
+
+        return (new TimeSpan(days, 0, 0, 0) + new TimeSpan((long)micros * 10), null);
     }
 
     private static DuckDBInterval FromTimeSpan(TimeSpan timeSpan)
