@@ -28,7 +28,7 @@ internal class ListVectorDataReader : VectorDataReaderBase
         return typeof(List<>).MakeGenericType(listDataReader.ClrType);
     }
 
-    internal override object GetProviderSpecificValue(ulong offset)
+    protected override Type GetColumnProviderSpecificType()
     {
         return typeof(List<>).MakeGenericType(listDataReader.ProviderSpecificClrType);
     }

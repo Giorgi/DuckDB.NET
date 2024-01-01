@@ -11,7 +11,7 @@ internal static class VectorDataReaderFactory
             DuckDBType.Uuid => new GuidVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.Date => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.Time => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
-            DuckDBType.Interval => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.Interval => new IntervalVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.Timestamp => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
 
             DuckDBType.Boolean => new BooleanVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),

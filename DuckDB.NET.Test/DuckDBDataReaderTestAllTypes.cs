@@ -19,9 +19,10 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         reader.Read();
     }
 
-    private void VerifyDataStruct<T>(string columnName, int columnIndex, IReadOnlyList<T> data) where T : struct
+    private void VerifyDataStruct<T>(string columnName, int columnIndex, IReadOnlyList<T> data, Type providerSpecificType = null) where T : struct
     {
         reader.GetOrdinal(columnName).Should().Be(columnIndex);
+        reader.GetProviderSpecificFieldType(columnIndex).Should().Be(providerSpecificType ?? typeof(T));
 
         reader.GetValue(columnIndex).Should().Be(data[0]);
         reader.GetFieldValue<T>(columnIndex).Should().Be(data[0]);
@@ -40,6 +41,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     private void VerifyDataClass<T>(string columnName, int columnIndex, IReadOnlyList<T> data) where T : class
     {
         reader.GetOrdinal(columnName).Should().Be(columnIndex);
+        reader.GetProviderSpecificFieldType(columnIndex).Should().Be(typeof(T));
 
         reader.GetValue(columnIndex).Should().Be(data[0]);
         reader.GetFieldValue<T>(columnIndex).Should().Be(data[0]);
@@ -57,6 +59,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     private void VerifyDataList<T>(string columnName, int columnIndex, IReadOnlyList<List<T?>> data) where T : struct
     {
         reader.GetOrdinal(columnName).Should().Be(columnIndex);
+        reader.GetProviderSpecificFieldType(columnIndex).Should().Be(typeof(List<T>));
 
         reader.GetFieldValue<List<T?>>(columnIndex).Should().BeEquivalentTo(data[0]);
 
@@ -122,7 +125,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         {
             BigInteger.Parse("-170141183460469231731687303715884105727"),
             BigInteger.Parse("170141183460469231731687303715884105727")
-        });
+        }, typeof(DuckDBHugeInt));
     }
 
     [Fact]

@@ -37,7 +37,7 @@ internal class MapVectorDataReader : VectorDataReaderBase
         return typeof(Dictionary<,>).MakeGenericType(keyReader.ClrType, valueReader.ClrType);
     }
 
-    internal override object GetProviderSpecificValue(ulong offset)
+    protected override Type GetColumnProviderSpecificType()
     {
         return typeof(Dictionary<,>).MakeGenericType(keyReader.ProviderSpecificClrType, valueReader.ProviderSpecificClrType);
     }

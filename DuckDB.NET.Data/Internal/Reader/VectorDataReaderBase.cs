@@ -14,7 +14,7 @@ internal class VectorDataReaderBase : IDisposable
     public Type ClrType => clrType ??= GetColumnType();
 
     private Type? providerSpecificClrType;
-    public Type ProviderSpecificClrType => providerSpecificClrType ??= GetColumnType();
+    public Type ProviderSpecificClrType => providerSpecificClrType ??= GetColumnProviderSpecificType();
 
 
     public string ColumnName { get; }
@@ -71,7 +71,7 @@ internal class VectorDataReaderBase : IDisposable
         };
     }
 
-    internal virtual object GetValue(ulong offset)
+    internal object GetValue(ulong offset)
     {
         return GetValue(offset, ClrType);
     }
