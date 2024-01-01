@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Numerics;
 using DuckDB.NET.Data;
 using FluentAssertions;
@@ -224,6 +225,33 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     public void ReadString()
     {
         VerifyDataClass<string>("varchar", 26, new List<string> { "🦆🦆🦆🦆🦆🦆", "goo\0se" });
+    }
+
+    [Fact]
+    public void ReadBlob()
+    {
+        var columnIndex = 27;
+        reader.GetOrdinal("blob").Should().Be(columnIndex);
+
+        using (var stream = reader.GetStream(columnIndex))
+        {
+            var streamReader = new StreamReader(stream);
+
+            streamReader.ReadToEnd().Should().Be("thisisalongblob\x00withnullbytes");
+        }
+
+        reader.Read();
+
+        using (var stream = reader.GetStream(columnIndex))
+        {
+            var streamReader = new StreamReader(stream);
+
+            streamReader.ReadToEnd().Should().Be(new string(new char[] { (char)0, (char)0, (char)0, (char)97 }));
+        }
+
+        reader.Read();
+
+        reader.IsDBNull(columnIndex).Should().Be(true);
     }
 
     [Fact]
