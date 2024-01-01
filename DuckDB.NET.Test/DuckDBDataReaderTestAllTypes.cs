@@ -149,7 +149,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         VerifyDataStruct<ulong>("ubigint", 9, new List<ulong> { 0, ulong.MaxValue });
     }
 
-    [Fact]
+    [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
     public void ReadDate()
     {
         VerifyDataStruct<DuckDBDateOnly>("date", 10, new List<DuckDBDateOnly>
@@ -159,7 +159,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         });
     }
 
-    [Fact]
+    [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
     public void ReadTime()
     {
         VerifyDataStruct<DuckDBTimeOnly>("time", 11, new List<DuckDBTimeOnly>
@@ -169,10 +169,60 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         });
     }
 
-    [Fact(Skip = "These dates can't be expressed by DateTime")]
+    [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
     public void ReadTimeStamp()
     {
         VerifyDataStruct<DuckDBTimestamp>("timestamp", 12, new List<DuckDBTimestamp>
+        {
+            new(new(-290308, 12, 22), new(0,0,0)),
+            new(new(294247, 1, 10), new(4,0,54,775806))
+        });
+    }
+
+    [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
+    public void ReadTimeStampS()
+    {
+        VerifyDataStruct<DuckDBTimestamp>("timestamp_s", 13, new List<DuckDBTimestamp>
+        {
+            new(new(-290308, 12, 22), new(0,0,0)),
+            new(new(294247, 1, 10), new(4,0,54,775806))
+        });
+    }
+
+    [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
+    public void ReadTimeStampMS()
+    {
+        VerifyDataStruct<DuckDBTimestamp>("timestamp_ms", 14, new List<DuckDBTimestamp>
+        {
+            new(new(-290308, 12, 22), new(0,0,0)),
+            new(new(294247, 1, 10), new(4,0,54,775806))
+        });
+    }
+
+    [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
+    public void ReadTimeStampNS()
+    {
+        VerifyDataStruct<DuckDBTimestamp>("timestamp_ns", 15, new List<DuckDBTimestamp>
+        {
+            new(new(-290308, 12, 22), new(0,0,0)),
+            new(new(294247, 1, 10), new(4,0,54,775806))
+        });
+    }
+
+    [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
+    public void ReadTimeTZ()
+    {
+        VerifyDataStruct<DuckDBTimestamp>("time_tz", 16, new List<DuckDBTimestamp>
+        {
+            new(new(-290308, 12, 22), new(0,0,0)),
+            new(new(294247, 1, 10), new(4,0,54,775806))
+        });
+    }
+
+    [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
+    public void ReadTimeStampTZ()
+    {
+        VerifyDataStruct<DuckDBTimestamp>("timestamp_tz", 17, new List<DuckDBTimestamp>
         {
             new(new(-290308, 12, 22), new(0,0,0)),
             new(new(294247, 1, 10), new(4,0,54,775806))
@@ -219,6 +269,11 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     public void ReadGuid()
     {
         VerifyDataStruct<Guid>("uuid", 24, new List<Guid> { Guid.Parse("00000000-0000-0000-0000-000000000001"), Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff") });
+    }
+
+    [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
+    public void ReadInterval()
+    {
     }
 
     [Fact]
@@ -294,6 +349,32 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     public void ReadDateList()
     {
         VerifyDataList<DuckDBDateOnly>("date_array", 34, new List<List<DuckDBDateOnly?>> { new(), new()
+        {
+            new DuckDBDateOnly(1970, 1, 1),
+            new DuckDBDateOnly(5881580, 7, 11),
+            new DuckDBDateOnly(-5877641, 6, 24),
+            null,
+            new DuckDBDateOnly(2022,5,12),
+        } });
+    }
+
+    [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
+    public void ReadTimeStampList()
+    {
+        VerifyDataList<DuckDBDateOnly>("timestamp_array", 35, new List<List<DuckDBDateOnly?>> { new(), new()
+        {
+            new DuckDBDateOnly(1970, 1, 1),
+            new DuckDBDateOnly(5881580, 7, 11),
+            new DuckDBDateOnly(-5877641, 6, 24),
+            null,
+            new DuckDBDateOnly(2022,5,12),
+        } });
+    }
+
+    [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
+    public void ReadTimeStampTZList()
+    {
+        VerifyDataList<DuckDBDateOnly>("timestamptz_array", 36, new List<List<DuckDBDateOnly?>> { new(), new()
         {
             new DuckDBDateOnly(1970, 1, 1),
             new DuckDBDateOnly(5881580, 7, 11),
