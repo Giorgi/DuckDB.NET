@@ -76,6 +76,24 @@ public class DuckDBDataReaderListTests : DuckDBTestBase
     }
 
     [Fact]
+    public void ReadMultipleListOfFloats()
+    {
+        Command.CommandText = "Select * from ( SELECT [1/2::REAL, 3/2::REAL, 5/2::REAL] Union Select [4::REAL, 5::REAL] Union Select []) order by 1";
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+        var list = reader.GetFieldValue<List<float>>(0);
+        list.Should().BeEquivalentTo(new List<float>());
+
+        reader.Read();
+        list = reader.GetFieldValue<List<float>>(0);
+        list.Should().BeEquivalentTo(new List<float> { 0.5f, 1.5f, 2.5f });
+
+        reader.Read();
+        list = reader.GetFieldValue<List<float>>(0);
+        list.Should().BeEquivalentTo(new List<float> { 4, 5 });
+    }
+
+    [Fact]
     public void ReadMultipleListOfStrings()
     {
         Command.CommandText = "Select * from ( SELECT ['hello', NULL, 'world'] Union Select ['from DuckDB.Net', 'client'] Union Select []) order by 1";
@@ -157,6 +175,17 @@ public class DuckDBDataReaderListTests : DuckDBTestBase
 
         var list = reader.GetFieldValue<List<TimeOnly>>(0);
         list.Should().BeEquivalentTo(new List<TimeOnly> { new(12, 14, 16), new(18, 10, 12) });
+    }
+
+    [Fact]
+    public void ReadListOfTimesWithNull()
+    {
+        Command.CommandText = "SELECT [Time '12:14:16', Time '18:10:12', NULL]";
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.Invoking(r => r.GetFieldValue<List<TimeOnly>>(0)).Should().Throw<NullReferenceException>();
     }
 
     [Fact]
