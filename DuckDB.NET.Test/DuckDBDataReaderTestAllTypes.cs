@@ -36,6 +36,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
 
         reader.IsDBNull(columnIndex).Should().Be(true);
         reader.GetFieldValue<T?>(columnIndex).Should().Be(null);
+        reader.Invoking(r => r.GetFieldValue<T>(columnIndex)).Should().Throw<InvalidCastException>();
     }
 
     private void VerifyDataClass<T>(string columnName, int columnIndex, IReadOnlyList<T> data) where T : class
@@ -54,6 +55,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         reader.Read();
 
         reader.IsDBNull(columnIndex).Should().Be(true);
+        reader.Invoking(r => r.GetFieldValue<T>(columnIndex)).Should().Throw<InvalidCastException>();
     }
 
     private void VerifyDataList<T>(string columnName, int columnIndex, IReadOnlyList<List<T?>> data) where T : struct
@@ -70,6 +72,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         reader.Read();
 
         reader.IsDBNull(columnIndex).Should().Be(true);
+        reader.Invoking(r => r.GetFieldValue<List<T>>(columnIndex)).Should().Throw<InvalidCastException>();
     }
 
     private void VerifyDataListClass<T>(string columnName, int columnIndex, IReadOnlyList<List<T>> data) where T : class
@@ -86,6 +89,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         reader.Read();
 
         reader.IsDBNull(columnIndex).Should().Be(true);
+        reader.Invoking(r => r.GetFieldValue<T>(columnIndex)).Should().Throw<InvalidCastException>();
     }
 
     [Fact]
@@ -290,6 +294,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     {
         var columnIndex = 27;
         reader.GetOrdinal("blob").Should().Be(columnIndex);
+        reader.GetProviderSpecificFieldType(columnIndex).Should().Be(typeof(Stream));
 
         using (var stream = reader.GetStream(columnIndex))
         {
@@ -310,6 +315,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         reader.Read();
 
         reader.IsDBNull(columnIndex).Should().Be(true);
+        reader.Invoking(r => r.GetStream(columnIndex)).Should().Throw<InvalidCastException>();
     }
 
     [Fact]
@@ -412,6 +418,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     {
         var columnIndex = 39;
         reader.GetOrdinal("struct").Should().Be(columnIndex);
+        reader.GetProviderSpecificFieldType(columnIndex).Should().Be(typeof(Dictionary<string, object>));
 
         reader.GetValue(columnIndex).Should().BeEquivalentTo(new Dictionary<string, object>() { { "a", null }, { "b", null } });
         reader.GetFieldValue<StructTest>(columnIndex).Should().BeEquivalentTo(new StructTest());
@@ -428,6 +435,8 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         reader.Read();
 
         reader.IsDBNull(columnIndex).Should().Be(true);
+
+        reader.Invoking(r => r.GetFieldValue<StructTest>(columnIndex)).Should().Throw<InvalidCastException>();
     }
 
     [Fact]
@@ -449,6 +458,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         reader.Read();
 
         reader.IsDBNull(columnIndex).Should().Be(true);
+        reader.Invoking(r => r.GetFieldValue<StructOfArrayTest>(columnIndex)).Should().Throw<InvalidCastException>();
     }
 
     [Fact]
@@ -475,6 +485,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         reader.Read();
 
         reader.IsDBNull(columnIndex).Should().Be(true);
+        reader.Invoking(r => r.GetFieldValue<List<StructTest>>(columnIndex)).Should().Throw<InvalidCastException>();
     }
 
     [Fact]
@@ -483,15 +494,18 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         var columnIndex = 42;
         reader.GetOrdinal("map").Should().Be(columnIndex);
 
-        reader.GetValue(columnIndex).Should().BeEquivalentTo(new Dictionary<string, object>());
+        reader.GetValue(columnIndex).Should().BeEquivalentTo(new Dictionary<string, string>());
+        reader.GetFieldValue<Dictionary<string, string>>(columnIndex).Should().BeEquivalentTo(new Dictionary<string, string>());
 
         reader.Read();
 
-        reader.GetValue(columnIndex).Should().BeEquivalentTo(new Dictionary<string, object>() { { "key1", "🦆🦆🦆🦆🦆🦆" }, { "key2", "goose" } });
+        reader.GetValue(columnIndex).Should().BeEquivalentTo(new Dictionary<string, string>() { { "key1", "🦆🦆🦆🦆🦆🦆" }, { "key2", "goose" } });
+        reader.GetFieldValue<Dictionary<string, string>>(columnIndex).Should().BeEquivalentTo(new Dictionary<string, string>() { { "key1", "🦆🦆🦆🦆🦆🦆" }, { "key2", "goose" } });
 
         reader.Read();
 
         reader.IsDBNull(columnIndex).Should().Be(true);
+        reader.Invoking(r => r.GetFieldValue<Dictionary<string, string>>(columnIndex)).Should().Throw<InvalidCastException>();
     }
 
     class StructTest

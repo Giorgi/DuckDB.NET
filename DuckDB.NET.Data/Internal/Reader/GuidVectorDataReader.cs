@@ -26,7 +26,7 @@ internal class GuidVectorDataReader : VectorDataReaderBase
             return (T)(object)guid;
         }
 
-        var (isNullable, _) = TypeExtensions.IsNullable<T>();
+        var (isNullable, _) = TypeExtensions.IsNullableValueType<T>();
         if (isNullable)
         {
             return default!;

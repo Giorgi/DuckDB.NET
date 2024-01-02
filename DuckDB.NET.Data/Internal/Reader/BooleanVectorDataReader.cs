@@ -22,7 +22,7 @@ internal class BooleanVectorDataReader : VectorDataReaderBase
             return (T)(object)value; //JIT will optimize the casts at least for not nullable T
         }
 
-        var (isNullable, _) = TypeExtensions.IsNullable<T>();
+        var (isNullable, _) = TypeExtensions.IsNullableValueType<T>();
         if (isNullable)
         {
             return default!;

@@ -44,17 +44,26 @@ internal class VectorDataReaderBase : IDisposable
 
     internal virtual T GetValue<T>(ulong offset)
     {
-        var (isNullable, targetType) = TypeExtensions.IsNullable<T>();
+        var (isNullableValueType, targetType) = TypeExtensions.IsNullableValueType<T>();
+
+        var isValid = IsValid(offset);
 
         //If nullable we can't use Unsafe.As because we don't have the underlying type as T so use the non-generic GetValue method.
-        if (isNullable)
+        if (isNullableValueType)
         {
-            return IsValid(offset)
+            return isValid
                 ? (T)GetValue(offset, Nullable.GetUnderlyingType(targetType)!)
                 : default!; //T is Nullable<> and we are returning null so suppress compiler warning.
         }
 
-        return GetValueInternal<T>(offset, targetType);
+        //If we are here, T isn't Nullable<>. It can be either a value type or a class.
+        //In both cases if the data is null we should throw.
+        if (isValid)
+        {
+            return GetValueInternal<T>(offset, targetType);
+        }
+        
+        throw new InvalidCastException($"Column '{ColumnName}' value is null");
     }
 
     protected virtual T GetValueInternal<T>(ulong offset, Type targetType)

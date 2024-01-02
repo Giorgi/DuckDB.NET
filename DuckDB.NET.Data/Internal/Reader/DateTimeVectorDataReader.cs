@@ -23,7 +23,7 @@ internal class DateTimeVectorDataReader : VectorDataReaderBase
 
     internal override T GetValue<T>(ulong offset)
     {
-        var (isNullable, targetType) = TypeExtensions.IsNullable<T>();
+        var (isNullable, targetType) = TypeExtensions.IsNullableValueType<T>();
 
         if (!isNullable && !IsValid(offset))
         {

@@ -22,7 +22,7 @@ internal static class TypeExtensions
 
     public static bool IsNull(this object? value) => value is null or DBNull;
 
-    public static (bool isNullable, Type type) IsNullable<T>()
+    public static (bool isNullable, Type type) IsNullableValueType<T>()
     {
         var targetType = typeof(T);
 
