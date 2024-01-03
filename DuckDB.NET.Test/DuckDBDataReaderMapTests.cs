@@ -77,6 +77,19 @@ public class DuckDBDataReaderMapTests : DuckDBTestBase
     }
 
     [Fact]
+    public void ReadMapWithNullInReferenceTypeDictionary()
+    {
+        Command.CommandText = "SELECT MAP { 'key1': 'abc', 'key2': NULL, 'key3': 'ghi' }";
+        var reader = Command.ExecuteReader();
+
+        reader.Read();
+        var value = reader.GetFieldValue<Dictionary<string, string>>(0);
+
+        var expectation = new Dictionary<string, string>() { { "key1", "abc" }, { "key2", null }, { "key3", "ghi" } };
+        value.Should().BeEquivalentTo(expectation);
+    }
+
+    [Fact]
     public void ReadMapWithNullInNotNullableDictionaryThrowsException()
     {
         Command.CommandText = "SELECT MAP { 'key1': 1, 'key2': NULL, 'key3': 7 }";

@@ -21,15 +21,8 @@ internal class DateTimeVectorDataReader : VectorDataReaderBase
     {
     }
 
-    internal override T GetValue<T>(ulong offset)
+    protected override T GetValidValue<T>(ulong offset, Type targetType)
     {
-        var (isNullable, targetType) = TypeExtensions.IsNullableValueType<T>();
-
-        if (!isNullable && !IsValid(offset))
-        {
-            throw new InvalidCastException($"Column '{ColumnName}' value is null");
-        }
-
         if (DuckDBType == DuckDBType.Date)
         {
             var dateOnly = GetDateOnly(offset);
@@ -47,34 +40,44 @@ internal class DateTimeVectorDataReader : VectorDataReaderBase
                 return (T)(object)dateTime;
             }
 #endif
+            return (T)(object)dateOnly;
         }
 
         if (DuckDBType == DuckDBType.Time)
         {
-            var dateOnly = GetTimeOnly(offset);
+            var timeOnly = GetTimeOnly(offset);
 
             if (targetType == DateTimeType || targetType == DateTimeNullableType)
             {
-                var dateTime = (DateTime)dateOnly;
+                var dateTime = (DateTime)timeOnly;
                 return (T)(object)dateTime;
             }
 
 #if NET6_0_OR_GREATER
             if (targetType == TimeOnlyType || targetType == TimeOnlyNullableType)
             {
-                var dateTime = (TimeOnly)dateOnly;
+                var dateTime = (TimeOnly)timeOnly;
                 return (T)(object)dateTime;
             }
 #endif
+            return (T)(object)timeOnly;
         }
 
         if (DuckDBType == DuckDBType.Timestamp)
         {
-            var dateTime = GetDateTime(offset);
-            return (T)(object)dateTime;
+            var timestampStruct = GetFieldData<DuckDBTimestampStruct>(offset);
+
+            if (targetType == DateTimeType || targetType == DateTimeNullableType)
+            {
+                var dateTime = timestampStruct.ToDateTime();
+                return (T)(object)dateTime;
+            }
+
+            var timestamp = NativeMethods.DateTime.DuckDBFromTimestamp(timestampStruct);
+            return (T)(object)timestamp;
         }
 
-        return base.GetValue<T>(offset);
+        return base.GetValidValue<T>(offset, targetType);
     }
 
     internal override object GetValue(ulong offset, Type targetType)
@@ -83,15 +86,9 @@ internal class DateTimeVectorDataReader : VectorDataReaderBase
         {
             DuckDBType.Date => GetDate(offset, targetType),
             DuckDBType.Time => GetTime(offset, targetType),
-            DuckDBType.Timestamp => GetDateTime(offset),
+            DuckDBType.Timestamp => GetDateTime(offset, targetType),
             _ => base.GetValue(offset, targetType)
         };
-    }
-
-    private unsafe DateTime GetDateTime(ulong offset)
-    {
-        var data = (DuckDBTimestampStruct*)DataPointer + offset;
-        return data->ToDateTime();
     }
 
     private DuckDBTimeOnly GetTimeOnly(ulong offset)
@@ -138,5 +135,17 @@ internal class DateTimeVectorDataReader : VectorDataReaderBase
 #endif
 
         return timeOnly;
+    }
+
+    private unsafe object GetDateTime(ulong offset, Type targetType)
+    {
+        var data = (DuckDBTimestampStruct*)DataPointer + offset;
+
+        if (targetType == typeof(DateTime))
+        {
+            return data->ToDateTime();
+        }
+        
+        return NativeMethods.DateTime.DuckDBFromTimestamp(*data);
     }
 }

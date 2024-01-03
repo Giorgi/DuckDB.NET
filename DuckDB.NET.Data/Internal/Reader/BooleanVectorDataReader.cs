@@ -9,30 +9,24 @@ internal class BooleanVectorDataReader : VectorDataReaderBase
     {
     }
 
-    internal override T GetValue<T>(ulong offset)
+    protected override T GetValidValue<T>(ulong offset, Type targetType)
     {
         if (DuckDBType != DuckDBType.Boolean)
         {
-            return base.GetValue<T>(offset);
+            return base.GetValidValue<T>(offset, targetType);
         }
-
-        if (IsValid(offset))
-        {
-            var value = GetFieldData<bool>(offset);
-            return (T)(object)value; //JIT will optimize the casts at least for not nullable T
-        }
-
-        var (isNullable, _) = TypeExtensions.IsNullableValueType<T>();
-        if (isNullable)
-        {
-            return default!;
-        }
-
-        throw new InvalidCastException($"Column '{ColumnName}' value is null");
+        
+        var value = GetFieldData<bool>(offset);
+        return (T)(object)value; //JIT will optimize the casts at least for not nullable T
     }
 
     internal override object GetValue(ulong offset, Type targetType)
     {
-        return DuckDBType == DuckDBType.Boolean ? GetFieldData<bool>(offset) : base.GetValue(offset, targetType);
+        if (DuckDBType != DuckDBType.Boolean)
+        {
+            return base.GetValue(offset, targetType);
+        }
+
+        return GetFieldData<bool>(offset);
     }
 }

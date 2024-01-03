@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using DuckDB.NET.Data.Extensions;
 
 namespace DuckDB.NET.Data.Internal.Reader;
@@ -11,28 +12,17 @@ internal class GuidVectorDataReader : VectorDataReaderBase
     {
     }
 
-    internal override unsafe T GetValue<T>(ulong offset)
+    protected override T GetValidValue<T>(ulong offset, Type targetType)
     {
         if (DuckDBType != DuckDBType.Uuid)
         {
-            return base.GetValue<T>(offset);
+            return base.GetValidValue<T>(offset, targetType);
         }
 
-        if (IsValid(offset))
-        {
-            var input = GetFieldData<DuckDBHugeInt>(offset);
+        var hugeInt = GetFieldData<DuckDBHugeInt>(offset);
 
-            var guid = ConvertToGuid(input);
-            return (T)(object)guid;
-        }
-
-        var (isNullable, _) = TypeExtensions.IsNullableValueType<T>();
-        if (isNullable)
-        {
-            return default!;
-        }
-
-        throw new InvalidCastException($"Column '{ColumnName}' value is null");
+        var guid = ConvertToGuid(hugeInt);
+        return (T)(object)guid;
     }
 
     internal override unsafe object GetValue(ulong offset, Type targetType)
@@ -42,9 +32,9 @@ internal class GuidVectorDataReader : VectorDataReaderBase
             return base.GetValue(offset, targetType);
         }
 
-        var input = GetFieldData<DuckDBHugeInt>(offset);
+        var hugeInt = GetFieldData<DuckDBHugeInt>(offset);
 
-        var guid = ConvertToGuid(input);
+        var guid = ConvertToGuid(hugeInt);
         return guid;
     }
 

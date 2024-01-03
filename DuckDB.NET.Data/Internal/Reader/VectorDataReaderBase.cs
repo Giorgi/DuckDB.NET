@@ -60,13 +60,20 @@ internal class VectorDataReaderBase : IDisposable
         //In both cases if the data is null we should throw.
         if (isValid)
         {
-            return GetValueInternal<T>(offset, targetType);
+            return GetValidValue<T>(offset, targetType);
         }
         
         throw new InvalidCastException($"Column '{ColumnName}' value is null");
     }
 
-    protected virtual T GetValueInternal<T>(ulong offset, Type targetType)
+    /// <summary>
+    /// Called when the value at specified <param name="offset">offset</param> is valid (isn't null)
+    /// </summary>
+    /// <typeparam name="T">Type of the return value</typeparam>
+    /// <param name="offset">Position to read the data from</param>
+    /// <param name="targetType">Type of the return value</param>
+    /// <returns>Data at the specified offset</returns>
+    protected virtual T GetValidValue<T>(ulong offset, Type targetType)
     {
         return (T)GetValue(offset, targetType);
     }

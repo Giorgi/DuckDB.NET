@@ -15,16 +15,11 @@ internal class EnumVectorDataReader : VectorDataReaderBase
         enumType = NativeMethods.LogicalType.DuckDBEnumInternalType(logicalType);
     }
 
-    protected override T GetValueInternal<T>(ulong offset, Type targetType)
+    protected override T GetValidValue<T>(ulong offset, Type targetType)
     {
         if (DuckDBType != DuckDBType.Enum)
         {
-            return base.GetValueInternal<T>(offset, targetType);
-        }
-
-        if (!IsValid(offset))
-        {
-            throw new InvalidCastException($"Column '{ColumnName}' value is null");
+            return base.GetValidValue<T>(offset, targetType);
         }
 
         switch (enumType)

@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq.Expressions;
+using DuckDB.NET.Data.Extensions;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
@@ -68,10 +69,7 @@ internal class StructVectorDataReader : VectorDataReaderBase
                     continue;
                 }
 
-                var underlyingType = Nullable.GetUnderlyingType(propertyInfo.PropertyType);
-                var isNullableValueType = underlyingType != null;
-
-                var isNullable = isNullableValueType || !propertyInfo.PropertyType.IsValueType;
+                var isNullable = propertyInfo.PropertyType.AllowsNullValue(out var isNullableValueType, out var underlyingType);
 
                 var instanceParam = Expression.Parameter(typeof(object));
                 var argumentParam = Expression.Parameter(typeof(object));

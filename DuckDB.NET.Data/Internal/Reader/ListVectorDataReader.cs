@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using DuckDB.NET.Data.Extensions;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
@@ -49,8 +50,7 @@ internal class ListVectorDataReader : VectorDataReaderBase
 
         var listType = returnType.GetGenericArguments()[0];
 
-        var nullableType = Nullable.GetUnderlyingType(listType);
-        var allowNulls = !listType.IsValueType || nullableType != null;
+        var allowNulls = listType.AllowsNullValue(out var _, out var nullableType);
 
         var list = Activator.CreateInstance(returnType) as IList
                    ?? throw new ArgumentException($"The type '{returnType.Name}' specified in parameter {nameof(returnType)} cannot be instantiated as an IList.");

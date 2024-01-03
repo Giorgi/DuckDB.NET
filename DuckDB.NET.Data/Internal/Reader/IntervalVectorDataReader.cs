@@ -12,15 +12,8 @@ internal class IntervalVectorDataReader : VectorDataReaderBase
     {
     }
 
-    internal override T GetValue<T>(ulong offset)
+    protected override T GetValidValue<T>(ulong offset, Type targetType)
     {
-        var (isNullable, targetType) = TypeExtensions.IsNullableValueType<T>();
-
-        if (!isNullable && !IsValid(offset))
-        {
-            throw new InvalidCastException($"Column '{ColumnName}' value is null");
-        }
-
         if (DuckDBType == DuckDBType.Interval)
         {
             var interval = GetFieldData<DuckDBInterval>(offset);
@@ -34,7 +27,7 @@ internal class IntervalVectorDataReader : VectorDataReaderBase
             return (T)(object)interval;
         }
 
-        return base.GetValue<T>(offset);
+        return base.GetValidValue<T>(offset, targetType);
     }
 
     internal override object GetValue(ulong offset, Type targetType)

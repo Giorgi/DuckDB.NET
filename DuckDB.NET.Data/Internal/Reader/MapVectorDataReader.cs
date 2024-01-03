@@ -44,37 +44,39 @@ internal class MapVectorDataReader : VectorDataReaderBase
 
     internal override unsafe object GetValue(ulong offset, Type targetType)
     {
-        var allowsNullValues = true;
-        var arguments = targetType.GetGenericArguments();
-
-        allowsNullValues = arguments.Length == 2 && Nullable.GetUnderlyingType(arguments[1]) != null;
-
-        if (Activator.CreateInstance(targetType) is IDictionary instance)
+        if (DuckDBType != DuckDBType.Map)
         {
-            var listData = (DuckDBListEntry*)DataPointer + offset;
-
-            for (ulong i = 0; i < listData->Length; i++)
-            {
-                var childOffset = i + listData->Offset;
-
-                var key = keyReader.GetValue(childOffset);
-                var value = valueReader.IsValid(childOffset) ? valueReader.GetValue(childOffset) : null;
-
-                if (allowsNullValues || value != null)
-                {
-                    instance.Add(key, value);
-                }
-                else
-                {
-                    throw new NullReferenceException($"The Map in column {ColumnName} contains null value but dictionary does not allow null values");
-                }
-            }
-
-            return instance;
+            return base.GetValue(offset, targetType);
         }
-        else
+
+        if (Activator.CreateInstance(targetType) is not IDictionary instance)
         {
             throw new InvalidOperationException($"Cannot read Map column {ColumnName} in a non-dictionary type");
         }
+
+        var arguments = targetType.GetGenericArguments();
+
+        var allowsNullValues = arguments.Length == 2 && arguments[1].AllowsNullValue(out var _, out var _);
+
+        var listData = (DuckDBListEntry*)DataPointer + offset;
+
+        for (ulong i = 0; i < listData->Length; i++)
+        {
+            var childOffset = i + listData->Offset;
+
+            var key = keyReader.GetValue(childOffset);
+            var value = valueReader.IsValid(childOffset) ? valueReader.GetValue(childOffset) : null;
+
+            if (allowsNullValues || value != null)
+            {
+                instance.Add(key, value);
+            }
+            else
+            {
+                throw new NullReferenceException($"The Map in column {ColumnName} contains null value but dictionary does not allow null values");
+            }
+        }
+
+        return instance;
     }
 }

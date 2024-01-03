@@ -19,17 +19,17 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         reader.Read();
     }
 
-    private void VerifyDataStruct<T>(string columnName, int columnIndex, IReadOnlyList<T> data, Type providerSpecificType = null) where T : struct
+    private void VerifyDataStruct<T>(string columnName, int columnIndex, IReadOnlyList<T> data, Type providerSpecificType = null, bool readProviderSpecificValue = false) where T : struct
     {
         reader.GetOrdinal(columnName).Should().Be(columnIndex);
         reader.GetProviderSpecificFieldType(columnIndex).Should().Be(providerSpecificType ?? typeof(T));
 
-        reader.GetValue(columnIndex).Should().Be(data[0]);
+        (readProviderSpecificValue ? reader.GetProviderSpecificValue(columnIndex) : reader.GetValue(columnIndex)).Should().Be(data[0]);
         reader.GetFieldValue<T>(columnIndex).Should().Be(data[0]);
 
         reader.Read();
 
-        reader.GetValue(columnIndex).Should().Be(data[1]);
+        (readProviderSpecificValue ? reader.GetProviderSpecificValue(columnIndex) : reader.GetValue(columnIndex)).Should().Be(data[1]);
         reader.GetFieldValue<T>(columnIndex).Should().Be(data[1]);
 
         reader.Read();
@@ -156,34 +156,34 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         VerifyDataStruct<ulong>("ubigint", 9, new List<ulong> { 0, ulong.MaxValue });
     }
 
-    [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
+    [Fact]
     public void ReadDate()
     {
         VerifyDataStruct<DuckDBDateOnly>("date", 10, new List<DuckDBDateOnly>
         {
             new(-5877641, 6, 25),
             new(5881580, 7, 10)
-        });
+        }, typeof(DuckDBDateOnly), true);
     }
 
-    [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
+    [Fact]
     public void ReadTime()
     {
         VerifyDataStruct<DuckDBTimeOnly>("time", 11, new List<DuckDBTimeOnly>
         {
             new(0,0,0),
             new(23, 59, 59,999999)
-        });
+        }, typeof(DuckDBTimeOnly), true);
     }
 
-    [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
+    [Fact]
     public void ReadTimeStamp()
     {
         VerifyDataStruct<DuckDBTimestamp>("timestamp", 12, new List<DuckDBTimestamp>
         {
             new(new(-290308, 12, 22), new(0,0,0)),
             new(new(294247, 1, 10), new(4,0,54,775806))
-        });
+        }, typeof(DuckDBTimestamp), true);
     }
 
     [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
