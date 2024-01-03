@@ -278,9 +278,14 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         VerifyDataStruct<Guid>("uuid", 24, new List<Guid> { Guid.Parse("00000000-0000-0000-0000-000000000001"), Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff") });
     }
 
-    [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
+    [Fact]
     public void ReadInterval()
     {
+        VerifyDataStruct<DuckDBInterval>("interval", 25, new List<DuckDBInterval>
+        {
+            new DuckDBInterval(),
+            new DuckDBInterval(999,999,999999999),
+        }, typeof(DuckDBInterval), true);
     }
 
     [Fact]
