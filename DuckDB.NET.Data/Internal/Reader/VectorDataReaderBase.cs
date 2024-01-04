@@ -78,6 +78,11 @@ internal class VectorDataReaderBase : IDisposable
         return (T)GetValue(offset, targetType);
     }
 
+    internal object GetValue(ulong offset)
+    {
+        return GetValue(offset, ClrType);
+    }
+
     internal virtual object GetValue(ulong offset, Type targetType)
     {
         return DuckDBType switch
@@ -87,12 +92,7 @@ internal class VectorDataReaderBase : IDisposable
         };
     }
 
-    internal object GetValue(ulong offset)
-    {
-        return GetValue(offset, ClrType);
-    }
-
-    internal virtual object GetProviderSpecificValue(ulong offset)
+    internal object GetProviderSpecificValue(ulong offset)
     {
         return GetValue(offset, ProviderSpecificClrType);
     }
@@ -128,6 +128,9 @@ internal class VectorDataReaderBase : IDisposable
             DuckDBType.HugeInt => typeof(BigInteger),
             DuckDBType.Varchar => typeof(string),
             DuckDBType.Decimal => typeof(decimal),
+            DuckDBType.TimestampS => typeof(DuckDBTimestamp),
+            DuckDBType.TimestampMs => typeof(DuckDBTimestamp),
+            DuckDBType.TimestampNs => typeof(DuckDBTimestamp),
             DuckDBType.Blob => typeof(Stream),
             DuckDBType.Enum => typeof(string),
             DuckDBType.Uuid => typeof(Guid),
@@ -160,6 +163,9 @@ internal class VectorDataReaderBase : IDisposable
             DuckDBType.HugeInt => typeof(DuckDBHugeInt),
             DuckDBType.Varchar => typeof(string),
             DuckDBType.Decimal => typeof(decimal),
+            DuckDBType.TimestampS => typeof(DuckDBTimestamp),
+            DuckDBType.TimestampMs => typeof(DuckDBTimestamp),
+            DuckDBType.TimestampNs => typeof(DuckDBTimestamp),
             DuckDBType.Blob => typeof(Stream),
             DuckDBType.Enum => typeof(string),
             DuckDBType.Uuid => typeof(Guid),

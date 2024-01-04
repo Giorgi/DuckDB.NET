@@ -24,6 +24,9 @@ internal static class VectorDataReaderFactory
             DuckDBType.Enum => new EnumVectorDataReader(vector, dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.Struct => new StructVectorDataReader(vector, dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.Decimal => new DecimalVectorDataReader(vector, dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.TimestampS => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.TimestampMs => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.TimestampNs => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
             _ => new NumericVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName)
         };
     }

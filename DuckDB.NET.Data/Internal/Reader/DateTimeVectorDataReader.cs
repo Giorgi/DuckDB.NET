@@ -7,7 +7,7 @@ internal class DateTimeVectorDataReader : VectorDataReaderBase
 {
     private static readonly Type DateTimeType = typeof(DateTime);
     private static readonly Type DateTimeNullableType = typeof(DateTime?);
-    
+
 #if NET6_0_OR_GREATER
     private static readonly Type DateOnlyType = typeof(DateOnly);
     private static readonly Type DateOnlyNullableType = typeof(DateOnly?);
@@ -65,19 +65,41 @@ internal class DateTimeVectorDataReader : VectorDataReaderBase
 
         if (DuckDBType == DuckDBType.Timestamp)
         {
-            var timestampStruct = GetFieldData<DuckDBTimestampStruct>(offset);
+            return ReadTimestamp<T>(offset, targetType);
+        }
 
-            if (targetType == DateTimeType || targetType == DateTimeNullableType)
-            {
-                var dateTime = timestampStruct.ToDateTime();
-                return (T)(object)dateTime;
-            }
+        if (DuckDBType == DuckDBType.TimestampS)
+        {
+            return ReadTimestamp<T>(offset, targetType, 1000000);
+        }
 
-            var timestamp = NativeMethods.DateTime.DuckDBFromTimestamp(timestampStruct);
-            return (T)(object)timestamp;
+        if (DuckDBType == DuckDBType.TimestampMs)
+        {
+            return ReadTimestamp<T>(offset, targetType, 1000);
+        }
+
+        if (DuckDBType == DuckDBType.TimestampNs)
+        {
+            return ReadTimestamp<T>(offset, targetType, 1, 1000);
         }
 
         return base.GetValidValue<T>(offset, targetType);
+    }
+
+    private T ReadTimestamp<T>(ulong offset, Type targetType, int factor = 1, int divisor = 1)
+    {
+        var timestampStruct = GetFieldData<DuckDBTimestampStruct>(offset);
+
+        timestampStruct.Micros = timestampStruct.Micros * factor / divisor;
+
+        if (targetType == DateTimeType || targetType == DateTimeNullableType)
+        {
+            var dateTime = timestampStruct.ToDateTime();
+            return (T)(object)dateTime;
+        }
+
+        var timestamp = NativeMethods.DateTime.DuckDBFromTimestamp(timestampStruct);
+        return (T)(object)timestamp;
     }
 
     internal override object GetValue(ulong offset, Type targetType)
@@ -87,6 +109,9 @@ internal class DateTimeVectorDataReader : VectorDataReaderBase
             DuckDBType.Date => GetDate(offset, targetType),
             DuckDBType.Time => GetTime(offset, targetType),
             DuckDBType.Timestamp => GetDateTime(offset, targetType),
+            DuckDBType.TimestampS => GetDateTime(offset, targetType, 1000000),
+            DuckDBType.TimestampMs => GetDateTime(offset, targetType, 1000),
+            DuckDBType.TimestampNs => GetDateTime(offset, targetType, 1, 1000),
             _ => base.GetValue(offset, targetType)
         };
     }
@@ -137,15 +162,17 @@ internal class DateTimeVectorDataReader : VectorDataReaderBase
         return timeOnly;
     }
 
-    private unsafe object GetDateTime(ulong offset, Type targetType)
+    private unsafe object GetDateTime(ulong offset, Type targetType, int factor = 1, int divisor = 1)
     {
-        var data = (DuckDBTimestampStruct*)DataPointer + offset;
+        var data = GetFieldData<DuckDBTimestampStruct>(offset);
+
+        data.Micros = (data.Micros * factor / divisor);
 
         if (targetType == typeof(DateTime))
         {
-            return data->ToDateTime();
+            return data.ToDateTime();
         }
-        
-        return NativeMethods.DateTime.DuckDBFromTimestamp(*data);
+
+        return NativeMethods.DateTime.DuckDBFromTimestamp(data);
     }
 }

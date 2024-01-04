@@ -186,33 +186,33 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         }, typeof(DuckDBTimestamp), true);
     }
 
-    [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
+    [Fact]
     public void ReadTimeStampS()
     {
         VerifyDataStruct<DuckDBTimestamp>("timestamp_s", 13, new List<DuckDBTimestamp>
         {
             new(new(-290308, 12, 22), new(0,0,0)),
-            new(new(294247, 1, 10), new(4,0,54,775806))
+            new(new(294247, 1, 10), new(4,0,54))
         });
     }
 
-    [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
+    [Fact]
     public void ReadTimeStampMS()
     {
         VerifyDataStruct<DuckDBTimestamp>("timestamp_ms", 14, new List<DuckDBTimestamp>
         {
             new(new(-290308, 12, 22), new(0,0,0)),
-            new(new(294247, 1, 10), new(4,0,54,775806))
+            new(new(294247, 1, 10), new(4,0,54,775000))
         });
     }
 
-    [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
+    [Fact]
     public void ReadTimeStampNS()
     {
         VerifyDataStruct<DuckDBTimestamp>("timestamp_ns", 15, new List<DuckDBTimestamp>
         {
-            new(new(-290308, 12, 22), new(0,0,0)),
-            new(new(294247, 1, 10), new(4,0,54,775806))
+            new(new(1677, 09, 21), new(0,12,43, 145225)),
+            new(new(2262, 04, 11), new(23,47,16,854775))
         });
     }
 
@@ -231,9 +231,9 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     {
         VerifyDataStruct<DuckDBTimestamp>("timestamp_tz", 17, new List<DuckDBTimestamp>
         {
-            new(new(-290308, 12, 22), new(0,0,0)),
-            new(new(294247, 1, 10), new(4,0,54,775806))
-        });
+            new(new(-290308, 12, 22), new(02,59,11)),
+            new(new(294247, 1, 10), new(8,0,54,776806))
+        }, typeof(DuckDBTimestamp), true);
     }
 
     [Fact]
@@ -283,8 +283,8 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     {
         VerifyDataStruct<DuckDBInterval>("interval", 25, new List<DuckDBInterval>
         {
-            new DuckDBInterval(),
-            new DuckDBInterval(999,999,999999999),
+            new(),
+            new(999,999,999999999),
         }, typeof(DuckDBInterval), true);
     }
 
@@ -375,13 +375,13 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
     public void ReadTimeStampList()
     {
-        VerifyDataList<DuckDBDateOnly>("timestamp_array", 35, new List<List<DuckDBDateOnly?>> { new(), new()
+        VerifyDataList<DuckDBTimestamp>("timestamp_array", 35, new List<List<DuckDBTimestamp?>> { new(), new()
         {
-            new DuckDBDateOnly(1970, 1, 1),
-            new DuckDBDateOnly(5881580, 7, 11),
-            new DuckDBDateOnly(-5877641, 6, 24),
+            new DuckDBTimestamp(new DuckDBDateOnly(1970, 1, 1), new DuckDBTimeOnly()),
+            new DuckDBTimestamp (new DuckDBDateOnly(5881580, 7, 11), new DuckDBTimeOnly()),
+            new DuckDBTimestamp (new DuckDBDateOnly(-5877641, 6, 24), new DuckDBTimeOnly()),
             null,
-            new DuckDBDateOnly(2022,5,12),
+            new DuckDBTimestamp (new DuckDBDateOnly(2022, 5, 12), new DuckDBTimeOnly()),
         } });
     }
 
