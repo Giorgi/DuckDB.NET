@@ -190,6 +190,20 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    public void ReadTime3()
+    {
+        var timeOnly = new TimeOnly(23, 59, 59);
+        timeOnly = timeOnly.Add(TimeSpan.FromTicks(999999 * 10));
+        var dateTime = DateTime.MinValue.Add(TimeSpan.FromTicks(timeOnly.Ticks));
+
+        var columnIndex = 11;
+        reader.GetFieldValue<DateTime>(columnIndex).Should().Be(DateTime.MinValue);
+
+        reader.Read();
+        reader.GetFieldValue<DateTime>(columnIndex).Should().Be(dateTime);
+    }
+
+    [Fact]
     public void ReadTimeStamp()
     {
         VerifyDataStruct<DuckDBTimestamp>("timestamp", 12, new List<DuckDBTimestamp>
