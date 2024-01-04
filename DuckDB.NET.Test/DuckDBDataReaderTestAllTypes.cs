@@ -177,6 +177,19 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    public void ReadTime2()
+    {
+        var timeOnly = new TimeOnly(23, 59, 59);
+        timeOnly = timeOnly.Add(TimeSpan.FromTicks(999999 * 10));
+        
+        VerifyDataStruct<TimeOnly>("time", 11, new List<TimeOnly>
+        {
+            new(0,0,0),
+            timeOnly
+        }, typeof(DuckDBTimeOnly));
+    }
+
+    [Fact]
     public void ReadTimeStamp()
     {
         VerifyDataStruct<DuckDBTimestamp>("timestamp", 12, new List<DuckDBTimestamp>
