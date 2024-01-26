@@ -5,6 +5,7 @@ using Xunit;
 using FluentAssertions;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 
 namespace DuckDB.NET.Test;
 
@@ -18,7 +19,7 @@ public class DuckDBManagedAppenderTests : DuckDBTestBase
     public void ManagedAppenderTests()
     {
         var table = "CREATE TABLE managedAppenderTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, " +
-                       "g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR, m TIMESTAMP, n Date);";
+                          "g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR, m TIMESTAMP, n Date, o HugeInt);";
         Command.CommandText = table;
         Command.ExecuteNonQuery();
 
@@ -44,6 +45,7 @@ public class DuckDBManagedAppenderTests : DuckDBTestBase
                     .AppendValue($"{i}")
                     .AppendValue(date.AddDays(i))
                     .AppendNullValue()
+                    .AppendValue(new BigInteger(ulong.MaxValue) + i)
                     .EndRow();
             }
         }
@@ -66,6 +68,9 @@ public class DuckDBManagedAppenderTests : DuckDBTestBase
                     var cell = (IConvertible)reader[columnIndex];
                     cell.ToInt32(CultureInfo.InvariantCulture).Should().Be(readRowIndex);
                 }
+
+                reader.IsDBNull(13).Should().BeTrue();
+                reader.GetFieldValue<BigInteger>(14).Should().Be(new BigInteger(ulong.MaxValue) + readRowIndex);
 
                 readRowIndex++;
             }

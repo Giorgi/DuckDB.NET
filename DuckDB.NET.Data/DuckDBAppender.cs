@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Numerics;
 
 namespace DuckDB.NET.Data;
 
@@ -92,6 +93,8 @@ public class DuckDBAppenderRow
 
     public DuckDBAppenderRow AppendNullValue() => Append<object>(null);
 
+    public DuckDBAppenderRow AppendValue(BigInteger? value) => Append(value);
+
     #region Append Signed Int
 
     public DuckDBAppenderRow AppendValue(sbyte? value) => Append(value);
@@ -151,6 +154,8 @@ public class DuckDBAppenderRow
             short val => NativeMethods.Appender.DuckDBAppendInt16(appender, val),
             int val => NativeMethods.Appender.DuckDBAppendInt32(appender, val),
             long val => NativeMethods.Appender.DuckDBAppendInt64(appender, val),
+
+            BigInteger val => NativeMethods.Appender.DuckDBAppendHugeInt(appender, new DuckDBHugeInt(val)),
 
             byte val => NativeMethods.Appender.DuckDBAppendUInt8(appender, val),
             ushort val => NativeMethods.Appender.DuckDBAppendUInt16(appender, val),
