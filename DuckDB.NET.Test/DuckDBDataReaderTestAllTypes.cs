@@ -181,7 +181,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     {
         var timeOnly = new TimeOnly(23, 59, 59);
         timeOnly = timeOnly.Add(TimeSpan.FromTicks(999999 * 10));
-        
+
         VerifyDataStruct<TimeOnly>("time", 11, new List<TimeOnly>
         {
             new(0,0,0),
@@ -220,7 +220,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         {
             new(new(-290308, 12, 22), new(0,0,0)),
             new(new(294247, 1, 10), new(4,0,54))
-        });
+        }, readProviderSpecificValue: true);
     }
 
     [Fact]
@@ -230,17 +230,17 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         {
             new(new(-290308, 12, 22), new(0,0,0)),
             new(new(294247, 1, 10), new(4,0,54,775000))
-        });
+        }, readProviderSpecificValue: true);
     }
 
     [Fact]
     public void ReadTimeStampNS()
     {
-        VerifyDataStruct<DuckDBTimestamp>("timestamp_ns", 15, new List<DuckDBTimestamp>
+        VerifyDataStruct<DateTime>("timestamp_ns", 15, new List<DateTime>
         {
-            new(new(1677, 09, 21), new(0,12,43, 145225)),
-            new(new(2262, 04, 11), new(23,47,16,854775))
-        });
+            new DateTime(1677, 09, 21, 0,12,43).AddTicks(145225 * 10),
+            new DateTime (2262, 04, 11, 23,47,16).AddTicks(854775 * 10)
+        }, typeof(DuckDBTimestamp));
     }
 
     [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
@@ -253,13 +253,13 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         });
     }
 
-    [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
+    [Fact]
     public void ReadTimeStampTZ()
     {
         VerifyDataStruct<DuckDBTimestamp>("timestamp_tz", 17, new List<DuckDBTimestamp>
         {
-            new(new(-290308, 12, 22), new(02,59,11)),
-            new(new(294247, 1, 10), new(8,0,54,776806))
+            new(new(-290308, 12, 22), new(0,0,0)),
+            new(new(294247, 1, 10), new(4,0,54,775806))
         }, typeof(DuckDBTimestamp), true);
     }
 

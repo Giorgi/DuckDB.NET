@@ -72,6 +72,10 @@ public enum DuckDBType
     Union,
     // duckdb_bit
     Bit,
+    // duckdb_time_tz
+    TimeTz,
+    // duckdb_timestamp
+    TimestampTz
 }
 
 [StructLayout(LayoutKind.Sequential)]
