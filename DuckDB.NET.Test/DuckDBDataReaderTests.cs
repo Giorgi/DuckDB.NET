@@ -124,22 +124,24 @@ public class DuckDBDataReaderTests : DuckDBTestBase
 
         var reader = Command.ExecuteReader();
         reader.Read();
-        reader.GetFieldType(0).Should().Be(typeof(DuckDBInterval));
+        reader.GetFieldType(0).Should().Be(typeof(TimeSpan));
         reader.GetDataTypeName(0).Should().Be(DuckDBType.Interval.ToString());
 
         var interval = reader.GetFieldValue<DuckDBInterval>(0);
-        var value = (DuckDBInterval)reader.GetValue(0);
+        reader.Invoking(r => r.GetValue(0)).Should().Throw<ArgumentOutOfRangeException>();
 
         interval.Months.Should().Be(12);
-        value.Months.Should().Be(12);
-
+        
         Command.CommandText = "SELECT INTERVAL '28' DAYS;";
         reader = Command.ExecuteReader();
         reader.Read();
 
         interval = reader.GetFieldValue<DuckDBInterval>(0);
-        value = (DuckDBInterval)reader.GetValue(0);
-        
+        var value = (TimeSpan)reader.GetValue(0);
+
+        var timeSpan = reader.GetFieldValue<TimeSpan>(0);
+        timeSpan.Days.Should().Be(28);
+
         interval.Days.Should().Be(28);
         value.Days.Should().Be(28);
 
@@ -148,10 +150,10 @@ public class DuckDBDataReaderTests : DuckDBTestBase
         reader.Read();
 
         interval = reader.GetFieldValue<DuckDBInterval>(0);
-        value = (DuckDBInterval)reader.GetValue(0);
+        timeSpan = (TimeSpan)reader.GetValue(0);
 
         interval.Micros.Should().Be(30_000_000);
-        value.Micros.Should().Be(30_000_000);
+        timeSpan.Should().Be(TimeSpan.FromSeconds(30));
     }
 
     [Fact]

@@ -21,24 +21,13 @@ public class DateTests : DuckDBTestBase
 
         var scalar = Command.ExecuteScalar();
 
-        scalar.Should().BeOfType<DuckDBDateOnly>();
+        scalar.Should().BeOfType<DateOnly>();
 
-        var dateOnly = (DuckDBDateOnly) scalar;
+        var dateOnly = (DateOnly) scalar;
 
         dateOnly.Year.Should().Be(year);
         dateOnly.Month.Should().Be((byte)mon);
         dateOnly.Day.Should().Be((byte)day);
-
-        var dateTime = dateOnly.ToDateTime();
-        dateTime.Year.Should().Be(year);
-        dateTime.Month.Should().Be(mon);
-        dateTime.Day.Should().Be(day);
-        dateTime.Hour.Should().Be(0);
-        dateTime.Minute.Should().Be(0);
-        dateTime.Second.Should().Be(0);
-
-        var convertedValue = (DateTime) dateOnly;
-        convertedValue.Should().Be(dateTime);
     }
 
     [Theory]
@@ -54,24 +43,13 @@ public class DateTests : DuckDBTestBase
 
         var scalar = Command.ExecuteScalar();
 
-        scalar.Should().BeOfType<DuckDBDateOnly>();
+        scalar.Should().BeOfType<DateOnly>();
 
-        var dateOnly = (DuckDBDateOnly) scalar;
+        var dateOnly = (DateOnly) scalar;
 
         dateOnly.Year.Should().Be(year);
         dateOnly.Month.Should().Be((byte)mon);
         dateOnly.Day.Should().Be((byte)day);
-
-        var dateTime = dateOnly.ToDateTime();
-        dateTime.Year.Should().Be(year);
-        dateTime.Month.Should().Be(mon);
-        dateTime.Day.Should().Be(day);
-        dateTime.Hour.Should().Be(0);
-        dateTime.Minute.Should().Be(0);
-        dateTime.Second.Should().Be(0);
-
-        var convertedValue = (DateTime) dateOnly;
-        convertedValue.Should().Be(dateTime);
     }
 
     [Theory]
@@ -93,7 +71,7 @@ public class DateTests : DuckDBTestBase
         var reader = Command.ExecuteReader();
         reader.Read();
 
-        reader.GetFieldType(1).Should().Be(typeof(DuckDBDateOnly));
+        reader.GetFieldType(1).Should().Be(typeof(DateOnly));
 
         var dateOnly = reader.GetFieldValue<DuckDBDateOnly>(1);
 

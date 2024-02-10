@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
+using DuckDB.NET.Data.Extensions;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
@@ -31,56 +32,51 @@ internal class MapVectorDataReader : VectorDataReaderBase
                                                                         NativeMethods.DataChunks.DuckDBVectorGetValidity(valueVector), valueType, columnName);
     }
 
-    internal override unsafe object GetValue(ulong offset, Type? targetType = null)
+    protected override Type GetColumnType()
     {
-        //If targetType is null we create a Dictionary<keyReader.ClrType, valueReader.ClrType> or
-        //Dictionary<keyReader.ClrType, valueReader.ClrType?>
-        var allowsNullValues = true;
+        return typeof(Dictionary<,>).MakeGenericType(keyReader.ClrType, valueReader.ClrType);
+    }
 
-        if (targetType == null)
+    protected override Type GetColumnProviderSpecificType()
+    {
+        return typeof(Dictionary<,>).MakeGenericType(keyReader.ProviderSpecificClrType, valueReader.ProviderSpecificClrType);
+    }
+
+    internal override unsafe object GetValue(ulong offset, Type targetType)
+    {
+        if (DuckDBType != DuckDBType.Map)
         {
-            var valueType = valueReader.ClrType;
-
-            if (valueType.IsPrimitive)
-            {
-                valueType = typeof(Nullable<>).MakeGenericType(valueType);
-            }
-
-            targetType = typeof(Dictionary<,>).MakeGenericType(keyReader.ClrType, valueType);
-        }
-        else
-        {
-            var arguments = targetType.GetGenericArguments();
-
-            allowsNullValues = arguments.Length == 2 && (!arguments[1].IsPrimitive || Nullable.GetUnderlyingType(arguments[1]) == typeof(Nullable<>));
+            return base.GetValue(offset, targetType);
         }
 
-        if (Activator.CreateInstance(targetType) is IDictionary instance)
-        {
-            var listData = (DuckDBListEntry*)DataPointer + offset;
-
-            for (ulong i = 0; i < listData->Length; i++)
-            {
-                var childOffset = i + listData->Offset;
-
-                var key = keyReader.GetValue(childOffset);
-                var value = valueReader.IsValid(childOffset) ? valueReader.GetValue(childOffset) : null;
-
-                if (allowsNullValues || value != null)
-                {
-                    instance.Add(key, value);
-                }
-                else
-                {
-                    throw new NullReferenceException($"The Map in column {ColumnName} contains null value but dictionary does not allow null values");
-                }
-            }
-
-            return instance;
-        }
-        else
+        if (Activator.CreateInstance(targetType) is not IDictionary instance)
         {
             throw new InvalidOperationException($"Cannot read Map column {ColumnName} in a non-dictionary type");
         }
+
+        var arguments = targetType.GetGenericArguments();
+
+        var allowsNullValues = arguments.Length == 2 && arguments[1].AllowsNullValue(out var _, out var _);
+
+        var listData = (DuckDBListEntry*)DataPointer + offset;
+
+        for (ulong i = 0; i < listData->Length; i++)
+        {
+            var childOffset = i + listData->Offset;
+
+            var key = keyReader.GetValue(childOffset);
+            var value = valueReader.IsValid(childOffset) ? valueReader.GetValue(childOffset) : null;
+
+            if (allowsNullValues || value != null)
+            {
+                instance.Add(key, value);
+            }
+            else
+            {
+                throw new NullReferenceException($"The Map in column {ColumnName} contains null value but dictionary does not allow null values");
+            }
+        }
+
+        return instance;
     }
 }

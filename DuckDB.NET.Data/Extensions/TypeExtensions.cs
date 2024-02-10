@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Reflection;
 
 namespace DuckDB.NET.Data.Extensions;
 
@@ -22,13 +23,13 @@ internal static class TypeExtensions
 
     public static bool IsNull(this object? value) => value is null or DBNull;
 
-    public static (bool isNullable, Type type) IsNullable<T>()
+    public static (bool isNullableValueType, Type type) IsNullableValueType<T>()
     {
         var targetType = typeof(T);
 
-        var isNullable = default(T) is null && targetType.IsValueType;
+        var isNullableValueType = default(T) is null && targetType.IsValueType;
 
-        return (isNullable, targetType);
+        return (isNullableValueType, targetType);
     }
 
     public static bool IsFloatingNumericType<T>()
@@ -44,5 +45,15 @@ internal static class TypeExtensions
     public static bool IsNumeric(this Type type)
     {
         return IntegralNumericTypes.Contains(type) || FloatingNumericTypes.Contains(type);
+    }
+
+    public static bool AllowsNullValue(this Type type, out bool isNullableValueType, out Type? underlyingType)
+    {
+        underlyingType = Nullable.GetUnderlyingType(type);
+        isNullableValueType = underlyingType != null;
+
+        var isNullable = isNullableValueType || !type.IsValueType;
+
+        return isNullable;
     }
 }

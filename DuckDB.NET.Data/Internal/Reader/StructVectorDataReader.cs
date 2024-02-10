@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq.Expressions;
+using DuckDB.NET.Data.Extensions;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
@@ -31,11 +32,11 @@ internal class StructVectorDataReader : VectorDataReaderBase
         }
     }
 
-    internal override object GetValue(ulong offset, Type? targetType = null)
+    internal override object GetValue(ulong offset, Type targetType)
     {
         if (DuckDBType == DuckDBType.Struct)
         {
-            return GetStruct(offset, targetType ?? ClrType);
+            return GetStruct(offset, targetType);
         }
 
         return base.GetValue(offset, targetType);
@@ -68,10 +69,7 @@ internal class StructVectorDataReader : VectorDataReaderBase
                     continue;
                 }
 
-                var underlyingType = Nullable.GetUnderlyingType(propertyInfo.PropertyType);
-                var isNullableValueType = underlyingType != null;
-
-                var isNullable = isNullableValueType || !propertyInfo.PropertyType.IsValueType;
+                var isNullable = propertyInfo.PropertyType.AllowsNullValue(out var isNullableValueType, out var underlyingType);
 
                 var instanceParam = Expression.Parameter(typeof(object));
                 var argumentParam = Expression.Parameter(typeof(object));
@@ -104,7 +102,7 @@ internal class StructVectorDataReader : VectorDataReaderBase
 
             if (reader.IsValid(offset))
             {
-                var value = reader.GetValue(offset, property.Value.NullableValueType ? property.Value.NullableType : property.Value.PropertyType);
+                var value = reader.GetValue(offset, property.Value.NullableType ?? property.Value.PropertyType);
                 property.Value.Setter(result!, value);
             }
             else

@@ -19,27 +19,30 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         reader.Read();
     }
 
-    private void VerifyDataStruct<T>(string columnName, int columnIndex, IReadOnlyList<T> data) where T : struct
+    private void VerifyDataStruct<T>(string columnName, int columnIndex, IReadOnlyList<T> data, Type providerSpecificType = null, bool readProviderSpecificValue = false) where T : struct
     {
         reader.GetOrdinal(columnName).Should().Be(columnIndex);
+        reader.GetProviderSpecificFieldType(columnIndex).Should().Be(providerSpecificType ?? typeof(T));
 
-        reader.GetValue(columnIndex).Should().Be(data[0]);
+        (readProviderSpecificValue ? reader.GetProviderSpecificValue(columnIndex) : reader.GetValue(columnIndex)).Should().Be(data[0]);
         reader.GetFieldValue<T>(columnIndex).Should().Be(data[0]);
 
         reader.Read();
 
-        reader.GetValue(columnIndex).Should().Be(data[1]);
+        (readProviderSpecificValue ? reader.GetProviderSpecificValue(columnIndex) : reader.GetValue(columnIndex)).Should().Be(data[1]);
         reader.GetFieldValue<T>(columnIndex).Should().Be(data[1]);
 
         reader.Read();
 
         reader.IsDBNull(columnIndex).Should().Be(true);
         reader.GetFieldValue<T?>(columnIndex).Should().Be(null);
+        reader.Invoking(r => r.GetFieldValue<T>(columnIndex)).Should().Throw<InvalidCastException>();
     }
 
     private void VerifyDataClass<T>(string columnName, int columnIndex, IReadOnlyList<T> data) where T : class
     {
         reader.GetOrdinal(columnName).Should().Be(columnIndex);
+        reader.GetProviderSpecificFieldType(columnIndex).Should().Be(typeof(T));
 
         reader.GetValue(columnIndex).Should().Be(data[0]);
         reader.GetFieldValue<T>(columnIndex).Should().Be(data[0]);
@@ -52,11 +55,13 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         reader.Read();
 
         reader.IsDBNull(columnIndex).Should().Be(true);
+        reader.Invoking(r => r.GetFieldValue<T>(columnIndex)).Should().Throw<InvalidCastException>();
     }
 
     private void VerifyDataList<T>(string columnName, int columnIndex, IReadOnlyList<List<T?>> data) where T : struct
     {
         reader.GetOrdinal(columnName).Should().Be(columnIndex);
+        reader.GetProviderSpecificFieldType(columnIndex).Should().Be(typeof(List<T>));
 
         reader.GetFieldValue<List<T?>>(columnIndex).Should().BeEquivalentTo(data[0]);
 
@@ -67,6 +72,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         reader.Read();
 
         reader.IsDBNull(columnIndex).Should().Be(true);
+        reader.Invoking(r => r.GetFieldValue<List<T>>(columnIndex)).Should().Throw<InvalidCastException>();
     }
 
     private void VerifyDataListClass<T>(string columnName, int columnIndex, IReadOnlyList<List<T>> data) where T : class
@@ -83,6 +89,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         reader.Read();
 
         reader.IsDBNull(columnIndex).Should().Be(true);
+        reader.Invoking(r => r.GetFieldValue<T>(columnIndex)).Should().Throw<InvalidCastException>();
     }
 
     [Fact]
@@ -122,7 +129,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         {
             BigInteger.Parse("-170141183460469231731687303715884105727"),
             BigInteger.Parse("170141183460469231731687303715884105727")
-        });
+        }, typeof(DuckDBHugeInt));
     }
 
     [Fact]
@@ -156,7 +163,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         {
             new(-5877641, 6, 25),
             new(5881580, 7, 10)
-        });
+        }, typeof(DuckDBDateOnly), true);
     }
 
     [Fact]
@@ -166,17 +173,94 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         {
             new(0,0,0),
             new(23, 59, 59,999999)
-        });
+        }, typeof(DuckDBTimeOnly), true);
     }
 
-    [Fact(Skip = "These dates can't be expressed by DateTime")]
+    [Fact]
+    public void ReadTime2()
+    {
+        var timeOnly = new TimeOnly(23, 59, 59);
+        timeOnly = timeOnly.Add(TimeSpan.FromTicks(999999 * 10));
+
+        VerifyDataStruct<TimeOnly>("time", 11, new List<TimeOnly>
+        {
+            new(0,0,0),
+            timeOnly
+        }, typeof(DuckDBTimeOnly));
+    }
+
+    [Fact]
+    public void ReadTime3()
+    {
+        var timeOnly = new TimeOnly(23, 59, 59);
+        timeOnly = timeOnly.Add(TimeSpan.FromTicks(999999 * 10));
+        var dateTime = DateTime.MinValue.Add(TimeSpan.FromTicks(timeOnly.Ticks));
+
+        var columnIndex = 11;
+        reader.GetFieldValue<DateTime>(columnIndex).Should().Be(DateTime.MinValue);
+
+        reader.Read();
+        reader.GetFieldValue<DateTime>(columnIndex).Should().Be(dateTime);
+    }
+
+    [Fact]
     public void ReadTimeStamp()
     {
         VerifyDataStruct<DuckDBTimestamp>("timestamp", 12, new List<DuckDBTimestamp>
         {
             new(new(-290308, 12, 22), new(0,0,0)),
             new(new(294247, 1, 10), new(4,0,54,775806))
+        }, typeof(DuckDBTimestamp), true);
+    }
+
+    [Fact]
+    public void ReadTimeStampS()
+    {
+        VerifyDataStruct<DuckDBTimestamp>("timestamp_s", 13, new List<DuckDBTimestamp>
+        {
+            new(new(-290308, 12, 22), new(0,0,0)),
+            new(new(294247, 1, 10), new(4,0,54))
+        }, readProviderSpecificValue: true);
+    }
+
+    [Fact]
+    public void ReadTimeStampMS()
+    {
+        VerifyDataStruct<DuckDBTimestamp>("timestamp_ms", 14, new List<DuckDBTimestamp>
+        {
+            new(new(-290308, 12, 22), new(0,0,0)),
+            new(new(294247, 1, 10), new(4,0,54,775000))
+        }, readProviderSpecificValue: true);
+    }
+
+    [Fact]
+    public void ReadTimeStampNS()
+    {
+        VerifyDataStruct<DateTime>("timestamp_ns", 15, new List<DateTime>
+        {
+            new DateTime(1677, 09, 21, 0,12,43).AddTicks(145225 * 10),
+            new DateTime (2262, 04, 11, 23,47,16).AddTicks(854775 * 10)
+        }, typeof(DuckDBTimestamp));
+    }
+
+    [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
+    public void ReadTimeTZ()
+    {
+        VerifyDataStruct<DuckDBTimestamp>("time_tz", 16, new List<DuckDBTimestamp>
+        {
+            new(new(-290308, 12, 22), new(0,0,0)),
+            new(new(294247, 1, 10), new(4,0,54,775806))
         });
+    }
+
+    [Fact]
+    public void ReadTimeStampTZ()
+    {
+        VerifyDataStruct<DuckDBTimestamp>("timestamp_tz", 17, new List<DuckDBTimestamp>
+        {
+            new(new(-290308, 12, 22), new(0,0,0)),
+            new(new(294247, 1, 10), new(4,0,54,775806))
+        }, typeof(DuckDBTimestamp), true);
     }
 
     [Fact]
@@ -222,6 +306,16 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    public void ReadInterval()
+    {
+        VerifyDataStruct<DuckDBInterval>("interval", 25, new List<DuckDBInterval>
+        {
+            new(),
+            new(999,999,999999999),
+        }, typeof(DuckDBInterval), true);
+    }
+
+    [Fact]
     public void ReadString()
     {
         VerifyDataClass<string>("varchar", 26, new List<string> { "🦆🦆🦆🦆🦆🦆", "goo\0se" });
@@ -232,6 +326,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     {
         var columnIndex = 27;
         reader.GetOrdinal("blob").Should().Be(columnIndex);
+        reader.GetProviderSpecificFieldType(columnIndex).Should().Be(typeof(Stream));
 
         using (var stream = reader.GetStream(columnIndex))
         {
@@ -252,6 +347,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         reader.Read();
 
         reader.IsDBNull(columnIndex).Should().Be(true);
+        reader.Invoking(r => r.GetStream(columnIndex)).Should().Throw<InvalidCastException>();
     }
 
     [Fact]
@@ -303,6 +399,32 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         } });
     }
 
+    [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
+    public void ReadTimeStampList()
+    {
+        VerifyDataList<DuckDBTimestamp>("timestamp_array", 35, new List<List<DuckDBTimestamp?>> { new(), new()
+        {
+            new DuckDBTimestamp(new DuckDBDateOnly(1970, 1, 1), new DuckDBTimeOnly()),
+            new DuckDBTimestamp (new DuckDBDateOnly(5881580, 7, 11), new DuckDBTimeOnly()),
+            new DuckDBTimestamp (new DuckDBDateOnly(-5877641, 6, 24), new DuckDBTimeOnly()),
+            null,
+            new DuckDBTimestamp (new DuckDBDateOnly(2022, 5, 12), new DuckDBTimeOnly()),
+        } });
+    }
+
+    [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
+    public void ReadTimeStampTZList()
+    {
+        VerifyDataList<DuckDBDateOnly>("timestamptz_array", 36, new List<List<DuckDBDateOnly?>> { new(), new()
+        {
+            new DuckDBDateOnly(1970, 1, 1),
+            new DuckDBDateOnly(5881580, 7, 11),
+            new DuckDBDateOnly(-5877641, 6, 24),
+            null,
+            new DuckDBDateOnly(2022,5,12),
+        } });
+    }
+
     [Fact]
     public void ReadStringList()
     {
@@ -328,6 +450,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     {
         var columnIndex = 39;
         reader.GetOrdinal("struct").Should().Be(columnIndex);
+        reader.GetProviderSpecificFieldType(columnIndex).Should().Be(typeof(Dictionary<string, object>));
 
         reader.GetValue(columnIndex).Should().BeEquivalentTo(new Dictionary<string, object>() { { "a", null }, { "b", null } });
         reader.GetFieldValue<StructTest>(columnIndex).Should().BeEquivalentTo(new StructTest());
@@ -344,6 +467,8 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         reader.Read();
 
         reader.IsDBNull(columnIndex).Should().Be(true);
+
+        reader.Invoking(r => r.GetFieldValue<StructTest>(columnIndex)).Should().Throw<InvalidCastException>();
     }
 
     [Fact]
@@ -365,6 +490,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         reader.Read();
 
         reader.IsDBNull(columnIndex).Should().Be(true);
+        reader.Invoking(r => r.GetFieldValue<StructOfArrayTest>(columnIndex)).Should().Throw<InvalidCastException>();
     }
 
     [Fact]
@@ -391,6 +517,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         reader.Read();
 
         reader.IsDBNull(columnIndex).Should().Be(true);
+        reader.Invoking(r => r.GetFieldValue<List<StructTest>>(columnIndex)).Should().Throw<InvalidCastException>();
     }
 
     [Fact]
@@ -399,15 +526,18 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         var columnIndex = 42;
         reader.GetOrdinal("map").Should().Be(columnIndex);
 
-        reader.GetValue(columnIndex).Should().BeEquivalentTo(new Dictionary<string, object>());
+        reader.GetValue(columnIndex).Should().BeEquivalentTo(new Dictionary<string, string>());
+        reader.GetFieldValue<Dictionary<string, string>>(columnIndex).Should().BeEquivalentTo(new Dictionary<string, string>());
 
         reader.Read();
 
-        reader.GetValue(columnIndex).Should().BeEquivalentTo(new Dictionary<string, object>() { { "key1", "🦆🦆🦆🦆🦆🦆" }, { "key2", "goose" } });
+        reader.GetValue(columnIndex).Should().BeEquivalentTo(new Dictionary<string, string>() { { "key1", "🦆🦆🦆🦆🦆🦆" }, { "key2", "goose" } });
+        reader.GetFieldValue<Dictionary<string, string>>(columnIndex).Should().BeEquivalentTo(new Dictionary<string, string>() { { "key1", "🦆🦆🦆🦆🦆🦆" }, { "key2", "goose" } });
 
         reader.Read();
 
         reader.IsDBNull(columnIndex).Should().Be(true);
+        reader.Invoking(r => r.GetFieldValue<Dictionary<string, string>>(columnIndex)).Should().Throw<InvalidCastException>();
     }
 
     class StructTest

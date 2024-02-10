@@ -24,26 +24,14 @@ public class TimeTests : DuckDBTestBase
 
         var scalar = Command.ExecuteScalar();
 
-        scalar.Should().BeOfType<DuckDBTimeOnly>();
+        scalar.Should().BeOfType<TimeOnly>();
 
-        var timeOnly = (DuckDBTimeOnly)scalar;
+        var timeOnly = (TimeOnly)scalar;
 
         timeOnly.Hour.Should().Be((byte)hour);
-        timeOnly.Min.Should().Be((byte)minute);
-        timeOnly.Sec.Should().Be((byte)second);
-        timeOnly.Microsecond.Should().Be(microsecond);
-
-        var dateTime = timeOnly.ToDateTime();
-        dateTime.Year.Should().Be(DateTime.MinValue.Year);
-        dateTime.Month.Should().Be(DateTime.MinValue.Month);
-        dateTime.Day.Should().Be(DateTime.MinValue.Day);
-        dateTime.Hour.Should().Be(hour);
-        dateTime.Minute.Should().Be(minute);
-        dateTime.Second.Should().Be(second);
-        dateTime.Millisecond.Should().Be(microsecond / 1000);
-
-        var convertedValue = (DateTime)timeOnly;
-        convertedValue.Should().Be(dateTime);
+        timeOnly.Minute.Should().Be((byte)minute);
+        timeOnly.Second.Should().Be((byte)second);
+        timeOnly.Ticks.Should().Be(new TimeOnly(hour, minute, second).Add(TimeSpan.FromTicks(microsecond * 10)).Ticks);
     }
 
     [Theory]
@@ -63,26 +51,14 @@ public class TimeTests : DuckDBTestBase
 
         var scalar = Command.ExecuteScalar();
 
-        scalar.Should().BeOfType<DuckDBTimeOnly>();
+        scalar.Should().BeOfType<TimeOnly>();
 
-        var timeOnly = (DuckDBTimeOnly)scalar;
+        var timeOnly = (TimeOnly)scalar;
 
         timeOnly.Hour.Should().Be((byte)hour);
-        timeOnly.Min.Should().Be((byte)minute);
-        timeOnly.Sec.Should().Be((byte)second);
-        timeOnly.Microsecond.Should().Be(microsecond);
-
-        var dateTime = timeOnly.ToDateTime();
-        dateTime.Year.Should().Be(DateTime.MinValue.Year);
-        dateTime.Month.Should().Be(DateTime.MinValue.Month);
-        dateTime.Day.Should().Be(DateTime.MinValue.Day);
-        dateTime.Hour.Should().Be(hour);
-        dateTime.Minute.Should().Be(minute);
-        dateTime.Second.Should().Be(second);
-        dateTime.Millisecond.Should().Be(microsecond / 1000);
-
-        var convertedValue = (DateTime)timeOnly;
-        convertedValue.Should().Be(dateTime);
+        timeOnly.Minute.Should().Be((byte)minute);
+        timeOnly.Second.Should().Be((byte)second);
+        timeOnly.Ticks.Should().Be(expectedValue.Ticks);
     }
 
     [Theory]
@@ -110,7 +86,7 @@ public class TimeTests : DuckDBTestBase
         var reader = Command.ExecuteReader();
         reader.Read();
 
-        reader.GetFieldType(1).Should().Be(typeof(DuckDBTimeOnly));
+        reader.GetFieldType(1).Should().Be(typeof(TimeOnly));
 
         var duckDBTimeOnly = reader.GetFieldValue<DuckDBTimeOnly>(1);
 

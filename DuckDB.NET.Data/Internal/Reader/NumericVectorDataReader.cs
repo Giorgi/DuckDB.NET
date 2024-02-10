@@ -11,19 +11,14 @@ internal class NumericVectorDataReader : VectorDataReaderBase
     {
     }
 
-    protected override T GetValueInternal<T>(ulong offset, Type targetType)
+    protected override T GetValidValue<T>(ulong offset, Type targetType)
     {
-        if (!IsValid(offset))
-        {
-            throw new InvalidCastException($"Column '{ColumnName}' value is null");
-        }
-
         var isFloatingNumericType = TypeExtensions.IsFloatingNumericType<T>();
         var isIntegralNumericType = TypeExtensions.IsIntegralNumericType<T>();
 
         if (!(isIntegralNumericType || isFloatingNumericType))
         {
-            return base.GetValueInternal<T>(offset, targetType);
+            return base.GetValidValue<T>(offset, targetType);
         }
 
         //If T is integral type and column is also integral read the data and use Unsafe.As<> or Convert.ChangeType to change type
@@ -42,7 +37,7 @@ internal class NumericVectorDataReader : VectorDataReaderBase
                 DuckDBType.UnsignedInteger => GetUnmanagedTypeValue<uint, T>(offset),
                 DuckDBType.UnsignedBigInt => GetUnmanagedTypeValue<ulong, T>(offset),
                 DuckDBType.HugeInt => GetBigInteger<T>(offset),
-                _ => base.GetValueInternal<T>(offset, targetType)
+                _ => base.GetValidValue<T>(offset, targetType)
             };
         }
 
@@ -50,11 +45,11 @@ internal class NumericVectorDataReader : VectorDataReaderBase
         {
             DuckDBType.Float => (T)(object)GetFieldData<float>(offset),
             DuckDBType.Double => (T)(object)GetFieldData<double>(offset),
-            _ => base.GetValueInternal<T>(offset, targetType)
+            _ => base.GetValidValue<T>(offset, targetType)
         };
     }
 
-    internal override object GetValue(ulong offset, Type? targetType = null)
+    internal override object GetValue(ulong offset, Type targetType)
     {
         var value = DuckDBType switch
         {
@@ -71,11 +66,6 @@ internal class NumericVectorDataReader : VectorDataReaderBase
             DuckDBType.HugeInt => GetBigInteger(offset),
             _ => base.GetValue(offset, targetType)
         };
-
-        if (targetType == null)
-        {
-            return value;
-        }
 
         if (targetType.IsNumeric())
         {

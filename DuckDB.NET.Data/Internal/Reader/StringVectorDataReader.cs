@@ -11,18 +11,18 @@ internal class StringVectorDataReader : VectorDataReaderBase
     {
     }
 
-    internal override T GetValue<T>(ulong offset)
+    protected override T GetValidValue<T>(ulong offset, Type targetType)
     {
         return DuckDBType switch
         {
             DuckDBType.Bit => GetBitString<T>(offset),
             DuckDBType.Blob => (T)(object)GetStream(offset),
             DuckDBType.Varchar => (T)(object)GetString(offset),
-            _ => base.GetValue<T>(offset)
+            _ => base.GetValidValue<T>(offset, targetType)
         };
     }
 
-    internal override object GetValue(ulong offset, Type? targetType = null)
+    internal override object GetValue(ulong offset, Type targetType)
     {
         return DuckDBType switch
         {

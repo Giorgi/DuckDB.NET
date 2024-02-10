@@ -16,29 +16,18 @@ internal class DecimalVectorDataReader : NumericVectorDataReader
         decimalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
     }
 
-    internal override T GetValue<T>(ulong offset)
+    protected override T GetValidValue<T>(ulong offset, Type targetType)
     {
-        if (DuckDBType != DuckDBType.Decimal)
+        if (DuckDBType!= DuckDBType.Decimal)
         {
-            return base.GetValue<T>(offset);
+            return base.GetValidValue<T>(offset, targetType);
         }
 
-        if (IsValid(offset))
-        {
-            var value = GetDecimal(offset);
-            return (T)(object)value; //JIT will optimize the casts at least for not nullable T
-        }
-
-        var (isNullable, _) = TypeExtensions.IsNullable<T>();
-        if (isNullable)
-        {
-            return default!;
-        }
-
-        throw new InvalidCastException($"Column '{ColumnName}' value is null");
+        var value = GetDecimal(offset);
+        return (T)(object)value; //JIT will optimize the casts at least for not nullable T
     }
 
-    internal override object GetValue(ulong offset, Type? targetType = null)
+    internal override object GetValue(ulong offset, Type targetType)
     {
         if (DuckDBType != DuckDBType.Decimal)
         {

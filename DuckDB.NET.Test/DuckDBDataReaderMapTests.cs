@@ -17,12 +17,12 @@ public class DuckDBDataReaderMapTests : DuckDBTestBase
     {
         Command.CommandText = "SELECT MAP { 'key1': 1, 'key2': 5, 'key3': 7 }";
         var reader = Command.ExecuteReader();
-        reader.GetFieldType(0).Should().Be(typeof(Dictionary<object, object>));
+        reader.GetFieldType(0).Should().Be(typeof(Dictionary<string, int>));
 
         reader.Read();
         var value = reader.GetValue(0);
 
-        value.Should().BeOfType<Dictionary<string, int?>>();
+        value.Should().BeOfType<Dictionary<string, int>>();
 
         var expectation = new Dictionary<string, int>() { { "key1", 1 }, { "key2", 5 }, { "key3", 7 } };
         value.Should().BeEquivalentTo(expectation);
@@ -37,7 +37,7 @@ public class DuckDBDataReaderMapTests : DuckDBTestBase
         reader.Read();
         var value = reader.GetValue(0);
 
-        value.Should().BeOfType<Dictionary<string, int?>>();
+        value.Should().BeOfType<Dictionary<string, int>>();
 
         var expectation = new Dictionary<string, int>() { { "key1", 1 }, { "key2", 5 }, { "key3", 7 } };
         value.Should().BeEquivalentTo(expectation);
@@ -73,6 +73,19 @@ public class DuckDBDataReaderMapTests : DuckDBTestBase
         var value = reader.GetFieldValue<Dictionary<string, int?>>(0);
 
         var expectation = new Dictionary<string, int?>() { { "key1", 1 }, { "key2", null }, { "key3", 7 } };
+        value.Should().BeEquivalentTo(expectation);
+    }
+
+    [Fact]
+    public void ReadMapWithNullInReferenceTypeDictionary()
+    {
+        Command.CommandText = "SELECT MAP { 'key1': 'abc', 'key2': NULL, 'key3': 'ghi' }";
+        var reader = Command.ExecuteReader();
+
+        reader.Read();
+        var value = reader.GetFieldValue<Dictionary<string, string>>(0);
+
+        var expectation = new Dictionary<string, string>() { { "key1", "abc" }, { "key2", null }, { "key3", "ghi" } };
         value.Should().BeEquivalentTo(expectation);
     }
 
