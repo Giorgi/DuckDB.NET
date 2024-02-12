@@ -64,6 +64,9 @@ public partial class NativeMethods
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_result_get_chunk")]
         public static extern DuckDBDataChunk DuckDBResultGetChunk([In, Out] DuckDBResult result, long chunkIndex);
 
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_result_is_streaming")]
+        public static extern byte DuckDBResultIsStreaming([In, Out] DuckDBResult result);
+
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_result_chunk_count")]
         public static extern long DuckDBResultChunkCount([In, Out] DuckDBResult result);
     }

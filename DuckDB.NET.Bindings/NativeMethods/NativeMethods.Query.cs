@@ -22,6 +22,12 @@ public partial class NativeMethods
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_column_type")]
         public static extern DuckDBType DuckDBColumnType([In, Out] ref DuckDBResult result, long col);
 
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_result_statement_type")]
+        public static extern DuckDBStatementType DuckDBResultStatementType([In, Out] DuckDBResult result);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_result_return_type")]
+        public static extern DuckDBResultType DuckDBResultReturnType([In, Out] DuckDBResult result);
+
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_column_logical_type")]
         public static extern DuckDBLogicalType DuckDBColumnLogicalType([In, Out] ref DuckDBResult result, long col);
 

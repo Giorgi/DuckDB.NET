@@ -57,7 +57,9 @@ public class ExtractStatementsTests : DuckDBTestBase
         Command.CommandText = "Select ?1; Select ?1, ?2";
         Command.Parameters.Add(new DuckDBParameter(42));
 
-        Command.Invoking(cmd => cmd.ExecuteReader()).Should()
+        var dataReader = Command.ExecuteReader();
+
+        dataReader.Invoking(reader => reader.NextResult()).Should()
             .Throw<InvalidOperationException>().Where(e => e.Message.Contains("Invalid number of parameters. Expected 2, got 1"));
     }
 }

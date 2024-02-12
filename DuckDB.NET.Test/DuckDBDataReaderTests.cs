@@ -186,6 +186,30 @@ public class DuckDBDataReaderTests : DuckDBTestBase
     }
 
     [Fact]
+    public void MultipleStatementsQueryDataFromAll()
+    {
+        Command.CommandText = "Select 1; Select 2 where 1=0; Select 3";
+
+        using var reader = Command.ExecuteReader();
+
+        //Select 1
+        reader.Read();
+        reader.GetInt32(0).Should().Be(1);
+
+        //Select 2 where 1=0
+        reader.NextResult().Should().BeTrue();
+        reader.HasRows.Should().BeFalse();
+        reader.Read().Should().BeFalse();
+
+        //Select 3
+        reader.NextResult().Should().BeTrue();
+        reader.HasRows.Should().BeTrue();
+        reader.Read().Should().BeTrue();
+
+        reader.NextResult().Should().BeFalse();
+    }
+
+    [Fact]
     public void ReadManyRows()
     {
         var table = "CREATE TABLE TableForManyRows(foo INTEGER, bar VARCHAR);";
@@ -255,5 +279,41 @@ public class DuckDBDataReaderTests : DuckDBTestBase
         }
 
         dates.Should().BeEquivalentTo(new List<DateTime> { new(2001, 2, 3), new(2004, 5, 6), new(2007, 8, 9) });
+    }
+
+    [Fact]
+    public void ReadPivotStatementResult()
+    {
+        Command.CommandText = "CREATE TABLE Cities(Country VARCHAR, Name VARCHAR, Year INT, Population INT);";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "Insert into Cities Values ('Georgia', 'საქართველო', 2022, 3688647)";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "PIVOT Cities ON Year USING SUM(Population);";
+        var reader = Command.ExecuteReader();
+
+        reader.Read();
+        reader.HasRows.Should().BeTrue();
+
+        reader.NextResult().Should().BeFalse();
+    }
+
+    [Fact]
+    public void ReadInsertReturningClause()
+    {
+        Command.CommandText = "CREATE TABLE t2 (i INT, j INT);";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = @"INSERT INTO t2 
+                                    SELECT 2 AS i, 3 AS j 
+                                    RETURNING *, i * j AS i_times_j;";
+
+        var reader = Command.ExecuteReader();
+
+        reader.Read();
+        reader.HasRows.Should().BeTrue();
+
+        reader.NextResult().Should().BeFalse();
     }
 }

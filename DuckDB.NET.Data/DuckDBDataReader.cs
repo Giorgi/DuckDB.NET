@@ -15,51 +15,51 @@ public class DuckDBDataReader : DbDataReader
 
     private DuckDBResult currentResult;
     private DuckDBDataChunk? currentChunk;
-    private readonly List<DuckDBResult> queryResults;
-
-    private bool closed;
-    private long rowCount;
-    private int currentRow;
-    private int currentResultIndex;
 
     private int fieldCount;
-    private int recordsAffected = -1;
 
-
-    private long chunkCount;
-    private int currentChunkIndex;
-    private ulong rowsReadFromCurrentChunk;
     private ulong currentChunkRowCount;
+    private ulong rowsReadFromCurrentChunk;
 
+    private bool closed;
+    private bool hasRows;
+    private bool streamingResult;
+    private long currentChunkIndex;
+
+    private readonly IEnumerator<DuckDBResult> resultEnumerator;
     private VectorDataReaderBase[] vectorReaders = Array.Empty<VectorDataReaderBase>();
 
-    internal DuckDBDataReader(DuckDbCommand command, List<DuckDBResult> queryResults, CommandBehavior behavior)
+    internal DuckDBDataReader(DuckDbCommand command, IEnumerable<DuckDBResult> queryResults, CommandBehavior behavior)
     {
         this.command = command;
         this.behavior = behavior;
-        this.queryResults = queryResults;
+        resultEnumerator = queryResults.GetEnumerator();
 
-        currentResult = queryResults[0];
-        InitReaderData();
+        InitNextReader();
     }
 
-    private void InitReaderData()
+    private bool InitNextReader()
     {
-        currentRow = -1;
+        while (resultEnumerator.MoveNext())
+        {
+            if (NativeMethods.Query.DuckDBResultReturnType(resultEnumerator.Current) == DuckDBResultType.QueryResult)
+            {
+                currentChunkIndex = 0;
+                currentResult = resultEnumerator.Current;
 
-        rowCount = NativeMethods.Query.DuckDBRowCount(ref currentResult);
-        fieldCount = (int)NativeMethods.Query.DuckDBColumnCount(ref currentResult);
-        chunkCount = NativeMethods.Types.DuckDBResultChunkCount(currentResult);
+                fieldCount = (int)NativeMethods.Query.DuckDBColumnCount(ref currentResult);
+                streamingResult = NativeMethods.Types.DuckDBResultIsStreaming(currentResult) > 0;
 
-        currentChunkIndex = 0;
-        rowsReadFromCurrentChunk = 0;
+                hasRows = InitChunkData();
 
-        InitChunkData();
+                return true;
+            }
+        }
 
-        //recordsAffected = (int)NativeMethods.Query.DuckDBRowsChanged(currentResult);
+        return false;
     }
 
-    private void InitChunkData()
+    private bool InitChunkData()
     {
         unsafe
         {
@@ -69,7 +69,10 @@ public class DuckDBDataReader : DbDataReader
             }
 
             currentChunk?.Dispose();
-            currentChunk = NativeMethods.Types.DuckDBResultGetChunk(currentResult, currentChunkIndex);
+            currentChunk = streamingResult ? NativeMethods.StreamingResult.DuckDBStreamFetchChunk(currentResult) : NativeMethods.Types.DuckDBResultGetChunk(currentResult, currentChunkIndex);
+
+            rowsReadFromCurrentChunk = 0;
+
             currentChunkRowCount = (ulong)NativeMethods.DataChunks.DuckDBDataChunkGetSize(currentChunk);
 
             vectorReaders = new VectorDataReaderBase[fieldCount];
@@ -85,6 +88,8 @@ public class DuckDBDataReader : DbDataReader
                                                                         NativeMethods.Query.DuckDBColumnType(ref currentResult, i),
                                                                         NativeMethods.Query.DuckDBColumnName(ref currentResult, i).ToManagedString(false));
             }
+
+            return currentChunkRowCount > 0;
         }
     }
 
@@ -240,44 +245,37 @@ public class DuckDBDataReader : DbDataReader
 
     public override object this[string name] => GetValue(GetOrdinal(name));
 
-    public override int RecordsAffected => recordsAffected;
+    public override int RecordsAffected => -1;
 
-    public override bool HasRows => rowCount > 0;
+    public override bool HasRows => hasRows;
 
     public override bool IsClosed => closed;
 
     public override bool NextResult()
     {
-        currentResultIndex++;
-
-        if (currentResultIndex < queryResults.Count)
-        {
-            currentResult = queryResults[currentResultIndex];
-
-            InitReaderData();
-            return true;
-        }
-
-        return false;
+        return InitNextReader();
     }
 
     public override bool Read()
     {
-        var hasMoreRows = ++currentRow < rowCount;
-
-        if (!hasMoreRows) return false;
-
         if (rowsReadFromCurrentChunk == currentChunkRowCount)
         {
             currentChunkIndex++;
-            rowsReadFromCurrentChunk = 0;
+            var hasData = InitChunkData();
 
-            InitChunkData();
+            if (hasData)
+            {
+                rowsReadFromCurrentChunk++;
+            }
+
+            return hasData;
         }
+        else
+        {
+            rowsReadFromCurrentChunk++;
 
-        rowsReadFromCurrentChunk++;
-
-        return true;
+            return true;
+        }
     }
 
     public override int Depth { get; }
@@ -326,10 +324,6 @@ public class DuckDBDataReader : DbDataReader
         }
 
         currentChunk?.Dispose();
-        foreach (var result in queryResults)
-        {
-            result.Dispose();
-        }
 
         if (behavior == CommandBehavior.CloseConnection)
         {
@@ -341,7 +335,7 @@ public class DuckDBDataReader : DbDataReader
 
     private void CheckRowRead()
     {
-        if (currentRow < 0)
+        if (rowsReadFromCurrentChunk <= 0)
         {
             throw new InvalidOperationException("No row has been read");
         }

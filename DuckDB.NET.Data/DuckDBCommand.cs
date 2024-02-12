@@ -69,12 +69,10 @@ public class DuckDbCommand : DbCommand
 
         var count = 0;
 
-        for (var index = 0; index < results.Count; index++)
+        foreach (var result in results)
         {
-            var result = results[index];
-            count += (int)NativeMethods.Query.DuckDBRowsChanged(ref result);
-
-            result.Dispose();
+            var current = result;
+            count += (int)NativeMethods.Query.DuckDBRowsChanged(ref current);
         }
 
         return count;
@@ -113,8 +111,7 @@ public class DuckDbCommand : DbCommand
 
     protected override DbParameter CreateDbParameter() => new DuckDBParameter();
 
-    internal void CloseConnection()
-        => Connection?.Close();
+    internal void CloseConnection() => Connection?.Close();
 
     private void EnsureConnectionOpen([CallerMemberName] string operation = "")
     {

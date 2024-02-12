@@ -327,3 +327,44 @@ public partial struct DuckDBString
         }
     }
 }
+
+public enum DuckDBStatementType
+{
+    Invalid = 0,
+    Select,
+    Insert,
+    Update,
+    Explain,
+    Delete,
+    Prepare,
+    Create,
+    Execute,
+    Alter,
+    Transaction,
+    Copy,
+    Analyze,
+    VariableSet,
+    CreateFunc,
+    Drop,
+    Export,
+    Pragma,
+    Show,
+    Vacuum,
+    Call,
+    Set,
+    Load,
+    Relation,
+    Extension,
+    LogicalPlan,
+    Attach,
+    Detach,
+    Multi,
+}
+
+public enum DuckDBResultType
+{
+    Invalid = 0,
+    ChangedRows,
+    Nothing,
+    QueryResult,
+}

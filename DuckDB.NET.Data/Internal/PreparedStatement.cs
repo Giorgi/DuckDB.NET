@@ -57,11 +57,8 @@ internal sealed class PreparedStatement : IDisposable
         return result;
     }
 
-    public static List<DuckDBResult> PrepareMultiple(DuckDBNativeConnection connection, string query, DuckDBParameterCollection parameters)
+    public static IEnumerable<DuckDBResult> PrepareMultiple(DuckDBNativeConnection connection, string query, DuckDBParameterCollection parameters)
     {
-        var statements = new List<PreparedStatement>();
-        var results = new List<DuckDBResult>();
-
         using var unmanagedQuery = query.ToUnmanagedString();
 
         var statementCount = NativeMethods.ExtractStatements.DuckDBExtractStatements(connection, unmanagedQuery, out var extractedStatements);
@@ -78,53 +75,18 @@ internal sealed class PreparedStatement : IDisposable
             {
                 var status = NativeMethods.ExtractStatements.DuckDBPrepareExtractedStatement(connection, extractedStatements, index, out var statement);
 
-                var preparedStatement = new PreparedStatement(statement);
-                statements.Add(preparedStatement);
-
+                using var preparedStatement = new PreparedStatement(statement);
                 if (status.IsSuccess())
                 {
-                    try
-                    {
-                        var result = preparedStatement.Execute(parameters);
-                        results.Add(result);
-                    }
-                    catch (Exception ex)
-                    {
-                        var capture = ExceptionDispatchInfo.Capture(ex);
-
-                        CleanUp(true);
-
-                        capture.Throw();
-                    }
+                    using var result = preparedStatement.Execute(parameters);
+                    yield return result;
                 }
                 else
                 {
                     var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(statement).ToManagedString(false);
 
-                    CleanUp(true);
-
                     throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, status);
                 }
-            }
-        }
-
-        CleanUp(false);
-
-        return results;
-
-        void CleanUp(bool isError)
-        {
-            if (isError)
-            {
-                foreach (var result in results)
-                {
-                    result.Dispose();
-                }
-            }
-
-            foreach (var statement in statements)
-            {
-                statement.Dispose();
             }
         }
     }
@@ -133,7 +95,7 @@ internal sealed class PreparedStatement : IDisposable
     {
         BindParameters(statement, parameterCollection);
 
-        var status = NativeMethods.PreparedStatements.DuckDBExecutePrepared(statement, out var queryResult);
+        var status = NativeMethods.PreparedStatements.DuckDBExecutePreparedStreaming(statement, out var queryResult);
         if (!status.IsSuccess())
         {
             var errorMessage = NativeMethods.Query.DuckDBResultError(ref queryResult).ToManagedString(false);
@@ -239,7 +201,7 @@ internal sealed class PreparedStatement : IDisposable
     }
 
     private static DuckDBState BindHugeInt(DuckDBPreparedStatement preparedStatement, long index, object value) =>
-        NativeMethods.PreparedStatements.DuckDBBindHugeInt(preparedStatement, index, new DuckDBHugeInt((BigInteger)value));
+        NativeMethods.PreparedStatements.DuckDBBindHugeInt(preparedStatement, index, new((BigInteger)value));
 
     private static DuckDBState BindBlob(DuckDBPreparedStatement preparedStatement, long index, object value)
     {

@@ -32,6 +32,11 @@ internal class VectorDataReaderBase : IDisposable
 
     internal unsafe bool IsValid(ulong offset)
     {
+        if (validityMaskPointer == default)
+        {
+            return true;
+        }
+
         var validityMaskEntryIndex = offset / 64;
         var validityBitIndex = (int)(offset % 64);
 
