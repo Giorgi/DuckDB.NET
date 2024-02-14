@@ -41,22 +41,6 @@ internal sealed class PreparedStatement : IDisposable
         this.statement = statement;
     }
 
-    public static PreparedStatement PrepareSingle(DuckDBNativeConnection connection, string query)
-    {
-        using var unmanagedQuery = query.ToUnmanagedString();
-
-        var status = NativeMethods.PreparedStatements.DuckDBPrepare(connection, unmanagedQuery, out var preparedStatement);
-        if (!status.IsSuccess())
-        {
-            var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(preparedStatement).ToManagedString(false);
-            preparedStatement.Dispose();
-            throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, status);
-        }
-
-        var result = new PreparedStatement(preparedStatement);
-        return result;
-    }
-
     public static IEnumerable<DuckDBResult> PrepareMultiple(DuckDBNativeConnection connection, string query, DuckDBParameterCollection parameters)
     {
         using var unmanagedQuery = query.ToUnmanagedString();
