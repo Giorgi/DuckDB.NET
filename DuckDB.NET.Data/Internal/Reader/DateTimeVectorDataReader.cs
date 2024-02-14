@@ -63,7 +63,7 @@ internal class DateTimeVectorDataReader : VectorDataReaderBase
             return (T)(object)timeOnly;
         }
 
-        if (DuckDBType == DuckDBType.Timestamp)
+        if (DuckDBType == DuckDBType.Timestamp || DuckDBType == DuckDBType.TimestampTz)
         {
             return ReadTimestamp<T>(offset, targetType);
         }
@@ -109,6 +109,7 @@ internal class DateTimeVectorDataReader : VectorDataReaderBase
             DuckDBType.Date => GetDate(offset, targetType),
             DuckDBType.Time => GetTime(offset, targetType),
             DuckDBType.Timestamp => GetDateTime(offset, targetType),
+            DuckDBType.TimestampTz => GetDateTime(offset, targetType),
             DuckDBType.TimestampS => GetDateTime(offset, targetType, 1000000),
             DuckDBType.TimestampMs => GetDateTime(offset, targetType, 1000),
             DuckDBType.TimestampNs => GetDateTime(offset, targetType, 1, 1000),

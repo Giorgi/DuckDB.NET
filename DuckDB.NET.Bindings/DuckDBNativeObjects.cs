@@ -46,6 +46,8 @@ public enum DuckDBType
     Interval,
     // duckdb_hugeint
     HugeInt,
+    // duckdb_uhugeint
+    UnsignedHugeInt,
     // const char*
     Varchar,
     // duckdb_blob

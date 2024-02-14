@@ -141,6 +141,7 @@ internal class VectorDataReaderBase : IDisposable
             DuckDBType.Uuid => typeof(Guid),
             DuckDBType.Struct => typeof(Dictionary<string, object>),
             DuckDBType.Bit => typeof(string),
+            DuckDBType.TimestampTz => typeof(DateTime),
             _ => throw new ArgumentException($"Unrecognised type {DuckDBType} ({(int)DuckDBType}) for column {ColumnName}")
         };
     }
@@ -176,6 +177,7 @@ internal class VectorDataReaderBase : IDisposable
             DuckDBType.Uuid => typeof(Guid),
             DuckDBType.Struct => typeof(Dictionary<string, object>),
             DuckDBType.Bit => typeof(string),
+            DuckDBType.TimestampTz => typeof(DuckDBTimestamp),
             _ => throw new ArgumentException($"Unrecognised type {DuckDBType} ({(int)DuckDBType}) for column {ColumnName}")
         };
     }
