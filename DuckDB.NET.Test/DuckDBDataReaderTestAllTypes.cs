@@ -35,7 +35,11 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         reader.Read();
 
         reader.IsDBNull(columnIndex).Should().Be(true);
+
+        reader.GetValue(columnIndex).Should().Be(DBNull.Value);
         reader.GetFieldValue<T?>(columnIndex).Should().Be(null);
+        reader.GetProviderSpecificValue(columnIndex).Should().Be(DBNull.Value);
+
         reader.Invoking(r => r.GetFieldValue<T>(columnIndex)).Should().Throw<InvalidCastException>();
     }
 
