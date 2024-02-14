@@ -316,4 +316,14 @@ public class DuckDBDataReaderTests : DuckDBTestBase
 
         reader.NextResult().Should().BeFalse();
     }
+
+    [Fact]
+    public void ReadNonQueryAsResult()
+    {
+        Command.CommandText = "CREATE TABLE IndexerValuesTests (key INTEGER, value decimal, State Boolean, ErrorCode Integer, mean Float, stdev double)";
+        var reader = Command.ExecuteReader();
+        reader.HasRows.Should().BeFalse();
+
+        reader.Invoking(r => r.Close()).Should().NotThrow();
+    }
 }
