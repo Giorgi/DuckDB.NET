@@ -7,12 +7,8 @@ using Xunit;
 
 namespace DuckDB.NET.Test;
 
-public class DuckDBDataReaderTests : DuckDBTestBase
+public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
-    public DuckDBDataReaderTests(DuckDBDatabaseFixture db) : base(db)
-    {
-    }
-
     [Fact]
     public void GetOrdinalReturnsColumnIndex()
     {

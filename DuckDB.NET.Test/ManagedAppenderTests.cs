@@ -9,12 +9,8 @@ using System.Numerics;
 
 namespace DuckDB.NET.Test;
 
-public class DuckDBManagedAppenderTests : DuckDBTestBase
+public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
-    public DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : base(db)
-    {
-    }
-
     [Fact]
     public void ManagedAppenderTests()
     {

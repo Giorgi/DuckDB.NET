@@ -6,12 +6,8 @@ using Xunit;
 
 namespace DuckDB.NET.Test;
 
-public class QueryScalarTests : DuckDBTestBase
+public class QueryScalarTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
-    public QueryScalarTests(DuckDBDatabaseFixture db) : base(db)
-    {
-    }
-
     [Fact]
     public void SimpleQueryTest()
     {

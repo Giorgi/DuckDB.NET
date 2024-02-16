@@ -7,12 +7,8 @@ using Xunit;
 
 namespace DuckDB.NET.Test.Parameters;
 
-public class BlobParameterTests : DuckDBTestBase
+public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
-    public BlobParameterTests(DuckDBDatabaseFixture db) : base(db)
-    {
-    }
-
     [Fact]
     public void SimpleTest()
     {

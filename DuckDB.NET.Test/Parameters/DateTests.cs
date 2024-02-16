@@ -5,12 +5,8 @@ using Xunit;
 
 namespace DuckDB.NET.Test.Parameters;
 
-public class DateTests : DuckDBTestBase
+public class DateTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
-    public DateTests(DuckDBDatabaseFixture db) : base(db)
-    {
-    }
-
     [Theory]
     [InlineData(1992, 09, 20)]
     [InlineData(2022, 05, 04)]

@@ -5,12 +5,8 @@ using Xunit;
 
 namespace DuckDB.NET.Test.Parameters;
 
-public class HugeIntParameterTests : DuckDBTestBase
+public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
-    public HugeIntParameterTests(DuckDBDatabaseFixture db) : base(db)
-    {
-    }
-
     [Fact]
     public void SimpleTest()
     {

@@ -6,12 +6,8 @@ using Xunit;
 
 namespace DuckDB.NET.Test;
 
-public class DuckDBDataReaderMapTests : DuckDBTestBase
+public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
-    public DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : base(db)
-    {
-    }
-
     [Fact]
     public void ReadMap()
     {

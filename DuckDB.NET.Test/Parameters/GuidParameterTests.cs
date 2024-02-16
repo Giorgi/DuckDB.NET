@@ -6,12 +6,8 @@ using Xunit;
 
 namespace DuckDB.NET.Test.Parameters;
 
-public class GuidParameterTests : DuckDBTestBase
+public class GuidParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
-    public GuidParameterTests(DuckDBDatabaseFixture db) : base(db)
-    {
-    }
-
     [Fact]
     public void ReadGuid()
     {

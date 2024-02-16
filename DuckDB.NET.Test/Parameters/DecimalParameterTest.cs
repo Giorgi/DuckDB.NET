@@ -6,12 +6,8 @@ using Xunit;
 
 namespace DuckDB.NET.Test.Parameters;
 
-public class DecimalParameterTests : DuckDBTestBase
+public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
-    public DecimalParameterTests(DuckDBDatabaseFixture db) : base(db)
-    {
-    }
-
     [Fact]
     public void SimpleTest()
     {

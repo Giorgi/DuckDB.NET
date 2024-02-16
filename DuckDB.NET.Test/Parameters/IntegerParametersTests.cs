@@ -5,12 +5,8 @@ using Xunit;
 
 namespace DuckDB.NET.Test.Parameters;
 
-public class IntegerParametersTests : DuckDBTestBase
+public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
-    public IntegerParametersTests(DuckDBDatabaseFixture db) : base(db)
-    {
-    }
-
     private void TestBind<TValue>(TValue expectedValue, DuckDBParameter parameter, Func<DuckDBDataReader, TValue> getValue)
     {
         Command.CommandText = "SELECT ?;";

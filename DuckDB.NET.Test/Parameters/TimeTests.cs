@@ -5,12 +5,8 @@ using Xunit;
 
 namespace DuckDB.NET.Test.Parameters;
 
-public class TimeTests : DuckDBTestBase
+public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
-    public TimeTests(DuckDBDatabaseFixture db) : base(db)
-    {
-    }
-
     [Theory]
     [InlineData(12, 15, 17, 350_000)]
     [InlineData(12, 17, 15, 450_000)]

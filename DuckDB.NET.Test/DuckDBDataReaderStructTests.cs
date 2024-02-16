@@ -5,12 +5,8 @@ using Xunit;
 
 namespace DuckDB.NET.Test;
 
-public class DuckDBDataReaderStructTests : DuckDBTestBase
+public class DuckDBDataReaderStructTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
-    public DuckDBDataReaderStructTests(DuckDBDatabaseFixture db) : base(db)
-    {
-    }
-
     [Fact]
     public void ReadBasicStruct()
     {

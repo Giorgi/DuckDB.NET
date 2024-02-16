@@ -7,12 +7,8 @@ using Xunit;
 
 namespace DuckDB.NET.Test;
 
-public class DuckDBDataReaderListTests : DuckDBTestBase
+public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
-    public DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : base(db)
-    {
-    }
-
     [Fact]
     public void ReadListOfIntegers()
     {

@@ -5,12 +5,8 @@ using Xunit;
 
 namespace DuckDB.NET.Test;
 
-public class DuckDBBitStringReaderTests : DuckDBTestBase
+public class DuckDBBitStringReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
-    public DuckDBBitStringReaderTests(DuckDBDatabaseFixture db) : base(db)
-    {
-    }
-
     [Fact]
     public void ReadBitString()
     {

@@ -5,13 +5,8 @@ using Xunit;
 
 namespace DuckDB.NET.Test;
 
-public class ExtractStatementsTests : DuckDBTestBase
+public class ExtractStatementsTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
-
-    public ExtractStatementsTests(DuckDBDatabaseFixture db) : base(db)
-    {
-    }
-
     [Fact]
     public void MultipleInsertsIntoTable()
     {

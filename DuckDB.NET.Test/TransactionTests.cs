@@ -6,12 +6,8 @@ using Xunit;
 
 namespace DuckDB.NET.Test;
 
-public class TransactionTests : DuckDBTestBase
+public class TransactionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
-    public TransactionTests(DuckDBDatabaseFixture db) : base(db)
-    {
-    }
-
     [Fact]
     public void SimpleTransactionTest()
     {

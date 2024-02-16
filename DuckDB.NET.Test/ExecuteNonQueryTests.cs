@@ -5,12 +5,8 @@ using Xunit;
 
 namespace DuckDB.NET.Test;
 
-public class ExecuteNonQueryTests : DuckDBTestBase
+public class ExecuteNonQueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
-    public ExecuteNonQueryTests(DuckDBDatabaseFixture db) : base(db)
-    {
-    }
-
     [Fact]
     public void TableQueryTest()
     {

@@ -4,12 +4,8 @@ using Xunit;
 
 namespace DuckDB.NET.Test;
 
-public class DuckDBCommandTests : DuckDBTestBase
+public class DuckDBCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
-    public DuckDBCommandTests(DuckDBDatabaseFixture db) : base(db)
-    {
-    }
-
     [Fact]
     public void SetCommandText()
     {

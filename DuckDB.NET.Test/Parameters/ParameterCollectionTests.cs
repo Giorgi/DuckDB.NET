@@ -9,12 +9,8 @@ using Xunit;
 
 namespace DuckDB.NET.Test.Parameters;
 
-public class ParameterCollectionTests : DuckDBTestBase
+public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
-    public ParameterCollectionTests(DuckDBDatabaseFixture db) : base(db)
-    {
-    }
-
     [Theory]
     [InlineData("SELECT ?1;")]
     [InlineData("SELECT ?;")]
