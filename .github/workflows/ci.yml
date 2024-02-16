@@ -15,9 +15,9 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-20.04, windows-latest, macos-14]
+        os: [ubuntu-latest, windows-latest, macos-14]
         arch: ['amd64']
-        dotnet-version: ['6.0']
+        dotnet-version: ['8.0']
       fail-fast: false
 
     name: Build library (${{ matrix.os }})
@@ -29,7 +29,7 @@ jobs:
         fetch-depth: 0
 
     - name: Setup .NET Core SDK ${{ matrix.dotnet-version }}
-      uses: actions/setup-dotnet@v2
+      uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ matrix.dotnet-version }}
 
@@ -37,7 +37,7 @@ jobs:
       run: dotnet build --configuration Release /p:BuildType=Full
 
     - name: Pack
-      if: matrix.os == 'ubuntu-20.04' && github.event_name != 'pull_request'
+      if: matrix.os == 'ubuntu-latest' && github.event_name != 'pull_request'
       run: |
         dotnet pack DuckDB.NET.Bindings/Bindings.csproj   --configuration Release 
         dotnet pack DuckDB.NET.Data/Data.csproj  --configuration Release 
@@ -58,7 +58,7 @@ jobs:
         parallel: true
 
     - name: Upload Artifacts
-      if: matrix.os == 'ubuntu-20.04' && github.event_name != 'pull_request' && github.actor == 'Giorgi'
+      if: matrix.os == 'ubuntu-latest' && github.event_name != 'pull_request' && github.actor == 'Giorgi'
       uses: actions/upload-artifact@v3
       with:
         name: nugetPackages-${{github.ref_name}}
