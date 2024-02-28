@@ -50,7 +50,7 @@ jobs:
       run: dotnet test --configuration Release --verbosity normal --logger GitHubActions /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:BuildType=Full
 
     - name: Coveralls Parallel
-      uses: coverallsapp/github-action@master
+      uses: coverallsapp/github-action@v2
       with:
         github-token: ${{ secrets.github_token }}
         flag-name: run-${{ matrix.os }}
