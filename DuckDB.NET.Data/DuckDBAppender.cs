@@ -173,8 +173,6 @@ public class DuckDBAppenderRow
             int val => NativeMethods.Appender.DuckDBAppendInt32(appender, val),
             long val => NativeMethods.Appender.DuckDBAppendInt64(appender, val),
 
-            BigInteger val => NativeMethods.Appender.DuckDBAppendHugeInt(appender, new DuckDBHugeInt(val)),
-
             byte val => NativeMethods.Appender.DuckDBAppendUInt8(appender, val),
             ushort val => NativeMethods.Appender.DuckDBAppendUInt16(appender, val),
             uint val => NativeMethods.Appender.DuckDBAppendUInt32(appender, val),
