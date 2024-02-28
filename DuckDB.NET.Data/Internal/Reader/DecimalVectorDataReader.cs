@@ -51,7 +51,7 @@ internal class DecimalVectorDataReader : NumericVectorDataReader
                 return decimal.Divide(GetFieldData<long>(offset), pow);
             case DuckDBType.HugeInt:
                 {
-                    var hugeInt = GetBigInteger(offset);
+                    var hugeInt = GetBigInteger(offset, false);
 
                     var result = (decimal)BigInteger.DivRem(hugeInt, (BigInteger)pow, out var remainder);
 

@@ -138,6 +138,16 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    public void ReadUHugeInt()
+    {
+        VerifyDataStruct("uhugeint", 6, new List<BigInteger>
+        {
+            BigInteger.Zero,
+            BigInteger.Parse("340282366920938463463374607431768211455")
+        }, typeof(DuckDBUHugeInt));
+    }
+
+    [Fact]
     public void ReadUTinyInt()
     {
         VerifyDataStruct("utinyint", 7, new List<byte> { 0, byte.MaxValue });

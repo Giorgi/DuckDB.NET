@@ -132,6 +132,7 @@ internal class VectorDataReaderBase : IDisposable
             DuckDBType.Time => typeof(TimeSpan),
 #endif
             DuckDBType.HugeInt => typeof(BigInteger),
+            DuckDBType.UnsignedHugeInt => typeof(BigInteger),
             DuckDBType.Varchar => typeof(string),
             DuckDBType.Decimal => typeof(decimal),
             DuckDBType.TimestampS => typeof(DateTime),
@@ -168,6 +169,7 @@ internal class VectorDataReaderBase : IDisposable
             DuckDBType.Date => typeof(DuckDBDateOnly),
             DuckDBType.Time => typeof(DuckDBTimeOnly),
             DuckDBType.HugeInt => typeof(DuckDBHugeInt),
+            DuckDBType.UnsignedHugeInt => typeof(DuckDBUHugeInt),
             DuckDBType.Varchar => typeof(string),
             DuckDBType.Decimal => typeof(decimal),
             DuckDBType.TimestampS => typeof(DuckDBTimestamp),

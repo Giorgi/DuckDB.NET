@@ -37,7 +37,8 @@ internal class NumericVectorDataReader : VectorDataReaderBase
                 DuckDBType.UnsignedSmallInt => GetUnmanagedTypeValue<ushort, T>(offset),
                 DuckDBType.UnsignedInteger => GetUnmanagedTypeValue<uint, T>(offset),
                 DuckDBType.UnsignedBigInt => GetUnmanagedTypeValue<ulong, T>(offset),
-                DuckDBType.HugeInt => GetBigInteger<T>(offset),
+                DuckDBType.HugeInt => GetBigInteger<T>(offset, false),
+                DuckDBType.UnsignedHugeInt => GetBigInteger<T>(offset, true),
                 _ => base.GetValidValue<T>(offset, targetType)
             };
         }
@@ -64,7 +65,8 @@ internal class NumericVectorDataReader : VectorDataReaderBase
             DuckDBType.UnsignedBigInt => GetFieldData<ulong>(offset),
             DuckDBType.Float => GetFieldData<float>(offset),
             DuckDBType.Double => GetFieldData<double>(offset),
-            DuckDBType.HugeInt => GetBigInteger(offset),
+            DuckDBType.HugeInt => GetBigInteger(offset, false),
+            DuckDBType.UnsignedHugeInt => GetBigInteger(offset, true),
             _ => base.GetValue(offset, targetType)
         };
 
@@ -83,15 +85,23 @@ internal class NumericVectorDataReader : VectorDataReaderBase
         throw new InvalidCastException($"Cannot cast from {value.GetType().Name} to {targetType.Name} in column {ColumnName}");
     }
 
-    protected unsafe BigInteger GetBigInteger(ulong offset)
+    protected unsafe BigInteger GetBigInteger(ulong offset, bool unsigned)
     {
-        var data = (DuckDBHugeInt*)DataPointer + offset;
-        return data->ToBigInteger();
+        if (unsigned)
+        {
+            var unsignedHugeInt = ((DuckDBUHugeInt*)DataPointer + offset);
+            return unsignedHugeInt->ToBigInteger();
+        }
+        else
+        {
+            var hugeInt = (DuckDBHugeInt*)DataPointer + offset;
+            return hugeInt->ToBigInteger();
+        }
     }
 
-    protected T GetBigInteger<T>(ulong offset)
+    protected T GetBigInteger<T>(ulong offset, bool unsigned)
     {
-        var bigInteger = GetBigInteger(offset);
+        var bigInteger = GetBigInteger(offset, unsigned);
 
         if (typeof(T) == typeof(sbyte))
         {
