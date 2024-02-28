@@ -67,6 +67,12 @@ public partial class NativeMethods
 #if NET5_0_OR_GREATER
         [SuppressGCTransition]
 #endif
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_append_uhugeint")]
+        public static extern DuckDBState DuckDBAppendUHugeInt(DuckDBAppender appender, DuckDBUHugeInt val);
+
+#if NET5_0_OR_GREATER
+        [SuppressGCTransition]
+#endif
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_append_uint8")]
         public static extern DuckDBState DuckDBAppendUInt8(DuckDBAppender appender, byte val);
 

@@ -94,7 +94,24 @@ public class DuckDBAppenderRow
 
     public DuckDBAppenderRow AppendNullValue() => Append<object>(null);
 
-    public DuckDBAppenderRow AppendValue(BigInteger? value) => Append(value);
+    public DuckDBAppenderRow AppendValue(BigInteger? value, bool unsigned = false)
+    {
+        if (value == null)
+        {
+            return AppendNullValue();
+        }
+
+        if (unsigned)
+        {
+            NativeMethods.Appender.DuckDBAppendUHugeInt(appender, new DuckDBUHugeInt(value.Value));
+        }
+        else
+        {
+            NativeMethods.Appender.DuckDBAppendHugeInt(appender, new DuckDBHugeInt(value.Value));
+        }
+
+        return this;
+    }
 
     #region Append Signed Int
 

@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 namespace DuckDB.NET.Native;
 
 [StructLayout(LayoutKind.Sequential)]
-public struct DuckDBTimeOnly
+public readonly struct DuckDBTimeOnly
 {
     public DuckDBTimeOnly(byte hour, byte min, byte sec) : this(hour, min, sec, 0)
     {

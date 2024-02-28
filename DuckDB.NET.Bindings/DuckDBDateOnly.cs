@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 namespace DuckDB.NET.Native;
 
 [StructLayout(LayoutKind.Sequential)]
-public struct DuckDBDateOnly
+public readonly struct DuckDBDateOnly
 {
     public DuckDBDateOnly(int year, byte month, byte day)
     {

@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 namespace DuckDB.NET.Native;
 
 [StructLayout(LayoutKind.Sequential)]
-public struct DuckDBTimestamp
+public readonly struct DuckDBTimestamp
 {
     public DuckDBTimestamp(DuckDBDateOnly date, DuckDBTimeOnly time)
     {
@@ -12,8 +12,8 @@ public struct DuckDBTimestamp
         Time = time;
     }
 
-    public DuckDBDateOnly Date { get; private set; }
-    public DuckDBTimeOnly Time { get; private set; }
+    public DuckDBDateOnly Date { get; }
+    public DuckDBTimeOnly Time { get; }
 
     public DateTime ToDateTime()
     {
@@ -22,10 +22,6 @@ public struct DuckDBTimestamp
 
     public static DuckDBTimestamp FromDateTime(DateTime dateTime)
     {
-        return new DuckDBTimestamp
-        {
-            Date = DuckDBDateOnly.FromDateTime(dateTime),
-            Time = DuckDBTimeOnly.FromDateTime(dateTime)
-        };
+        return new DuckDBTimestamp(DuckDBDateOnly.FromDateTime(dateTime), DuckDBTimeOnly.FromDateTime(dateTime));
     }
 }
