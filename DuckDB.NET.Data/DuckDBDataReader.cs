@@ -332,6 +332,7 @@ public class DuckDBDataReader : DbDataReader
         }
 
         closed = true;
+        resultEnumerator.Dispose();
     }
 
     private void CheckRowRead()
