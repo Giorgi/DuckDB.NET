@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
 using DuckDB.NET.Data.Extensions;
+using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 

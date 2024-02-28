@@ -6,6 +6,7 @@ using System.Linq;
 using System.Numerics;
 using System.Runtime.ExceptionServices;
 using DuckDB.NET.Data.Extensions;
+using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data;
 

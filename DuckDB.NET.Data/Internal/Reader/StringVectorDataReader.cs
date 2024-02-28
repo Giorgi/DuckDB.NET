@@ -2,6 +2,7 @@
 using System.Collections;
 using System.IO;
 using System.Text;
+using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 

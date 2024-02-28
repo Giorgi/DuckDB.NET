@@ -2,6 +2,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using DuckDB.NET.Data.Extensions;
+using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 

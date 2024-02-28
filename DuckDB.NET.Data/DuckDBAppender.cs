@@ -1,14 +1,15 @@
 ﻿using System;
 using System.Numerics;
+using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data;
 
 public class DuckDBAppender : IDisposable
 {
     private bool closed;
-    private readonly NET.DuckDBAppender nativeAppender;
+    private readonly Native.DuckDBAppender nativeAppender;
 
-    public DuckDBAppender(NET.DuckDBAppender appender)
+    public DuckDBAppender(Native.DuckDBAppender appender)
     {
         nativeAppender = appender;
     }
@@ -53,7 +54,7 @@ public class DuckDBAppender : IDisposable
         }
     }
 
-    internal static void ThrowLastError(NET.DuckDBAppender appender)
+    internal static void ThrowLastError(Native.DuckDBAppender appender)
     {
         var errorMessage = NativeMethods.Appender.DuckDBAppenderError(appender).ToManagedString(false);
 
@@ -63,9 +64,9 @@ public class DuckDBAppender : IDisposable
 
 public class DuckDBAppenderRow
 {
-    private readonly NET.DuckDBAppender appender;
+    private readonly Native.DuckDBAppender appender;
 
-    internal DuckDBAppenderRow(NET.DuckDBAppender appender)
+    internal DuckDBAppenderRow(Native.DuckDBAppender appender)
     {
         this.appender = appender;
     }

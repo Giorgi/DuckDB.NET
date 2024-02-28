@@ -3,6 +3,7 @@ using FluentAssertions;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using DuckDB.NET.Native;
 using Xunit;
 
 namespace DuckDB.NET.Test;

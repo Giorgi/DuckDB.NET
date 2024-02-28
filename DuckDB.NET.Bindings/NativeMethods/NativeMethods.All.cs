@@ -1,4 +1,4 @@
-﻿namespace DuckDB.NET;
+﻿namespace DuckDB.NET.Native;
 
 public static partial class NativeMethods
 {

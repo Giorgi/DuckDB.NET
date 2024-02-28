@@ -11,6 +11,5 @@ internal static class DbConnectionExtension
         return command.ExecuteNonQuery();
     }
 
-    public static bool IsOpen(this IDbConnection connection)
-        => connection!.State == ConnectionState.Open;
+    public static bool IsOpen(this IDbConnection connection) => connection.State == ConnectionState.Open;
 }

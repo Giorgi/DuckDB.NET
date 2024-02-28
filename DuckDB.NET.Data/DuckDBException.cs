@@ -1,5 +1,6 @@
 ﻿using System.Data.Common;
 using System.Runtime.Serialization;
+using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data;
 

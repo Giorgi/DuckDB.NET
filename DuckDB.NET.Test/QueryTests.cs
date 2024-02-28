@@ -1,3 +1,4 @@
+using DuckDB.NET.Native;
 using FluentAssertions;
 using Xunit;
 

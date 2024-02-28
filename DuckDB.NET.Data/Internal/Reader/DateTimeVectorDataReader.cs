@@ -1,5 +1,6 @@
 ﻿using System;
 using DuckDB.NET.Data.Extensions;
+using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 

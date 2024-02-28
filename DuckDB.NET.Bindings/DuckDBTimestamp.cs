@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace DuckDB.NET;
+namespace DuckDB.NET.Native;
 
 [StructLayout(LayoutKind.Sequential)]
 public struct DuckDBTimestamp

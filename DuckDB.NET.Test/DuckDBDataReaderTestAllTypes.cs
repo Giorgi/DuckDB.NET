@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
 using DuckDB.NET.Data;
+using DuckDB.NET.Native;
 using FluentAssertions;
 using Xunit;
 

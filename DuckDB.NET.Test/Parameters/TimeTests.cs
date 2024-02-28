@@ -1,5 +1,6 @@
 using System;
 using DuckDB.NET.Data;
+using DuckDB.NET.Native;
 using FluentAssertions;
 using Xunit;
 

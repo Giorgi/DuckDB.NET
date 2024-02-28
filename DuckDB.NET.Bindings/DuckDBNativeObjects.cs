@@ -3,7 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.InteropServices;
 
-namespace DuckDB.NET;
+namespace DuckDB.NET.Native;
 
 public enum DuckDBState
 {

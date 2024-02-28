@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal;
 

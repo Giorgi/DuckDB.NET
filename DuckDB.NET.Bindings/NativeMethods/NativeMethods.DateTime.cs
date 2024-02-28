@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace DuckDB.NET;
+namespace DuckDB.NET.Native;
 
 public partial class NativeMethods
 {

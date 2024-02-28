@@ -4,6 +4,7 @@ using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data;
 

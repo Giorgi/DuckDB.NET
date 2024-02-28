@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using DuckDB.NET.Native;
 using Xunit;
 
 namespace DuckDB.NET.Test;

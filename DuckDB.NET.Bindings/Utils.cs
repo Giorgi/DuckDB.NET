@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace DuckDB.NET;
+namespace DuckDB.NET.Native;
 
 public static class Utils
 {

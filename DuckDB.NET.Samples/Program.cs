@@ -1,14 +1,12 @@
-﻿using System;
+﻿using Dapper;
+using DuckDB.NET.Data;
+using DuckDB.NET.Native;
+using DuckDB.NET.Test.Helpers;
+using System;
 using System.Data.Common;
 using System.IO;
 using System.Linq;
-using DuckDB.NET.Data;
-using static DuckDB.NET.NativeMethods;
-using Dapper;
-using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography;
-using DuckDB.NET.Test.Helpers;
+using static DuckDB.NET.Native.NativeMethods;
 
 namespace DuckDB.NET.Samples
 {

@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using DuckDB.NET.Data.ConnectionString;
+using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal;
 
