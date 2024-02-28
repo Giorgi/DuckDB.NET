@@ -123,7 +123,7 @@ public struct DuckDBTimestampStruct
 {
     public long Micros { get; set; }
 
-    public DateTime ToDateTime()
+    public readonly DateTime ToDateTime()
     {
         var ticks = Micros * 10 + Utils.UnixEpochTicks;
         return new DateTime(ticks);
@@ -131,7 +131,7 @@ public struct DuckDBTimestampStruct
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public struct DuckDBBlob : IDisposable
+public readonly struct DuckDBBlob : IDisposable
 {
     public IntPtr Data { get; }
 
@@ -144,140 +144,13 @@ public struct DuckDBBlob : IDisposable
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public struct DuckDBListEntry
+public readonly struct DuckDBListEntry
 {
     public ulong Offset { get; }
     public ulong Length { get; }
 }
 
-[StructLayout(LayoutKind.Sequential)]
-public struct DuckDBHugeInt
-{
-    private static readonly BigInteger Base = BigInteger.Pow(2, 64);
-
-    public static BigInteger HugeIntMinValue { get; } = BigInteger.Parse("-170141183460469231731687303715884105727");
-    public static BigInteger HugeIntMaxValue { get; } = BigInteger.Parse("170141183460469231731687303715884105727");
-
-    public DuckDBHugeInt(BigInteger value)
-    {
-        if (value < HugeIntMinValue || value > HugeIntMaxValue)
-        {
-            throw new ArgumentOutOfRangeException(nameof(value), $"value must be between {HugeIntMinValue} and {HugeIntMaxValue}");
-        }
-
-        var upper = (long)BigInteger.DivRem(value, Base, out var rem);
-
-        if (rem < 0)
-        {
-            rem += Base;
-            upper -= 1;
-        }
-
-        Upper = upper;
-        Lower = (ulong)rem;
-    }
-
-    public DuckDBHugeInt(ulong lower, long upper)
-    {
-        Lower = lower;
-        Upper = upper;
-    }
-
-    public ulong Lower { get; }
-    public long Upper { get; }
-
-    public BigInteger ToBigInteger()
-    {
-        return Upper * BigInteger.Pow(2, 64) + Lower;
-    }
-}
-
-[StructLayout(LayoutKind.Sequential)]
-public struct DuckDBDecimal
-{
-    public byte Width { get; }
-    public byte Scale { get; }
-
-    public DuckDBHugeInt Value { get; }
-}
-
-[StructLayout(LayoutKind.Sequential)]
-public struct DuckDBInterval
-{
-    public int Months { get; }
-    public int Days { get; }
-    public ulong Micros { get; }
-
-    public DuckDBInterval(int months, int days, ulong micros)
-        => (Months, Days, Micros) = (months, days, micros);
-
-    public static explicit operator TimeSpan(DuckDBInterval interval)
-    {
-        (var timeSpan, var exception) = ToTimeSpan(interval);
-        return timeSpan ?? throw exception!;
-    }
-    public static implicit operator DuckDBInterval(TimeSpan timeSpan) => FromTimeSpan(timeSpan);
-
-#if NET6_0_OR_GREATER
-    public bool TryConvert([NotNullWhen(true)] out TimeSpan? timeSpan)
-#else
-    public bool TryConvert(out TimeSpan? timeSpan)
-#endif
-    {
-        (timeSpan, var exception) = ToTimeSpan(this);
-        return exception is null;
-    }
-
-    private static (TimeSpan?, Exception?) ToTimeSpan(DuckDBInterval interval)
-    {
-        if (interval.Months > 0)
-        {
-            return (null, new ArgumentOutOfRangeException(nameof(interval), $"Cannot convert a value of type {nameof(DuckDBInterval)} to type {nameof(TimeSpan)} when the attribute 'Months' is greater or equal to 1"));
-        }
-
-        var millisecondsByDay = (ulong)(24 * 60 * 60 * 1e6);
-        int days = 0;
-        ulong micros = interval.Micros;
-
-        if (interval.Micros >= millisecondsByDay)
-        {
-            days = Convert.ToInt32(Math.Floor((double)(interval.Micros / millisecondsByDay)));
-            if (days > int.MaxValue - interval.Days)
-            {
-                return (null, new ArgumentOutOfRangeException(nameof(interval), $"Cannot convert a value of type {nameof(DuckDBInterval)} to type {nameof(TimeSpan)} when the total days value is larger than {int.MaxValue}"));
-            }
-
-            if (days > 0)
-            {
-                micros = interval.Micros - ((ulong)days * millisecondsByDay);
-            }
-            days = interval.Days + days;
-        }
-        else
-            days = interval.Days;
-
-        if (micros * 10 > long.MaxValue)
-        {
-            return (null, new ArgumentOutOfRangeException(nameof(interval), $"Cannot convert a value of type {nameof(DuckDBInterval)} to type {nameof(TimeSpan)} when the value of microseconds is larger than {long.MaxValue / 10}"));
-        }
-
-        if ((ulong)days * millisecondsByDay * 100 + micros * 10 > long.MaxValue)
-        {
-            return (null, new ArgumentOutOfRangeException(nameof(interval), $"Cannot convert a value of type {nameof(DuckDBInterval)} to type {nameof(TimeSpan)} when the value of total microseconds is larger than {long.MaxValue}"));
-        }
-
-        return (new TimeSpan(days, 0, 0, 0) + new TimeSpan((long)micros * 10), null);
-    }
-
-    private static DuckDBInterval FromTimeSpan(TimeSpan timeSpan)
-        => new(
-            0
-            , timeSpan.Days
-            , Convert.ToUInt64(timeSpan.Ticks / 10 - new TimeSpan(timeSpan.Days, 0, 0, 0).Ticks / 10)
-        );
-}
-
-public partial struct DuckDBString
+public struct DuckDBString
 {
     public _value_e__Union value;
 
