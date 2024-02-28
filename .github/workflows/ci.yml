@@ -56,6 +56,7 @@ jobs:
         flag-name: run-${{ matrix.os }}
         path-to-lcov: DuckDB.NET.Test/coverage.net8.0.info
         parallel: true
+        format: lcov
 
     - name: Upload Artifacts
       if: matrix.os == 'ubuntu-latest' && github.event_name != 'pull_request' && github.actor == 'Giorgi'
