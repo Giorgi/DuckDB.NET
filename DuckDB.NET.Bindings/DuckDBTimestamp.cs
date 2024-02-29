@@ -17,7 +17,7 @@ public readonly struct DuckDBTimestamp
 
     public DateTime ToDateTime()
     {
-        return new DateTime(Date.Year, Date.Month, Date.Day, Time.Hour, Time.Min, Time.Sec).AddTicks(Time.Microsecond * 10);
+        return new DateTime(Date.Year, Date.Month, Date.Day).AddTicks(Time.Ticks);
     }
 
     public static DuckDBTimestamp FromDateTime(DateTime dateTime)

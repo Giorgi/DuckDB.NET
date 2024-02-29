@@ -32,7 +32,7 @@ public readonly struct DuckDBTimeOnly
     {
         var date = DuckDBDateOnly.MinValue;
 
-        return new DateTime(date.Year, date.Month, date.Day, Hour, Min, Sec).AddTicks(Microsecond * 10);
+        return new DateTime(date.Year, date.Month, date.Day).AddTicks(Ticks);
     }
 
     internal static DuckDBTimeOnly FromDateTime(DateTime dateTime)

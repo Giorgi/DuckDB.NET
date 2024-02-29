@@ -110,4 +110,29 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Command.CommandText = "DROP TABLE TimeOnlyTestTable;";
         Command.ExecuteNonQuery();
     }
+
+    [Theory]
+    [InlineData(12, 15, 17, 350_000, 0, 0)]
+    [InlineData(12, 17, 15, 450_000, -2, 0)]
+    [InlineData(18, 15, 17, 125_000, -4, 30)]
+    [InlineData(12, 15, 17, 350_300, 0, 30)]
+    [InlineData(12, 17, 15, 450_500, 2, 45)]
+    [InlineData(18, 15, 17, 125_700, 4, 30)]
+    public void QueryTimeTzTest(int hour, int minute, int second, int microsecond, int offsetHours, int offsetMinutes)
+    {
+        Command.CommandText = $"SELECT TIMETZ '{hour}:{minute}:{second}.{microsecond:000000}{offsetHours:00+##;00-##;}:{offsetMinutes:00}';";
+
+        var scalar = Command.ExecuteScalar();
+
+        scalar.Should().BeOfType<DateTimeOffset>();
+
+        var dateTimeOffset = (DateTimeOffset)scalar;
+
+        dateTimeOffset.Hour.Should().Be((byte)hour);
+        dateTimeOffset.Minute.Should().Be((byte)minute);
+        dateTimeOffset.Second.Should().Be((byte)second);
+        dateTimeOffset.Ticks.Should().Be(new TimeOnly(hour, minute, second).Add(TimeSpan.FromTicks(microsecond * 10)).Ticks);
+
+        dateTimeOffset.Offset.Should().Be(new TimeSpan(offsetHours, offsetHours >= 0 ? offsetMinutes : -offsetMinutes, 0));
+    }
 }

@@ -119,6 +119,19 @@ public struct DuckDBTime
 }
 
 [StructLayout(LayoutKind.Sequential)]
+public struct DuckDBTimeTzStruct
+{
+    public ulong Bits { get; set; }
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct DuckDBTimeTz
+{
+    public DuckDBTime Time { get; set; }
+    public int Offset { get; set; }
+}
+
+[StructLayout(LayoutKind.Sequential)]
 public struct DuckDBTimestampStruct
 {
     public long Micros { get; set; }

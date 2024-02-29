@@ -13,7 +13,10 @@ public partial class NativeMethods
         public static extern DuckDBDate DuckDBToDate(DuckDBDateOnly dateStruct);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_from_time")]
-        public static extern DuckDBTimeOnly DuckDBFromTime(DuckDBTime date);
+        public static extern DuckDBTimeOnly DuckDBFromTime(DuckDBTime time);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_from_time_tz")]
+        public static extern DuckDBTimeTz DuckDBFromTimeTz(DuckDBTimeTzStruct micros);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_to_time")]
         public static extern DuckDBTime DuckDBToTime(DuckDBTimeOnly dateStruct);
