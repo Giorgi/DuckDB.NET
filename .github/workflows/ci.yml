@@ -10,6 +10,9 @@ on:
   pull_request:
     paths-ignore:
       - '**.md'
+      
+  schedule:    
+      - cron: "0 * * * *"
 
 jobs:
   build:
@@ -28,11 +31,13 @@ jobs:
       run: |
         echo "DuckDbArtifactRoot=https://carlopi.github.io/duckdb-latest" >> "$GITHUB_ENV"
         echo "SkipLinuxArm=True" >> "$GITHUB_ENV"
-    
+
     - name: Checkout
+      if: ${{ github.event_name != 'schedule' }}
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
+        ref: ${{ github.event_name == 'schedule' && 'nightly-builds' || '' }} 
 
     - name: Setup .NET Core SDK ${{ matrix.dotnet-version }}
       uses: actions/setup-dotnet@v4
