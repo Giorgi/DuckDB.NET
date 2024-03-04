@@ -25,7 +25,7 @@ internal class ListVectorDataReader : VectorDataReaderBase
         var childVectorData = NativeMethods.DataChunks.DuckDBVectorGetData(childVector);
         var childVectorValidity = NativeMethods.DataChunks.DuckDBVectorGetValidity(childVector);
 
-        arraySize = (ulong)(IsList ? 0 : NativeMethods.DataChunks.DuckDBArrayVectorGetSize(logicalType));
+        arraySize = IsList ? 0 : (ulong)NativeMethods.DataChunks.DuckDBArrayVectorGetSize(logicalType);
         listDataReader = VectorDataReaderFactory.CreateReader(childVector, childVectorData, childVectorValidity, type, columnName);
     }
 
