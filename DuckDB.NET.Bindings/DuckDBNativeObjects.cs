@@ -15,71 +15,71 @@ public enum DuckDBType
 {
     Invalid = 0,
     // bool
-    Boolean = 1,
+    Boolean,
     // int8_t
-    TinyInt = 2,
+    TinyInt,
     // int16_t
-    SmallInt = 3,
+    SmallInt,
     // int32_t
-    Integer = 4,
+    Integer,
     // int64_t
-    BigInt = 5,
+    BigInt,
     // uint8_t
-    UnsignedTinyInt = 6,
+    UnsignedTinyInt,
     // uint16_t
-    UnsignedSmallInt = 7,
+    UnsignedSmallInt,
     // uint32_t
-    UnsignedInteger = 8,
+    UnsignedInteger,
     // uint64_t
-    UnsignedBigInt = 9,
+    UnsignedBigInt,
     // float
-    Float = 10,
+    Float,
     // double
-    Double = 11,
+    Double,
     // duckdb_timestamp
-    Timestamp = 12,
+    Timestamp,
     // duckdb_date
-    Date = 13,
+    Date,
     // duckdb_time
-    Time = 14,
+    Time,
     // duckdb_interval
-    Interval = 15,
+    Interval,
     // duckdb_hugeint
-    HugeInt = 16,
+    HugeInt,
     // duckdb_uhugeint
-    UnsignedHugeInt = 32,
+    UnsignedHugeInt,
     // const char*
-    Varchar = 17,
+    Varchar,
     // duckdb_blob
-    Blob = 18,
+    Blob,
     //decimal
-    Decimal = 19,
+    Decimal,
     // duckdb_timestamp, in seconds
-    TimestampS = 20,
+    TimestampS,
     // duckdb_timestamp, in milliseconds
-    TimestampMs = 21,
+    TimestampMs,
     // duckdb_timestamp, in nanoseconds
-    TimestampNs = 22,
+    TimestampNs,
     // enum type, only useful as logical type
-    Enum = 23,
+    Enum,
     // list type, only useful as logical type
     List = 24,
     // duckdb_array, only useful as logical type
     Array = 33,
     // struct type, only useful as logical type
-    Struct = 25,
+    Struct,
     // map type, only useful as logical type
-    Map = 26,
+    Map,
     // duckdb_hugeint
-    Uuid = 27,
+    Uuid,
     // union type, only useful as logical type
-    Union = 28,
+    Union,
     // duckdb_bit
-    Bit = 29,
+    Bit,
     // duckdb_time_tz
-    TimeTz = 30,
+    TimeTz,
     // duckdb_timestamp
-    TimestampTz = 31
+    TimestampTz
 }
 
 [StructLayout(LayoutKind.Sequential)]
