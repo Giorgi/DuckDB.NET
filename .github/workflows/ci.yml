@@ -26,19 +26,19 @@ jobs:
     name: Build library (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     steps:
-    - name: Set Env
-      if: startsWith(github.ref_name, 'nightly')
-      run: |
-        echo "DuckDbArtifactRoot=https://carlopi.github.io/duckdb-latest" >> "$GITHUB_ENV"
-        echo "SkipLinuxArm=True" >> "$GITHUB_ENV"
-        echo "DuckDbArtifactRoot=https://carlopi.github.io/duckdb-latest" >> $env:GITHUB_ENV
-        echo "SkipLinuxArm=True" >> $env:GITHUB_ENV
-        
     - name: Set Build Branch
       if: github.event_name == 'schedule'
       run: |
         echo "BuildBranch=nightly-builds" >> "$GITHUB_ENV"
         echo "BuildBranch=nightly-builds" >> $env:GITHUB_ENV
+        
+    - name: Set Env
+      if: startsWith(env.BuildBranch, 'nightly')
+      run: |
+        echo "DuckDbArtifactRoot=https://carlopi.github.io/duckdb-latest" >> "$GITHUB_ENV"
+        echo "SkipLinuxArm=True" >> "$GITHUB_ENV"
+        echo "DuckDbArtifactRoot=https://carlopi.github.io/duckdb-latest" >> $env:GITHUB_ENV
+        echo "SkipLinuxArm=True" >> $env:GITHUB_ENV
     
     - name: Checkout
       uses: actions/checkout@v4
