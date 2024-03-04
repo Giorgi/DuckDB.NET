@@ -15,69 +15,69 @@ public enum DuckDBType
 {
     Invalid = 0,
     // bool
-    Boolean,
+    Boolean = 1,
     // int8_t
-    TinyInt,
+    TinyInt = 2,
     // int16_t
-    SmallInt,
+    SmallInt = 3,
     // int32_t
-    Integer,
+    Integer = 4,
     // int64_t
-    BigInt,
+    BigInt = 5,
     // uint8_t
-    UnsignedTinyInt,
+    UnsignedTinyInt = 6,
     // uint16_t
-    UnsignedSmallInt,
+    UnsignedSmallInt = 7,
     // uint32_t
-    UnsignedInteger,
+    UnsignedInteger = 8,
     // uint64_t
-    UnsignedBigInt,
+    UnsignedBigInt = 9,
     // float
-    Float,
+    Float = 10,
     // double
-    Double,
+    Double = 11,
     // duckdb_timestamp
-    Timestamp,
+    Timestamp = 12,
     // duckdb_date
-    Date,
+    Date = 13,
     // duckdb_time
-    Time,
+    Time = 14,
     // duckdb_interval
-    Interval,
+    Interval = 15,
     // duckdb_hugeint
-    HugeInt,
+    HugeInt = 16,
     // duckdb_uhugeint
-    UnsignedHugeInt,
+    UnsignedHugeInt = 32,
     // const char*
-    Varchar,
+    Varchar = 17,
     // duckdb_blob
-    Blob,
+    Blob = 18,
     //decimal
-    Decimal,
+    Decimal = 19,
     // duckdb_timestamp, in seconds
-    TimestampS,
+    TimestampS = 20,
     // duckdb_timestamp, in milliseconds
-    TimestampMs,
+    TimestampMs = 21,
     // duckdb_timestamp, in nanoseconds
-    TimestampNs,
+    TimestampNs = 22,
     // enum type, only useful as logical type
-    Enum,
+    Enum = 23,
     // list type, only useful as logical type
-    List,
+    List = 24,
     // struct type, only useful as logical type
-    Struct,
+    Struct = 25,
     // map type, only useful as logical type
-    Map,
+    Map = 26,
     // duckdb_hugeint
-    Uuid,
+    Uuid = 27,
     // union type, only useful as logical type
-    Union,
+    Union = 28,
     // duckdb_bit
-    Bit,
+    Bit = 29,
     // duckdb_time_tz
-    TimeTz,
+    TimeTz = 30,
     // duckdb_timestamp
-    TimestampTz
+    TimestampTz = 31
 }
 
 [StructLayout(LayoutKind.Sequential)]
