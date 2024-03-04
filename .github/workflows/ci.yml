@@ -31,7 +31,9 @@ jobs:
       run: |
         echo "DuckDbArtifactRoot=https://carlopi.github.io/duckdb-latest" >> "$GITHUB_ENV"
         echo "SkipLinuxArm=True" >> "$GITHUB_ENV"
-
+        echo "DuckDbArtifactRoot=https://carlopi.github.io/duckdb-latest" >> $env:GITHUB_ENV
+        echo "SkipLinuxArm=True" >> $env:GITHUB_ENV
+    
     - name: Checkout
       uses: actions/checkout@v4
       with:
