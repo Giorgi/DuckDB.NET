@@ -89,7 +89,7 @@ jobs:
     needs: build
     name: Publish Packages
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop' && github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/develop' && github.event_name != 'pull_request' && github.event_name != 'schedule'
     steps:
     - name: Download nuget package artifact
       uses: actions/download-artifact@v4
