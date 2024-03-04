@@ -33,7 +33,6 @@ jobs:
         echo "SkipLinuxArm=True" >> "$GITHUB_ENV"
 
     - name: Checkout
-      if: ${{ github.event_name != 'schedule' }}
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
