@@ -64,6 +64,8 @@ public enum DuckDBType
     Enum = 23,
     // list type, only useful as logical type
     List = 24,
+    // duckdb_array, only useful as logical type
+    Array = 33,
     // struct type, only useful as logical type
     Struct = 25,
     // map type, only useful as logical type

@@ -8,20 +8,24 @@ namespace DuckDB.NET.Data.Internal.Reader;
 
 internal class ListVectorDataReader : VectorDataReaderBase
 {
+    private readonly ulong arraySize;
     private readonly VectorDataReaderBase listDataReader;
+
+    public bool IsList => DuckDBType == DuckDBType.List;
 
     internal unsafe ListVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
         using var logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
-        using var childType = NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType);
+        using var childType = IsList ? NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType) : NativeMethods.LogicalType.DuckDBArrayTypeChildType(logicalType);
 
         var type = NativeMethods.LogicalType.DuckDBGetTypeId(childType);
 
-        var childVector = NativeMethods.DataChunks.DuckDBListVectorGetChild(vector);
+        var childVector = IsList ? NativeMethods.DataChunks.DuckDBListVectorGetChild(vector) : NativeMethods.DataChunks.DuckDBArrayVectorGetChild(vector);
 
         var childVectorData = NativeMethods.DataChunks.DuckDBVectorGetData(childVector);
         var childVectorValidity = NativeMethods.DataChunks.DuckDBVectorGetValidity(childVector);
 
+        arraySize = (ulong)(IsList ? 0 : NativeMethods.DataChunks.DuckDBArrayVectorGetSize(logicalType));
         listDataReader = VectorDataReaderFactory.CreateReader(childVector, childVectorData, childVectorValidity, type, columnName);
     }
 
@@ -35,20 +39,25 @@ internal class ListVectorDataReader : VectorDataReaderBase
         return typeof(List<>).MakeGenericType(listDataReader.ProviderSpecificClrType);
     }
 
-    internal override object GetValue(ulong offset, Type targetType)
+    internal override unsafe object GetValue(ulong offset, Type targetType)
     {
-        if (DuckDBType == DuckDBType.List)
+        switch (DuckDBType)
         {
-            return GetList(offset, targetType);
-        }
+            case DuckDBType.List:
+            {
+                var listData = (DuckDBListEntry*)DataPointer + offset;
 
-        return base.GetValue(offset, targetType);
+                return GetList(offset, targetType, listData->Offset, listData->Length);
+            }
+            case DuckDBType.Array:
+                return GetList(offset, targetType, offset * arraySize, arraySize);
+            default:
+                return base.GetValue(offset, targetType);
+        }
     }
 
-    private unsafe object GetList(ulong offset, Type returnType)
+    private unsafe object GetList(ulong offset, Type returnType, ulong listOffset, ulong length)
     {
-        var listData = (DuckDBListEntry*)DataPointer + offset;
-
         var listType = returnType.GetGenericArguments()[0];
 
         var allowNulls = listType.AllowsNullValue(out var _, out var nullableType);
@@ -79,9 +88,9 @@ internal class ListVectorDataReader : VectorDataReaderBase
 
         var targetType = nullableType ?? listType;
 
-        for (ulong i = 0; i < listData->Length; i++)
+        for (ulong i = 0; i < length; i++)
         {
-            var childOffset = i + listData->Offset;
+            var childOffset = listOffset + i;
             if (listDataReader.IsValid(childOffset))
             {
                 var item = listDataReader.GetValue(childOffset, targetType);
@@ -102,21 +111,21 @@ internal class ListVectorDataReader : VectorDataReaderBase
 
         return list;
 
-        List<T> BuildList<T>(List<T> list)
+        List<T> BuildList<T>(List<T> result)
         {
-            for (ulong i = 0; i < listData->Length; i++)
+            for (ulong i = 0; i < length; i++)
             {
-                var childOffset = i + listData->Offset;
+                var childOffset = listOffset + i;
                 if (listDataReader.IsValid(childOffset))
                 {
                     var item = listDataReader.GetValue<T>(childOffset);
-                    list.Add(item);
+                    result.Add(item);
                 }
                 else
                 {
                     if (allowNulls)
                     {
-                        list.Add(default!);
+                        result.Add(default!);
                     }
                     else
                     {
@@ -124,7 +133,7 @@ internal class ListVectorDataReader : VectorDataReaderBase
                     }
                 }
             }
-            return list;
+            return result;
         }
     }
 
