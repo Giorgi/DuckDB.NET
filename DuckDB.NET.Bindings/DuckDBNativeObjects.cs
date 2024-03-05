@@ -129,7 +129,7 @@ public struct DuckDBTimeTzStruct
 [StructLayout(LayoutKind.Sequential)]
 public struct DuckDBTimeTz
 {
-    public DuckDBTime Time { get; set; }
+    public DuckDBTimeOnly Time { get; set; }
     public int Offset { get; set; }
 }
 
