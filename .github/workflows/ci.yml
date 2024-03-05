@@ -33,7 +33,7 @@ jobs:
         echo "BuildBranch=nightly-builds" >> $env:GITHUB_ENV
         
     - name: Set Env
-      if: startsWith(env.BuildBranch, 'nightly')
+      if: startsWith(github.ref_name, 'nightly') || startsWith(env.BuildBranch, 'nightly')
       run: |
         echo "DuckDbArtifactRoot=https://carlopi.github.io/duckdb-latest" >> "$GITHUB_ENV"
         echo "SkipLinuxArm=True" >> "$GITHUB_ENV"
