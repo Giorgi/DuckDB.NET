@@ -190,8 +190,7 @@ internal class DateTimeVectorDataReader : VectorDataReaderBase
 
         var timeTz = NativeMethods.DateTime.DuckDBFromTimeTz(data);
 
-        var time = NativeMethods.DateTime.DuckDBFromTime(timeTz.Time);
 
-        return new DateTimeOffset(time.ToDateTime(), TimeSpan.FromSeconds(timeTz.Offset));
+        return new DateTimeOffset(timeTz.Time.ToDateTime(), TimeSpan.FromSeconds(timeTz.Offset));
     }
 }
