@@ -231,10 +231,22 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         }, typeof(DuckDBTimestamp));
     }
 
-    [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
+    [Fact]
     public void ReadTimeTZ()
     {
-
+        VerifyDataStruct("time_tz", 17, new List<DuckDBTimeTz>
+        {
+            new()
+            {
+                Offset = (int)new TimeSpan(15,59,59).TotalSeconds,
+                Time = new DuckDBTimeOnly()
+            },
+            new()
+            {
+                Offset = -(int)new TimeSpan(15,59,59).TotalSeconds,
+                Time = new DuckDBTimeOnly(24,0,0)
+            },
+        }, readProviderSpecificValue: true);
     }
 
     [Fact]

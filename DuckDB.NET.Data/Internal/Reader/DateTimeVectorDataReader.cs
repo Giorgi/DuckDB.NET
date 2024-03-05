@@ -9,6 +9,9 @@ internal class DateTimeVectorDataReader : VectorDataReaderBase
     private static readonly Type DateTimeType = typeof(DateTime);
     private static readonly Type DateTimeNullableType = typeof(DateTime?);
 
+    private static readonly Type DateTimeOffsetType = typeof(DateTimeOffset);
+    private static readonly Type DateTimeOffsetNullableType = typeof(DateTimeOffset?);
+
 #if NET6_0_OR_GREATER
     private static readonly Type DateOnlyType = typeof(DateOnly);
     private static readonly Type DateOnlyNullableType = typeof(DateOnly?);
@@ -66,7 +69,15 @@ internal class DateTimeVectorDataReader : VectorDataReaderBase
 
         if (DuckDBType == DuckDBType.TimeTz)
         {
-            return (T)(object)GetDateTimeOffset(offset);
+            var timeTz = GetTimeTz(offset);
+
+            if (targetType == DateTimeOffsetType || targetType == DateTimeOffsetNullableType)
+            {
+                var dateTimeOffset = new DateTimeOffset(timeTz.Time.ToDateTime(), TimeSpan.FromSeconds(timeTz.Offset));
+                return (T)(object)dateTimeOffset;
+            }
+
+            return (T)(object)timeTz;
         }
 
         if (DuckDBType == DuckDBType.Timestamp || DuckDBType == DuckDBType.TimestampTz)
@@ -114,7 +125,7 @@ internal class DateTimeVectorDataReader : VectorDataReaderBase
         {
             DuckDBType.Date => GetDate(offset, targetType),
             DuckDBType.Time => GetTime(offset, targetType),
-            DuckDBType.TimeTz => GetDateTimeOffset(offset),
+            DuckDBType.TimeTz => GetDateTimeOffset(offset, targetType),
             DuckDBType.Timestamp => GetDateTime(offset, targetType),
             DuckDBType.TimestampTz => GetDateTime(offset, targetType),
             DuckDBType.TimestampS => GetDateTime(offset, targetType, 1000000),
@@ -122,6 +133,13 @@ internal class DateTimeVectorDataReader : VectorDataReaderBase
             DuckDBType.TimestampNs => GetDateTime(offset, targetType, 1, 1000),
             _ => base.GetValue(offset, targetType)
         };
+    }
+
+    private DuckDBTimeTz GetTimeTz(ulong offset)
+    {
+        var data = GetFieldData<DuckDBTimeTzStruct>(offset);
+
+        return NativeMethods.DateTime.DuckDBFromTimeTz(data);
     }
 
     private DuckDBTimeOnly GetTimeOnly(ulong offset)
@@ -184,13 +202,15 @@ internal class DateTimeVectorDataReader : VectorDataReaderBase
         return NativeMethods.DateTime.DuckDBFromTimestamp(data);
     }
 
-    private DateTimeOffset GetDateTimeOffset(ulong offset)
+    private object GetDateTimeOffset(ulong offset, Type targetType)
     {
-        var data = GetFieldData<DuckDBTimeTzStruct>(offset);
+        var timeTz = GetTimeTz(offset);
 
-        var timeTz = NativeMethods.DateTime.DuckDBFromTimeTz(data);
+        if (targetType == typeof(DateTimeOffset))
+        {
+            return new DateTimeOffset(timeTz.Time.ToDateTime(), TimeSpan.FromSeconds(timeTz.Offset));
+        }
 
-
-        return new DateTimeOffset(timeTz.Time.ToDateTime(), TimeSpan.FromSeconds(timeTz.Offset));
+        return timeTz;
     }
 }
