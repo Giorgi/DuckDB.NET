@@ -12,7 +12,7 @@ on:
       - '**.md'
       
   schedule:    
-      - cron: "0 * * * *"
+      - cron: "0 */6 * * *"
 
 jobs:
   build:
@@ -26,19 +26,19 @@ jobs:
     name: Build library (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     steps:
-    - name: Set Env
-      if: startsWith(github.ref_name, 'nightly')
-      run: |
-        echo "DuckDbArtifactRoot=https://carlopi.github.io/duckdb-latest" >> "$GITHUB_ENV"
-        echo "SkipLinuxArm=True" >> "$GITHUB_ENV"
-        echo "DuckDbArtifactRoot=https://carlopi.github.io/duckdb-latest" >> $env:GITHUB_ENV
-        echo "SkipLinuxArm=True" >> $env:GITHUB_ENV
-        
     - name: Set Build Branch
       if: github.event_name == 'schedule'
       run: |
         echo "BuildBranch=nightly-builds" >> "$GITHUB_ENV"
         echo "BuildBranch=nightly-builds" >> $env:GITHUB_ENV
+        
+    - name: Set Env
+      if: startsWith(github.ref_name, 'nightly') || startsWith(env.BuildBranch, 'nightly')
+      run: |
+        echo "DuckDbArtifactRoot=https://carlopi.github.io/duckdb-latest" >> "$GITHUB_ENV"
+        echo "SkipLinuxArm=True" >> "$GITHUB_ENV"
+        echo "DuckDbArtifactRoot=https://carlopi.github.io/duckdb-latest" >> $env:GITHUB_ENV
+        echo "SkipLinuxArm=True" >> $env:GITHUB_ENV
     
     - name: Checkout
       uses: actions/checkout@v4
@@ -89,7 +89,7 @@ jobs:
     needs: build
     name: Publish Packages
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop' && github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/develop' && github.event_name != 'pull_request' && github.event_name != 'schedule'
     steps:
     - name: Download nuget package artifact
       uses: actions/download-artifact@v4
