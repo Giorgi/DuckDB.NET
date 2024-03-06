@@ -534,6 +534,86 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         VerifyDataListClass("fixed_varchar_array", 46, new List<List<string>> { new() { "a", null, "c" }, new() { "d", "e", "f" } });
     }
 
+    [Fact]
+    public void ReadFixedNestedIntArray()
+    {
+        VerifyDataListClass("fixed_nested_int_array", 47, new List<List<List<int?>>>
+        {
+            new ()
+            {
+                new List<int?>{ null, 2, 3},
+                null,
+                new List<int?>{ null, 2, 3}
+            },
+            new()
+            {
+                new List<int?>() { 4, 5, 6 },
+                new List<int?>{ null, 2,3},
+                new List<int?>() { 4, 5, 6 },
+            }
+        });
+    }
+
+    [Fact]
+    public void ReadFixedNestedVarcharArray()
+    {
+        VerifyDataListClass("fixed_nested_varchar_array", 48, new List<List<List<string>>>
+        {
+            new ()
+            {
+                new List<string>{  "a", null, "c" },
+                null,
+                new List<string>{  "a", null, "c" }
+            },
+            new()
+            {
+                new List<string>() { "d", "e", "f" },
+                new List<string>{ "a", null, "c" },
+                new List<string>() { "d", "e", "f" },
+            }
+        });
+    }
+
+    [Fact]
+    public void ReadFixedStructArray()
+    {
+        var columnIndex = 49;
+        reader.GetOrdinal("fixed_struct_array").Should().Be(columnIndex);
+
+        reader.GetFieldValue<List<StructTest>>(columnIndex).Should().BeEquivalentTo(new List<StructTest>()
+        {
+            new(),
+            new()
+            {
+                A = 42,
+                B = "🦆🦆🦆🦆🦆🦆"
+            },
+            new()
+        });
+
+        reader.Read();
+
+        reader.GetFieldValue<List<StructTest>>(columnIndex).Should().BeEquivalentTo(new List<StructTest>()
+        {
+            new()
+            {
+                A = 42,
+                B = "🦆🦆🦆🦆🦆🦆"
+            },
+            new(),
+            new()
+            {
+                A = 42,
+                B = "🦆🦆🦆🦆🦆🦆"
+            }
+        });
+
+        reader.Read();
+
+        reader.IsDBNull(columnIndex).Should().Be(true);
+        reader.Invoking(r => r.GetFieldValue<List<StructTest>>(columnIndex)).Should().Throw<InvalidCastException>();
+    }
+
     class StructTest
     {
         public int? A { get; set; }
