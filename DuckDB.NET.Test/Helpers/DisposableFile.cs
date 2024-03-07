@@ -20,7 +20,7 @@ sealed class DisposableFile : IDisposable
 
     public static DisposableFile GenerateInTemp(string extension = null, int? index = null, bool create = false)
     {
-        var fileBuilder = new StringBuilder(Path.Combine(Path.GetTempPath(), "Temp File-" + Guid.NewGuid().ToString()));
+        var fileBuilder = new StringBuilder(Path.Combine(Directory.GetCurrentDirectory(), "Temp File-" + Guid.NewGuid().ToString()));
 
         if (index != null)
         {
