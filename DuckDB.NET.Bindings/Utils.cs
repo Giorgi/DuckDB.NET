@@ -59,12 +59,12 @@ public static class Utils
     {
 #if NET6_0_OR_GREATER
         var pointer = Marshal.StringToCoTaskMemUTF8(managedString);
-
-        return new SafeUnmanagedMemoryHandle(pointer, true, false);
+        return new SafeUnmanagedMemoryHandle(pointer);
 #else
+        
         if (managedString == null)
         {
-            return new SafeUnmanagedMemoryHandle(IntPtr.Zero, true);
+            return new SafeUnmanagedMemoryHandle();
         }
 
         int len = Encoding.UTF8.GetByteCount(managedString);
@@ -72,10 +72,10 @@ public static class Utils
         var buffer = new byte[len + 1];
         Encoding.UTF8.GetBytes(managedString, 0, managedString.Length, buffer, 0);
 
-        var nativeUtf8 = Marshal.AllocHGlobal(buffer.Length);
+        var nativeUtf8 = Marshal.AllocCoTaskMem(buffer.Length);
         Marshal.Copy(buffer, 0, nativeUtf8, buffer.Length);
 
-        return new SafeUnmanagedMemoryHandle(nativeUtf8, true);
+        return new SafeUnmanagedMemoryHandle(nativeUtf8); 
 #endif
     }
 
