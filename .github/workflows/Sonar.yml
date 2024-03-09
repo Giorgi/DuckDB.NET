@@ -37,7 +37,7 @@ jobs:
       - name: Setup .NET Core SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0'
+          global-json-file: global.json
       
       - name: Cache SonarCloud packages
         uses: actions/cache@v4

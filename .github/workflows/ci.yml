@@ -20,7 +20,6 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-14]
         arch: ['amd64']
-        dotnet-version: ['8.0']
       fail-fast: false
 
     name: Build library (${{ matrix.os }})
@@ -46,10 +45,10 @@ jobs:
         fetch-depth: 0
         ref: ${{ env.BuildBranch }}
 
-    - name: Setup .NET Core SDK ${{ matrix.dotnet-version }}
+    - name: Setup .NET Core SDK
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: ${{ matrix.dotnet-version }}
+        global-json-file: global.json
 
     - name: Build
       run: dotnet build --configuration Release /p:BuildType=Full
