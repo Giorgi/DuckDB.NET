@@ -36,10 +36,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="GitVersion.MsBuild" Version="5.11.1">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
+    <PackageReference Include="GitVersion.MsBuild" Version="5.11.1" PrivateAssets="all" />
   </ItemGroup>
   <!-- End native lib section -->
 </Project>
