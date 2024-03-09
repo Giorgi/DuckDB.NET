@@ -77,11 +77,11 @@ jobs:
         format: lcov
 
     - name: Upload coverage reports to Codecov
+      if: matrix.os == 'ubuntu-latest'
       uses: codecov/codecov-action@v4.0.1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         slug: Giorgi/DuckDB.NET
-        verbose: true
 
     - name: Upload Artifacts
       if: matrix.os == 'ubuntu-latest' && github.event_name != 'pull_request' && github.actor == 'Giorgi'
