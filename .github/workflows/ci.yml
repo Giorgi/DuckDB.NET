@@ -12,7 +12,7 @@ on:
       - '**.md'
       
   schedule:    
-      - cron: "0 */6 * * *"
+      - cron: "15 */12 * * *"
 
 jobs:
   build:
@@ -20,7 +20,6 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-14]
         arch: ['amd64']
-        dotnet-version: ['8.0']
       fail-fast: false
 
     name: Build library (${{ matrix.os }})
@@ -46,10 +45,10 @@ jobs:
         fetch-depth: 0
         ref: ${{ env.BuildBranch }}
 
-    - name: Setup .NET Core SDK ${{ matrix.dotnet-version }}
+    - name: Setup .NET Core SDK
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: ${{ matrix.dotnet-version }}
+        global-json-file: global.json
 
     - name: Build
       run: dotnet build --configuration Release /p:BuildType=Full
@@ -67,14 +66,22 @@ jobs:
         CoverletOutputFormat: lcov
       run: dotnet test --configuration Release --verbosity normal --logger GitHubActions /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:BuildType=Full
 
-    - name: Coveralls Parallel
+    - name: Upload coverage reports to Coveralls Parallel
       uses: coverallsapp/github-action@v2
+      if: github.event_name != 'schedule'
       with:
         github-token: ${{ secrets.github_token }}
         flag-name: run-${{ matrix.os }}
         path-to-lcov: DuckDB.NET.Test/coverage.net8.0.info
         parallel: true
         format: lcov
+
+    - name: Upload coverage reports to Codecov
+      if: matrix.os == 'ubuntu-latest' && github.event_name != 'schedule'
+      uses: codecov/codecov-action@v4.0.1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        slug: Giorgi/DuckDB.NET
 
     - name: Upload Artifacts
       if: matrix.os == 'ubuntu-latest' && github.event_name != 'pull_request' && github.actor == 'Giorgi'
@@ -109,6 +116,7 @@ jobs:
     needs: build
     name: Finish Coveralls Collection
     runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'
     steps:
     - name: Coveralls Finished
       uses: coverallsapp/github-action@v2

@@ -1,10 +1,9 @@
 using DuckDB.NET.Data.ConnectionString;
-using System.Collections.Generic;
-using System;
-using System.Data.Common;
-using System.Linq;
-using System.Diagnostics.CodeAnalysis;
 using DuckDB.NET.Native;
+using System;
+using System.Collections.Generic;
+using System.Data.Common;
+using System.Diagnostics.CodeAnalysis;
 
 namespace DuckDB.NET.Data;
 
@@ -50,14 +49,7 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
                 continue;
             }
 
-            if (ConfigurationOptions.Contains(pair.Key))
-            {
-                configurations.Add(pair.Key, pair.Value.ToString()!);
-            }
-            else
-            {
-                throw new InvalidOperationException($"Unrecognized connection string property '{pair.Key}'");
-            }
+            configurations.Add(pair.Key, pair.Value.ToString()!);
         }
 
         if (string.IsNullOrEmpty(dataSource))
@@ -90,7 +82,7 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
             }
             else
             {
-                throw new InvalidOperationException($"Unsupported property '{keyword}'");
+                throw new InvalidOperationException($"Unrecognized connection string property '{keyword}'");
             }
         }
     }

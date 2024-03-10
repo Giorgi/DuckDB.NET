@@ -6,15 +6,14 @@
     <TargetFrameworks>net6.0</TargetFrameworks>
   </PropertyGroup>
 
-	<PropertyGroup>
-		<BuildType>Full</BuildType>
-	</PropertyGroup>
+  <PropertyGroup>
+    <BuildType>Full</BuildType>
+  </PropertyGroup>
 
-	<ItemGroup>
-	  <Compile Include="..\DuckDB.NET.Test\Helpers\NativeLibraryHelper.cs" Link="Helpers\NativeLibraryHelper.cs" />
-	</ItemGroup>
-
-	<ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\DuckDB.NET.Test\Helpers\NativeLibraryHelper.cs" Link="Helpers\NativeLibraryHelper.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Dapper" Version="2.1.24" />
   </ItemGroup>
 
@@ -25,6 +24,5 @@
 
   <ItemGroup>
     <Folder Include="Helpers\" />
-  </ItemGroup> 
-  
+  </ItemGroup>
 </Project>
