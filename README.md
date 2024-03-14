@@ -287,3 +287,8 @@ private static void PrintQueryResults(DuckDBResult queryResult)
 }
 
 ```
+
+## Sponsors
+A big thanks to [AWS Open Source Software Fund](https://github.com/aws/dotnet-foss) for sponsoring the project!
+
+[![AWS](.github/sponsors/aws-logo-small.png)](https://www.github.com/aws)
