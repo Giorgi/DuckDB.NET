@@ -28,6 +28,9 @@ public partial class NativeMethods
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_list_type_child_type")]
         public static extern DuckDBLogicalType DuckDBListTypeChildType(DuckDBLogicalType type);
 
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_array_type_child_type")]
+        public static extern DuckDBLogicalType DuckDBArrayTypeChildType(DuckDBLogicalType type);
+
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_map_type_key_type")]
         public static extern DuckDBLogicalType DuckDBMapTypeKeyType(DuckDBLogicalType type);
 

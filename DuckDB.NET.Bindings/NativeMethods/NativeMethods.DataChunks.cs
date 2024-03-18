@@ -31,6 +31,12 @@ public partial class NativeMethods
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_list_vector_get_size")]
         public static extern long DuckDBListVectorGetSize(IntPtr vector);
 
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_array_vector_get_child")]
+        public static extern IntPtr DuckDBArrayVectorGetChild(IntPtr vector);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_array_type_array_size")]
+        public static extern long DuckDBArrayVectorGetSize(DuckDBLogicalType logicalType);
+
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_struct_vector_get_child")]
         public static extern IntPtr DuckDBStructVectorGetChild(IntPtr vector, long index);
 

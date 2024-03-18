@@ -232,25 +232,25 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
-    public void ReadTimeTZ()
+    public void ReadTimeTz()
     {
         VerifyDataStruct("time_tz", 17, new List<DuckDBTimeTz>
         {
             new()
             {
                 Offset = (int)new TimeSpan(15,59,59).TotalSeconds,
-                Time = new DuckDBTimeOnly()
+                Time = new()
             },
             new()
             {
                 Offset = -(int)new TimeSpan(15,59,59).TotalSeconds,
-                Time = new DuckDBTimeOnly(24,0,0)
+                Time = new(24,0,0)
             },
         }, readProviderSpecificValue: true);
     }
 
     [Fact]
-    public void ReadTimeStampTZ()
+    public void ReadTimeStampTz()
     {
         VerifyDataStruct("timestamp_tz", 18, new List<DuckDBTimestamp>
         {
@@ -337,7 +337,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         {
             var streamReader = new StreamReader(stream);
 
-            streamReader.ReadToEnd().Should().Be(new string(new char[] { (char)0, (char)0, (char)0, (char)97 }));
+            streamReader.ReadToEnd().Should().Be(new(new char[] { (char)0, (char)0, (char)0, (char)97 }));
         }
 
         reader.Read();
@@ -398,27 +398,13 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
     public void ReadTimeStampList()
     {
-        VerifyDataList("timestamp_array", 35, new List<List<DuckDBTimestamp?>> { new(), new()
-        {
-            new DuckDBTimestamp(new DuckDBDateOnly(1970, 1, 1), new DuckDBTimeOnly()),
-            new DuckDBTimestamp (new DuckDBDateOnly(5881580, 7, 11), new DuckDBTimeOnly()),
-            new DuckDBTimestamp (new DuckDBDateOnly(-5877641, 6, 24), new DuckDBTimeOnly()),
-            null,
-            new DuckDBTimestamp (new DuckDBDateOnly(2022, 5, 12), new DuckDBTimeOnly()),
-        } });
+
     }
 
     [Fact(Skip = "These dates can't be expressed by DateTime or is unsupported by this library")]
     public void ReadTimeStampTZList()
     {
-        VerifyDataList("timestamptz_array", 36, new List<List<DuckDBDateOnly?>> { new(), new()
-        {
-            new DuckDBDateOnly(1970, 1, 1),
-            new DuckDBDateOnly(5881580, 7, 11),
-            new DuckDBDateOnly(-5877641, 6, 24),
-            null,
-            new DuckDBDateOnly(2022,5,12),
-        } });
+
     }
 
     [Fact]
@@ -534,6 +520,164 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
 
         reader.IsDBNull(columnIndex).Should().Be(true);
         reader.Invoking(r => r.GetFieldValue<Dictionary<string, string>>(columnIndex)).Should().Throw<InvalidCastException>();
+    }
+
+    [Fact]
+    public void ReadFixedIntArray()
+    {
+        VerifyDataList("fixed_int_array", 45, new List<List<int?>> { new() { null, 2, 3 }, new() { 4, 5, 6 }, new() { 42, 999, null, null, -42 } });
+    }
+
+    [Fact]
+    public void ReadFixedVarcharArray()
+    {
+        VerifyDataListClass("fixed_varchar_array", 46, new List<List<string>> { new() { "a", null, "c" }, new() { "d", "e", "f" } });
+    }
+
+    [Fact]
+    public void ReadFixedNestedIntArray()
+    {
+        VerifyDataListClass("fixed_nested_int_array", 47, new List<List<List<int?>>>
+        {
+            new ()
+            {
+                new() { null, 2, 3},
+                null,
+                new() { null, 2, 3}
+            },
+            new()
+            {
+                new() { 4, 5, 6 },
+                new() { null, 2,3},
+                new() { 4, 5, 6 },
+            }
+        });
+    }
+
+    [Fact]
+    public void ReadFixedNestedVarcharArray()
+    {
+        VerifyDataListClass("fixed_nested_varchar_array", 48, new List<List<List<string>>>
+        {
+            new ()
+            {
+                new() {  "a", null, "c" },
+                null,
+                new() {  "a", null, "c" }
+            },
+            new()
+            {
+                new() { "d", "e", "f" },
+                new() { "a", null, "c" },
+                new() { "d", "e", "f" },
+            }
+        });
+    }
+
+    [Fact]
+    public void ReadFixedStructArray()
+    {
+        var columnIndex = 49;
+        reader.GetOrdinal("fixed_struct_array").Should().Be(columnIndex);
+
+        reader.GetFieldValue<List<StructTest>>(columnIndex).Should().BeEquivalentTo(new List<StructTest>()
+        {
+            new(),
+            new()
+            {
+                A = 42,
+                B = "🦆🦆🦆🦆🦆🦆"
+            },
+            new()
+        });
+
+        reader.Read();
+
+        reader.GetFieldValue<List<StructTest>>(columnIndex).Should().BeEquivalentTo(new List<StructTest>()
+        {
+            new()
+            {
+                A = 42,
+                B = "🦆🦆🦆🦆🦆🦆"
+            },
+            new(),
+            new()
+            {
+                A = 42,
+                B = "🦆🦆🦆🦆🦆🦆"
+            }
+        });
+
+        reader.Read();
+
+        reader.IsDBNull(columnIndex).Should().Be(true);
+        reader.Invoking(r => r.GetFieldValue<List<StructTest>>(columnIndex)).Should().Throw<InvalidCastException>();
+    }
+
+    [Fact]
+    public void ReadStructOfFixedArray()
+    {
+        var columnIndex = 50;
+        reader.GetOrdinal("struct_of_fixed_array").Should().Be(columnIndex);
+
+        reader.GetFieldValue<StructOfArrayTest>(columnIndex).Should().BeEquivalentTo(new StructOfArrayTest()
+        {
+            A = new() { null, 2, 3 },
+            B = new() { "a", null, "c"}
+        });
+
+        reader.Read();
+
+        reader.GetFieldValue<StructOfArrayTest>(columnIndex).Should().BeEquivalentTo(new StructOfArrayTest()
+        {
+            A = new() { 4, 5, 6 },
+            B = new() { "d", "e", "f" }
+        });
+
+        reader.Read();
+
+        reader.IsDBNull(columnIndex).Should().Be(true);
+        reader.Invoking(r => r.GetFieldValue<StructOfArrayTest>(columnIndex)).Should().Throw<InvalidCastException>();
+    }
+
+    [Fact]
+    public void ReadFixedArrayIntList()
+    {
+        VerifyDataListClass("fixed_array_of_int_list", 51, new List<List<List<int?>>>
+        {
+            new ()
+            {
+                new(),
+                new() { 42, 999, null, null, -42},
+                new ()
+            },
+            new()
+            {
+                new() { 42, 999, null, null, -42},
+                new (),
+                new() { 42, 999, null, null, -42}
+            }
+        });
+    }
+
+    [Fact]
+    public void ReadListFixedIntArray()
+    {
+        VerifyDataListClass("list_of_fixed_int_array", 52, new List<List<List<int?>>>
+        {
+            new ()
+            {
+                new () {null, 2, 3},
+                new() { 4, 5, 6},
+                new () {null, 2, 3},
+            },
+            new()
+            {
+                new() { 4, 5, 6},
+                new () {null, 2, 3},
+                new() { 4, 5, 6}
+            }
+        });
     }
 
     class StructTest
