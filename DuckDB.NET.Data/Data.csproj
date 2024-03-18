@@ -3,9 +3,11 @@
   <PropertyGroup>
     <Description>DuckDB ADO.NET Provider for C#.</Description>
     <PackageReleaseNotes>
-      Added support for reading Struct types.
+	  Update to DuckDB 0.10.1.
+	  
+Added support for reading TimeTz types.
 
-      Added support for reading List types and nested List.
+Added support for reading Array types.
     </PackageReleaseNotes>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
