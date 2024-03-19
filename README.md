@@ -22,7 +22,7 @@
 If you encounter a bug with the library [Create an Issue](https://github.com/Giorgi/DuckDB.NET/issues/new). Join the [DuckDB .Net Channel](https://discord.duckdb.org/) for DuckDB.NET related topics.
 
 ### Getting Started
-There are two ways to work with DuckDB from C#: You can use ADO.NET Provider or use low-level bindings library for DuckDB. The ADO.NET Provider is built on top of the low-level library and is the recommended and most straightforward approach to work with DuckDB.
+There are two ways to work with DuckDB from C#: You can use ADO.NET Provider or use a low-level bindings library for DuckDB. The ADO.NET Provider is built on top of the low-level library and is the recommended and most straightforward approach to work with DuckDB.
 
 In both cases, there are two NuGet packages available: The Full package that includes the DuckDB native library and a managed-only library that doesn't include a native library.
 
@@ -112,7 +112,7 @@ using (var appender = connection.CreateAppender("managedAppenderTest"))
 
 ### Parameterized queries and DuckDB native types.
 
-Starting from version 0.4.0.10, DuckDB.NET.Data supports executing parameterized queries and reading all built-in native DuckDB types. Starting from version 0.9.0 the library supports named parameters too:
+DuckDB.NET.Data supports executing parameterized queries and reading all built-in native DuckDB types. Starting from version 0.9.0 the library supports named parameters too:
 
 ```cs
 using var connection = new DuckDBConnection("DataSource=:memory:");
@@ -153,9 +153,9 @@ DuckDB.NET 0.9.2 supports reading [Enum](https://duckdb.org/docs/sql/data_types/
 [List](https://duckdb.org/docs/sql/data_types/list), [Array](https://duckdb.org/docs/sql/data_types/array) and [Map](https://duckdb.org/docs/sql/data_types/map) types 
 as well as any combination of nested types.
 
-To read an Enum, Struct or List or nested List use `DuckDBDataReader.GetFieldValue<T>`. For example, to read a list of doubles: `DuckDBDataReader.GetFieldValue<List<double>>` If the list contains null, use `DuckDBDataReader.GetFieldValue<List<double?>>`, otherwise an exception will be thrown when null is encountered. If you don't know whether the list contains null or not but want to skip all null values, you can use `select [x for x in mylist if x IS NOT NULL] as filtered;` to remove null values from the list.
+To read an Enum, Struct, or List or nested List use `DuckDBDataReader.GetFieldValue<T>`. For example, to read a list of doubles: `DuckDBDataReader.GetFieldValue<List<double>>` If the list contains null, use `DuckDBDataReader.GetFieldValue<List<double?>>`, otherwise an exception will be thrown when null is encountered. If you don't know whether the list contains null or not but want to skip all null values, you can use `select [x for x in mylist if x IS NOT NULL] as filtered;` to remove null values from the list.
 
-Nested List can be read in a similar way: `reader.GetFieldValue<List<List<int>>>`
+Nested List can be read similarly: `reader.GetFieldValue<List<List<int>>>`
 
 Check [Tests](https://github.com/Giorgi/DuckDB.NET/tree/develop/DuckDB.NET.Test) for more examples.
 
