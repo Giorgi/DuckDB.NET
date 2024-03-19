@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using Dapper;
@@ -297,5 +297,13 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
         Command.Parameters.Add(new DuckDBParameter(42));    // unused
         var scalar = Command.ExecuteScalar();
         scalar.Should().Be(1);
+    }
+
+    [Fact]
+    public void BindUnicodeParameterTest()
+    {
+        Command.CommandText = "SELECT $数字";
+        Command.Parameters.Add(new DuckDBParameter("数字",42));
+        Command.ExecuteScalar().Should().Be(42);
     }
 }

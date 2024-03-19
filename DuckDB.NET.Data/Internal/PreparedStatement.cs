@@ -103,7 +103,7 @@ internal sealed class PreparedStatement : IDisposable
         {
             foreach (DuckDBParameter param in parameterCollection)
             {
-                var state = NativeMethods.PreparedStatements.DuckDBBindParameterIndex(preparedStatement, out var index, param.ParameterName);
+                var state = NativeMethods.PreparedStatements.DuckDBBindParameterIndex(preparedStatement, out var index, param.ParameterName.ToUnmanagedString());
                 if (state.IsSuccess())
                 {
                     BindParameter(preparedStatement, index, param);
