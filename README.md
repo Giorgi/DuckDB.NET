@@ -288,6 +288,8 @@ private static void PrintQueryResults(DuckDBResult queryResult)
 }
 
 ```
+## Contributors
+[![Contributors](https://contrib.rocks/image?repo=Giorgi/DuckDB.NET)](https://github.com/Giorgi/DuckDB.NET/graphs/contributors)
 
 ## Sponsors
 A big thanks to [AWS Open Source Software Fund](https://github.com/aws/dotnet-foss) for sponsoring the project!
