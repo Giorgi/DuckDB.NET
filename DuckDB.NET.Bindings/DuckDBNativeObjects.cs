@@ -109,6 +109,57 @@ public struct DuckDBResult : IDisposable
 }
 
 [StructLayout(LayoutKind.Sequential)]
+public unsafe struct DuckDBArrowSchema : IDisposable
+{
+    private byte* format;
+    private byte* name;
+    private byte* metadata;
+    private long flags;
+    private long n_children;
+    private DuckDBArrowSchema** children;
+    private DuckDBArrowSchema* dictionary;
+    private delegate* unmanaged[Cdecl]<DuckDBArrowSchema*, void> release;
+    private void* private_data;
+
+    public void Dispose()
+    {
+        if (release != null)
+        {
+            fixed (DuckDBArrowSchema* ptr = &this)
+            {
+                release(ptr);
+            }
+        }
+    }
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct DuckDBArrowArray : IDisposable
+{
+    private long length;
+    private long null_count;
+    private long offset;
+    private long n_buffers;
+    private long n_children;
+    private byte** buffers;
+    private DuckDBArrowArray** children;
+    private DuckDBArrowArray* dictionary;
+    private delegate* unmanaged[Cdecl]<DuckDBArrowArray*, void> release;
+    private void* private_data;
+
+    public void Dispose()
+    {
+        if (release != null)
+        {
+            fixed (DuckDBArrowArray* ptr = &this)
+            {
+                release(ptr);
+            }
+        }
+    }
+}
+
+[StructLayout(LayoutKind.Sequential)]
 public struct DuckDBDate
 {
     public int Days { get; set; }
