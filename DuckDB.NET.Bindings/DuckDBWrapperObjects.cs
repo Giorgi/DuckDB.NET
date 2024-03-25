@@ -106,3 +106,29 @@ public class DuckDBDataChunk : SafeHandleZeroOrMinusOneIsInvalid
         return true;
     }
 }
+
+public class DuckDBArrow : SafeHandleZeroOrMinusOneIsInvalid
+{
+    public DuckDBArrow() : base(true)
+    {
+    }
+
+    protected override bool ReleaseHandle()
+    {
+        NativeMethods.Arrow.DuckDBDestroyArrow(out handle);
+        return true;
+    }
+}
+
+public class DuckDBArrowStream : SafeHandleZeroOrMinusOneIsInvalid
+{
+    public DuckDBArrowStream() : base(true)
+    {
+    }
+
+    protected override bool ReleaseHandle()
+    {
+        NativeMethods.Arrow.DuckDBDestroyArrowStream(out handle);
+        return true;
+    }
+}
