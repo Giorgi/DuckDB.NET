@@ -149,7 +149,9 @@ public class DuckDBConnection : DbConnection
         using var unmanagedSchema = schema.ToUnmanagedString();
         using var unmanagedTable = table.ToUnmanagedString();
 
-        if (NativeMethods.Appender.DuckDBAppenderCreate(NativeConnection, unmanagedSchema, unmanagedTable, out var nativeAppender) == DuckDBState.Error)
+        var appenderState = NativeMethods.Appender.DuckDBAppenderCreate(NativeConnection, unmanagedSchema, unmanagedTable, out var nativeAppender);
+
+        if (!appenderState.IsSuccess())
         {
             try
             {
@@ -191,10 +193,7 @@ public class DuckDBConnection : DbConnection
 
     public DuckDBConnection Duplicate()
     {
-        if (State != ConnectionState.Open)
-        {
-            throw new InvalidOperationException("Duplication requires an open connection");
-        }
+        EnsureConnectionOpen();
 
         // We're sure that the connectionString is not null because we previously checked the connection was open
         if (!ParsedConnection!.InMemory)
