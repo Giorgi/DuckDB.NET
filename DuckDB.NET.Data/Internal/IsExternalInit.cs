@@ -13,5 +13,14 @@ public static class KeyValuePairExtensions
         key = keyValuePair.Key;
         value = keyValuePair.Value;
     }
-} 
+}
+
+namespace System.Diagnostics.CodeAnalysis
+{
+    [AttributeUsage(AttributeTargets.Method)]
+    public class DoesNotReturnAttribute: Attribute { }
+
+    [AttributeUsage(AttributeTargets.Method)]
+    public class StackTraceHiddenAttribute : Attribute { }
+}
 #endif

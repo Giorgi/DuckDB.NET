@@ -8,7 +8,7 @@ using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data;
 
-public class DuckDbCommand : DbCommand
+public class DuckDBCommand : DbCommand
 {
     private DuckDBConnection? connection;
     private readonly DuckDBParameterCollection parameters = new();
@@ -45,15 +45,15 @@ public class DuckDbCommand : DbCommand
         set => connection = (DuckDBConnection?)value;
     }
 
-    public DuckDbCommand()
+    public DuckDBCommand()
     { }
 
-    public DuckDbCommand(string commandText)
+    public DuckDBCommand(string commandText)
     {
         CommandText = commandText;
     }
 
-    public DuckDbCommand(string commandText, DuckDBConnection connection)
+    public DuckDBCommand(string commandText, DuckDBConnection connection)
         : this(commandText)
     {
         Connection = connection;

@@ -132,9 +132,9 @@ public class DuckDBConnection : DbConnection
         return CreateCommand();
     }
 
-    public new virtual DuckDbCommand CreateCommand()
+    public new virtual DuckDBCommand CreateCommand()
     {
-        return new DuckDbCommand
+        return new DuckDBCommand
         {
             Connection = this,
             Transaction = Transaction

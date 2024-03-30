@@ -11,7 +11,7 @@ namespace DuckDB.NET.Data;
 
 public class DuckDBDataReader : DbDataReader
 {
-    private readonly DuckDbCommand command;
+    private readonly DuckDBCommand command;
     private readonly CommandBehavior behavior;
 
     private DuckDBResult currentResult;
@@ -30,7 +30,7 @@ public class DuckDBDataReader : DbDataReader
     private readonly IEnumerator<DuckDBResult> resultEnumerator;
     private VectorDataReaderBase[] vectorReaders = Array.Empty<VectorDataReaderBase>();
 
-    internal DuckDBDataReader(DuckDbCommand command, IEnumerable<DuckDBResult> queryResults, CommandBehavior behavior)
+    internal DuckDBDataReader(DuckDBCommand command, IEnumerable<DuckDBResult> queryResults, CommandBehavior behavior)
     {
         this.command = command;
         this.behavior = behavior;

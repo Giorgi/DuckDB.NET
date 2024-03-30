@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using DuckDB.NET.Native;
 
@@ -54,6 +56,8 @@ public class DuckDBAppender : IDisposable
         }
     }
 
+    [DoesNotReturn]
+    [StackTraceHidden]
     internal static void ThrowLastError(Native.DuckDBAppender appender)
     {
         var errorMessage = NativeMethods.Appender.DuckDBAppenderError(appender).ToManagedString(false);

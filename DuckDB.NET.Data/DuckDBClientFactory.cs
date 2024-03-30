@@ -27,7 +27,7 @@ public class DuckDBClientFactory : DbProviderFactory
 
     #region Methods
 
-    public override DbCommand CreateCommand() => new DuckDbCommand();
+    public override DbCommand CreateCommand() => new DuckDBCommand();
 
     public override DbCommandBuilder CreateCommandBuilder() => throw new NotImplementedException();
 

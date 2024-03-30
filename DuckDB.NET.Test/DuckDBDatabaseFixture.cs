@@ -23,7 +23,7 @@ public class DuckDBDatabaseFixture : IDisposable
 
 public class DuckDBTestBase : IDisposable, IClassFixture<DuckDBDatabaseFixture>
 {
-    protected DuckDbCommand Command { get; }
+    protected DuckDBCommand Command { get; }
     internal DuckDBConnection Connection { get; }
 
     public DuckDBTestBase(DuckDBDatabaseFixture db)
