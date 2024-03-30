@@ -8,9 +8,9 @@ public static class Utils
 {
     internal const long UnixEpochTicks = 621355968000000000;
 
-    public static bool IsSuccess(this DuckDBState duckDBState)
+    public static bool IsSuccess(this DuckDBState state)
     {
-        return duckDBState == DuckDBState.Success;
+        return state == DuckDBState.Success;
     }
 
     public static string ToManagedString(this IntPtr unmanagedString, bool freeWhenCopied = true, int? length = null)

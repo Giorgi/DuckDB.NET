@@ -11,7 +11,7 @@ public class DuckDBAppender : IDisposable
     private bool closed;
     private readonly Native.DuckDBAppender nativeAppender;
 
-    public DuckDBAppender(Native.DuckDBAppender appender)
+    internal DuckDBAppender(Native.DuckDBAppender appender)
     {
         nativeAppender = appender;
     }
@@ -37,7 +37,7 @@ public class DuckDBAppender : IDisposable
         try
         {
             var state = NativeMethods.Appender.DuckDBAppenderClose(nativeAppender);
-            if (state == DuckDBState.Error)
+            if (!state.IsSuccess())
             {
                 ThrowLastError(nativeAppender);
             }
@@ -77,7 +77,7 @@ public class DuckDBAppenderRow
 
     public void EndRow()
     {
-        if (NativeMethods.Appender.DuckDBAppenderEndRow(appender) == DuckDBState.Error)
+        if (!NativeMethods.Appender.DuckDBAppenderEndRow(appender).IsSuccess())
         {
             DuckDBAppender.ThrowLastError(appender);
         }
@@ -196,7 +196,7 @@ public class DuckDBAppenderRow
             _ => throw new InvalidOperationException($"Unsupported type {typeof(T).Name}")
         };
 
-        if (state == DuckDBState.Error)
+        if (!state.IsSuccess())
         {
             DuckDBAppender.ThrowLastError(appender);
         }
