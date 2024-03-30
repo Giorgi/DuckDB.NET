@@ -68,7 +68,7 @@ jobs:
     - name: Run tests
       env:
         CoverletOutputFormat: lcov
-      run: dotnet test --configuration Release --verbosity normal --logger GitHubActions /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:BuildType=Full
+      run: dotnet test --configuration Release --verbosity normal --logger GitHubActions /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:BuildType=Full /p:DoesNotReturnAttribute="DoesNotReturnAttribute"
 
     - name: Upload coverage reports to Coveralls Parallel
       uses: coverallsapp/github-action@v2
