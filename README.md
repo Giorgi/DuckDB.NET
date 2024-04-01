@@ -24,7 +24,7 @@ If you encounter a bug with the library [Create an Issue](https://github.com/Gio
 ### Getting Started
 There are two ways to work with DuckDB from C#: You can use ADO.NET Provider or use a low-level bindings library for DuckDB. The ADO.NET Provider is built on top of the low-level library and is the recommended and most straightforward approach to work with DuckDB.
 
-In both cases, there are two NuGet packages available: The Full package that includes the DuckDB native library and a managed-only library that doesn't include a native library.
+In both cases, two NuGet packages are available: The Full package that includes the DuckDB native library and a managed-only library that doesn't include a native library.
 
 |  | ADO.NET Provider | Includes DuckDB library |
 |---|---|---|
