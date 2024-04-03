@@ -18,9 +18,9 @@ public static class KeyValuePairExtensions
 namespace System.Diagnostics.CodeAnalysis
 {
     [AttributeUsage(AttributeTargets.Method)]
-    public class DoesNotReturnAttribute: Attribute { }
+    class DoesNotReturnAttribute: Attribute { }
 
     [AttributeUsage(AttributeTargets.Method)]
-    public class StackTraceHiddenAttribute : Attribute { }
+    class StackTraceHiddenAttribute : Attribute { }
 }
 #endif

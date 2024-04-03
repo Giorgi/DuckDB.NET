@@ -38,7 +38,6 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     [Fact]
     public void BindNullValueTest()
     {
-
         Command.CommandText = "SELECT ?";
         Command.Parameters.Add(new DuckDBParameter());
 
@@ -305,5 +304,17 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
         Command.CommandText = "SELECT $数字";
         Command.Parameters.Add(new DuckDBParameter("数字",42));
         Command.ExecuteScalar().Should().Be(42);
+    }
+
+    [Theory]
+    [InlineData("SELECT $2 - $1", 18)]
+    [InlineData("SELECT ? - ?", -18)]
+    public void BindParameterWithPositionOrAutoIncrement(string query, int result)
+    {
+        Command.Parameters.Add(new DuckDBParameter(24));
+        Command.Parameters.Add(new DuckDBParameter(42));
+        Command.CommandText = query;
+        var scalar = Command.ExecuteScalar();
+        scalar.Should().Be(result);
     }
 }
