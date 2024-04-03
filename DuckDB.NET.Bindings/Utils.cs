@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -13,6 +14,7 @@ public static class Utils
         return state == DuckDBState.Success;
     }
 
+    [EditorBrowsable(EditorBrowsableState.Never)]
     public static string ToManagedString(this IntPtr unmanagedString, bool freeWhenCopied = true, int? length = null)
     {
         string result;
@@ -55,6 +57,7 @@ public static class Utils
         return result;
     }
 
+    [EditorBrowsable(EditorBrowsableState.Never)]
     public static SafeUnmanagedMemoryHandle ToUnmanagedString(this string? managedString)
     {
 #if NET6_0_OR_GREATER
