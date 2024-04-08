@@ -145,6 +145,12 @@ public partial class NativeMethods
 #if NET5_0_OR_GREATER
         [SuppressGCTransition]
 #endif
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_append_blob")]
+        public static extern unsafe DuckDBState DuckDBAppendBlob(DuckDBAppender appender, byte* data, int length);
+
+#if NET5_0_OR_GREATER
+        [SuppressGCTransition]
+#endif
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_append_null")]
         public static extern DuckDBState DuckDBAppendNull(DuckDBAppender appender);
     }

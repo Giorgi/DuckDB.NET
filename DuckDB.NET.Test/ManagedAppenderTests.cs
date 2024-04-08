@@ -4,6 +4,7 @@ using DuckDB.NET.Data;
 using Xunit;
 using FluentAssertions;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Numerics;
 
@@ -112,6 +113,42 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    public void ManagedAppenderByteArray()
+    {
+        Command.CommandText = "CREATE TABLE blobAppenderTest(a Integer, b blob)";
+        Command.ExecuteNonQuery();
+
+        var bytes = new byte[10];
+        var bytes2 = new byte[10];
+        Random.Shared.NextBytes(bytes);
+
+        var span = new Span<byte>(bytes2);
+        Random.Shared.NextBytes(span);
+
+        using (var appender = Connection.CreateAppender("blobAppenderTest"))
+        {
+            appender.CreateRow().AppendValue(1).AppendValue(bytes).EndRow();
+            appender.CreateRow().AppendValue(10).AppendValue(span).EndRow();
+        }
+
+        Command.CommandText = "Select b from blobAppenderTest";
+        using var dataReader = Command.ExecuteReader();
+        dataReader.Read();
+
+        var stream = dataReader.GetStream(0);
+        var memoryStream = new MemoryStream();
+        stream.CopyTo(memoryStream);
+        memoryStream.ToArray().Should().BeEquivalentTo(bytes);
+
+        dataReader.Read();
+
+        stream = dataReader.GetStream(0);
+        memoryStream = new MemoryStream();
+        stream.CopyTo(memoryStream);
+        memoryStream.ToArray().Should().BeEquivalentTo(bytes2);
+    }
+
+    [Fact]
     public void IncompleteRowThrowsException()
     {
         var table = "CREATE TABLE managedAppenderIncompleteTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR);";
@@ -201,8 +238,6 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
                 .EndRow();
         }).Should().Throw<InvalidOperationException>();
     }
-
-
 
     [Fact]
     public void ManagedAppenderTestsWithSchema()

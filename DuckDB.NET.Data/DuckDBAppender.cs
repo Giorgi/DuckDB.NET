@@ -85,6 +85,12 @@ public class DuckDBAppenderRow
 
     public DuckDBAppenderRow AppendValue(bool? value) => Append(value);
 
+    public DuckDBAppenderRow AppendValue(byte[]? value) => Append(value);
+
+#if NET6_0_OR_GREATER
+    public DuckDBAppenderRow AppendValue(Span<byte> value) => AppendSpan(value);
+#endif
+
     public DuckDBAppenderRow AppendValue(string? value)
     {
         if (value == null)
@@ -159,7 +165,7 @@ public class DuckDBAppenderRow
 
     public DuckDBAppenderRow AppendValue(DuckDBTimeOnly? value) => Append(value);
 #endif
-    
+
     public DuckDBAppenderRow AppendValue(DateTime? value) => Append(value);
 
     #endregion
@@ -193,6 +199,7 @@ public class DuckDBAppenderRow
             DuckDBDateOnly val => NativeMethods.Appender.DuckDBAppendDate(appender, NativeMethods.DateTime.DuckDBToDate(val)),
             DuckDBTimeOnly val => NativeMethods.Appender.DuckDBAppendTime(appender, NativeMethods.DateTime.DuckDBToTime(val)),
 #endif
+            byte[] val => AppendByteArray(val),
             _ => throw new InvalidOperationException($"Unsupported type {typeof(T).Name}")
         };
 
@@ -203,4 +210,29 @@ public class DuckDBAppenderRow
 
         return this;
     }
+
+    private unsafe DuckDBState AppendByteArray(byte[] val)
+    {
+        fixed (byte* pSource = val)
+        {
+            return NativeMethods.Appender.DuckDBAppendBlob(appender, pSource, val.Length);
+        }
+    }
+
+#if NET6_0_OR_GREATER
+    private unsafe DuckDBAppenderRow AppendSpan(Span<byte> val)
+    {
+        fixed (byte* pSource = val)
+        {
+            var state = NativeMethods.Appender.DuckDBAppendBlob(appender, pSource, val.Length);
+
+            if (!state.IsSuccess())
+            {
+                DuckDBAppender.ThrowLastError(appender);
+            }
+        }
+
+        return this;
+    } 
+#endif
 }
