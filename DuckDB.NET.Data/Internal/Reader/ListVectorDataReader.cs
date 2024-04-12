@@ -104,7 +104,7 @@ internal class ListVectorDataReader : VectorDataReaderBase
                 }
                 else
                 {
-                    throw new NullReferenceException("The list contains null value");
+                    throw new InvalidCastException("The list contains null value");
                 }
             }
         }
@@ -129,7 +129,7 @@ internal class ListVectorDataReader : VectorDataReaderBase
                     }
                     else
                     {
-                        throw new NullReferenceException("The list contains null value");
+                        throw new InvalidCastException("The list contains null value");
                     }
                 }
             }

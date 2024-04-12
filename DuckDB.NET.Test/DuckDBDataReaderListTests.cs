@@ -47,7 +47,7 @@ public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBas
         list.Should().BeEquivalentTo(new List<int?> { 1, 2, null, 3, null });
 
         reader.Read();
-        reader.Invoking(rd => rd.GetFieldValue<List<int>>(0)).Should().Throw<NullReferenceException>();
+        reader.Invoking(rd => rd.GetFieldValue<List<int>>(0)).Should().Throw<InvalidCastException>();
 
         reader.Read();
         reader.IsDBNull(0).Should().BeTrue();
@@ -181,7 +181,7 @@ public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBas
         using var reader = Command.ExecuteReader();
         reader.Read();
 
-        reader.Invoking(r => r.GetFieldValue<List<TimeOnly>>(0)).Should().Throw<NullReferenceException>();
+        reader.Invoking(r => r.GetFieldValue<List<TimeOnly>>(0)).Should().Throw<InvalidCastException>();
     }
 
     [Fact]

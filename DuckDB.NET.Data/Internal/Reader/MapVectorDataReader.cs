@@ -74,7 +74,7 @@ internal class MapVectorDataReader : VectorDataReaderBase
             }
             else
             {
-                throw new NullReferenceException($"The Map in column {ColumnName} contains null value but dictionary does not allow null values");
+                throw new InvalidCastException($"The Map in column {ColumnName} contains null value but dictionary does not allow null values");
             }
         }
 

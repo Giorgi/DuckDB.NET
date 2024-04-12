@@ -110,7 +110,7 @@ internal class StructVectorDataReader : VectorDataReaderBase
             {
                 if (!isNullable)
                 {
-                    throw new NullReferenceException($"Property '{property.Key}' is not nullable but struct contains null value");
+                    throw new InvalidCastException($"Property '{property.Key}' is not nullable but struct contains null value");
                 }
             }
         }

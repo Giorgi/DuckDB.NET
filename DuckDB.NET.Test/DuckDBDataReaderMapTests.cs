@@ -92,7 +92,7 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
         var reader = Command.ExecuteReader();
 
         reader.Read();
-        reader.Invoking(r => r.GetFieldValue<Dictionary<string, int>>(0)).Should().Throw<NullReferenceException>();
+        reader.Invoking(r => r.GetFieldValue<Dictionary<string, int>>(0)).Should().Throw<InvalidCastException>();
     }
 
     [Fact]

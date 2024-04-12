@@ -139,7 +139,7 @@ public class DuckDBDataReaderStructTests(DuckDBDatabaseFixture db) : DuckDBTestB
         using var reader = Command.ExecuteReader();
         reader.Read();
 
-        reader.Invoking(r => r.GetFieldValue<Struct4>(0)).Should().Throw<NullReferenceException>().WithMessage(error);
+        reader.Invoking(r => r.GetFieldValue<Struct4>(0)).Should().Throw<InvalidCastException>().WithMessage(error);
     }
 
     class Struct1
