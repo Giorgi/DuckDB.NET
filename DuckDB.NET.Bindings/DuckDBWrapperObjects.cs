@@ -50,7 +50,7 @@ public class DuckDBConfig : SafeHandleZeroOrMinusOneIsInvalid
 
     protected override bool ReleaseHandle()
     {
-        NativeMethods.Configure.DuckDBDestroyConfig(out handle);
+        NativeMethods.Configuration.DuckDBDestroyConfig(out handle);
         return true;
     }
 }

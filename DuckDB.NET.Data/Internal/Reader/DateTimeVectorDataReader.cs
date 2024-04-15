@@ -115,7 +115,7 @@ internal class DateTimeVectorDataReader : VectorDataReaderBase
             return (T)(object)dateTime;
         }
 
-        var timestamp = NativeMethods.DateTime.DuckDBFromTimestamp(timestampStruct);
+        var timestamp = NativeMethods.DateTimeHelpers.DuckDBFromTimestamp(timestampStruct);
         return (T)(object)timestamp;
     }
 
@@ -139,17 +139,17 @@ internal class DateTimeVectorDataReader : VectorDataReaderBase
     {
         var data = GetFieldData<DuckDBTimeTzStruct>(offset);
 
-        return NativeMethods.DateTime.DuckDBFromTimeTz(data);
+        return NativeMethods.DateTimeHelpers.DuckDBFromTimeTz(data);
     }
 
     private DuckDBTimeOnly GetTimeOnly(ulong offset)
     {
-        return NativeMethods.DateTime.DuckDBFromTime(GetFieldData<DuckDBTime>(offset));
+        return NativeMethods.DateTimeHelpers.DuckDBFromTime(GetFieldData<DuckDBTime>(offset));
     }
 
     private DuckDBDateOnly GetDateOnly(ulong offset)
     {
-        return NativeMethods.DateTime.DuckDBFromDate(GetFieldData<DuckDBDate>(offset));
+        return NativeMethods.DateTimeHelpers.DuckDBFromDate(GetFieldData<DuckDBDate>(offset));
     }
 
     private object GetDate(ulong offset, Type targetType)
@@ -199,7 +199,7 @@ internal class DateTimeVectorDataReader : VectorDataReaderBase
             return data.ToDateTime();
         }
 
-        return NativeMethods.DateTime.DuckDBFromTimestamp(data);
+        return NativeMethods.DateTimeHelpers.DuckDBFromTimestamp(data);
     }
 
     private object GetDateTimeOffset(ulong offset, Type targetType)

@@ -14,17 +14,17 @@ internal class StructVectorDataReader : VectorDataReaderBase
 
     internal unsafe StructVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
-        using var logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
+        using var logicalType = NativeMethods.Vectors.DuckDBVectorGetColumnType(vector);
         var memberCount = NativeMethods.LogicalType.DuckDBStructTypeChildCount(logicalType);
         structDataReaders = new Dictionary<string, VectorDataReaderBase>(StringComparer.OrdinalIgnoreCase);
 
         for (int index = 0; index < memberCount; index++)
         {
             var name = NativeMethods.LogicalType.DuckDBStructTypeChildName(logicalType, index).ToManagedString();
-            var childVector = NativeMethods.DataChunks.DuckDBStructVectorGetChild(vector, index);
+            var childVector = NativeMethods.Vectors.DuckDBStructVectorGetChild(vector, index);
 
-            var childVectorData = NativeMethods.DataChunks.DuckDBVectorGetData(childVector);
-            var childVectorValidity = NativeMethods.DataChunks.DuckDBVectorGetValidity(childVector);
+            var childVectorData = NativeMethods.Vectors.DuckDBVectorGetData(childVector);
+            var childVectorValidity = NativeMethods.Vectors.DuckDBVectorGetValidity(childVector);
 
             using var childType = NativeMethods.LogicalType.DuckDBStructTypeChildType(logicalType, index);
             var type = NativeMethods.LogicalType.DuckDBGetTypeId(childType);

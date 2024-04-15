@@ -15,17 +15,17 @@ internal class ListVectorDataReader : VectorDataReaderBase
 
     internal unsafe ListVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
-        using var logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
+        using var logicalType = NativeMethods.Vectors.DuckDBVectorGetColumnType(vector);
         using var childType = IsList ? NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType) : NativeMethods.LogicalType.DuckDBArrayTypeChildType(logicalType);
 
         var type = NativeMethods.LogicalType.DuckDBGetTypeId(childType);
 
-        var childVector = IsList ? NativeMethods.DataChunks.DuckDBListVectorGetChild(vector) : NativeMethods.DataChunks.DuckDBArrayVectorGetChild(vector);
+        var childVector = IsList ? NativeMethods.Vectors.DuckDBListVectorGetChild(vector) : NativeMethods.Vectors.DuckDBArrayVectorGetChild(vector);
 
-        var childVectorData = NativeMethods.DataChunks.DuckDBVectorGetData(childVector);
-        var childVectorValidity = NativeMethods.DataChunks.DuckDBVectorGetValidity(childVector);
+        var childVectorData = NativeMethods.Vectors.DuckDBVectorGetData(childVector);
+        var childVectorValidity = NativeMethods.Vectors.DuckDBVectorGetValidity(childVector);
 
-        arraySize = IsList ? 0 : (ulong)NativeMethods.DataChunks.DuckDBArrayVectorGetSize(logicalType);
+        arraySize = IsList ? 0 : (ulong)NativeMethods.LogicalType.DuckDBArrayVectorGetSize(logicalType);
         listDataReader = VectorDataReaderFactory.CreateReader(childVector, childVectorData, childVectorValidity, type, columnName);
     }
 

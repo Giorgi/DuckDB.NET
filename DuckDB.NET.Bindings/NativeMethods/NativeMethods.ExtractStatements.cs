@@ -5,6 +5,7 @@ namespace DuckDB.NET.Native;
 
 public partial class NativeMethods
 {
+    //https://duckdb.org/docs/api/c/api#extract-statements
     public static class ExtractStatements
     {
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_extract_statements")]

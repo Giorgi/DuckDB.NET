@@ -14,23 +14,23 @@ internal class MapVectorDataReader : VectorDataReaderBase
 
     internal unsafe MapVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
-        using var logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
+        using var logicalType = NativeMethods.Vectors.DuckDBVectorGetColumnType(vector);
         using var keyTypeLogical = NativeMethods.LogicalType.DuckDBMapTypeKeyType(logicalType);
         using var valueTypeLogical = NativeMethods.LogicalType.DuckDBMapTypeValueType(logicalType);
 
         var keyType = NativeMethods.LogicalType.DuckDBGetTypeId(keyTypeLogical);
         var valueType = NativeMethods.LogicalType.DuckDBGetTypeId(valueTypeLogical);
 
-        var childVector = NativeMethods.DataChunks.DuckDBListVectorGetChild(vector);
+        var childVector = NativeMethods.Vectors.DuckDBListVectorGetChild(vector);
 
-        var keyVector = NativeMethods.DataChunks.DuckDBStructVectorGetChild(childVector, 0);
-        var valueVector = NativeMethods.DataChunks.DuckDBStructVectorGetChild(childVector, 1);
+        var keyVector = NativeMethods.Vectors.DuckDBStructVectorGetChild(childVector, 0);
+        var valueVector = NativeMethods.Vectors.DuckDBStructVectorGetChild(childVector, 1);
 
-        keyReader = VectorDataReaderFactory.CreateReader(keyVector, NativeMethods.DataChunks.DuckDBVectorGetData(keyVector),
-                                                                    NativeMethods.DataChunks.DuckDBVectorGetValidity(keyVector), keyType, columnName);
+        keyReader = VectorDataReaderFactory.CreateReader(keyVector, NativeMethods.Vectors.DuckDBVectorGetData(keyVector),
+                                                                    NativeMethods.Vectors.DuckDBVectorGetValidity(keyVector), keyType, columnName);
 
-        valueReader = VectorDataReaderFactory.CreateReader(valueVector, NativeMethods.DataChunks.DuckDBVectorGetData(valueVector),
-                                                                        NativeMethods.DataChunks.DuckDBVectorGetValidity(valueVector), valueType, columnName);
+        valueReader = VectorDataReaderFactory.CreateReader(valueVector, NativeMethods.Vectors.DuckDBVectorGetData(valueVector),
+                                                                        NativeMethods.Vectors.DuckDBVectorGetValidity(valueVector), valueType, columnName);
     }
 
     protected override Type GetColumnType()

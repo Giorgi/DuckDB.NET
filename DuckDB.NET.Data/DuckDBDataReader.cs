@@ -82,8 +82,8 @@ public class DuckDBDataReader : DbDataReader
             {
                 var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(currentChunk, i);
 
-                var vectorData = NativeMethods.DataChunks.DuckDBVectorGetData(vector);
-                var vectorValidityMask = NativeMethods.DataChunks.DuckDBVectorGetValidity(vector);
+                var vectorData = NativeMethods.Vectors.DuckDBVectorGetData(vector);
+                var vectorValidityMask = NativeMethods.Vectors.DuckDBVectorGetValidity(vector);
 
                 vectorReaders[i] = VectorDataReaderFactory.CreateReader(vector, vectorData, vectorValidityMask,
                                                                         NativeMethods.Query.DuckDBColumnType(ref currentResult, i),

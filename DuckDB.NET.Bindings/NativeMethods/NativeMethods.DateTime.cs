@@ -4,7 +4,8 @@ namespace DuckDB.NET.Native;
 
 public partial class NativeMethods
 {
-    public static class DateTime
+    //https://duckdb.org/docs/api/c/api#datetimetimestamp-helpers
+    public static class DateTimeHelpers
     {
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_from_date")]
         public static extern DuckDBDateOnly DuckDBFromDate(DuckDBDate date);

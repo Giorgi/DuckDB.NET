@@ -53,12 +53,12 @@ public class QueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             chunkRowCount.Should().Be(3);
 
             var columnA = NativeMethods.DataChunks.DuckDBDataChunkGetVector(chunk, 0);
-            using var columnALogicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(columnA);
+            using var columnALogicalType = NativeMethods.Vectors.DuckDBVectorGetColumnType(columnA);
             var columnAType = NativeMethods.LogicalType.DuckDBGetTypeId(columnALogicalType);
             columnAType.Should().Be(DuckDBType.Integer);
 
             var columnB = NativeMethods.DataChunks.DuckDBDataChunkGetVector(chunk, 1);
-            using var columnBLogicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(columnB);
+            using var columnBLogicalType = NativeMethods.Vectors.DuckDBVectorGetColumnType(columnB);
             var columnBType = NativeMethods.LogicalType.DuckDBGetTypeId(columnBLogicalType);
             columnBType.Should().Be(DuckDBType.Boolean);
 

@@ -195,20 +195,20 @@ internal sealed class PreparedStatement : IDisposable
 
     private static DuckDBState BindDateOnly(DuckDBPreparedStatement preparedStatement, long index, object value)
     {
-        var date = NativeMethods.DateTime.DuckDBToDate((DuckDBDateOnly)value);
+        var date = NativeMethods.DateTimeHelpers.DuckDBToDate((DuckDBDateOnly)value);
         return NativeMethods.PreparedStatements.DuckDBBindDate(preparedStatement, index, date);
     }
 
     private static DuckDBState BindTimeOnly(DuckDBPreparedStatement preparedStatement, long index, object value)
     {
-        var time = NativeMethods.DateTime.DuckDBToTime((DuckDBTimeOnly)value);
+        var time = NativeMethods.DateTimeHelpers.DuckDBToTime((DuckDBTimeOnly)value);
         return NativeMethods.PreparedStatements.DuckDBBindTime(preparedStatement, index, time);
     }
 
     private static DuckDBState BindTimestamp(DuckDBPreparedStatement preparedStatement, long index, object value)
     {
         var timestamp = DuckDBTimestamp.FromDateTime((DateTime)value);
-        var timestampStruct = NativeMethods.DateTime.DuckDBToTimestamp(timestamp);
+        var timestampStruct = NativeMethods.DateTimeHelpers.DuckDBToTimestamp(timestamp);
         return NativeMethods.PreparedStatements.DuckDBBindTimestamp(preparedStatement, index, timestampStruct);
     }
 

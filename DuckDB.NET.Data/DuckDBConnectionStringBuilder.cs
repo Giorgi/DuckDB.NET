@@ -22,11 +22,11 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
 
     static DuckDBConnectionStringBuilder()
     {
-        var configCount = NativeMethods.Configure.DuckDBConfigCount();
+        var configCount = NativeMethods.Configuration.DuckDBConfigCount();
 
         for (var index = 0; index < configCount; index++)
         {
-            NativeMethods.Configure.DuckDBGetConfigFlag(index, out var name, out _);
+            NativeMethods.Configuration.DuckDBGetConfigFlag(index, out var name, out _);
             ConfigurationOptions.Add(name.ToManagedString(false));
         }
     }

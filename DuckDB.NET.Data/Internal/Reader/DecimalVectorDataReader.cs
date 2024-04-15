@@ -12,7 +12,7 @@ internal class DecimalVectorDataReader : NumericVectorDataReader
 
     internal unsafe DecimalVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
-        using var logicalType = NativeMethods.DataChunks.DuckDBVectorGetColumnType(vector);
+        using var logicalType = NativeMethods.Vectors.DuckDBVectorGetColumnType(vector);
         scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
         decimalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
     }

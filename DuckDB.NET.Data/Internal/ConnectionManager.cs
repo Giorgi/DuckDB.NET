@@ -56,12 +56,12 @@ internal class ConnectionManager
             {
                 var path = connectionString.InMemory ? null : filename;
 
-                NativeMethods.Configure.DuckDBCreateConfig(out var config);
+                NativeMethods.Configuration.DuckDBCreateConfig(out var config);
                 using (config)
                 {
                     foreach (var (option, value) in connectionString.Configuration)
                     {
-                        var state = NativeMethods.Configure.DuckDBSetConfig(config, option, value);
+                        var state = NativeMethods.Configuration.DuckDBSetConfig(config, option, value);
 
                         if (!state.IsSuccess())
                         {

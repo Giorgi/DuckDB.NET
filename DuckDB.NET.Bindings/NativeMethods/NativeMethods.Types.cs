@@ -5,6 +5,7 @@ namespace DuckDB.NET.Native;
 
 public partial class NativeMethods
 {
+    //https://duckdb.org/docs/api/c/api#safe-fetch-functions
     public static class Types
     {
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_value_boolean")]

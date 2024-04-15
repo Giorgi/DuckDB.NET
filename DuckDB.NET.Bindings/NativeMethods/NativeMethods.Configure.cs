@@ -5,7 +5,7 @@ namespace DuckDB.NET.Native;
 
 public partial class NativeMethods
 {
-    public static class Configure
+    public static class Configuration
     {
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_config")]
         public static extern DuckDBState DuckDBCreateConfig(out DuckDBConfig config);

@@ -5,6 +5,7 @@ namespace DuckDB.NET.Native;
 
 public partial class NativeMethods
 {
+    //https://duckdb.org/docs/api/c/api#logical-type-interface
     public static class LogicalType
     {
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_type_id")]
@@ -48,5 +49,8 @@ public partial class NativeMethods
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_logical_type")]
         public static extern void DuckDBDestroyLogicalType(out IntPtr type);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_array_type_array_size")]
+        public static extern long DuckDBArrayVectorGetSize(DuckDBLogicalType logicalType);
     }
 }

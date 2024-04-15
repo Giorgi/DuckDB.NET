@@ -5,6 +5,8 @@ namespace DuckDB.NET.Native;
 
 public partial class NativeMethods
 {
+    //https://duckdb.org/docs/api/c/api#prepared-statements
+    //https://duckdb.org/docs/api/c/api#bind-values-to-prepared-statements
     public static class PreparedStatements
     {
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_prepare")]

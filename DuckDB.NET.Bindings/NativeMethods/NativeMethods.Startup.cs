@@ -5,6 +5,7 @@ namespace DuckDB.NET.Native;
 
 public partial class NativeMethods
 {
+    //https://duckdb.org/docs/api/c/api#openconnect
     public static class Startup
     {
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_open")]
