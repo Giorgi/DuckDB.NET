@@ -123,6 +123,16 @@ internal class NumericVectorDataReader : VectorDataReaderBase
             return (T)(object)(long)bigInteger;
         }
 
+        if (typeof(T) == typeof(uint))
+        {
+            return (T)(object)(uint)bigInteger;
+        }
+
+        if (typeof(T) == typeof(ulong))
+        {
+            return (T)(object)(ulong)bigInteger;
+        }
+
         return (T)(object)bigInteger;
     }
 
