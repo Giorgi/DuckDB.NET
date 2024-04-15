@@ -26,6 +26,8 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.GetFieldValue<short>(0).Should().Be(125);
         reader.GetFieldValue<int>(0).Should().Be(125);
         reader.GetFieldValue<long>(0).Should().Be(125);
+        reader.GetFieldValue<uint>(0).Should().Be(125);
+        reader.GetFieldValue<ulong>(0).Should().Be(125);
 
         reader.GetFieldType(0).Should().Be(typeof(BigInteger));
     }
