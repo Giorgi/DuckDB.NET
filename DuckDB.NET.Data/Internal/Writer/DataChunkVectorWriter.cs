@@ -1,7 +1,7 @@
 ﻿using System;
 using DuckDB.NET.Native;
 
-namespace DuckDB.NET.Data;
+namespace DuckDB.NET.Data.Internal.Writer;
 
 unsafe class DataChunkVectorWriter(IntPtr vector, void* vectorData)
 {
