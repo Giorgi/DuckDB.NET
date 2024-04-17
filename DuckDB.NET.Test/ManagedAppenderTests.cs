@@ -202,7 +202,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         }).Should().Throw<IndexOutOfRangeException>();
     }
 
-    [Fact(Skip = "Need to look into it")]
+    [Fact(Skip = "Skipping because DuckDB doesn't seem to validate data chunk types: https://github.com/duckdb/duckdb/issues/11699")]
     public void WrongTypesThrowException()
     {
         var table = "CREATE TABLE managedAppenderWrongTypeTest(a BOOLEAN, c Date, b TINYINT);";
@@ -215,7 +215,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
             var row = appender.CreateRow();
             row
                 .AppendValue(false)
-                .AppendValue((byte)1)
+                .AppendValue(1)
                 .AppendValue((short?)1)
                 .EndRow();
         }).Should().Throw<DuckDBException>();
