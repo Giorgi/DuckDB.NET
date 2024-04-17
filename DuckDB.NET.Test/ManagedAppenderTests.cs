@@ -42,10 +42,10 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
                     .AppendValue($"{i}")
                     .AppendValue(date.AddDays(i))
                     .AppendNullValue()
-                    .AppendNullValue()
-                    .AppendNullValue()
-                    //.AppendValue(new BigInteger(ulong.MaxValue) + i)
-                    //.AppendValue(new BigInteger(ulong.MaxValue) * 2 + i, true)
+                    //.AppendNullValue()
+                    //.AppendNullValue()
+                    .AppendValue(new BigInteger(ulong.MaxValue) + i)
+                    .AppendValue(new BigInteger(ulong.MaxValue) * 2 + i, true)
                     .EndRow();
             }
         }
@@ -150,10 +150,10 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         memoryStream.ToArray().Should().BeEquivalentTo(bytes2);
     }
 
-    [Fact(Skip = "Need to look into it")]
+    [Fact]
     public void IncompleteRowThrowsException()
     {
-        var table = "CREATE TABLE managedAppenderIncompleteTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR);";
+        var table = "CREATE TABLE managedAppenderIncompleteTest(a BOOLEAN, b TINYINT, c INTEGER);";
         Command.CommandText = table;
         Command.ExecuteNonQuery();
 
@@ -165,7 +165,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
                 .AppendValue(true)
                 .AppendValue((byte)1)
                 .EndRow();
-        }).Should().Throw<DuckDBException>();
+        }).Should().Throw<InvalidOperationException>();
     }
 
     [Fact]

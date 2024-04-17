@@ -144,7 +144,13 @@ public class DuckDBAppenderRow
         this.rowIndex = rowIndex;
     }
 
-    public void EndRow() { }
+    public void EndRow()
+    {
+        if (columnIndex < vectors.Length)
+        {
+            throw new InvalidOperationException($"The table {qualifiedTableName} has {vectors.Length} columns but you specified only {columnIndex} values");
+        }
+    }
 
     public DuckDBAppenderRow AppendValue(bool? value) => Append(value);
 
