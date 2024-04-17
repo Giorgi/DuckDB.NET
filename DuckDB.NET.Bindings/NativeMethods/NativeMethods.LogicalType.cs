@@ -8,6 +8,9 @@ public partial class NativeMethods
     //https://duckdb.org/docs/api/c/api#logical-type-interface
     public static class LogicalType
     {
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_logical_type")]
+        public static extern DuckDBLogicalType CreateLogicalType(DuckDBType type);
+
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_type_id")]
         public static extern DuckDBType DuckDBGetTypeId(DuckDBLogicalType type);
 

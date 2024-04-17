@@ -1,33 +1,62 @@
-﻿using System;
+﻿using DuckDB.NET.Native;
+using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
-using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data;
 
 public class DuckDBAppender : IDisposable
 {
+    private static readonly ulong DuckDBVectorSize = NativeMethods.Helpers.DuckDBVectorSize();
+
     private bool closed;
     private readonly Native.DuckDBAppender nativeAppender;
+    private readonly string qualifiedTableName;
 
-    internal DuckDBAppender(Native.DuckDBAppender appender)
+    private ulong rowCount;
+
+    private readonly DuckDBLogicalType[] logicalTypes;
+    private readonly DuckDBDataChunk dataChunk;
+    private readonly DataChunkVectorWriter[] vectorWriters;
+
+    internal unsafe DuckDBAppender(Native.DuckDBAppender appender, string qualifiedTableName)
     {
         nativeAppender = appender;
+        this.qualifiedTableName = qualifiedTableName;
+
+        var columnCount = NativeMethods.Appender.DuckDBAppenderColumnCount(nativeAppender);
+
+        vectorWriters = new DataChunkVectorWriter[columnCount];
+        logicalTypes = new DuckDBLogicalType[columnCount];
+        var logicalTypeHandles = new IntPtr[columnCount];
+
+        for (ulong index = 0; index < columnCount; index++)
+        {
+            logicalTypes[index] = NativeMethods.Appender.DuckDBAppenderColumnType(nativeAppender, index);
+            logicalTypeHandles[index] = logicalTypes[index].DangerousGetHandle();
+        }
+
+        dataChunk = NativeMethods.DataChunks.DuckDBCreateDataChunk(logicalTypeHandles, columnCount);
     }
 
     public DuckDBAppenderRow CreateRow()
     {
-        // https://duckdb.org/docs/api/c/api#duckdb_appender_begin_row
-        // Begin row is a no op. Do not need to call.
-        // NativeMethods.Appender.DuckDBAppenderBeingRow(_connection.NativeConnection)
-
         if (closed)
         {
             throw new InvalidOperationException("Appender is already closed");
         }
 
-        return new DuckDBAppenderRow(nativeAppender);
+        if (rowCount % DuckDBVectorSize == 0)
+        {
+            AppendDataChunk();
+
+            InitVectorWriters();
+            rowCount = 0;
+        }
+
+        rowCount++;
+        return new DuckDBAppenderRow(nativeAppender, qualifiedTableName, vectorWriters, rowCount - 1);
     }
 
     public void Close()
@@ -36,11 +65,20 @@ public class DuckDBAppender : IDisposable
 
         try
         {
+            AppendDataChunk();
+
+            foreach (var logicalType in logicalTypes)
+            {
+                logicalType.Dispose();
+            }
+
             var state = NativeMethods.Appender.DuckDBAppenderClose(nativeAppender);
             if (!state.IsSuccess())
             {
                 ThrowLastError(nativeAppender);
             }
+
+            dataChunk.Dispose();
         }
         finally
         {
@@ -56,6 +94,30 @@ public class DuckDBAppender : IDisposable
         }
     }
 
+    private unsafe void InitVectorWriters()
+    {
+        for (long index = 0; index < vectorWriters.LongLength; index++)
+        {
+            var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(dataChunk, index);
+            var vectorData = NativeMethods.Vectors.DuckDBVectorGetData(vector);
+
+            vectorWriters[index] = new DataChunkVectorWriter(vector, vectorData);
+        }
+    }
+
+    private void AppendDataChunk()
+    {
+        NativeMethods.DataChunks.DuckDBDataChunkSetSize(dataChunk, rowCount);
+        var state = NativeMethods.Appender.DuckDBAppendDataChunk(nativeAppender, dataChunk);
+
+        if (!state.IsSuccess())
+        {
+            ThrowLastError(nativeAppender);
+        }
+
+        NativeMethods.DataChunks.DuckDBDataChunkReset(dataChunk);
+    }
+
     [DoesNotReturn]
     [StackTraceHidden]
     internal static void ThrowLastError(Native.DuckDBAppender appender)
@@ -68,20 +130,21 @@ public class DuckDBAppender : IDisposable
 
 public class DuckDBAppenderRow
 {
+    private int columnIndex = 0;
     private readonly Native.DuckDBAppender appender;
+    private readonly string qualifiedTableName;
+    private readonly DataChunkVectorWriter[] vectors;
+    private readonly ulong rowIndex;
 
-    internal DuckDBAppenderRow(Native.DuckDBAppender appender)
+    internal DuckDBAppenderRow(Native.DuckDBAppender appender, string qualifiedTableName, DataChunkVectorWriter[] vectors, ulong rowIndex)
     {
         this.appender = appender;
+        this.qualifiedTableName = qualifiedTableName;
+        this.vectors = vectors;
+        this.rowIndex = rowIndex;
     }
 
-    public void EndRow()
-    {
-        if (!NativeMethods.Appender.DuckDBAppenderEndRow(appender).IsSuccess())
-        {
-            DuckDBAppender.ThrowLastError(appender);
-        }
-    }
+    public void EndRow() { }
 
     public DuckDBAppenderRow AppendValue(bool? value) => Append(value);
 
@@ -113,11 +176,11 @@ public class DuckDBAppenderRow
 
         if (unsigned)
         {
-            NativeMethods.Appender.DuckDBAppendUHugeInt(appender, new DuckDBUHugeInt(value.Value));
+            vectors[columnIndex].AppendValue(new DuckDBUHugeInt(value.Value), rowIndex);
         }
         else
         {
-            NativeMethods.Appender.DuckDBAppendHugeInt(appender, new DuckDBHugeInt(value.Value));
+            vectors[columnIndex].AppendValue(new DuckDBHugeInt(value.Value), rowIndex);
         }
 
         return this;
@@ -172,32 +235,37 @@ public class DuckDBAppenderRow
 
     private DuckDBAppenderRow Append<T>(T? value)
     {
+        if (columnIndex >= vectors.Length)
+        {
+            throw new IndexOutOfRangeException($"The table {qualifiedTableName} has {vectors.Length} columns but you are trying to append value for column {columnIndex + 1}");
+        }
+
         var state = value switch
         {
-            null => NativeMethods.Appender.DuckDBAppendNull(appender),
-            bool val => NativeMethods.Appender.DuckDBAppendBool(appender, val),
-            SafeUnmanagedMemoryHandle val => NativeMethods.Appender.DuckDBAppendVarchar(appender, val),
+            null => vectors[columnIndex].AppendNull(rowIndex),
+            bool val => vectors[columnIndex].AppendValue<byte>((byte)(val ? 1 : 0), rowIndex),
+            SafeUnmanagedMemoryHandle val => vectors[columnIndex].AppendString(val, rowIndex),
 
-            sbyte val => NativeMethods.Appender.DuckDBAppendInt8(appender, val),
-            short val => NativeMethods.Appender.DuckDBAppendInt16(appender, val),
-            int val => NativeMethods.Appender.DuckDBAppendInt32(appender, val),
-            long val => NativeMethods.Appender.DuckDBAppendInt64(appender, val),
+            sbyte val => vectors[columnIndex].AppendValue(val, rowIndex),
+            short val => vectors[columnIndex].AppendValue(val, rowIndex),
+            int val => vectors[columnIndex].AppendValue(val, rowIndex),
+            long val => vectors[columnIndex].AppendValue(val, rowIndex),
 
-            byte val => NativeMethods.Appender.DuckDBAppendUInt8(appender, val),
-            ushort val => NativeMethods.Appender.DuckDBAppendUInt16(appender, val),
-            uint val => NativeMethods.Appender.DuckDBAppendUInt32(appender, val),
-            ulong val => NativeMethods.Appender.DuckDBAppendUInt64(appender, val),
+            byte val => vectors[columnIndex].AppendValue(val, rowIndex),
+            ushort val => vectors[columnIndex].AppendValue(val, rowIndex),
+            uint val => vectors[columnIndex].AppendValue(val, rowIndex),
+            ulong val => vectors[columnIndex].AppendValue(val, rowIndex),
 
-            float val => NativeMethods.Appender.DuckDBAppendFloat(appender, val),
-            double val => NativeMethods.Appender.DuckDBAppendDouble(appender, val),
+            float val => vectors[columnIndex].AppendValue(val, rowIndex),
+            double val => vectors[columnIndex].AppendValue(val, rowIndex),
 
-            DateTime val => NativeMethods.Appender.DuckDBAppendTimestamp(appender, NativeMethods.DateTimeHelpers.DuckDBToTimestamp(DuckDBTimestamp.FromDateTime(val))),
+            DateTime val => vectors[columnIndex].AppendValue(NativeMethods.DateTimeHelpers.DuckDBToTimestamp(DuckDBTimestamp.FromDateTime(val)), rowIndex),
 #if NET6_0_OR_GREATER
-            DateOnly val => NativeMethods.Appender.DuckDBAppendDate(appender, NativeMethods.DateTimeHelpers.DuckDBToDate(val)),
-            TimeOnly val => NativeMethods.Appender.DuckDBAppendTime(appender, NativeMethods.DateTimeHelpers.DuckDBToTime(val)),
+            DateOnly val => vectors[columnIndex].AppendValue(NativeMethods.DateTimeHelpers.DuckDBToDate(val), rowIndex),
+            TimeOnly val => vectors[columnIndex].AppendValue(NativeMethods.DateTimeHelpers.DuckDBToTime(val), rowIndex),
 #else
-            DuckDBDateOnly val => NativeMethods.Appender.DuckDBAppendDate(appender, NativeMethods.DateTimeHelpers.DuckDBToDate(val)),
-            DuckDBTimeOnly val => NativeMethods.Appender.DuckDBAppendTime(appender, NativeMethods.DateTimeHelpers.DuckDBToTime(val)),
+            DuckDBDateOnly val => vectors[columnIndex].AppendValue(NativeMethods.DateTimeHelpers.DuckDBToDate(val), rowIndex),
+            DuckDBTimeOnly val => vectors[columnIndex].AppendValue(NativeMethods.DateTimeHelpers.DuckDBToTime(val), rowIndex),
 #endif
             byte[] val => AppendByteArray(val),
             _ => throw new InvalidOperationException($"Unsupported type {typeof(T).Name}")
@@ -208,6 +276,8 @@ public class DuckDBAppenderRow
             DuckDBAppender.ThrowLastError(appender);
         }
 
+        columnIndex++;
+
         return this;
     }
 
@@ -215,7 +285,7 @@ public class DuckDBAppenderRow
     {
         fixed (byte* pSource = val)
         {
-            return NativeMethods.Appender.DuckDBAppendBlob(appender, pSource, val.Length);
+            return vectors[columnIndex].AppendBlob(pSource, val.Length, rowIndex);
         }
     }
 
@@ -224,15 +294,10 @@ public class DuckDBAppenderRow
     {
         fixed (byte* pSource = val)
         {
-            var state = NativeMethods.Appender.DuckDBAppendBlob(appender, pSource, val.Length);
-
-            if (!state.IsSuccess())
-            {
-                DuckDBAppender.ThrowLastError(appender);
-            }
+            vectors[columnIndex].AppendBlob(pSource, val.Length, rowIndex);
         }
 
         return this;
-    } 
+    }
 #endif
 }

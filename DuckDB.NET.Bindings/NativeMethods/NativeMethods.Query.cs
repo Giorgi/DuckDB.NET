@@ -33,7 +33,7 @@ public partial class NativeMethods
         public static extern DuckDBLogicalType DuckDBColumnLogicalType([In, Out] ref DuckDBResult result, long col);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_column_count")]
-        public static extern long DuckDBColumnCount([In, Out] ref DuckDBResult result);
+        public static extern ulong DuckDBColumnCount([In, Out] ref DuckDBResult result);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_row_count")]
         public static extern long DuckDBRowCount([In, Out] ref DuckDBResult result);

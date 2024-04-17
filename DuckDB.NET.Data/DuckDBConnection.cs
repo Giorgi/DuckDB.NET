@@ -163,7 +163,12 @@ public class DuckDBConnection : DbConnection
             }
         }
 
-        return new DuckDBAppender(nativeAppender);
+        return new DuckDBAppender(nativeAppender, GetTableName());
+
+        string GetTableName()
+        {
+            return string.IsNullOrEmpty(schema) ? table : $"{schema}.{table}";
+        }
     }
 
     protected override void Dispose(bool disposing)
