@@ -182,11 +182,11 @@ public class DuckDBAppenderRow
 
         if (unsigned)
         {
-            vectors[columnIndex].AppendValue(new DuckDBUHugeInt(value.Value), rowIndex);
+            Append(new DuckDBUHugeInt(value.Value));
         }
         else
         {
-            vectors[columnIndex].AppendValue(new DuckDBHugeInt(value.Value), rowIndex);
+            Append(new DuckDBHugeInt(value.Value));
         }
 
         return this;
@@ -265,6 +265,9 @@ public class DuckDBAppenderRow
             float val => vectors[columnIndex].AppendValue(val, rowIndex),
             double val => vectors[columnIndex].AppendValue(val, rowIndex),
 
+            DuckDBHugeInt val => vectors[columnIndex].AppendValue(val, rowIndex),
+            DuckDBUHugeInt val => vectors[columnIndex].AppendValue(val, rowIndex),
+
             DateTime val => vectors[columnIndex].AppendValue(NativeMethods.DateTimeHelpers.DuckDBToTimestamp(DuckDBTimestamp.FromDateTime(val)), rowIndex),
 #if NET6_0_OR_GREATER
             DateOnly val => vectors[columnIndex].AppendValue(NativeMethods.DateTimeHelpers.DuckDBToDate(val), rowIndex),
@@ -303,6 +306,7 @@ public class DuckDBAppenderRow
             vectors[columnIndex].AppendBlob(pSource, val.Length, rowIndex);
         }
 
+        columnIndex++;
         return this;
     }
 #endif

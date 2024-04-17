@@ -42,8 +42,6 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
                     .AppendValue($"{i}")
                     .AppendValue(date.AddDays(i))
                     .AppendNullValue()
-                    //.AppendNullValue()
-                    //.AppendNullValue()
                     .AppendValue(new BigInteger(ulong.MaxValue) + i)
                     .AppendValue(new BigInteger(ulong.MaxValue) * 2 + i, true)
                     .EndRow();
@@ -70,8 +68,8 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
                 }
 
                 reader.IsDBNull(13).Should().BeTrue();
-                //reader.GetFieldValue<BigInteger>(14).Should().Be(new BigInteger(ulong.MaxValue) + readRowIndex);
-                //reader.GetFieldValue<BigInteger>(15).Should().Be(new BigInteger(ulong.MaxValue) * 2 + readRowIndex);
+                reader.GetFieldValue<BigInteger>(14).Should().Be(new BigInteger(ulong.MaxValue) + readRowIndex);
+                reader.GetFieldValue<BigInteger>(15).Should().Be(new BigInteger(ulong.MaxValue) * 2 + readRowIndex);
 
                 readRowIndex++;
             }
