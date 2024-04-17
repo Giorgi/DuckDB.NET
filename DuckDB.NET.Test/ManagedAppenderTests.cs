@@ -129,6 +129,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         {
             appender.CreateRow().AppendValue(1).AppendValue(bytes).EndRow();
             appender.CreateRow().AppendValue(10).AppendValue(span).EndRow();
+            appender.CreateRow().AppendValue(2).AppendValue((byte[])null).EndRow();
         }
 
         Command.CommandText = "Select b from blobAppenderTest";
@@ -146,6 +147,9 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         memoryStream = new MemoryStream();
         stream.CopyTo(memoryStream);
         memoryStream.ToArray().Should().BeEquivalentTo(bytes2);
+
+        dataReader.Read();
+        dataReader.IsDBNull(0).Should().BeTrue();
     }
 
     [Fact]
