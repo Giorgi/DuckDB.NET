@@ -31,9 +31,9 @@ public class DuckDBAppenderRow
 
     public DuckDBAppenderRow AppendValue(bool? value) => Append(value);
 
-    public DuckDBAppenderRow AppendValue(byte[]? value) => Append(value);
-
 #if NET6_0_OR_GREATER
+    public DuckDBAppenderRow AppendValue(byte[]? value) => AppendSpan(value);
+
     public DuckDBAppenderRow AppendValue(Span<byte> value) => AppendSpan(value);
 #endif
 
@@ -43,12 +43,23 @@ public class DuckDBAppenderRow
         {
             return AppendNullValue();
         }
+     
+        CheckColumnAccess();
 
         using var unmanagedString = value.ToUnmanagedString();
-        return Append(unmanagedString);
+
+        vectors[columnIndex].AppendString(unmanagedString, rowIndex);
+
+        columnIndex++;
+
+        return this;
     }
 
-    public DuckDBAppenderRow AppendNullValue() => Append<object>(null);
+    public DuckDBAppenderRow AppendNullValue()
+    {
+        Append<int>(null);
+        return this;
+    }
 
     public DuckDBAppenderRow AppendValue(BigInteger? value, bool unsigned = false)
     {
@@ -59,11 +70,11 @@ public class DuckDBAppenderRow
 
         if (unsigned)
         {
-            Append(new DuckDBUHugeInt(value.Value));
+            Append<DuckDBUHugeInt>(new DuckDBUHugeInt(value.Value));
         }
         else
         {
-            Append(new DuckDBHugeInt(value.Value));
+            Append<DuckDBHugeInt>(new DuckDBHugeInt(value.Value));
         }
 
         return this;
@@ -103,63 +114,30 @@ public class DuckDBAppenderRow
 
     #region Append Temporal
 #if NET6_0_OR_GREATER
-    public DuckDBAppenderRow AppendValue(DateOnly? value) => Append(value);
+    public DuckDBAppenderRow AppendValue(DateOnly? value) => Append(value == null ? (DuckDBDate?)null : NativeMethods.DateTimeHelpers.DuckDBToDate(value.Value));
 
-    public DuckDBAppenderRow AppendValue(TimeOnly? value) => Append(value);
+    public DuckDBAppenderRow AppendValue(TimeOnly? value) => Append(value == null ? (DuckDBTime?)null : NativeMethods.DateTimeHelpers.DuckDBToTime(value.Value));
 #else
-    public DuckDBAppenderRow AppendValue(DuckDBDateOnly? value) => Append(value);
+    public DuckDBAppenderRow AppendValue(DuckDBDateOnly? value) => Append(value == null ? (DuckDBDate?)null : NativeMethods.DateTimeHelpers.DuckDBToDate(value.Value));
 
-    public DuckDBAppenderRow AppendValue(DuckDBTimeOnly? value) => Append(value);
+    public DuckDBAppenderRow AppendValue(DuckDBTimeOnly? value) => Append(value == null ? (DuckDBTime?)null : NativeMethods.DateTimeHelpers.DuckDBToTime(value.Value));
 #endif
 
-    public DuckDBAppenderRow AppendValue(DateTime? value) => Append(value);
+    public DuckDBAppenderRow AppendValue(DateTime? value) => Append(value == null ? (DuckDBTimestampStruct?)null : NativeMethods.DateTimeHelpers.DuckDBToTimestamp(DuckDBTimestamp.FromDateTime(value.Value)));
 
     #endregion
 
-    private DuckDBAppenderRow Append<T>(T? value)
+    private DuckDBAppenderRow Append<T>(T? value) where T : unmanaged
     {
-        if (columnIndex >= vectors.Length)
+        CheckColumnAccess();
+
+        if (value == null)
         {
-            throw new IndexOutOfRangeException($"The table {qualifiedTableName} has {vectors.Length} columns but you are trying to append value for column {columnIndex + 1}");
+            vectors[columnIndex].AppendNull(rowIndex);
         }
-
-        var state = value switch
+        else
         {
-            null => vectors[columnIndex].AppendNull(rowIndex),
-            bool val => vectors[columnIndex].AppendValue<byte>((byte)(val ? 1 : 0), rowIndex),
-            SafeUnmanagedMemoryHandle val => vectors[columnIndex].AppendString(val, rowIndex),
-
-            sbyte val => vectors[columnIndex].AppendValue(val, rowIndex),
-            short val => vectors[columnIndex].AppendValue(val, rowIndex),
-            int val => vectors[columnIndex].AppendValue(val, rowIndex),
-            long val => vectors[columnIndex].AppendValue(val, rowIndex),
-
-            byte val => vectors[columnIndex].AppendValue(val, rowIndex),
-            ushort val => vectors[columnIndex].AppendValue(val, rowIndex),
-            uint val => vectors[columnIndex].AppendValue(val, rowIndex),
-            ulong val => vectors[columnIndex].AppendValue(val, rowIndex),
-
-            float val => vectors[columnIndex].AppendValue(val, rowIndex),
-            double val => vectors[columnIndex].AppendValue(val, rowIndex),
-
-            DuckDBHugeInt val => vectors[columnIndex].AppendValue(val, rowIndex),
-            DuckDBUHugeInt val => vectors[columnIndex].AppendValue(val, rowIndex),
-
-            DateTime val => vectors[columnIndex].AppendValue(NativeMethods.DateTimeHelpers.DuckDBToTimestamp(DuckDBTimestamp.FromDateTime(val)), rowIndex),
-#if NET6_0_OR_GREATER
-            DateOnly val => vectors[columnIndex].AppendValue(NativeMethods.DateTimeHelpers.DuckDBToDate(val), rowIndex),
-            TimeOnly val => vectors[columnIndex].AppendValue(NativeMethods.DateTimeHelpers.DuckDBToTime(val), rowIndex),
-#else
-            DuckDBDateOnly val => vectors[columnIndex].AppendValue(NativeMethods.DateTimeHelpers.DuckDBToDate(val), rowIndex),
-            DuckDBTimeOnly val => vectors[columnIndex].AppendValue(NativeMethods.DateTimeHelpers.DuckDBToTime(val), rowIndex),
-#endif
-            byte[] val => AppendByteArray(val),
-            _ => throw new InvalidOperationException($"Unsupported type {typeof(T).Name}")
-        };
-
-        if (!state.IsSuccess())
-        {
-            DuckDBAppender.ThrowLastError(appender);
+            vectors[columnIndex].AppendValue(value.Value, rowIndex);
         }
 
         columnIndex++;
@@ -167,17 +145,16 @@ public class DuckDBAppenderRow
         return this;
     }
 
-    private unsafe DuckDBState AppendByteArray(byte[] val)
-    {
-        fixed (byte* pSource = val)
-        {
-            return vectors[columnIndex].AppendBlob(pSource, val.Length, rowIndex);
-        }
-    }
-
 #if NET6_0_OR_GREATER
     private unsafe DuckDBAppenderRow AppendSpan(Span<byte> val)
     {
+        if (val == null)
+        {
+            return AppendNullValue();
+        }
+
+        CheckColumnAccess();
+        
         fixed (byte* pSource = val)
         {
             vectors[columnIndex].AppendBlob(pSource, val.Length, rowIndex);
@@ -186,5 +163,14 @@ public class DuckDBAppenderRow
         columnIndex++;
         return this;
     }
+
 #endif
+
+    private void CheckColumnAccess()
+    {
+        if (columnIndex >= vectors.Length)
+        {
+            throw new IndexOutOfRangeException($"The table {qualifiedTableName} has {vectors.Length} columns but you are trying to append value for column {columnIndex + 1}");
+        }
+    }
 }
