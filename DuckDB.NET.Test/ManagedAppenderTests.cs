@@ -4,6 +4,7 @@ using DuckDB.NET.Data;
 using Xunit;
 using FluentAssertions;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Linq;
 using System.Numerics;
@@ -44,7 +45,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
                     .AppendNullValue()
                     .AppendValue(new BigInteger(ulong.MaxValue) + i)
                     .AppendValue(new BigInteger(ulong.MaxValue) * 2 + i, true)
-                    .AppendDecimal(i + i / 100m)
+                    .AppendValue(i + i / 100m)
                     .EndRow();
             }
         }
@@ -167,10 +168,10 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
             {
                 appender.CreateRow()
                     .AppendValue(i)
-                    .AppendDecimal(i * (i % 2 == 0 ? 1m : -1m) + i / 10m)
-                    .AppendDecimal(i * (i % 2 == 0 ? 1m : -1m) + i / 1000m)
-                    .AppendDecimal(i * (i % 2 == 0 ? 1m : -1m) + i / 100000m)
-                    .AppendDecimal(i * (i % 2 == 0 ? 10000000000m : -10000000000m) + i / 100000000000m)
+                    .AppendValue(i * (i % 2 == 0 ? 1m : -1m) + i / 10m)
+                    .AppendValue(i * (i % 2 == 0 ? 1m : -1m) + i / 1000m)
+                    .AppendValue(i * (i % 2 == 0 ? 1m : -1m) + i / 100000m)
+                    .AppendValue(i * (i % 2 == 0 ? 10000000000m : -10000000000m) + i / 100000000000m)
                     .EndRow();
             }
         }
@@ -187,6 +188,32 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
                 reader.GetDecimal(4).Should().Be(i * (i % 2 == 0 ? 10000000000m : -10000000000m) + i / 100000000000m);
                 i++;
             }
+        }
+    }
+
+    [Fact]
+    public void ManagedAppenderGuid()
+    {
+        var table = "CREATE TABLE managedAppenderGuids(a UUID);";
+        Command.CommandText = table;
+        Command.ExecuteNonQuery();
+
+        var guids = Enumerable.Range(0, 20).Select(i => Guid.NewGuid()).ToList();
+
+        using (var appender = Connection.CreateAppender("managedAppenderGuids"))
+        {
+            foreach (var guid in guids)
+            {
+                appender.CreateRow().AppendValue(guid).EndRow();
+            }
+        }
+
+        Command.CommandText = "SELECT * FROM managedAppenderGuids";
+        using (var reader = Command.ExecuteReader())
+        {
+            var result = reader.Cast<IDataRecord>().Select(record => record.GetGuid(0)).ToList();
+
+            result.Should().BeEquivalentTo(guids);
         }
     }
 

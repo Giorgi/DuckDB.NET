@@ -45,17 +45,32 @@ public class DuckDBAppenderRow
         return AppendHelper(value, (writer, data) => writer.AppendString(data!, rowIndex));
     }
 
-    public DuckDBAppenderRow AppendDecimal(decimal? value)
+    public DuckDBAppenderRow AppendValue(decimal? value)
     {
         return AppendHelper(value, (writer, data) =>
         {
             if (writer is DecimalVectorDataWriter decimalVectorWriter)
             {
-                decimalVectorWriter.Append(data!.Value, rowIndex);
+                decimalVectorWriter.AppendValue(data!.Value, rowIndex);
             }
             else
             {
                 throw new InvalidOperationException("Cannot write decimal to non-decimal column");
+            }
+        });
+    }
+
+    public DuckDBAppenderRow AppendValue(Guid? value)
+    {
+        return AppendHelper(value, (writer, data) =>
+        {
+            if (writer is GuidVectorDataWriter guidVectorDataWriter)
+            {
+                guidVectorDataWriter.AppendValue(data!.Value, rowIndex);
+            }
+            else
+            {
+                throw new InvalidOperationException("Cannot write guid to non-uuid column");
             }
         });
     }

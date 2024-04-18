@@ -9,7 +9,7 @@ internal unsafe class DecimalVectorDataWriter(IntPtr vector, void* vectorData, D
     private readonly byte scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
     private readonly DuckDBType decimalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
 
-    public void Append(decimal value, ulong rowIndex)
+    public void AppendValue(decimal value, ulong rowIndex)
     {
         var power = Math.Pow(10, scale);
 
