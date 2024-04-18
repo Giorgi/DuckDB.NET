@@ -50,7 +50,6 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         }
 
         Command.CommandText = "SELECT * FROM managedAppenderTest";
-        Command.ExecuteNonQuery();
         using (var reader = Command.ExecuteReader())
         {
             var readRowIndex = 0;
@@ -152,6 +151,43 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
 
         dataReader.Read();
         dataReader.IsDBNull(0).Should().BeTrue();
+    }
+
+    [Fact]
+    public void ManagedAppenderDecimals()
+    {
+        var table = "CREATE TABLE managedAppenderDecimals(a INTEGER, b decimal(3, 1), c decimal (9, 4), d decimal (18, 6), e decimal(38, 12));";
+        Command.CommandText = table;
+        Command.ExecuteNonQuery();
+
+        var rows = 20;
+        using (var appender = Connection.CreateAppender("managedAppenderDecimals"))
+        {
+            for (int i = 0; i < rows; i++)
+            {
+                appender.CreateRow()
+                    .AppendValue(i)
+                    .AppendDecimal(i * (i % 2 == 0 ? 1m : -1m) + i / 10m)
+                    .AppendDecimal(i * (i % 2 == 0 ? 1m : -1m) + i / 1000m)
+                    .AppendDecimal(i * (i % 2 == 0 ? 1m : -1m) + i / 100000m)
+                    .AppendDecimal(i * (i % 2 == 0 ? 10000000000m : -10000000000m) + i / 100000000000m)
+                    .EndRow();
+            }
+        }
+
+        Command.CommandText = "SELECT * FROM managedAppenderDecimals";
+        using (var reader = Command.ExecuteReader())
+        {
+            var i = 0;
+            while (reader.Read())
+            {
+                reader.GetDecimal(1).Should().Be(i * (i % 2 == 0 ? 1m : -1m) + i / 10m);
+                reader.GetDecimal(2).Should().Be(i * (i % 2 == 0 ? 1m : -1m) + i / 1000m);
+                reader.GetDecimal(3).Should().Be(i * (i % 2 == 0 ? 1m : -1m) + i / 100000m);
+                reader.GetDecimal(4).Should().Be(i * (i % 2 == 0 ? 10000000000m : -10000000000m) + i / 100000000000m);
+                i++;
+            }
+        }
     }
 
     [Fact]

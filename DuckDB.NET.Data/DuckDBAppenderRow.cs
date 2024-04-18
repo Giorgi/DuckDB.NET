@@ -10,10 +10,10 @@ public class DuckDBAppenderRow
     private int columnIndex = 0;
     private readonly Native.DuckDBAppender appender;
     private readonly string qualifiedTableName;
-    private readonly DataChunkVectorWriter[] vectorWriters;
+    private readonly VectorDataWriterBase[] vectorWriters;
     private readonly ulong rowIndex;
 
-    internal DuckDBAppenderRow(Native.DuckDBAppender appender, string qualifiedTableName, DataChunkVectorWriter[] vectorWriters, ulong rowIndex)
+    internal DuckDBAppenderRow(Native.DuckDBAppender appender, string qualifiedTableName, VectorDataWriterBase[] vectorWriters, ulong rowIndex)
     {
         this.appender = appender;
         this.qualifiedTableName = qualifiedTableName;
@@ -49,9 +49,9 @@ public class DuckDBAppenderRow
     {
         return AppendHelper(value, (writer, data) =>
         {
-            if (writer is DataChunkDecimalVectorWriter decimalVectorWriter)
+            if (writer is DecimalVectorDataWriter decimalVectorWriter)
             {
-                decimalVectorWriter.AppendDecimal(data!.Value, rowIndex);
+                decimalVectorWriter.Append(data!.Value, rowIndex);
             }
             else
             {
@@ -144,7 +144,7 @@ public class DuckDBAppenderRow
         return this;
     }
 
-    private DuckDBAppenderRow AppendHelper<T>(T value, Action<DataChunkVectorWriter, T> appendAction)
+    private DuckDBAppenderRow AppendHelper<T>(T value, Action<VectorDataWriterBase, T> appendAction)
     {
         if (value == null)
         {

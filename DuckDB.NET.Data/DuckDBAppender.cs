@@ -18,7 +18,7 @@ public class DuckDBAppender : IDisposable
 
     private readonly DuckDBLogicalType[] logicalTypes;
     private readonly DuckDBDataChunk dataChunk;
-    private readonly DataChunkVectorWriter[] vectorWriters;
+    private readonly VectorDataWriterBase[] vectorWriters;
 
     internal unsafe DuckDBAppender(Native.DuckDBAppender appender, string qualifiedTableName)
     {
@@ -27,7 +27,7 @@ public class DuckDBAppender : IDisposable
 
         var columnCount = NativeMethods.Appender.DuckDBAppenderColumnCount(nativeAppender);
 
-        vectorWriters = new DataChunkVectorWriter[columnCount];
+        vectorWriters = new VectorDataWriterBase[columnCount];
         logicalTypes = new DuckDBLogicalType[columnCount];
         var logicalTypeHandles = new IntPtr[columnCount];
 
@@ -101,9 +101,7 @@ public class DuckDBAppender : IDisposable
             var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(dataChunk, index);
             var vectorData = NativeMethods.Vectors.DuckDBVectorGetData(vector);
 
-            var logicalType = logicalTypes[index];
-            var columnType = NativeMethods.LogicalType.DuckDBGetTypeId(logicalType);
-            vectorWriters[index] = columnType == DuckDBType.Decimal ? new DataChunkDecimalVectorWriter(vector, vectorData, logicalType) : new DataChunkVectorWriter(vector, vectorData);
+            vectorWriters[index] = VectorDataWriterFactory.CreateWriter(vector, vectorData, logicalTypes[index]);
         }
     }
 
