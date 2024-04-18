@@ -16,7 +16,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     public void ManagedAppenderTests()
     {
         var table = "CREATE TABLE managedAppenderTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, " +
-                          "g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR, m TIMESTAMP, n Date, o HugeInt, p UHugeInt);";
+                          "g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR, m TIMESTAMP, n Date, o HugeInt, p UHugeInt, q decimal(9, 4));";
         Command.CommandText = table;
         Command.ExecuteNonQuery();
 
@@ -44,6 +44,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
                     .AppendNullValue()
                     .AppendValue(new BigInteger(ulong.MaxValue) + i)
                     .AppendValue(new BigInteger(ulong.MaxValue) * 2 + i, true)
+                    .AppendDecimal(i + i / 100m)
                     .EndRow();
             }
         }
@@ -70,6 +71,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
                 reader.IsDBNull(13).Should().BeTrue();
                 reader.GetFieldValue<BigInteger>(14).Should().Be(new BigInteger(ulong.MaxValue) + readRowIndex);
                 reader.GetFieldValue<BigInteger>(15).Should().Be(new BigInteger(ulong.MaxValue) * 2 + readRowIndex);
+                reader.GetDecimal(16).Should().Be(readRowIndex + readRowIndex / 100m);
 
                 readRowIndex++;
             }

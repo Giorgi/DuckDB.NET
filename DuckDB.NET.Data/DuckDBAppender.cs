@@ -101,7 +101,9 @@ public class DuckDBAppender : IDisposable
             var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(dataChunk, index);
             var vectorData = NativeMethods.Vectors.DuckDBVectorGetData(vector);
 
-            vectorWriters[index] = new DataChunkVectorWriter(vector, vectorData);
+            var logicalType = logicalTypes[index];
+            var columnType = NativeMethods.LogicalType.DuckDBGetTypeId(logicalType);
+            vectorWriters[index] = columnType == DuckDBType.Decimal ? new DataChunkDecimalVectorWriter(vector, vectorData, logicalType) : new DataChunkVectorWriter(vector, vectorData);
         }
     }
 

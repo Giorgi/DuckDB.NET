@@ -10,28 +10,31 @@ public class DuckDBAppenderRow
     private int columnIndex = 0;
     private readonly Native.DuckDBAppender appender;
     private readonly string qualifiedTableName;
-    private readonly DataChunkVectorWriter[] vectors;
+    private readonly DataChunkVectorWriter[] vectorWriters;
     private readonly ulong rowIndex;
 
-    internal DuckDBAppenderRow(Native.DuckDBAppender appender, string qualifiedTableName, DataChunkVectorWriter[] vectors, ulong rowIndex)
+    internal DuckDBAppenderRow(Native.DuckDBAppender appender, string qualifiedTableName, DataChunkVectorWriter[] vectorWriters, ulong rowIndex)
     {
         this.appender = appender;
         this.qualifiedTableName = qualifiedTableName;
-        this.vectors = vectors;
+        this.vectorWriters = vectorWriters;
         this.rowIndex = rowIndex;
     }
 
     public void EndRow()
     {
-        if (columnIndex < vectors.Length)
+        if (columnIndex < vectorWriters.Length)
         {
-            throw new InvalidOperationException($"The table {qualifiedTableName} has {vectors.Length} columns but you specified only {columnIndex} values");
+            throw new InvalidOperationException($"The table {qualifiedTableName} has {vectorWriters.Length} columns but you specified only {columnIndex} values");
         }
     }
+
+    public DuckDBAppenderRow AppendNullValue() => Append<int>(null); //Doesn't matter what type T we pass to Append when passing null.
 
     public DuckDBAppenderRow AppendValue(bool? value) => Append(value);
 
 #if NET6_0_OR_GREATER
+
     public DuckDBAppenderRow AppendValue(byte[]? value) => AppendSpan(value);
 
     public DuckDBAppenderRow AppendValue(Span<byte> value) => AppendSpan(value);
@@ -39,26 +42,22 @@ public class DuckDBAppenderRow
 
     public DuckDBAppenderRow AppendValue(string? value)
     {
-        if (value == null)
-        {
-            return AppendNullValue();
-        }
-     
-        CheckColumnAccess();
-
-        using var unmanagedString = value.ToUnmanagedString();
-
-        vectors[columnIndex].AppendString(unmanagedString, rowIndex);
-
-        columnIndex++;
-
-        return this;
+        return AppendHelper(value, (writer, data) => writer.AppendString(data!, rowIndex));
     }
 
-    public DuckDBAppenderRow AppendNullValue()
+    public DuckDBAppenderRow AppendDecimal(decimal? value)
     {
-        Append<int>(null);
-        return this;
+        return AppendHelper(value, (writer, data) =>
+        {
+            if (writer is DataChunkDecimalVectorWriter decimalVectorWriter)
+            {
+                decimalVectorWriter.AppendDecimal(data!.Value, rowIndex);
+            }
+            else
+            {
+                throw new InvalidOperationException("Cannot write decimal to non-decimal column");
+            }
+        });
     }
 
     public DuckDBAppenderRow AppendValue(BigInteger? value, bool unsigned = false)
@@ -133,15 +132,30 @@ public class DuckDBAppenderRow
 
         if (value == null)
         {
-            vectors[columnIndex].AppendNull(rowIndex);
+            vectorWriters[columnIndex].AppendNull(rowIndex);
         }
         else
         {
-            vectors[columnIndex].AppendValue(value.Value, rowIndex);
+            vectorWriters[columnIndex].AppendValue(value.Value, rowIndex);
         }
 
         columnIndex++;
 
+        return this;
+    }
+
+    private DuckDBAppenderRow AppendHelper<T>(T value, Action<DataChunkVectorWriter, T> appendAction)
+    {
+        if (value == null)
+        {
+            return AppendNullValue();
+        }
+
+        CheckColumnAccess();
+
+        appendAction(vectorWriters[columnIndex], value);
+
+        columnIndex++;
         return this;
     }
 
@@ -154,10 +168,10 @@ public class DuckDBAppenderRow
         }
 
         CheckColumnAccess();
-        
+
         fixed (byte* pSource = val)
         {
-            vectors[columnIndex].AppendBlob(pSource, val.Length, rowIndex);
+            vectorWriters[columnIndex].AppendBlob(pSource, val.Length, rowIndex);
         }
 
         columnIndex++;
@@ -168,9 +182,9 @@ public class DuckDBAppenderRow
 
     private void CheckColumnAccess()
     {
-        if (columnIndex >= vectors.Length)
+        if (columnIndex >= vectorWriters.Length)
         {
-            throw new IndexOutOfRangeException($"The table {qualifiedTableName} has {vectors.Length} columns but you are trying to append value for column {columnIndex + 1}");
+            throw new IndexOutOfRangeException($"The table {qualifiedTableName} has {vectorWriters.Length} columns but you are trying to append value for column {columnIndex + 1}");
         }
     }
 }
