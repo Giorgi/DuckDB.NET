@@ -218,6 +218,32 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    public void IntervalValues()
+    {
+        var table = "CREATE TABLE managedAppenderInterval(a INTERVAL);";
+        Command.CommandText = table;
+        Command.ExecuteNonQuery();
+
+        var timeSpans = Enumerable.Range(0, 20).Select(i => TimeSpan.FromSeconds(Random.Shared.Next(1_000_000, 1_000_000 * 10))).ToList();
+
+        using (var appender = Connection.CreateAppender("managedAppenderInterval"))
+        {
+            foreach (var timeSpan in timeSpans)
+            {
+                appender.CreateRow().AppendValue(timeSpan).EndRow();
+            }
+        }
+
+        Command.CommandText = "SELECT * FROM managedAppenderInterval";
+        using (var reader = Command.ExecuteReader())
+        {
+            var result = reader.Cast<IDataRecord>().Select(record => (TimeSpan)record.GetValue(0)).ToList();
+
+            result.Should().BeEquivalentTo(timeSpans);
+        }
+    }
+
+    [Fact]
     public void IncompleteRowThrowsException()
     {
         var table = "CREATE TABLE managedAppenderIncompleteTest(a BOOLEAN, b TINYINT, c INTEGER);";

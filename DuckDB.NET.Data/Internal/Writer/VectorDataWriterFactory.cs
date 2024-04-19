@@ -10,7 +10,8 @@ namespace DuckDB.NET.Data.Internal.Writer
             var columnType = NativeMethods.LogicalType.DuckDBGetTypeId(logicalType);
             return columnType switch
             {
-                DuckDBType.Uuid=> new GuidVectorDataWriter(vector, dataPointer),
+                DuckDBType.Uuid => new GuidVectorDataWriter(vector, dataPointer),
+                DuckDBType.Interval => new IntervalVectorDataWriter(vector, dataPointer),
                 DuckDBType.Decimal => new DecimalVectorDataWriter(vector, dataPointer, logicalType),
                 _ => new VectorDataWriterBase(vector, dataPointer)
             };

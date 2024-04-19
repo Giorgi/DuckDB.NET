@@ -139,6 +139,21 @@ public class DuckDBAppenderRow
 
     public DuckDBAppenderRow AppendValue(DateTime? value) => Append(value == null ? (DuckDBTimestampStruct?)null : NativeMethods.DateTimeHelpers.DuckDBToTimestamp(DuckDBTimestamp.FromDateTime(value.Value)));
 
+    public DuckDBAppenderRow AppendValue(TimeSpan? value)
+    {
+        return AppendHelper(value, (writer, data) =>
+        {
+            if (writer is IntervalVectorDataWriter intervalVectorDataWriter)
+            {
+                intervalVectorDataWriter.AppendValue(data!.Value, rowIndex);
+            }
+            else
+            {
+                throw new InvalidOperationException("Cannot write timespan to non-interval column");
+            }
+        });
+    }
+
     #endregion
 
     private DuckDBAppenderRow Append<T>(T? value) where T : unmanaged
