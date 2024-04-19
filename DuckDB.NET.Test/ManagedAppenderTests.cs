@@ -14,7 +14,7 @@ namespace DuckDB.NET.Test;
 public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
-    public void ManagedAppenderTests()
+    public void CommonTypes()
     {
         var table = "CREATE TABLE managedAppenderTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, " +
                           "g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR, m TIMESTAMP, n Date, o HugeInt, p UHugeInt, q decimal(9, 4));";
@@ -80,7 +80,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    public void ManagedAppenderUnicodeTests()
+    public void UnicodeTests()
     {
         var words = new List<string> { "hello", "안녕하세요", "Ø3mm CHAIN", null, "" };
         var table = "CREATE TABLE UnicodeAppenderTestTable (index INTEGER, words VARCHAR);";
@@ -115,7 +115,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    public void ManagedAppenderByteArray()
+    public void ByteArray()
     {
         Command.CommandText = "CREATE TABLE blobAppenderTest(a Integer, b blob)";
         Command.ExecuteNonQuery();
@@ -155,7 +155,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    public void ManagedAppenderDecimals()
+    public void Decimals()
     {
         var table = "CREATE TABLE managedAppenderDecimals(a INTEGER, b decimal(3, 1), c decimal (9, 4), d decimal (18, 6), e decimal(38, 12));";
         Command.CommandText = table;
@@ -192,7 +192,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    public void ManagedAppenderGuid()
+    public void GuidValues()
     {
         var table = "CREATE TABLE managedAppenderGuids(a UUID);";
         Command.CommandText = table;
@@ -269,7 +269,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         }).Should().Throw<IndexOutOfRangeException>();
     }
 
-    [Fact(Skip = "Skipping because DuckDB doesn't seem to validate data chunk types: https://github.com/duckdb/duckdb/issues/11699")]
+    [Fact]
     public void WrongTypesThrowException()
     {
         var table = "CREATE TABLE managedAppenderWrongTypeTest(a BOOLEAN, c Date, b TINYINT);";
@@ -283,9 +283,9 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
             row
                 .AppendValue(false)
                 .AppendValue(1)
-                .AppendValue((short?)1)
+                .AppendValue(Guid.NewGuid())
                 .EndRow();
-        }).Should().Throw<DuckDBException>();
+        }).Should().Throw<InvalidOperationException>();
     }
 
     [Fact]
@@ -309,7 +309,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    public void ManagedAppenderTestsWithSchema()
+    public void TableWithSchema()
     {
         var schema = "CREATE SCHEMA managedAppenderTestSchema";
         Command.CommandText = schema;
