@@ -4,27 +4,19 @@ using System.Runtime.InteropServices;
 namespace DuckDB.NET.Native;
 
 [StructLayout(LayoutKind.Sequential)]
-public readonly struct DuckDBTimeOnly
+public readonly struct DuckDBTimeOnly(byte hour, byte min, byte sec, int microsecond)
 {
     public DuckDBTimeOnly(byte hour, byte min, byte sec) : this(hour, min, sec, 0)
     {
     }
 
-    public DuckDBTimeOnly(byte hour, byte min, byte sec, int microsecond)
-    {
-        Hour = hour;
-        Min = min;
-        Sec = sec;
-        Microsecond = microsecond;
-    }
+    public byte Hour { get; } = hour;
 
-    public byte Hour { get; }
+    public byte Min { get; } = min;
 
-    public byte Min { get; }
+    public byte Sec { get; } = sec;
 
-    public byte Sec { get; }
-
-    public int Microsecond { get; }
+    public int Microsecond { get; } = microsecond;
 
     public long Ticks => Utils.GetTicks(Hour, Min, Sec, Microsecond);
 
