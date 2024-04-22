@@ -4,10 +4,7 @@ using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Writer;
 
-internal unsafe class IntervalVectorDataWriter(IntPtr vector, void* vectorData) : VectorDataWriterBase(vector, vectorData)
+internal sealed unsafe class IntervalVectorDataWriter(IntPtr vector, void* vectorData, DuckDBType columnType) : VectorDataWriterBase(vector, vectorData, columnType)
 {
-    public void AppendValue(TimeSpan value, ulong rowIndex)
-    {
-        AppendValue((DuckDBInterval)value, rowIndex);
-    }
+    internal override bool AppendTimeSpan(TimeSpan value, ulong rowIndex) => AppendValueInternal((DuckDBInterval)value, rowIndex);
 }

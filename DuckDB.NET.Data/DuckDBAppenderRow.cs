@@ -31,7 +31,7 @@ public class DuckDBAppenderRow
 
     public DuckDBAppenderRow AppendNullValue() => Append<int>(null); //Doesn't matter what type T we pass to Append when passing null.
 
-    public DuckDBAppenderRow AppendValue(bool? value) => Append(value);
+    public DuckDBAppenderRow AppendValue(bool? value) => AppendValue2(value);
 
 #if NET6_0_OR_GREATER
 
@@ -40,40 +40,11 @@ public class DuckDBAppenderRow
     public DuckDBAppenderRow AppendValue(Span<byte> value) => AppendSpan(value);
 #endif
 
-    public DuckDBAppenderRow AppendValue(string? value)
-    {
-        return AppendHelper(value, (writer, data) => writer.AppendString(data!, rowIndex));
-    }
+    public DuckDBAppenderRow AppendValue(string? value) => AppendValue2(value);
 
-    public DuckDBAppenderRow AppendValue(decimal? value)
-    {
-        return AppendHelper(value, (writer, data) =>
-        {
-            if (writer is DecimalVectorDataWriter decimalVectorWriter)
-            {
-                decimalVectorWriter.AppendValue(data!.Value, rowIndex);
-            }
-            else
-            {
-                throw new InvalidOperationException("Cannot write decimal to non-decimal column");
-            }
-        });
-    }
+    public DuckDBAppenderRow AppendValue(decimal? value) => AppendValue2(value);
 
-    public DuckDBAppenderRow AppendValue(Guid? value)
-    {
-        return AppendHelper(value, (writer, data) =>
-        {
-            if (writer is GuidVectorDataWriter guidVectorDataWriter)
-            {
-                guidVectorDataWriter.AppendValue(data!.Value, rowIndex);
-            }
-            else
-            {
-                throw new InvalidOperationException("Cannot write guid to non-uuid column");
-            }
-        });
-    }
+    public DuckDBAppenderRow AppendValue(Guid? value) => AppendValue2(value);
 
     public DuckDBAppenderRow AppendValue(BigInteger? value, bool unsigned = false)
     {
@@ -141,20 +112,21 @@ public class DuckDBAppenderRow
 
     public DuckDBAppenderRow AppendValue(TimeSpan? value)
     {
-        return AppendHelper(value, (writer, data) =>
-        {
-            if (writer is IntervalVectorDataWriter intervalVectorDataWriter)
-            {
-                intervalVectorDataWriter.AppendValue(data!.Value, rowIndex);
-            }
-            else
-            {
-                throw new InvalidOperationException("Cannot write timespan to non-interval column");
-            }
-        });
+        return AppendValue2(value);
     }
 
     #endregion
+
+    private DuckDBAppenderRow AppendValue2<T>(T? value)
+    {
+        CheckColumnAccess();
+
+        vectorWriters[columnIndex].AppendValue(value, rowIndex);
+
+        columnIndex++;
+
+        return this;
+    }
 
     private DuckDBAppenderRow Append<T>(T? value) where T : unmanaged
     {
@@ -166,26 +138,11 @@ public class DuckDBAppenderRow
         }
         else
         {
-            vectorWriters[columnIndex].AppendValue(value.Value, rowIndex);
+            vectorWriters[columnIndex].AppendValueInternal(value.Value, rowIndex);
         }
 
         columnIndex++;
 
-        return this;
-    }
-
-    private DuckDBAppenderRow AppendHelper<T>(T value, Action<VectorDataWriterBase, T> appendAction)
-    {
-        if (value == null)
-        {
-            return AppendNullValue();
-        }
-
-        CheckColumnAccess();
-
-        appendAction(vectorWriters[columnIndex], value);
-
-        columnIndex++;
         return this;
     }
 

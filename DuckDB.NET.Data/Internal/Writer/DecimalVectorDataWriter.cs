@@ -4,7 +4,7 @@ using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Writer;
 
-internal unsafe class DecimalVectorDataWriter(IntPtr vector, void* vectorData, DuckDBLogicalType logicalType) : VectorDataWriterBase(vector, vectorData)
+internal sealed unsafe class DecimalVectorDataWriter(IntPtr vector, void* vectorData, DuckDBLogicalType logicalType, DuckDBType columnType) : VectorDataWriterBase(vector, vectorData, columnType)
 {
     private readonly byte scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
     private readonly DuckDBType decimalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
@@ -16,13 +16,13 @@ internal unsafe class DecimalVectorDataWriter(IntPtr vector, void* vectorData, D
         switch (decimalType)
         {
             case DuckDBType.SmallInt:
-                AppendValue<short>((short)decimal.Multiply(value, new decimal(power)), rowIndex);
+                AppendValueInternal<short>((short)decimal.Multiply(value, new decimal(power)), rowIndex);
                 break;
             case DuckDBType.Integer:
-                AppendValue<int>((int)decimal.Multiply(value, new decimal(power)), rowIndex);
+                AppendValueInternal<int>((int)decimal.Multiply(value, new decimal(power)), rowIndex);
                 break;
             case DuckDBType.BigInt:
-                AppendValue<long>((long)decimal.Multiply(value, new decimal(power)), rowIndex);
+                AppendValueInternal<long>((long)decimal.Multiply(value, new decimal(power)), rowIndex);
                 break;
             case DuckDBType.HugeInt:
                 var integralPart = decimal.Truncate(value);
@@ -32,7 +32,7 @@ internal unsafe class DecimalVectorDataWriter(IntPtr vector, void* vectorData, D
 
                 result  += new BigInteger(decimal.Multiply(fractionalPart, (decimal)power));
                 
-                AppendValue(new DuckDBHugeInt(result), rowIndex);
+                AppendValueInternal(new DuckDBHugeInt(result), rowIndex);
                 break;
         }
     }

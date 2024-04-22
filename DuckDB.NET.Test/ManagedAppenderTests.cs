@@ -198,7 +198,8 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         Command.CommandText = table;
         Command.ExecuteNonQuery();
 
-        var guids = Enumerable.Range(0, 20).Select(i => Guid.NewGuid()).ToList();
+        var guids = Enumerable.Range(0, 20).Select(i => (Guid?)Guid.NewGuid()).ToList();
+        guids.Add(null);
 
         using (var appender = Connection.CreateAppender("managedAppenderGuids"))
         {
@@ -211,8 +212,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         Command.CommandText = "SELECT * FROM managedAppenderGuids";
         using (var reader = Command.ExecuteReader())
         {
-            var result = reader.Cast<IDataRecord>().Select(record => record.GetGuid(0)).ToList();
-
+            var result = reader.Cast<IDataRecord>().Select(record => record.IsDBNull(0) ? (Guid?)null : record.GetGuid(0)).ToList();
             result.Should().BeEquivalentTo(guids);
         }
     }
