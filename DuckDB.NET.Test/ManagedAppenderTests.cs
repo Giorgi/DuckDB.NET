@@ -44,7 +44,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
                     .AppendValue(date.AddDays(i))
                     .AppendNullValue()
                     .AppendValue(new BigInteger(ulong.MaxValue) + i)
-                    .AppendValue(new BigInteger(ulong.MaxValue) * 2 + i, true)
+                    .AppendValue(new BigInteger(ulong.MaxValue) * 2 + i)
                     .AppendValue(i + i / 100m)
                     .EndRow();
             }

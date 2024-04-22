@@ -9,7 +9,7 @@ internal sealed unsafe class DecimalVectorDataWriter(IntPtr vector, void* vector
     private readonly byte scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
     private readonly DuckDBType decimalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
 
-    public void AppendValue(decimal value, ulong rowIndex)
+    internal override bool AppendDecimal(decimal value, ulong rowIndex)
     {
         var power = Math.Pow(10, scale);
 
@@ -30,10 +30,12 @@ internal sealed unsafe class DecimalVectorDataWriter(IntPtr vector, void* vector
 
                 var result = BigInteger.Multiply(new BigInteger(integralPart), new BigInteger(power));
 
-                result  += new BigInteger(decimal.Multiply(fractionalPart, (decimal)power));
-                
+                result += new BigInteger(decimal.Multiply(fractionalPart, (decimal)power));
+
                 AppendValueInternal(new DuckDBHugeInt(result), rowIndex);
                 break;
         }
+
+        return true;
     }
 }

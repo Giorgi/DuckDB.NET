@@ -56,7 +56,7 @@ public class DuckDBAppender : IDisposable
         }
 
         rowCount++;
-        return new DuckDBAppenderRow(nativeAppender, qualifiedTableName, vectorWriters, rowCount - 1);
+        return new DuckDBAppenderRow(qualifiedTableName, vectorWriters, rowCount - 1);
     }
 
     public void Close()
@@ -99,9 +99,8 @@ public class DuckDBAppender : IDisposable
         for (long index = 0; index < vectorWriters.LongLength; index++)
         {
             var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(dataChunk, index);
-            var vectorData = NativeMethods.Vectors.DuckDBVectorGetData(vector);
 
-            vectorWriters[index] = VectorDataWriterFactory.CreateWriter(vector, vectorData, logicalTypes[index]);
+            vectorWriters[index] = VectorDataWriterFactory.CreateWriter(vector, logicalTypes[index]);
         }
     }
 

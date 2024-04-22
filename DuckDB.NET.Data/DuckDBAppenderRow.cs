@@ -8,14 +8,12 @@ namespace DuckDB.NET.Data;
 public class DuckDBAppenderRow
 {
     private int columnIndex = 0;
-    private readonly Native.DuckDBAppender appender;
     private readonly string qualifiedTableName;
     private readonly VectorDataWriterBase[] vectorWriters;
     private readonly ulong rowIndex;
 
-    internal DuckDBAppenderRow(Native.DuckDBAppender appender, string qualifiedTableName, VectorDataWriterBase[] vectorWriters, ulong rowIndex)
+    internal DuckDBAppenderRow(string qualifiedTableName, VectorDataWriterBase[] vectorWriters, ulong rowIndex)
     {
-        this.appender = appender;
         this.qualifiedTableName = qualifiedTableName;
         this.vectorWriters = vectorWriters;
         this.rowIndex = rowIndex;
@@ -29,9 +27,9 @@ public class DuckDBAppenderRow
         }
     }
 
-    public DuckDBAppenderRow AppendNullValue() => Append<int>(null); //Doesn't matter what type T we pass to Append when passing null.
+    public DuckDBAppenderRow AppendNullValue() => AppendValueInternal<int?>(null); //Doesn't matter what type T we pass to Append when passing null.
 
-    public DuckDBAppenderRow AppendValue(bool? value) => AppendValue2(value);
+    public DuckDBAppenderRow AppendValue(bool? value) => AppendValueInternal(value);
 
 #if NET6_0_OR_GREATER
 
@@ -40,106 +38,72 @@ public class DuckDBAppenderRow
     public DuckDBAppenderRow AppendValue(Span<byte> value) => AppendSpan(value);
 #endif
 
-    public DuckDBAppenderRow AppendValue(string? value) => AppendValue2(value);
+    public DuckDBAppenderRow AppendValue(string? value) => AppendValueInternal(value);
 
-    public DuckDBAppenderRow AppendValue(decimal? value) => AppendValue2(value);
+    public DuckDBAppenderRow AppendValue(decimal? value) => AppendValueInternal(value);
 
-    public DuckDBAppenderRow AppendValue(Guid? value) => AppendValue2(value);
+    public DuckDBAppenderRow AppendValue(Guid? value) => AppendValueInternal(value);
 
-    public DuckDBAppenderRow AppendValue(BigInteger? value, bool unsigned = false)
-    {
-        if (value == null)
-        {
-            return AppendNullValue();
-        }
-
-        if (unsigned)
-        {
-            Append<DuckDBUHugeInt>(new DuckDBUHugeInt(value.Value));
-        }
-        else
-        {
-            Append<DuckDBHugeInt>(new DuckDBHugeInt(value.Value));
-        }
-
-        return this;
-    }
+    public DuckDBAppenderRow AppendValue(BigInteger? value) => AppendValueInternal(value);
 
     #region Append Signed Int
 
-    public DuckDBAppenderRow AppendValue(sbyte? value) => Append(value);
+    public DuckDBAppenderRow AppendValue(sbyte? value) => AppendValueInternal(value);
 
-    public DuckDBAppenderRow AppendValue(short? value) => Append(value);
+    public DuckDBAppenderRow AppendValue(short? value) => AppendValueInternal(value);
 
-    public DuckDBAppenderRow AppendValue(int? value) => Append(value);
+    public DuckDBAppenderRow AppendValue(int? value) => AppendValueInternal(value);
 
-    public DuckDBAppenderRow AppendValue(long? value) => Append(value);
+    public DuckDBAppenderRow AppendValue(long? value) => AppendValueInternal(value);
 
     #endregion
 
     #region Append Unsigned Int
 
-    public DuckDBAppenderRow AppendValue(byte? value) => Append(value);
+    public DuckDBAppenderRow AppendValue(byte? value) => AppendValueInternal(value);
 
-    public DuckDBAppenderRow AppendValue(ushort? value) => Append(value);
+    public DuckDBAppenderRow AppendValue(ushort? value) => AppendValueInternal(value);
 
-    public DuckDBAppenderRow AppendValue(uint? value) => Append(value);
+    public DuckDBAppenderRow AppendValue(uint? value) => AppendValueInternal(value);
 
-    public DuckDBAppenderRow AppendValue(ulong? value) => Append(value);
+    public DuckDBAppenderRow AppendValue(ulong? value) => AppendValueInternal(value);
 
     #endregion
 
     #region Append Float
 
-    public DuckDBAppenderRow AppendValue(float? value) => Append(value);
+    public DuckDBAppenderRow AppendValue(float? value) => AppendValueInternal(value);
 
-    public DuckDBAppenderRow AppendValue(double? value) => Append(value);
+    public DuckDBAppenderRow AppendValue(double? value) => AppendValueInternal(value);
 
     #endregion
 
     #region Append Temporal
 #if NET6_0_OR_GREATER
-    public DuckDBAppenderRow AppendValue(DateOnly? value) => Append(value == null ? (DuckDBDate?)null : NativeMethods.DateTimeHelpers.DuckDBToDate(value.Value));
+    public DuckDBAppenderRow AppendValue(DateOnly? value) => AppendValueInternal(value);
 
-    public DuckDBAppenderRow AppendValue(TimeOnly? value) => Append(value == null ? (DuckDBTime?)null : NativeMethods.DateTimeHelpers.DuckDBToTime(value.Value));
-#else
-    public DuckDBAppenderRow AppendValue(DuckDBDateOnly? value) => Append(value == null ? (DuckDBDate?)null : NativeMethods.DateTimeHelpers.DuckDBToDate(value.Value));
-
-    public DuckDBAppenderRow AppendValue(DuckDBTimeOnly? value) => Append(value == null ? (DuckDBTime?)null : NativeMethods.DateTimeHelpers.DuckDBToTime(value.Value));
+    public DuckDBAppenderRow AppendValue(TimeOnly? value) => AppendValueInternal(value);
 #endif
 
-    public DuckDBAppenderRow AppendValue(DateTime? value) => Append(value == null ? (DuckDBTimestampStruct?)null : NativeMethods.DateTimeHelpers.DuckDBToTimestamp(DuckDBTimestamp.FromDateTime(value.Value)));
+    public DuckDBAppenderRow AppendValue(DuckDBDateOnly? value) => AppendValueInternal(value);
+
+    public DuckDBAppenderRow AppendValue(DuckDBTimeOnly? value) => AppendValueInternal(value);
+
+
+    public DuckDBAppenderRow AppendValue(DateTime? value) => AppendValueInternal(value);
 
     public DuckDBAppenderRow AppendValue(TimeSpan? value)
     {
-        return AppendValue2(value);
+        return AppendValueInternal(value);
     }
 
     #endregion
 
-    private DuckDBAppenderRow AppendValue2<T>(T? value)
+    private DuckDBAppenderRow AppendValueInternal<T>(T? value)
     {
         CheckColumnAccess();
 
         vectorWriters[columnIndex].AppendValue(value, rowIndex);
-
-        columnIndex++;
-
-        return this;
-    }
-
-    private DuckDBAppenderRow Append<T>(T? value) where T : unmanaged
-    {
-        CheckColumnAccess();
-
-        if (value == null)
-        {
-            vectorWriters[columnIndex].AppendNull(rowIndex);
-        }
-        else
-        {
-            vectorWriters[columnIndex].AppendValueInternal(value.Value, rowIndex);
-        }
 
         columnIndex++;
 
