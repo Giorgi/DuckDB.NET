@@ -5,8 +5,12 @@ namespace DuckDB.NET.Data.Internal.Reader;
 
 internal static class VectorDataReaderFactory
 {
-    public static unsafe VectorDataReaderBase CreateReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName)
+    public static unsafe VectorDataReaderBase CreateReader(IntPtr vector, DuckDBLogicalType logicalColumnType, string columnName)
     {
+        var columnType = NativeMethods.LogicalType.DuckDBGetTypeId(logicalColumnType);
+        var dataPointer = NativeMethods.Vectors.DuckDBVectorGetData(vector);
+        var validityMaskPointer = NativeMethods.Vectors.DuckDBVectorGetValidity(vector);
+
         return columnType switch
         {
             DuckDBType.Uuid => new GuidVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),

@@ -22,14 +22,9 @@ internal class StructVectorDataReader : VectorDataReaderBase
         {
             var name = NativeMethods.LogicalType.DuckDBStructTypeChildName(logicalType, index).ToManagedString();
             var childVector = NativeMethods.Vectors.DuckDBStructVectorGetChild(vector, index);
-
-            var childVectorData = NativeMethods.Vectors.DuckDBVectorGetData(childVector);
-            var childVectorValidity = NativeMethods.Vectors.DuckDBVectorGetValidity(childVector);
-
+            
             using var childType = NativeMethods.LogicalType.DuckDBStructTypeChildType(logicalType, index);
-            var type = NativeMethods.LogicalType.DuckDBGetTypeId(childType);
-
-            structDataReaders[name] = VectorDataReaderFactory.CreateReader(childVector, childVectorData, childVectorValidity, type, columnName);
+            structDataReaders[name] = VectorDataReaderFactory.CreateReader(childVector, childType, columnName);
         }
     }
 

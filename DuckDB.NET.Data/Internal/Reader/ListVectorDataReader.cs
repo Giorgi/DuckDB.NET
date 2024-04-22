@@ -18,15 +18,10 @@ internal class ListVectorDataReader : VectorDataReaderBase
         using var logicalType = NativeMethods.Vectors.DuckDBVectorGetColumnType(vector);
         using var childType = IsList ? NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType) : NativeMethods.LogicalType.DuckDBArrayTypeChildType(logicalType);
 
-        var type = NativeMethods.LogicalType.DuckDBGetTypeId(childType);
-
         var childVector = IsList ? NativeMethods.Vectors.DuckDBListVectorGetChild(vector) : NativeMethods.Vectors.DuckDBArrayVectorGetChild(vector);
 
-        var childVectorData = NativeMethods.Vectors.DuckDBVectorGetData(childVector);
-        var childVectorValidity = NativeMethods.Vectors.DuckDBVectorGetValidity(childVector);
-
         arraySize = IsList ? 0 : (ulong)NativeMethods.LogicalType.DuckDBArrayVectorGetSize(logicalType);
-        listDataReader = VectorDataReaderFactory.CreateReader(childVector, childVectorData, childVectorValidity, type, columnName);
+        listDataReader = VectorDataReaderFactory.CreateReader(childVector, childType, columnName);
     }
 
     protected override Type GetColumnType()

@@ -18,19 +18,13 @@ internal class MapVectorDataReader : VectorDataReaderBase
         using var keyTypeLogical = NativeMethods.LogicalType.DuckDBMapTypeKeyType(logicalType);
         using var valueTypeLogical = NativeMethods.LogicalType.DuckDBMapTypeValueType(logicalType);
 
-        var keyType = NativeMethods.LogicalType.DuckDBGetTypeId(keyTypeLogical);
-        var valueType = NativeMethods.LogicalType.DuckDBGetTypeId(valueTypeLogical);
-
         var childVector = NativeMethods.Vectors.DuckDBListVectorGetChild(vector);
 
         var keyVector = NativeMethods.Vectors.DuckDBStructVectorGetChild(childVector, 0);
         var valueVector = NativeMethods.Vectors.DuckDBStructVectorGetChild(childVector, 1);
 
-        keyReader = VectorDataReaderFactory.CreateReader(keyVector, NativeMethods.Vectors.DuckDBVectorGetData(keyVector),
-                                                                    NativeMethods.Vectors.DuckDBVectorGetValidity(keyVector), keyType, columnName);
-
-        valueReader = VectorDataReaderFactory.CreateReader(valueVector, NativeMethods.Vectors.DuckDBVectorGetData(valueVector),
-                                                                        NativeMethods.Vectors.DuckDBVectorGetValidity(valueVector), valueType, columnName);
+        keyReader = VectorDataReaderFactory.CreateReader(keyVector, keyTypeLogical, columnName);
+        valueReader = VectorDataReaderFactory.CreateReader(valueVector, valueTypeLogical, columnName);
     }
 
     protected override Type GetColumnType()
