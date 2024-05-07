@@ -1,4 +1,5 @@
-﻿using Microsoft.Win32.SafeHandles;
+﻿using System;
+using Microsoft.Win32.SafeHandles;
 
 namespace DuckDB.NET.Native;
 
@@ -98,6 +99,11 @@ public class DuckDBDataChunk : SafeHandleZeroOrMinusOneIsInvalid
 {
     public DuckDBDataChunk() : base(true)
     {
+    }
+
+    public DuckDBDataChunk(IntPtr chunk) : base(false)
+    {
+        SetHandle(chunk);
     }
 
     protected override bool ReleaseHandle()

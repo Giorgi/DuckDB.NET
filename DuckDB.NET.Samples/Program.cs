@@ -34,6 +34,8 @@ namespace DuckDB.NET.Samples
             {
                 cn.Open();
 
+                cn.RegisterFunction("my_addition");
+
                 Console.WriteLine("DuckDB version: {0}", cn.ServerVersion);
 
                 cn.Execute("CREATE TABLE test (id INTEGER, name VARCHAR)");
