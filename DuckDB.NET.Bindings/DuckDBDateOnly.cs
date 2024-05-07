@@ -4,20 +4,13 @@ using System.Runtime.InteropServices;
 namespace DuckDB.NET.Native;
 
 [StructLayout(LayoutKind.Sequential)]
-public readonly struct DuckDBDateOnly
+public readonly struct DuckDBDateOnly(int year, byte month, byte day)
 {
-    public DuckDBDateOnly(int year, byte month, byte day)
-    {
-        Year = year;
-        Month = month;
-        Day = day;
-    }
+    public int Year { get; } = year;
 
-    public int Year { get; }
+    public byte Month { get; } = month;
 
-    public byte Month { get; }
-
-    public byte Day { get; }
+    public byte Day { get; } = day;
 
     internal static readonly DuckDBDateOnly MinValue = FromDateTime(DateTime.MinValue);
 

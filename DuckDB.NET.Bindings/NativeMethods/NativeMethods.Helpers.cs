@@ -12,5 +12,8 @@ public partial class NativeMethods
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_decimal_to_double")]
         public static extern double DuckDBDecimalToDouble(DuckDBDecimal val);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_vector_size")]
+        public static extern ulong DuckDBVectorSize();
     }
 }

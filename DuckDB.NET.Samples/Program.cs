@@ -167,7 +167,7 @@ namespace DuckDB.NET.Samples
 
         private static void PrintQueryResults(DuckDBResult queryResult)
         {
-            var columnCount = Query.DuckDBColumnCount(ref queryResult);
+            var columnCount = (int)Query.DuckDBColumnCount(ref queryResult);
             for (var index = 0; index < columnCount; index++)
             {
                 var columnName = Query.DuckDBColumnName(ref queryResult, index).ToManagedString(false);

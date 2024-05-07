@@ -5,16 +5,13 @@ using System.Runtime.InteropServices;
 namespace DuckDB.NET.Native;
 
 [StructLayout(LayoutKind.Sequential)]
-public readonly struct DuckDBInterval
+public readonly struct DuckDBInterval(int months, int days, ulong micros)
 {
     private const ulong MillisecondsByDay = (ulong)(24 * 60 * 60 * 1e6);
-    public int Months { get; }
+    public int Months { get; } = months;
 
-    public int Days { get; }
-    public ulong Micros { get; }
-
-    public DuckDBInterval(int months, int days, ulong micros)
-        => (Months, Days, Micros) = (months, days, micros);
+    public int Days { get; } = days;
+    public ulong Micros { get; } = micros;
 
     public static explicit operator TimeSpan(DuckDBInterval interval)
     {

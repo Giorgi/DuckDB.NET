@@ -4,16 +4,10 @@ using System.Runtime.InteropServices;
 namespace DuckDB.NET.Native;
 
 [StructLayout(LayoutKind.Sequential)]
-public readonly struct DuckDBTimestamp
+public readonly struct DuckDBTimestamp(DuckDBDateOnly date, DuckDBTimeOnly time)
 {
-    public DuckDBTimestamp(DuckDBDateOnly date, DuckDBTimeOnly time)
-    {
-        Date = date;
-        Time = time;
-    }
-
-    public DuckDBDateOnly Date { get; }
-    public DuckDBTimeOnly Time { get; }
+    public DuckDBDateOnly Date { get; } = date;
+    public DuckDBTimeOnly Time { get; } = time;
 
     public DateTime ToDateTime()
     {

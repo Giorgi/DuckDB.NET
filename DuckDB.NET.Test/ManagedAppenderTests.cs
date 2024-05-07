@@ -4,6 +4,7 @@ using DuckDB.NET.Data;
 using Xunit;
 using FluentAssertions;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Linq;
 using System.Numerics;
@@ -13,10 +14,10 @@ namespace DuckDB.NET.Test;
 public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
-    public void ManagedAppenderTests()
+    public void CommonTypes()
     {
         var table = "CREATE TABLE managedAppenderTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, " +
-                          "g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR, m TIMESTAMP, n Date, o HugeInt, p UHugeInt);";
+                          "g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR, m TIMESTAMP, n Date, o HugeInt, p UHugeInt, q decimal(9, 4));";
         Command.CommandText = table;
         Command.ExecuteNonQuery();
 
@@ -43,13 +44,13 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
                     .AppendValue(date.AddDays(i))
                     .AppendNullValue()
                     .AppendValue(new BigInteger(ulong.MaxValue) + i)
-                    .AppendValue(new BigInteger(ulong.MaxValue) * 2 + i, true)
+                    .AppendValue(new BigInteger(ulong.MaxValue) * 2 + i)
+                    .AppendValue(i + i / 100m)
                     .EndRow();
             }
         }
 
         Command.CommandText = "SELECT * FROM managedAppenderTest";
-        Command.ExecuteNonQuery();
         using (var reader = Command.ExecuteReader())
         {
             var readRowIndex = 0;
@@ -70,6 +71,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
                 reader.IsDBNull(13).Should().BeTrue();
                 reader.GetFieldValue<BigInteger>(14).Should().Be(new BigInteger(ulong.MaxValue) + readRowIndex);
                 reader.GetFieldValue<BigInteger>(15).Should().Be(new BigInteger(ulong.MaxValue) * 2 + readRowIndex);
+                reader.GetDecimal(16).Should().Be(readRowIndex + readRowIndex / 100m);
 
                 readRowIndex++;
             }
@@ -78,7 +80,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    public void ManagedAppenderUnicodeTests()
+    public void UnicodeTests()
     {
         var words = new List<string> { "hello", "안녕하세요", "Ø3mm CHAIN", null, "" };
         var table = "CREATE TABLE UnicodeAppenderTestTable (index INTEGER, words VARCHAR);";
@@ -113,7 +115,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    public void ManagedAppenderByteArray()
+    public void ByteArray()
     {
         Command.CommandText = "CREATE TABLE blobAppenderTest(a Integer, b blob)";
         Command.ExecuteNonQuery();
@@ -129,6 +131,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         {
             appender.CreateRow().AppendValue(1).AppendValue(bytes).EndRow();
             appender.CreateRow().AppendValue(10).AppendValue(span).EndRow();
+            appender.CreateRow().AppendValue(2).AppendValue((byte[])null).EndRow();
         }
 
         Command.CommandText = "Select b from blobAppenderTest";
@@ -146,12 +149,104 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         memoryStream = new MemoryStream();
         stream.CopyTo(memoryStream);
         memoryStream.ToArray().Should().BeEquivalentTo(bytes2);
+
+        dataReader.Read();
+        dataReader.IsDBNull(0).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Decimals()
+    {
+        var table = "CREATE TABLE managedAppenderDecimals(a INTEGER, b decimal(3, 1), c decimal (9, 4), d decimal (18, 6), e decimal(38, 12));";
+        Command.CommandText = table;
+        Command.ExecuteNonQuery();
+
+        var rows = 20;
+        using (var appender = Connection.CreateAppender("managedAppenderDecimals"))
+        {
+            for (int i = 0; i < rows; i++)
+            {
+                appender.CreateRow()
+                    .AppendValue(i)
+                    .AppendValue(i * (i % 2 == 0 ? 1m : -1m) + i / 10m)
+                    .AppendValue(i * (i % 2 == 0 ? 1m : -1m) + i / 1000m)
+                    .AppendValue(i * (i % 2 == 0 ? 1m : -1m) + i / 100000m)
+                    .AppendValue(i * (i % 2 == 0 ? 10000000000m : -10000000000m) + i / 100000000000m)
+                    .EndRow();
+            }
+        }
+
+        Command.CommandText = "SELECT * FROM managedAppenderDecimals";
+        using (var reader = Command.ExecuteReader())
+        {
+            var i = 0;
+            while (reader.Read())
+            {
+                reader.GetDecimal(1).Should().Be(i * (i % 2 == 0 ? 1m : -1m) + i / 10m);
+                reader.GetDecimal(2).Should().Be(i * (i % 2 == 0 ? 1m : -1m) + i / 1000m);
+                reader.GetDecimal(3).Should().Be(i * (i % 2 == 0 ? 1m : -1m) + i / 100000m);
+                reader.GetDecimal(4).Should().Be(i * (i % 2 == 0 ? 10000000000m : -10000000000m) + i / 100000000000m);
+                i++;
+            }
+        }
+    }
+
+    [Fact]
+    public void GuidValues()
+    {
+        var table = "CREATE TABLE managedAppenderGuids(a UUID);";
+        Command.CommandText = table;
+        Command.ExecuteNonQuery();
+
+        var guids = Enumerable.Range(0, 20).Select(i => (Guid?)Guid.NewGuid()).ToList();
+        guids.Add(null);
+
+        using (var appender = Connection.CreateAppender("managedAppenderGuids"))
+        {
+            foreach (var guid in guids)
+            {
+                appender.CreateRow().AppendValue(guid).EndRow();
+            }
+        }
+
+        Command.CommandText = "SELECT * FROM managedAppenderGuids";
+        using (var reader = Command.ExecuteReader())
+        {
+            var result = reader.Cast<IDataRecord>().Select(record => record.IsDBNull(0) ? (Guid?)null : record.GetGuid(0)).ToList();
+            result.Should().BeEquivalentTo(guids);
+        }
+    }
+
+    [Fact]
+    public void IntervalValues()
+    {
+        var table = "CREATE TABLE managedAppenderInterval(a INTERVAL);";
+        Command.CommandText = table;
+        Command.ExecuteNonQuery();
+
+        var timeSpans = Enumerable.Range(0, 20).Select(i => TimeSpan.FromSeconds(Random.Shared.Next(1_000_000, 1_000_000 * 10))).ToList();
+
+        using (var appender = Connection.CreateAppender("managedAppenderInterval"))
+        {
+            foreach (var timeSpan in timeSpans)
+            {
+                appender.CreateRow().AppendValue(timeSpan).EndRow();
+            }
+        }
+
+        Command.CommandText = "SELECT * FROM managedAppenderInterval";
+        using (var reader = Command.ExecuteReader())
+        {
+            var result = reader.Cast<IDataRecord>().Select(record => (TimeSpan)record.GetValue(0)).ToList();
+
+            result.Should().BeEquivalentTo(timeSpans);
+        }
     }
 
     [Fact]
     public void IncompleteRowThrowsException()
     {
-        var table = "CREATE TABLE managedAppenderIncompleteTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, g USMALLINT, h UINTEGER, i UBIGINT, j REAL, k DOUBLE, l VARCHAR);";
+        var table = "CREATE TABLE managedAppenderIncompleteTest(a BOOLEAN, b TINYINT, c INTEGER);";
         Command.CommandText = table;
         Command.ExecuteNonQuery();
 
@@ -163,7 +258,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
                 .AppendValue(true)
                 .AppendValue((byte)1)
                 .EndRow();
-        }).Should().Throw<DuckDBException>();
+        }).Should().Throw<InvalidOperationException>();
     }
 
     [Fact]
@@ -197,7 +292,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
                 .AppendValue("test")
                 .EndRow();
 
-        }).Should().Throw<DuckDBException>();
+        }).Should().Throw<IndexOutOfRangeException>();
     }
 
     [Fact]
@@ -213,10 +308,10 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
             var row = appender.CreateRow();
             row
                 .AppendValue(false)
-                .AppendValue((byte)1)
-                .AppendValue((short?)1)
+                .AppendValue(1)
+                .AppendValue(Guid.NewGuid())
                 .EndRow();
-        }).Should().Throw<DuckDBException>();
+        }).Should().Throw<InvalidOperationException>();
     }
 
     [Fact]
@@ -240,7 +335,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    public void ManagedAppenderTestsWithSchema()
+    public void TableWithSchema()
     {
         var schema = "CREATE SCHEMA managedAppenderTestSchema";
         Command.CommandText = schema;
