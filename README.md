@@ -74,7 +74,7 @@ Documentation is available at [https://duckdb.net](https://duckdb.net)
 
 ## Support
 
-If you encounter a bug with the library [Create an Issue](https://github.com/Giorgi/DuckDB.NET/issues/new). Join the [DuckDB .Net [Channel](https://discord.duckdb.org/) for DuckDB.NET-related topics.
+If you encounter a bug with the library [Create an Issue](https://github.com/Giorgi/DuckDB.NET/issues/new). Join the [DuckDB `dotnet` channel](https://discord.duckdb.org/) for DuckDB.NET-related topics.
 
 ## Contributors
 
