@@ -10,13 +10,13 @@ public class DuckDBAppenderRow
     private int columnIndex = 0;
     private readonly string qualifiedTableName;
     private readonly VectorDataWriterBase[] vectorWriters;
-    private readonly ulong rowIndex;
+    private readonly int rowIndex;
 
     internal DuckDBAppenderRow(string qualifiedTableName, VectorDataWriterBase[] vectorWriters, ulong rowIndex)
     {
         this.qualifiedTableName = qualifiedTableName;
         this.vectorWriters = vectorWriters;
-        this.rowIndex = rowIndex;
+        this.rowIndex = (int)rowIndex;
     }
 
     public void EndRow()
