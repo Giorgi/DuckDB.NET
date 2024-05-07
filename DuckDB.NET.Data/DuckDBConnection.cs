@@ -1,18 +1,16 @@
 ﻿using DuckDB.NET.Data.ConnectionString;
 using DuckDB.NET.Data.Internal;
+using DuckDB.NET.Native;
 using System;
 using System.ComponentModel;
 using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data;
 
-public class DuckDBConnection : DbConnection
+public partial class DuckDBConnection : DbConnection
 {
     private readonly ConnectionManager connectionManager = ConnectionManager.Default;
     private ConnectionState connectionState = ConnectionState.Closed;
@@ -217,30 +215,4 @@ public class DuckDBConnection : DbConnection
 
         return duplicatedConnection;
     }
-
-#if NET6_0_OR_GREATER
-    public unsafe void RegisterFunction(string name)
-    {
-        var function = NativeMethods.ScalarFunction.DuckDBCreateScalarFunction();
-        NativeMethods.ScalarFunction.DuckDBScalarFunctionSetName(function, name.ToUnmanagedString());
-
-        using var logicalType = NativeMethods.LogicalType.DuckDBCreateLogicalType(DuckDBType.BigInt);
-        NativeMethods.ScalarFunction.DuckDBScalarFunctionAddParameter(function, logicalType);
-        NativeMethods.ScalarFunction.DuckDBScalarFunctionAddParameter(function, logicalType);
-
-        NativeMethods.ScalarFunction.DuckDBScalarFunctionSetReturnType(function, logicalType);
-        NativeMethods.ScalarFunction.DuckDBScalarFunctionSetFunction(function, &ScalarFunctionCallback);
-
-        var state = NativeMethods.ScalarFunction.DuckDBRegisterScalarFunction(NativeConnection, function);
-
-        NativeMethods.ScalarFunction.DuckDBDestroyScalarFunction(out function);
-    }
-
-    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static void ScalarFunctionCallback(IntPtr info, IntPtr chunk, IntPtr vector)
-    {
-        var duckDBDataChunk = new DuckDBDataChunk(chunk);
-        var chunkSize = NativeMethods.DataChunks.DuckDBDataChunkGetSize(duckDBDataChunk);
-    } 
-#endif
 }

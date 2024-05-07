@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Numerics;
+using DuckDB.NET.Data.Writer;
 using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Writer;
 
-internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, DuckDBType columnType)
+internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, DuckDBType columnType) : IDuckDBDataWriter
 {
     private unsafe ulong* validity;
     internal IntPtr Vector { get; } = vector;

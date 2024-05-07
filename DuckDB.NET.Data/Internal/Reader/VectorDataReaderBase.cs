@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
 using DuckDB.NET.Data.Extensions;
+using DuckDB.NET.Data.Reader;
 using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-internal class VectorDataReaderBase : IDisposable
+internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
 {
     private readonly unsafe ulong* validityMaskPointer;
 
@@ -31,7 +32,7 @@ internal class VectorDataReaderBase : IDisposable
         ColumnName = columnName;
     }
 
-    internal unsafe bool IsValid(ulong offset)
+    public unsafe bool IsValid(ulong offset)
     {
         if (validityMaskPointer == default)
         {
@@ -48,7 +49,7 @@ internal class VectorDataReaderBase : IDisposable
         return isValid;
     }
 
-    internal virtual T GetValue<T>(ulong offset)
+    public virtual T GetValue<T>(ulong offset)
     {
         var (isNullableValueType, targetType) = TypeExtensions.IsNullableValueType<T>();
 
