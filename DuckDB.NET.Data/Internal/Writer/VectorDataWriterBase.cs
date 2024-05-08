@@ -7,7 +7,9 @@ namespace DuckDB.NET.Data.Internal.Writer;
 internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, DuckDBType columnType)
 {
     private unsafe ulong* validity;
-    internal IntPtr Vector { get; } = vector;
+
+    internal IntPtr Vector => vector;
+    internal DuckDBType ColumnType => columnType;
 
     public unsafe void AppendNull(int rowIndex)
     {
