@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using Dapper;
+using FluentAssertions.Common;
 
 namespace DuckDB.NET.Test;
 
@@ -235,10 +236,10 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     [Fact]
     public void TemporalValues()
     {
-        Command.CommandText = "CREATE TABLE managedAppenderTemporal(a Date, b TimeStamp, c TIMESTAMP_NS, d TIMESTAMP_MS, e TIMESTAMP_S, f TIMESTAMPTZ);";
+        Command.CommandText = "CREATE TABLE managedAppenderTemporal(a Date, b TimeStamp, c TIMESTAMP_NS, d TIMESTAMP_MS, e TIMESTAMP_S, f TIMESTAMPTZ, g TIMETZ);";
         Command.ExecuteNonQuery();
 
-        var dates = Enumerable.Range(0, 20).Select(i => new DateTime(1900, 1, 1).AddDays(Random.Shared.Next(1, 50000))).ToList();
+        var dates = Enumerable.Range(0, 20).Select(i => new DateTime(1900, 1, 1).AddDays(Random.Shared.Next(1, 50000)).AddSeconds(Random.Shared.Next(3600 * 2, 3600 * 24))).ToList();
 
         using (var appender = Connection.CreateAppender("managedAppenderTemporal"))
         {
@@ -247,12 +248,12 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
                 appender.CreateRow()
                                 .AppendValue(value).AppendValue(value)
                                 .AppendValue(value).AppendValue(value)
-                                .AppendValue(value).AppendValue(value)
+                                .AppendValue(value).AppendValue(value).AppendValue(value.ToDateTimeOffset(TimeSpan.FromHours(1)))
                         .EndRow();
             }
         }
 
-        var result = Connection.Query<(DateOnly, DateTime, DateTime, DateTime, DateTime, DateTime)>("SELECT a, b, c, d, e, f FROM managedAppenderTemporal").ToList();
+        var result = Connection.Query<(DateOnly, DateTime, DateTime, DateTime, DateTime, DateTime, DateTimeOffset)>("SELECT a, b, c, d, e, f, g FROM managedAppenderTemporal").ToList();
 
         result.Select(tuple => tuple.Item1).Should().BeEquivalentTo(dates.Select(DateOnly.FromDateTime));
         result.Select(tuple => tuple.Item2).Should().BeEquivalentTo(dates);
@@ -260,6 +261,8 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         result.Select(tuple => tuple.Item4).Should().BeEquivalentTo(dates);
         result.Select(tuple => tuple.Item5).Should().BeEquivalentTo(dates);
         result.Select(tuple => tuple.Item6).Should().BeEquivalentTo(dates);
+        result.Select(tuple => tuple.Item7).Should().BeEquivalentTo(dates.Select(time => time.ToDateTimeOffset(TimeSpan.FromHours(1))), 
+                                                              options => options.ComparingByMembers<DateTimeOffset>().Including(offset => offset.Offset).Including(offset => offset.TimeOfDay));
     }
 
     [Fact]

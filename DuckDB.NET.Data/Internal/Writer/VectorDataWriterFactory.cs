@@ -15,7 +15,7 @@ internal static class VectorDataWriterFactory
             DuckDBType.Uuid => new GuidVectorDataWriter(vector, dataPointer, columnType),
             DuckDBType.Date => new DateTimeVectorDataWriter(vector, dataPointer, columnType),
             DuckDBType.Time => new DateTimeVectorDataWriter(vector, dataPointer, columnType),
-            DuckDBType.TimeTz => throw new NotImplementedException($"Writing {columnType} to data chunk is not yet supported"),
+            DuckDBType.TimeTz => new DateTimeVectorDataWriter(vector, dataPointer, columnType),
             DuckDBType.Interval => new IntervalVectorDataWriter(vector, dataPointer, columnType),
             DuckDBType.Timestamp => new DateTimeVectorDataWriter(vector, dataPointer, columnType),
                 

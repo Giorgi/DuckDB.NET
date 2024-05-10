@@ -32,6 +32,14 @@ internal sealed unsafe class DateTimeVectorDataWriter(IntPtr vector, void* vecto
         return AppendValueInternal(timestamp, rowIndex);
     }
 
+    internal override bool AppendDateTimeOffset(DateTimeOffset value, int rowIndex)
+    {
+        var time = NativeMethods.DateTimeHelpers.DuckDBToTime((DuckDBTimeOnly)value.DateTime);
+        var timeTz = NativeMethods.DateTimeHelpers.DuckDBCreateTimeTz(time.Micros, (int)value.Offset.TotalSeconds);
+
+        return AppendValueInternal(timeTz, rowIndex);
+    }
+
 #if NET6_0_OR_GREATER
     internal override bool AppendDateOnly(DateOnly value, int rowIndex) => AppendValueInternal(NativeMethods.DateTimeHelpers.DuckDBToDate(value), rowIndex);
 

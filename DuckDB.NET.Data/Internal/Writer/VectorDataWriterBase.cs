@@ -58,6 +58,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
             DateOnly val => AppendDateOnly(val, rowIndex),
             TimeOnly val => AppendTimeOnly(val, rowIndex),
 #endif
+            DateTimeOffset val => AppendDateTimeOffset(val, rowIndex),
             _ => ThrowException<T>()
         };
     }
@@ -85,6 +86,8 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
     internal virtual bool AppendDateOnly(DuckDBDateOnly value, int rowIndex) => ThrowException<DuckDBDateOnly>();
 
     internal virtual bool AppendTimeOnly(DuckDBTimeOnly value, int rowIndex) => ThrowException<DuckDBTimeOnly>();
+
+    internal virtual bool AppendDateTimeOffset(DateTimeOffset value, int rowIndex) => ThrowException<DateTimeOffset>();
 
     internal virtual bool AppendNumeric<T>(T value, int rowIndex) where T : unmanaged => ThrowException<T>();
 

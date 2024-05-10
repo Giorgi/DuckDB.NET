@@ -92,6 +92,8 @@ public class DuckDBAppenderRow
 
     public DuckDBAppenderRow AppendValue(DateTime? value) => AppendValueInternal(value);
 
+    public DuckDBAppenderRow AppendValue(DateTimeOffset? value) => AppendValueInternal(value);
+
     public DuckDBAppenderRow AppendValue(TimeSpan? value)
     {
         return AppendValueInternal(value);
