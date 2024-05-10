@@ -15,22 +15,22 @@ namespace DuckDB.NET.Data;
 partial class DuckDBConnection
 {
 #if NET6_0_OR_GREATER
-    public unsafe void RegisterScalarFunction<TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, ulong> action)
+    public unsafe void RegisterScalarFunction<TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action)
     {
         RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>());
     }
 
-    public unsafe void RegisterScalarFunction<T, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, ulong> action)
+    public unsafe void RegisterScalarFunction<T, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action)
     {
         RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), DuckDBTypeMap.GetLogicalType<T>());
     }
 
-    public unsafe void RegisterScalarFunction<T1, T2, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, ulong> action)
+    public unsafe void RegisterScalarFunction<T1, T2, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action)
     {
         RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), DuckDBTypeMap.GetLogicalType<T1>(), DuckDBTypeMap.GetLogicalType<T2>());
     }
 
-    public unsafe void RegisterScalarFunction<T1, T2, T3, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, ulong> action)
+    public unsafe void RegisterScalarFunction<T1, T2, T3, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action)
     {
         RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(),
             DuckDBTypeMap.GetLogicalType<T1>(),
@@ -38,7 +38,7 @@ partial class DuckDBConnection
                               DuckDBTypeMap.GetLogicalType<T3>());
     }
 
-    public unsafe void RegisterScalarFunction<T1, T2, T3, T4, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, ulong> action)
+    public unsafe void RegisterScalarFunction<T1, T2, T3, T4, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action)
     {
         RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(),
             DuckDBTypeMap.GetLogicalType<T1>(),
@@ -47,7 +47,7 @@ partial class DuckDBConnection
                               DuckDBTypeMap.GetLogicalType<T4>());
     }
 
-    private unsafe void RegisterScalarMethod(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, ulong> action, DuckDBLogicalType returnType, params DuckDBLogicalType[] parameterTypes)
+    private unsafe void RegisterScalarMethod(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action, DuckDBLogicalType returnType, params DuckDBLogicalType[] parameterTypes)
     {
         var function = NativeMethods.ScalarFunction.DuckDBCreateScalarFunction();
         NativeMethods.ScalarFunction.DuckDBScalarFunctionSetName(function, name.ToUnmanagedString());
@@ -79,7 +79,7 @@ partial class DuckDBConnection
     {
         var dataChunk = new DuckDBDataChunk(chunk);
 
-        var chunkSize = (ulong)NativeMethods.DataChunks.DuckDBDataChunkGetSize(dataChunk);
+        var chunkSize = (int)NativeMethods.DataChunks.DuckDBDataChunkGetSize(dataChunk);
         var handle = GCHandle.FromIntPtr(info);
 
         if (handle.Target is not ScalarFunctionInfo functionInfo)

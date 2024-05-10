@@ -11,9 +11,9 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         var minValue = long.MaxValue;
         Connection.RegisterScalarFunction<long, long, long>("my_addition", (readers, writer, rowCount) =>
         {
-            for (ulong index = 0; index < rowCount; index++)
+            for (int index = 0; index < rowCount; index++)
             {
-                var value = readers[0].GetValue<long>(index) + readers[1].GetValue<long>(index);
+                var value = readers[0].GetValue<long>((ulong)index) + readers[1].GetValue<long>((ulong)index);
                 writer.AppendValue(value, index);
 
                 minValue = long.Min(minValue, value);
