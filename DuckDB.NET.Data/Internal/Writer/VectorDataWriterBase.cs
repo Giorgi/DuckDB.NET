@@ -8,9 +8,11 @@ namespace DuckDB.NET.Data.Internal.Writer;
 internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, DuckDBType columnType) : IDuckDBDataWriter
 {
     private unsafe ulong* validity;
-    internal IntPtr Vector { get; } = vector;
 
-    public unsafe void AppendNull(ulong rowIndex)
+    internal IntPtr Vector => vector;
+    internal DuckDBType ColumnType => columnType;
+
+    public unsafe void AppendNull(int rowIndex)
     {
         if (validity == default)
         {
@@ -18,10 +20,10 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
             validity = NativeMethods.Vectors.DuckDBVectorGetValidity(Vector);
         }
 
-        NativeMethods.ValidityMask.DuckDBValiditySetRowValidity(validity, rowIndex, false);
+        NativeMethods.ValidityMask.DuckDBValiditySetRowValidity(validity, (ulong)rowIndex, false);
     }
 
-    public unsafe void AppendValue<T>(T value, ulong rowIndex)
+    public unsafe void AppendValue<T>(T value, int rowIndex)
     {
         if (value == null)
         {
@@ -57,44 +59,47 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
             DateOnly val => AppendDateOnly(val, rowIndex),
             TimeOnly val => AppendTimeOnly(val, rowIndex),
 #endif
+            DateTimeOffset val => AppendDateTimeOffset(val, rowIndex),
             _ => ThrowException<T>()
         };
     }
 
-    internal virtual bool AppendBool(bool value, ulong rowIndex) => ThrowException<bool>();
+    internal virtual bool AppendBool(bool value, int rowIndex) => ThrowException<bool>();
 
-    internal virtual bool AppendDecimal(decimal value, ulong rowIndex) => ThrowException<decimal>();
+    internal virtual bool AppendDecimal(decimal value, int rowIndex) => ThrowException<decimal>();
 
-    internal virtual bool AppendTimeSpan(TimeSpan value, ulong rowIndex) => ThrowException<TimeSpan>();
+    internal virtual bool AppendTimeSpan(TimeSpan value, int rowIndex) => ThrowException<TimeSpan>();
 
-    internal virtual bool AppendGuid(Guid value, ulong rowIndex) => ThrowException<Guid>();
+    internal virtual bool AppendGuid(Guid value, int rowIndex) => ThrowException<Guid>();
 
-    internal virtual bool AppendBlob(byte* value, int length, ulong rowIndex) => ThrowException<byte[]>();
+    internal virtual bool AppendBlob(byte* value, int length, int rowIndex) => ThrowException<byte[]>();
 
-    internal virtual bool AppendString(string value, ulong rowIndex) => ThrowException<string>();
+    internal virtual bool AppendString(string value, int rowIndex) => ThrowException<string>();
 
-    internal virtual bool AppendDateTime(DateTime value, ulong rowIndex) => ThrowException<DateTime>();
+    internal virtual bool AppendDateTime(DateTime value, int rowIndex) => ThrowException<DateTime>();
 
 #if NET6_0_OR_GREATER
-    internal virtual bool AppendDateOnly(DateOnly value, ulong rowIndex) => ThrowException<DateOnly>();
+    internal virtual bool AppendDateOnly(DateOnly value, int rowIndex) => ThrowException<DateOnly>();
 
-    internal virtual bool AppendTimeOnly(TimeOnly value, ulong rowIndex) => ThrowException<TimeOnly>();
+    internal virtual bool AppendTimeOnly(TimeOnly value, int rowIndex) => ThrowException<TimeOnly>();
 #endif
 
-    internal virtual bool AppendDateOnly(DuckDBDateOnly value, ulong rowIndex) => ThrowException<DuckDBDateOnly>();
+    internal virtual bool AppendDateOnly(DuckDBDateOnly value, int rowIndex) => ThrowException<DuckDBDateOnly>();
 
-    internal virtual bool AppendTimeOnly(DuckDBTimeOnly value, ulong rowIndex) => ThrowException<DuckDBTimeOnly>();
+    internal virtual bool AppendTimeOnly(DuckDBTimeOnly value, int rowIndex) => ThrowException<DuckDBTimeOnly>();
 
-    internal virtual bool AppendNumeric<T>(T value, ulong rowIndex) where T : unmanaged => ThrowException<T>();
+    internal virtual bool AppendDateTimeOffset(DateTimeOffset value, int rowIndex) => ThrowException<DateTimeOffset>();
 
-    internal virtual bool AppendBigInteger(BigInteger value, ulong rowIndex) => ThrowException<BigInteger>();
+    internal virtual bool AppendNumeric<T>(T value, int rowIndex) where T : unmanaged => ThrowException<T>();
+
+    internal virtual bool AppendBigInteger(BigInteger value, int rowIndex) => ThrowException<BigInteger>();
 
     private bool ThrowException<T>()
     {
         throw new InvalidOperationException($"Cannot write {typeof(T).Name} to {columnType} column");
     }
 
-    internal unsafe bool AppendValueInternal<T>(T value, ulong rowIndex) where T : unmanaged
+    internal unsafe bool AppendValueInternal<T>(T value, int rowIndex) where T : unmanaged
     {
         ((T*)vectorData)[rowIndex] = value;
         return true;

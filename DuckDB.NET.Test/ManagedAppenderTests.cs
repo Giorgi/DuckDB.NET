@@ -8,6 +8,8 @@ using System.Data;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using Dapper;
+using FluentAssertions.Common;
 
 namespace DuckDB.NET.Test;
 
@@ -83,8 +85,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     public void UnicodeTests()
     {
         var words = new List<string> { "hello", "안녕하세요", "Ø3mm CHAIN", null, "" };
-        var table = "CREATE TABLE UnicodeAppenderTestTable (index INTEGER, words VARCHAR);";
-        Command.CommandText = table;
+        Command.CommandText = "CREATE TABLE UnicodeAppenderTestTable (index INTEGER, words VARCHAR);";
         Command.ExecuteNonQuery();
 
         using (var appender = Connection.CreateAppender("UnicodeAppenderTestTable"))
@@ -157,8 +158,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     [Fact]
     public void Decimals()
     {
-        var table = "CREATE TABLE managedAppenderDecimals(a INTEGER, b decimal(3, 1), c decimal (9, 4), d decimal (18, 6), e decimal(38, 12));";
-        Command.CommandText = table;
+        Command.CommandText = "CREATE TABLE managedAppenderDecimals(a INTEGER, b decimal(3, 1), c decimal (9, 4), d decimal (18, 6), e decimal(38, 12));";
         Command.ExecuteNonQuery();
 
         var rows = 20;
@@ -194,8 +194,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     [Fact]
     public void GuidValues()
     {
-        var table = "CREATE TABLE managedAppenderGuids(a UUID);";
-        Command.CommandText = table;
+        Command.CommandText = "CREATE TABLE managedAppenderGuids(a UUID);";
         Command.ExecuteNonQuery();
 
         var guids = Enumerable.Range(0, 20).Select(i => (Guid?)Guid.NewGuid()).ToList();
@@ -209,19 +208,14 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
             }
         }
 
-        Command.CommandText = "SELECT * FROM managedAppenderGuids";
-        using (var reader = Command.ExecuteReader())
-        {
-            var result = reader.Cast<IDataRecord>().Select(record => record.IsDBNull(0) ? (Guid?)null : record.GetGuid(0)).ToList();
-            result.Should().BeEquivalentTo(guids);
-        }
+        var result = Connection.Query<Guid?>("SELECT * FROM managedAppenderGuids");
+        result.Should().BeEquivalentTo(guids);
     }
 
     [Fact]
     public void IntervalValues()
     {
-        var table = "CREATE TABLE managedAppenderInterval(a INTERVAL);";
-        Command.CommandText = table;
+        Command.CommandText = "CREATE TABLE managedAppenderInterval(a INTERVAL);";
         Command.ExecuteNonQuery();
 
         var timeSpans = Enumerable.Range(0, 20).Select(i => TimeSpan.FromSeconds(Random.Shared.Next(1_000_000, 1_000_000 * 10))).ToList();
@@ -234,13 +228,44 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
             }
         }
 
-        Command.CommandText = "SELECT * FROM managedAppenderInterval";
-        using (var reader = Command.ExecuteReader())
-        {
-            var result = reader.Cast<IDataRecord>().Select(record => (TimeSpan)record.GetValue(0)).ToList();
+        var result = Connection.Query<TimeSpan>("SELECT * FROM managedAppenderInterval");
 
-            result.Should().BeEquivalentTo(timeSpans);
+        result.Should().BeEquivalentTo(timeSpans);
+    }
+
+    [Fact]
+    public void TemporalValues()
+    {
+        Command.CommandText = "CREATE TABLE managedAppenderTemporal(a Date, b TimeStamp, c TIMESTAMP_NS, d TIMESTAMP_MS, e TIMESTAMP_S, f TIMESTAMPTZ, g TIMETZ, h Time);";
+        Command.ExecuteNonQuery();
+
+        var dates = Enumerable.Range(0, 20).Select(i => new DateTime(1900, 1, 1).AddDays(Random.Shared.Next(1, 50000)).AddSeconds(Random.Shared.Next(3600 * 2, 3600 * 24))).ToList();
+
+        using (var appender = Connection.CreateAppender("managedAppenderTemporal"))
+        {
+            foreach (var value in dates)
+            {
+                appender.CreateRow()
+                                .AppendValue((DateOnly?)DateOnly.FromDateTime(value))
+                                .AppendValue(value).AppendValue(value)
+                                .AppendValue(value).AppendValue(value).AppendValue(value)
+                                .AppendValue(value.ToDateTimeOffset(TimeSpan.FromHours(1)))
+                                .AppendValue((TimeOnly?)TimeOnly.FromDateTime(value))
+                        .EndRow();
+            }
         }
+
+        var result = Connection.Query<(DateOnly, DateTime, DateTime, DateTime, DateTime, DateTime, DateTimeOffset, TimeOnly)>("SELECT a, b, c, d, e, f, g, h FROM managedAppenderTemporal").ToList();
+
+        result.Select(tuple => tuple.Item1).Should().BeEquivalentTo(dates.Select(DateOnly.FromDateTime));
+        result.Select(tuple => tuple.Item2).Should().BeEquivalentTo(dates);
+        result.Select(tuple => tuple.Item3).Should().BeEquivalentTo(dates);
+        result.Select(tuple => tuple.Item4).Should().BeEquivalentTo(dates);
+        result.Select(tuple => tuple.Item5).Should().BeEquivalentTo(dates);
+        result.Select(tuple => tuple.Item6).Should().BeEquivalentTo(dates);
+        result.Select(tuple => tuple.Item7).Should().BeEquivalentTo(dates.Select(time => time.ToDateTimeOffset(TimeSpan.FromHours(1))), 
+                                                              options => options.ComparingByMembers<DateTimeOffset>().Including(offset => offset.Offset).Including(offset => offset.TimeOfDay));
+        result.Select(tuple => tuple.Item8).Should().BeEquivalentTo(dates.Select(TimeOnly.FromDateTime));
     }
 
     [Fact]
