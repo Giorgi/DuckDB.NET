@@ -2,6 +2,6 @@
 
 public interface IDuckDBDataWriter
 {
-    unsafe void AppendNull(ulong rowIndex);
-    unsafe void AppendValue<T>(T value, ulong rowIndex);
+    unsafe void AppendNull(int rowIndex);
+    unsafe void AppendValue<T>(T value, int rowIndex);
 }
