@@ -236,7 +236,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     [Fact]
     public void TemporalValues()
     {
-        Command.CommandText = "CREATE TABLE managedAppenderTemporal(a Date, b TimeStamp, c TIMESTAMP_NS, d TIMESTAMP_MS, e TIMESTAMP_S, f TIMESTAMPTZ, g TIMETZ);";
+        Command.CommandText = "CREATE TABLE managedAppenderTemporal(a Date, b TimeStamp, c TIMESTAMP_NS, d TIMESTAMP_MS, e TIMESTAMP_S, f TIMESTAMPTZ, g TIMETZ, h Time);";
         Command.ExecuteNonQuery();
 
         var dates = Enumerable.Range(0, 20).Select(i => new DateTime(1900, 1, 1).AddDays(Random.Shared.Next(1, 50000)).AddSeconds(Random.Shared.Next(3600 * 2, 3600 * 24))).ToList();
@@ -246,14 +246,16 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
             foreach (var value in dates)
             {
                 appender.CreateRow()
+                                .AppendValue((DateOnly?)DateOnly.FromDateTime(value))
                                 .AppendValue(value).AppendValue(value)
-                                .AppendValue(value).AppendValue(value)
-                                .AppendValue(value).AppendValue(value).AppendValue(value.ToDateTimeOffset(TimeSpan.FromHours(1)))
+                                .AppendValue(value).AppendValue(value).AppendValue(value)
+                                .AppendValue(value.ToDateTimeOffset(TimeSpan.FromHours(1)))
+                                .AppendValue((TimeOnly?)TimeOnly.FromDateTime(value))
                         .EndRow();
             }
         }
 
-        var result = Connection.Query<(DateOnly, DateTime, DateTime, DateTime, DateTime, DateTime, DateTimeOffset)>("SELECT a, b, c, d, e, f, g FROM managedAppenderTemporal").ToList();
+        var result = Connection.Query<(DateOnly, DateTime, DateTime, DateTime, DateTime, DateTime, DateTimeOffset, TimeOnly)>("SELECT a, b, c, d, e, f, g, h FROM managedAppenderTemporal").ToList();
 
         result.Select(tuple => tuple.Item1).Should().BeEquivalentTo(dates.Select(DateOnly.FromDateTime));
         result.Select(tuple => tuple.Item2).Should().BeEquivalentTo(dates);
@@ -263,6 +265,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         result.Select(tuple => tuple.Item6).Should().BeEquivalentTo(dates);
         result.Select(tuple => tuple.Item7).Should().BeEquivalentTo(dates.Select(time => time.ToDateTimeOffset(TimeSpan.FromHours(1))), 
                                                               options => options.ComparingByMembers<DateTimeOffset>().Including(offset => offset.Offset).Including(offset => offset.TimeOfDay));
+        result.Select(tuple => tuple.Item8).Should().BeEquivalentTo(dates.Select(TimeOnly.FromDateTime));
     }
 
     [Fact]
