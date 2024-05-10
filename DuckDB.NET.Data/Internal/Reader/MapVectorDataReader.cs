@@ -7,7 +7,7 @@ using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-internal class MapVectorDataReader : VectorDataReaderBase
+internal sealed class MapVectorDataReader : VectorDataReaderBase
 {
     private readonly VectorDataReaderBase keyReader;
     private readonly VectorDataReaderBase valueReader;

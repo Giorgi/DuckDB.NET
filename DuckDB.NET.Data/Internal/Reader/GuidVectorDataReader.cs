@@ -5,7 +5,7 @@ using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-internal class GuidVectorDataReader : VectorDataReaderBase
+internal sealed class GuidVectorDataReader : VectorDataReaderBase
 {
     private static readonly char[] HexDigits = "0123456789abcdef".ToCharArray();
 

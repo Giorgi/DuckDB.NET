@@ -5,7 +5,7 @@ using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-internal class DecimalVectorDataReader : NumericVectorDataReader
+internal sealed class DecimalVectorDataReader : NumericVectorDataReader
 {
     private readonly byte scale;
     private readonly DuckDBType decimalType;

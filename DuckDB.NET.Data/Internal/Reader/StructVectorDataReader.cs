@@ -7,7 +7,7 @@ using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-internal class StructVectorDataReader : VectorDataReaderBase
+internal sealed class StructVectorDataReader : VectorDataReaderBase
 {
     private static readonly ConcurrentDictionary<Type, TypeDetails> TypeCache = new();
     private readonly Dictionary<string, VectorDataReaderBase> structDataReaders;

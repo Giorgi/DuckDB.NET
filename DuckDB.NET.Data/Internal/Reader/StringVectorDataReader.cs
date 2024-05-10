@@ -6,7 +6,7 @@ using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-internal class StringVectorDataReader : VectorDataReaderBase
+internal sealed class StringVectorDataReader : VectorDataReaderBase
 {
     internal unsafe StringVectorDataReader(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {

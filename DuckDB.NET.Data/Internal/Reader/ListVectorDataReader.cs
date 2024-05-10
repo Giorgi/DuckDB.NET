@@ -6,7 +6,7 @@ using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-internal class ListVectorDataReader : VectorDataReaderBase
+internal sealed class ListVectorDataReader : VectorDataReaderBase
 {
     private readonly ulong arraySize;
     private readonly VectorDataReaderBase listDataReader;

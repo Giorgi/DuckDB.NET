@@ -4,7 +4,7 @@ using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-internal class DateTimeVectorDataReader : VectorDataReaderBase
+internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
 {
     private static readonly Type DateTimeType = typeof(DateTime);
     private static readonly Type DateTimeNullableType = typeof(DateTime?);
