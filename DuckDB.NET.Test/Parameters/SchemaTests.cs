@@ -76,20 +76,20 @@ public class SchemaTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void Tables()
     {
-        Command.CommandText = "CREATE TABLE bar(key INTEGER)";
+        Command.CommandText = "CREATE TABLE foo(key INTEGER)";
         Command.ExecuteNonQuery();
 
         var schema = Connection.GetSchema("Tables");
         Assert.Equal(1, schema.Rows.Count);
-        Assert.Equal("bar", schema.Rows[0]["table_name"]);
+        Assert.Equal("foo", schema.Rows[0]["table_name"]);
     }
     
     [Fact]
     public void TablesWithRestrictions()
     {
-        Command.CommandText = "CREATE TABLE foo(key INTEGER)";
-        Command.ExecuteNonQuery();
         Command.CommandText = "CREATE TABLE bar(key INTEGER)";
+        Command.ExecuteNonQuery();
+        Command.CommandText = "CREATE TABLE baz(key INTEGER)";
         Command.ExecuteNonQuery();
 
         var schema = Connection.GetSchema("Tables", [null, null, "bar"]);
