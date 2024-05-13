@@ -210,4 +210,13 @@ public class DuckDBConnection : DbConnection
 
         return duplicatedConnection;
     }
+
+    public override DataTable GetSchema() =>
+        GetSchema("MetaDataCollections");
+
+    public override DataTable GetSchema(string collectionName) =>
+        GetSchema(collectionName, null);
+
+    public override DataTable GetSchema(string collectionName, string?[]? restrictionValues) =>
+        DuckDBSchema.GetSchema(this, collectionName, restrictionValues);
 }
