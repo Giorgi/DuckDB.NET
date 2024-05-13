@@ -66,6 +66,14 @@ public class SchemaTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    public void ReservedWords()
+    {
+        var schema = Connection.GetSchema(DbMetaDataCollectionNames.ReservedWords);
+        Assert.NotEmpty(schema.Rows);
+        Assert.Contains("select", schema.Rows.Cast<DataRow>().Select(c => c["ReservedWord"]));
+    }
+
+    [Fact]
     public void Tables()
     {
         Command.CommandText = "CREATE TABLE bar(key INTEGER)";

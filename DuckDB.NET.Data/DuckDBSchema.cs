@@ -13,6 +13,7 @@ internal static class DuckDBSchema
         {
             "METADATACOLLECTIONS" => GetMetaDataCollections(),
             "RESTRICTIONS" => GetRestrictions(),
+            "RESERVEDWORDS" => GetReservedWords(connection),
             "TABLES" => GetTables(connection, restrictionValues),
             _ => throw new ArgumentOutOfRangeException(nameof(collectionName), collectionName, "Invalid collection name.")
         };
@@ -54,6 +55,20 @@ internal static class DuckDBSchema
             }
         };
 
+    private static DataTable GetReservedWords(DuckDBConnection connection)
+    {
+        var table = new DataTable("ReservedWords")
+        {
+            Columns = { { "ReservedWord", typeof(string) } }
+        };
+
+        var command = connection.CreateCommand();
+        command.CommandText = "SELECT keyword_name FROM duckdb_keywords() WHERE keyword_category = 'reserved'";
+        command.CommandType = CommandType.Text;
+        ReadTo(command, table);
+        return table;
+    }
+
     private static DataTable GetTables(DuckDBConnection connection, string?[]? restrictionValues)
     {
         var table = new DataTable("Tables")
@@ -66,14 +81,7 @@ internal static class DuckDBSchema
         var command = BuildCommand(connection, query, restrictionValues, true,
             ["table_catalog", "table_schema", "table_name", "table_type"]);
         
-        var reader = command.ExecuteReader();
-        while (reader.Read())
-        {
-            var values = new object[reader.FieldCount];
-            reader.GetValues(values);
-            table.Rows.Add(values);
-        }
-
+        ReadTo(command, table);
         return table;
     }
 
@@ -109,5 +117,16 @@ internal static class DuckDBSchema
 
         command.CommandText = builder.ToString();
         return command;
+    }
+
+    private static void ReadTo(DuckDBCommand command, DataTable table)
+    {
+        var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var values = new object[reader.FieldCount];
+            reader.GetValues(values);
+            table.Rows.Add(values);
+        }
     }
 }
