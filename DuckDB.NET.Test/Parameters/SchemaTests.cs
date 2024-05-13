@@ -1,3 +1,4 @@
+using System;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
@@ -7,6 +8,12 @@ namespace DuckDB.NET.Test.Parameters;
 
 public class SchemaTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
+    [Fact]
+    public void InvalidCollection()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => Connection.GetSchema("Invalid"));
+    }
+    
     [Fact]
     public void MetaDataCollections()
     {
