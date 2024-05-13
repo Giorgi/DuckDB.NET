@@ -32,6 +32,7 @@ internal static class DuckDBSchema
             {
                 { "MetaDataCollections", 0, 0 },
                 { "Restrictions", 0, 0 },
+                { "ReservedWords", 0, 0 },
                 { "Tables", 4, 3 }
             }
         };
