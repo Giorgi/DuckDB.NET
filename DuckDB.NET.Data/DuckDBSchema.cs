@@ -63,10 +63,10 @@ internal static class DuckDBSchema
             Columns = { { "ReservedWord", typeof(string) } }
         };
 
-        var command = connection.CreateCommand();
-        command.CommandText = "SELECT keyword_name FROM duckdb_keywords() WHERE keyword_category = 'reserved'";
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT keyword_name as ReservedWord FROM duckdb_keywords() WHERE keyword_category = 'reserved'";
         command.CommandType = CommandType.Text;
-        ReadTo(command, table);
+        LoadData(command, table);
         return table;
     }
 
@@ -79,10 +79,10 @@ internal static class DuckDBSchema
 
         const string query = "SELECT table_catalog, table_schema, table_name, table_type FROM information_schema.tables";
 
-        var command = BuildCommand(connection, query, restrictionValues, true,
+        using var command = BuildCommand(connection, query, restrictionValues, true,
             ["table_catalog", "table_schema", "table_name", "table_type"]);
         
-        ReadTo(command, table);
+        LoadData(command, table);
         return table;
     }
 
@@ -120,14 +120,17 @@ internal static class DuckDBSchema
         return command;
     }
 
-    private static void ReadTo(DuckDBCommand command, DataTable table)
+    private static void LoadData(DuckDBCommand command, DataTable table)
     {
-        var reader = command.ExecuteReader();
-        while (reader.Read())
+        try
         {
-            var values = new object[reader.FieldCount];
-            reader.GetValues(values);
-            table.Rows.Add(values);
+            using var reader = command.ExecuteReader();
+            table.BeginLoadData();
+            table.Load(reader);
+        }
+        finally
+        {
+            table.EndLoadData();
         }
     }
 }
