@@ -58,19 +58,14 @@ internal static class DuckDBSchema
     {
         var table = new DataTable("Tables")
         {
-            Columns =
-            {
-                "table_catalog",
-                "table_schema",
-                "table_name",
-                "table_type"
-            }
+            Columns = { "table_catalog", "table_schema", "table_name", "table_type" }
         };
 
         const string query = "SELECT table_catalog, table_schema, table_name, table_type FROM information_schema.tables";
 
         var command = BuildCommand(connection, query, restrictionValues, true,
-            "table_catalog", "table_schema", "table_name", "table_type");
+            ["table_catalog", "table_schema", "table_name", "table_type"]);
+        
         var reader = command.ExecuteReader();
         while (reader.Read())
         {
@@ -82,17 +77,18 @@ internal static class DuckDBSchema
         return table;
     }
 
-    private static DuckDBCommand BuildCommand(DuckDBConnection connection, string query, string?[]? restrictions, bool addWhere, params string[]? names)
+    private static DuckDBCommand BuildCommand(DuckDBConnection connection, string query, string?[]? restrictions,
+        bool addWhere, string[]? restrictionNames)
     {
         var command = connection.CreateCommand();
-        if (restrictions == null || names == null)
+        if (restrictions is not { Length: > 0 } || restrictionNames == null)
         {
             command.CommandText = query;
             return command;
         }
 
         var builder = new StringBuilder(query);
-        foreach (var (name, restriction) in names.Zip(restrictions, Tuple.Create))
+        foreach (var (name, restriction) in restrictionNames.Zip(restrictions, Tuple.Create))
         {
             if (restriction?.Length > 0)
             {
