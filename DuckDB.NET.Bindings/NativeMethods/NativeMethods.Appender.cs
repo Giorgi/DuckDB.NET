@@ -14,6 +14,12 @@ public partial class NativeMethods
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_appender_create")]
         public static extern DuckDBState DuckDBAppenderCreate(DuckDBNativeConnection connection, SafeUnmanagedMemoryHandle schema, SafeUnmanagedMemoryHandle table, out DuckDBAppender appender);
 
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_appender_column_count")]
+        public static extern ulong DuckDBAppenderColumnCount(DuckDBAppender appender);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_appender_column_type")]
+        public static extern DuckDBLogicalType DuckDBAppenderColumnType(DuckDBAppender appender, ulong index);
+
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_appender_error")]
         public static extern IntPtr DuckDBAppenderError(DuckDBAppender appender);
 
@@ -154,5 +160,11 @@ public partial class NativeMethods
 #endif
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_append_null")]
         public static extern DuckDBState DuckDBAppendNull(DuckDBAppender appender);
+
+#if NET5_0_OR_GREATER
+        [SuppressGCTransition]
+#endif
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_append_data_chunk")]
+        public static extern DuckDBState DuckDBAppendDataChunk(DuckDBAppender appender, DuckDBDataChunk chunk);
     }
 }
