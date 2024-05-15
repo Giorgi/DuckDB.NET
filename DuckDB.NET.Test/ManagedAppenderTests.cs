@@ -269,6 +269,38 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    public void ListValues()
+    {
+        Command.CommandText = "CREATE TABLE managedAppenderLists(a INTEGER, b INTEGER[]" +
+                              //", c INTEGER[][]" +
+                              ");";
+        Command.ExecuteNonQuery();
+
+        var rows = 20;
+        using (var appender = Connection.CreateAppender("managedAppenderLists"))
+        {
+            for (int i = 0; i < rows; i++)
+            {
+                appender.CreateRow()
+                    .AppendValue(i)
+                    .AppendValue(Enumerable.Range(0, i).ToList())
+                    //.AppendValue(new List<List<int>>{ Enumerable.Range(0, 5).ToList() })
+                    .EndRow();
+            }
+        }
+
+        Command.CommandText = "SELECT * FROM managedAppenderLists order by 1";
+        var reader = Command.ExecuteReader();
+
+        int index = 0;
+        while (reader.Read())
+        {
+            var ints = reader.GetFieldValue<List<int>>(1);
+            ints.Should().BeEquivalentTo(Enumerable.Range(0, index++).ToList());
+        }
+    }
+
+    [Fact]
     public void IncompleteRowThrowsException()
     {
         var table = "CREATE TABLE managedAppenderIncompleteTest(a BOOLEAN, b TINYINT, c INTEGER);";

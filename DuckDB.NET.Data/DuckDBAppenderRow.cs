@@ -1,6 +1,7 @@
 ﻿using DuckDB.NET.Data.Internal.Writer;
 using DuckDB.NET.Native;
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 
 namespace DuckDB.NET.Data;
@@ -101,11 +102,28 @@ public class DuckDBAppenderRow
 
     #endregion
 
+    #region Composite Types
+
+    public DuckDBAppenderRow AppendValue<T>(IReadOnlyCollection<T>? value) => AppendCollectionValue(value);
+
+    #endregion
+
     private DuckDBAppenderRow AppendValueInternal<T>(T? value)
     {
         CheckColumnAccess();
 
         vectorWriters[columnIndex].AppendValue(value, rowIndex);
+
+        columnIndex++;
+
+        return this;
+    }
+
+    private DuckDBAppenderRow AppendCollectionValue<T>(IReadOnlyCollection<T>? value)
+    {
+        CheckColumnAccess();
+
+        vectorWriters[columnIndex].AppendCollection(value, rowIndex);
 
         columnIndex++;
 

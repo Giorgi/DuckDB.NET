@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Numerics;
 using DuckDB.NET.Native;
 
@@ -92,6 +94,8 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
     internal virtual bool AppendNumeric<T>(T value, int rowIndex) where T : unmanaged => ThrowException<T>();
 
     internal virtual bool AppendBigInteger(BigInteger value, int rowIndex) => ThrowException<BigInteger>();
+
+    internal virtual bool AppendCollection<T>(IReadOnlyCollection<T>? value, int rowIndex) => ThrowException<bool>();
 
     private bool ThrowException<T>()
     {

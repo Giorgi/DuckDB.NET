@@ -22,7 +22,7 @@ internal static class VectorDataWriterFactory
             DuckDBType.Boolean => new BooleanVectorDataWriter(vector, dataPointer, columnType),
 
             DuckDBType.Map => throw new NotImplementedException($"Writing {columnType} to data chunk is not yet supported"),
-            DuckDBType.List => throw new NotImplementedException($"Writing {columnType} to data chunk is not yet supported"),
+            DuckDBType.List => new ListVectorDataWriter(vector, dataPointer, columnType, logicalType),
             DuckDBType.Array => throw new NotImplementedException($"Writing {columnType} to data chunk is not yet supported"),
             DuckDBType.Blob => new StringVectorDataWriter(vector, dataPointer, columnType),
             DuckDBType.Varchar => new StringVectorDataWriter(vector, dataPointer, columnType),
