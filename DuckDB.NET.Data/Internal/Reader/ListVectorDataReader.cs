@@ -42,16 +42,16 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
             {
                 var listData = (DuckDBListEntry*)DataPointer + offset;
 
-                return GetList(offset, targetType, listData->Offset, listData->Length);
+                return GetList(targetType, listData->Offset, listData->Length);
             }
             case DuckDBType.Array:
-                return GetList(offset, targetType, offset * arraySize, arraySize);
+                return GetList(targetType, offset * arraySize, arraySize);
             default:
                 return base.GetValue(offset, targetType);
         }
     }
 
-    private unsafe object GetList(ulong offset, Type returnType, ulong listOffset, ulong length)
+    private unsafe object GetList(Type returnType, ulong listOffset, ulong length)
     {
         var listType = returnType.GetGenericArguments()[0];
 
