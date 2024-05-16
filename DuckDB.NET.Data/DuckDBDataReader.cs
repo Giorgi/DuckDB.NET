@@ -290,13 +290,13 @@ public class DuckDBDataReader : DbDataReader
         {
             Columns =
             {
-                { "ColumnOrdinal", typeof(int) },
-                { "ColumnName", typeof(string) },
-                { "DataType", typeof(Type) },
-                { "ColumnSize", typeof(int) },
-                { "AllowDBNull", typeof(bool) },
-                { "NumericScale", typeof(byte) },
-                { "NumericPrecision", typeof(byte) }
+                { SchemaTableColumn.ColumnName, typeof(string) },
+                { SchemaTableColumn.ColumnOrdinal, typeof(int) },
+                { SchemaTableColumn.ColumnSize, typeof(int) },
+                { SchemaTableColumn.NumericPrecision, typeof(byte)},
+                { SchemaTableColumn.NumericScale, typeof(byte) },
+                { SchemaTableColumn.DataType, typeof(Type) },
+                { SchemaTableColumn.AllowDBNull, typeof(bool)  }
             }
         };
 
@@ -304,21 +304,20 @@ public class DuckDBDataReader : DbDataReader
 
         for (var i = 0; i < FieldCount; i++)
         {
-            rowData[0] = i;
-            rowData[1] = GetName(i);
-            rowData[2] = GetFieldType(i);
-            rowData[3] = -1;
-            rowData[4] = true;
+            rowData[0] = GetName(i);
+            rowData[1] = i;
+            rowData[2] = -1;
+            rowData[5] = GetFieldType(i);
+            rowData[6] = true;
 
-            if (vectorReaders[i] is DecimalVectorDataReader decimalVectorDataReader) 
+            if (vectorReaders[i] is DecimalVectorDataReader decimalVectorDataReader)
             {
-                rowData[5] = decimalVectorDataReader.Scale;
-                rowData[6] = decimalVectorDataReader.Precision;
-            } 
-            else 
+                rowData[4] = decimalVectorDataReader.Scale;
+                rowData[3] = decimalVectorDataReader.Precision;
+            }
+            else
             {
-                rowData[5] = DBNull.Value;
-                rowData[6] = DBNull.Value;
+                rowData[3] = rowData[4] = DBNull.Value;
             }
 
             table.Rows.Add(rowData);

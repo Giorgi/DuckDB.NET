@@ -6,27 +6,19 @@ namespace DuckDB.NET.Data.Internal.Reader;
 
 internal sealed class DecimalVectorDataReader : NumericVectorDataReader
 {
-    private readonly byte scale;
-    private readonly byte precision;
     private readonly DuckDBType decimalType;
 
     internal unsafe DecimalVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
         using var logicalType = NativeMethods.Vectors.DuckDBVectorGetColumnType(vector);
-        scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
-        precision = NativeMethods.LogicalType.DuckDBDecimalWidth(logicalType);
+        Scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
+        Precision = NativeMethods.LogicalType.DuckDBDecimalWidth(logicalType);
         decimalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
     }
 
-    internal byte Scale 
-    {
-        get => scale;
-    }
+    internal byte Scale { get; }
 
-    internal byte Precision
-    {
-        get => precision;
-    }
+    internal byte Precision { get; }
 
     protected override T GetValidValue<T>(ulong offset, Type targetType)
     {
@@ -51,7 +43,7 @@ internal sealed class DecimalVectorDataReader : NumericVectorDataReader
 
     private decimal GetDecimal(ulong offset)
     {
-        var pow = (decimal)Math.Pow(10, scale);
+        var pow = (decimal)Math.Pow(10, Scale);
         switch (decimalType)
         {
             case DuckDBType.SmallInt:
