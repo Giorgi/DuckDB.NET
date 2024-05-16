@@ -323,4 +323,35 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
         reader.Invoking(r => r.Close()).Should().NotThrow();
     }
+
+    [Fact]
+    public void ReadDecimalSchema() 
+    {
+        Command.CommandText = "CREATE TABLE decimaltbl(foo decimal(10,2));";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "INSERT INTO decimaltbl VALUES (3.45), (9.35), (7.24);";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "SELECT foo FROM decimaltbl";
+        using var reader = Command.ExecuteReader();
+
+        var schemaTable = reader.GetSchemaTable();
+        schemaTable.Rows[0]["NumericScale"].Should().Be(2);
+        schemaTable.Rows[0]["NumericPrecision"].Should().Be(10);
+    }
+
+    [Fact]
+    public void ReadDecimalSchemaWithoutTableRow() 
+    {
+        Command.CommandText = "CREATE TABLE decimaltbl(foo decimal(10,2));";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "SELECT foo FROM decimaltbl";
+        using var reader = Command.ExecuteReader();
+
+        var schemaTable = reader.GetSchemaTable();
+        schemaTable.Rows[0]["NumericScale"].Should().Be(0);
+        schemaTable.Rows[0]["NumericPrecision"].Should().Be(0);
+    }
 }
