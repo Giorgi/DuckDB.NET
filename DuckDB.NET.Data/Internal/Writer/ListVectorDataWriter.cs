@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using DuckDB.NET.Native;
 
@@ -16,21 +17,19 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
         listDataWriter = VectorDataWriterFactory.CreateWriter(childVector, childType);
     }
 
-    internal override bool AppendCollection<T>(IReadOnlyCollection<T>? value, int rowIndex)
+    internal override bool AppendCollection(IList value, int rowIndex)
     {
-        if (value == null)
-        {
-            AppendNull(rowIndex);
-            return true;
-        }
-
         var index = 0;
 
         foreach (var item in value)
         {
-            listDataWriter.AppendValue(item, index++);
+            listDataWriter.AppendValue(item, (int)offset + (index++));
         }
 
-        return AppendValueInternal(new DuckDBListEntry(offset, (ulong)value.Count), rowIndex);
+        var result = AppendValueInternal(new DuckDBListEntry(offset, (ulong)value.Count), rowIndex);
+
+        offset += (ulong)value.Count;
+
+        return result;
     }
 }

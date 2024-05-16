@@ -272,19 +272,19 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     public void ListValues()
     {
         Command.CommandText = "CREATE TABLE managedAppenderLists(a INTEGER, b INTEGER[]" +
-                              //", c INTEGER[][]" +
+                              ", c INTEGER[][]" +
                               ");";
         Command.ExecuteNonQuery();
 
-        var rows = 20;
+        var rows = 2;
         using (var appender = Connection.CreateAppender("managedAppenderLists"))
         {
             for (int i = 0; i < rows; i++)
             {
                 appender.CreateRow()
                     .AppendValue(i)
-                    .AppendValue(Enumerable.Range(0, i).ToList())
-                    //.AppendValue(new List<List<int>>{ Enumerable.Range(0, 5).ToList() })
+                    .AppendValue(Enumerable.Range(0, 2).ToList())
+                    .AppendValue(new List<List<int>> { Enumerable.Range(0, 5).ToList(), Enumerable.Range(i + 2, 4).ToList() })
                     .EndRow();
             }
         }
@@ -296,7 +296,8 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         while (reader.Read())
         {
             var ints = reader.GetFieldValue<List<int>>(1);
-            ints.Should().BeEquivalentTo(Enumerable.Range(0, index++).ToList());
+            ints.Should().BeEquivalentTo(Enumerable.Range(0, 2).ToList());
+            var fieldValue = reader.GetFieldValue<List<List<int>>>(2);
         }
     }
 

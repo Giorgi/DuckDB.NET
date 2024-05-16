@@ -76,15 +76,18 @@ public class DuckDBDataReader : DbDataReader
 
             currentChunkRowCount = (ulong)NativeMethods.DataChunks.DuckDBDataChunkGetSize(currentChunk);
 
-            vectorReaders = new VectorDataReaderBase[fieldCount];
-
+            if (vectorReaders.Length != fieldCount)
+            {
+                vectorReaders = new VectorDataReaderBase[fieldCount];
+            }
+            
             for (int index = 0; index < fieldCount; index++)
             {
                 var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(currentChunk, index);
 
                 using var logicalType = NativeMethods.Query.DuckDBColumnLogicalType(ref currentResult, index);
 
-                vectorReaders[index] = VectorDataReaderFactory.CreateReader(vector, logicalType,
+                vectorReaders[index] = VectorDataReaderFactory.CreateReader(vector, logicalType, vectorReaders[index]?.ColumnName ??
                                                                             NativeMethods.Query.DuckDBColumnName(ref currentResult, index).ToManagedString(false));
             }
 

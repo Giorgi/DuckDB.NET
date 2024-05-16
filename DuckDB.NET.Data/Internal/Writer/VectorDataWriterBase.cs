@@ -61,6 +61,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
             TimeOnly val => AppendTimeOnly(val, rowIndex),
 #endif
             DateTimeOffset val => AppendDateTimeOffset(val, rowIndex),
+            IList val => AppendCollection(val, rowIndex),
             _ => ThrowException<T>()
         };
     }
@@ -95,7 +96,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
 
     internal virtual bool AppendBigInteger(BigInteger value, int rowIndex) => ThrowException<BigInteger>();
 
-    internal virtual bool AppendCollection<T>(IReadOnlyCollection<T>? value, int rowIndex) => ThrowException<bool>();
+    internal virtual bool AppendCollection(IList value, int rowIndex) => ThrowException<bool>();
 
     private bool ThrowException<T>()
     {

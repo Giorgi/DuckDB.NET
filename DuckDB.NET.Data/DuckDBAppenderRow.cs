@@ -104,7 +104,7 @@ public class DuckDBAppenderRow
 
     #region Composite Types
 
-    public DuckDBAppenderRow AppendValue<T>(IReadOnlyCollection<T>? value) => AppendCollectionValue(value);
+    public DuckDBAppenderRow AppendValue<T>(IReadOnlyCollection<T>? value) => AppendValueInternal(value);
 
     #endregion
 
@@ -113,17 +113,6 @@ public class DuckDBAppenderRow
         CheckColumnAccess();
 
         vectorWriters[columnIndex].AppendValue(value, rowIndex);
-
-        columnIndex++;
-
-        return this;
-    }
-
-    private DuckDBAppenderRow AppendCollectionValue<T>(IReadOnlyCollection<T>? value)
-    {
-        CheckColumnAccess();
-
-        vectorWriters[columnIndex].AppendCollection(value, rowIndex);
 
         columnIndex++;
 
