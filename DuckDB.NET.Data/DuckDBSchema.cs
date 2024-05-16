@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using System.Data.Common;
 using System.Linq;
 using System.Text;
 
@@ -20,25 +21,25 @@ internal static class DuckDBSchema
     }
 
     private static DataTable GetMetaDataCollections() =>
-        new("MetaDataCollections")
+        new(DbMetaDataCollectionNames.MetaDataCollections)
         {
             Columns =
             {
-                { "CollectionName", typeof(string) },
-                { "NumberOfRestrictions", typeof(int) },
-                { "NumberOfIdentifierParts", typeof(int) }
+                { DbMetaDataColumnNames.CollectionName, typeof(string) },
+                { DbMetaDataColumnNames.NumberOfRestrictions, typeof(int) },
+                { DbMetaDataColumnNames.NumberOfIdentifierParts, typeof(int) }
             },
             Rows =
             {
-                { "MetaDataCollections", 0, 0 },
-                { "Restrictions", 0, 0 },
-                { "ReservedWords", 0, 0 },
+                { DbMetaDataCollectionNames.MetaDataCollections, 0, 0 },
+                { DbMetaDataCollectionNames.Restrictions, 0, 0 },
+                { DbMetaDataCollectionNames.ReservedWords, 0, 0 },
                 { "Tables", 4, 3 }
             }
         };
 
     private static DataTable GetRestrictions() =>
-        new("Restrictions")
+        new(DbMetaDataCollectionNames.Restrictions)
         {
             Columns =
             {
@@ -58,9 +59,9 @@ internal static class DuckDBSchema
 
     private static DataTable GetReservedWords(DuckDBConnection connection)
     {
-        var table = new DataTable("ReservedWords")
+        var table = new DataTable(DbMetaDataCollectionNames.ReservedWords)
         {
-            Columns = { { "ReservedWord", typeof(string) } }
+            Columns = { { DbMetaDataColumnNames.ReservedWord, typeof(string) } }
         };
 
         using var command = connection.CreateCommand();
