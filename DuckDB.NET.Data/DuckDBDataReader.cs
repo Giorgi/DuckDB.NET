@@ -310,10 +310,10 @@ public class DuckDBDataReader : DbDataReader
             rowData[3] = -1;
             rowData[4] = true;
 
-            if (vectorReaders[i] is DecimalVectorDataReader dvdr) 
+            if (vectorReaders[i] is DecimalVectorDataReader decimalVectorDataReader) 
             {
-                rowData[5] = dvdr.GetScale();
-                rowData[6] = dvdr.GetPrecision();
+                rowData[5] = decimalVectorDataReader.Scale;
+                rowData[6] = decimalVectorDataReader.Precision;
             } 
             else 
             {

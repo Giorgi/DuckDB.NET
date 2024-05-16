@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Numerics;
-using DuckDB.NET.Data.Extensions;
 using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Reader;
@@ -17,6 +16,16 @@ internal sealed class DecimalVectorDataReader : NumericVectorDataReader
         scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
         precision = NativeMethods.LogicalType.DuckDBDecimalWidth(logicalType);
         decimalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
+    }
+
+    internal byte Scale 
+    {
+        get => scale;
+    }
+
+    internal byte Precision
+    {
+        get => precision;
     }
 
     protected override T GetValidValue<T>(ulong offset, Type targetType)
@@ -64,13 +73,4 @@ internal sealed class DecimalVectorDataReader : NumericVectorDataReader
         }
     }
 
-    internal byte GetScale() 
-    {
-        return scale;
-    }
-
-    internal byte GetPrecision() 
-    {
-        return precision;
-    }
 }
