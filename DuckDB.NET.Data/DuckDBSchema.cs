@@ -73,10 +73,7 @@ internal static class DuckDBSchema
 
     private static DataTable GetTables(DuckDBConnection connection, string?[]? restrictionValues)
     {
-        var table = new DataTable("Tables")
-        {
-            Columns = { "table_catalog", "table_schema", "table_name", "table_type" }
-        };
+        var table = new DataTable("Tables");
 
         const string query = "SELECT table_catalog, table_schema, table_name, table_type FROM information_schema.tables";
 
