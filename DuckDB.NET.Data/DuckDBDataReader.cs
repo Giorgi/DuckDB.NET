@@ -294,11 +294,13 @@ public class DuckDBDataReader : DbDataReader
                 { "ColumnName", typeof(string) },
                 { "DataType", typeof(Type) },
                 { "ColumnSize", typeof(int) },
-                { "AllowDBNull", typeof(bool) }
+                { "AllowDBNull", typeof(bool) },
+                { "NumericScale", typeof(byte) },
+                { "NumericPrecision", typeof(byte) }
             }
         };
 
-        var rowData = new object[5];
+        var rowData = new object[7];
 
         for (var i = 0; i < FieldCount; i++)
         {
@@ -307,6 +309,18 @@ public class DuckDBDataReader : DbDataReader
             rowData[2] = GetFieldType(i);
             rowData[3] = -1;
             rowData[4] = true;
+
+            if (vectorReaders[i] is DecimalVectorDataReader decimalVectorDataReader) 
+            {
+                rowData[5] = decimalVectorDataReader.Scale;
+                rowData[6] = decimalVectorDataReader.Precision;
+            } 
+            else 
+            {
+                rowData[5] = DBNull.Value;
+                rowData[6] = DBNull.Value;
+            }
+
             table.Rows.Add(rowData);
         }
 

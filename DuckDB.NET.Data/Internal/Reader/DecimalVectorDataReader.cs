@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Numerics;
-using DuckDB.NET.Data.Extensions;
 using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Reader;
@@ -8,13 +7,25 @@ namespace DuckDB.NET.Data.Internal.Reader;
 internal sealed class DecimalVectorDataReader : NumericVectorDataReader
 {
     private readonly byte scale;
+    private readonly byte precision;
     private readonly DuckDBType decimalType;
 
     internal unsafe DecimalVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
         using var logicalType = NativeMethods.Vectors.DuckDBVectorGetColumnType(vector);
         scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
+        precision = NativeMethods.LogicalType.DuckDBDecimalWidth(logicalType);
         decimalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
+    }
+
+    internal byte Scale 
+    {
+        get => scale;
+    }
+
+    internal byte Precision
+    {
+        get => precision;
     }
 
     protected override T GetValidValue<T>(ulong offset, Type targetType)
@@ -61,4 +72,5 @@ internal sealed class DecimalVectorDataReader : NumericVectorDataReader
             default: throw new DuckDBException($"Invalid type {DuckDBType} ({(int)DuckDBType}) for column {ColumnName}");
         }
     }
+
 }
