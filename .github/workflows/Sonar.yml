@@ -1,5 +1,8 @@
 name: SonarCloud
+
 on:
+  workflow_dispatch:
+  
   push:
     branches:
       - develop
