@@ -16,8 +16,6 @@ public class SchemaTests : DuckDBTestBase
             CREATE TABLE IF NOT EXISTS foo(foo_id INTEGER PRIMARY KEY, name VARCHAR(100), date DATE UNIQUE);
             CREATE TABLE IF NOT EXISTS bar(bar_id INTEGER PRIMARY KEY, name VARCHAR(100), date DATE UNIQUE, foo_id INTEGER REFERENCES foo(foo_id));
             CREATE TABLE IF NOT EXISTS baz(baz_id INTEGER PRIMARY KEY, bar_id INTEGER REFERENCES bar(bar_id));
-            CREATE UNIQUE INDEX foo_name_uq ON foo(name);
-            CREATE INDEX bar_name_ix ON bar(name);
             """;
         Command.ExecuteNonQuery();
     }
@@ -127,20 +125,26 @@ public class SchemaTests : DuckDBTestBase
         Assert.Equal(1, schema.Rows.Count);
         Assert.Equal("bar", schema.Rows[0]["table_name"]);
     }
-    
+
     [Fact]
-    public void BarIndexes()
+    public void NonUniqueIndex()
     {
+        Command.CommandText = "CREATE INDEX bar_name_ix ON bar(name);";
+        Command.ExecuteNonQuery();
+
         var schema = Connection.GetSchema("Indexes", [null, null, "bar", null]);
         Assert.Equal(1, schema.Rows.Count);
         Assert.Equal("bar_name_ix", schema.Rows[0]["index_name"]);
         Assert.Equal(false, schema.Rows[0]["is_unique"]);
         Assert.Equal(false, schema.Rows[0]["is_primary"]);
     }
-    
+
     [Fact]
-    public void FooIndexes()
+    public void UniqueIndex()
     {
+        Command.CommandText = "CREATE UNIQUE INDEX foo_name_uq ON foo(name);";
+        Command.ExecuteNonQuery();
+
         var schema = Connection.GetSchema("Indexes", [null, null, "foo", null]);
         Assert.Equal(1, schema.Rows.Count);
         Assert.Equal("foo_name_uq", schema.Rows[0]["index_name"]);
