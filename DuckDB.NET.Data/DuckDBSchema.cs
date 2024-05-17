@@ -8,9 +8,8 @@ namespace DuckDB.NET.Data;
 
 internal static class DuckDBSchema
 {
-    public static DataTable GetSchema(DuckDBConnection connection, string collectionName, string?[]? restrictionValues)
-    {
-        return collectionName.ToUpperInvariant() switch
+    public static DataTable GetSchema(DuckDBConnection connection, string collectionName, string?[]? restrictionValues) =>
+        collectionName.ToUpperInvariant() switch
         {
             "METADATACOLLECTIONS" => GetMetaDataCollections(),
             "RESTRICTIONS" => GetRestrictions(),
@@ -19,7 +18,6 @@ internal static class DuckDBSchema
             "COLUMNS" => GetColumns(connection, restrictionValues),
             _ => throw new ArgumentOutOfRangeException(nameof(collectionName), collectionName, "Invalid collection name.")
         };
-    }
 
     private static DataTable GetMetaDataCollections() =>
         new(DbMetaDataCollectionNames.MetaDataCollections)
@@ -35,7 +33,8 @@ internal static class DuckDBSchema
                 { DbMetaDataCollectionNames.MetaDataCollections, 0, 0 },
                 { DbMetaDataCollectionNames.Restrictions, 0, 0 },
                 { DbMetaDataCollectionNames.ReservedWords, 0, 0 },
-                { "Tables", 4, 3 }
+                { "Tables", 4, 3 },
+                { "Columns", 4, 4 }
             }
         };
 
@@ -54,7 +53,12 @@ internal static class DuckDBSchema
                 { "Tables", "Catalog", "table_catalog", 1 },
                 { "Tables", "Schema", "table_schema", 2 },
                 { "Tables", "Table", "table_name", 3 },
-                { "Tables", "TableType", "table_type", 4 }
+                { "Tables", "TableType", "table_type", 4 },
+
+                { "Columns", "Catalog", "table_catalog", 1 },
+                { "Columns", "Schema", "table_schema", 2 },
+                { "Columns", "Table", "table_name", 3 },
+                { "Columns", "Column", "column_name", 4 }
             }
         };
 
