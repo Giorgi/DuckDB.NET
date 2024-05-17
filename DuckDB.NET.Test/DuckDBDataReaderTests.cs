@@ -17,6 +17,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         Command.ExecuteNonQuery();
 
         Command.CommandText = "select * from GetOrdinalTests";
+        Command.UseStreamingMode = true;
         var reader = Command.ExecuteReader();
 
         reader.GetOrdinal("key").Should().Be(0);
@@ -128,7 +129,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.Invoking(r => r.GetValue(0)).Should().Throw<ArgumentOutOfRangeException>();
 
         interval.Months.Should().Be(12);
-        
+
         Command.CommandText = "SELECT INTERVAL '28' DAYS;";
         reader = Command.ExecuteReader();
         reader.Read();
@@ -302,6 +303,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         Command.CommandText = "CREATE TABLE t2 (i INT, j INT);";
         Command.ExecuteNonQuery();
 
+        Command.UseStreamingMode = true;
         Command.CommandText = @"INSERT INTO t2 
                                     SELECT 2 AS i, 3 AS j 
                                     RETURNING *, i * j AS i_times_j;";
@@ -325,7 +327,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    public void ReadDecimalSchema() 
+    public void ReadDecimalSchema()
     {
         Command.CommandText = "CREATE TABLE decimaltbl(foo decimal(10,2));";
         Command.ExecuteNonQuery();
@@ -342,7 +344,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    public void ReadDecimalSchemaWithoutTableRow() 
+    public void ReadDecimalSchemaWithoutTableRow()
     {
         Command.CommandText = "CREATE TABLE decimaltbl(foo decimal(10,2));";
         Command.ExecuteNonQuery();

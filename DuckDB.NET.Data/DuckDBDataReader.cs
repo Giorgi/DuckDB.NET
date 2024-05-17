@@ -28,7 +28,7 @@ public class DuckDBDataReader : DbDataReader
     private long currentChunkIndex;
 
     private readonly IEnumerator<DuckDBResult> resultEnumerator;
-    private VectorDataReaderBase[] vectorReaders = Array.Empty<VectorDataReaderBase>();
+    private VectorDataReaderBase[] vectorReaders = [];
 
     internal DuckDBDataReader(DuckDBCommand command, IEnumerable<DuckDBResult> queryResults, CommandBehavior behavior)
     {

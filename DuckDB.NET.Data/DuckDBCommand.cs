@@ -24,6 +24,8 @@ public class DuckDBCommand : DbCommand
     public override bool DesignTimeVisible { get; set; }
     public override UpdateRowSource UpdatedRowSource { get; set; }
 
+    public bool UseStreamingMode { get; set; } = false;
+
     private string commandText = string.Empty;
 
 #if NET6_0_OR_GREATER
@@ -67,7 +69,7 @@ public class DuckDBCommand : DbCommand
     {
         EnsureConnectionOpen();
 
-        var results = PreparedStatement.PrepareMultiple(connection!.NativeConnection, CommandText, parameters);
+        var results = PreparedStatement.PrepareMultiple(connection!.NativeConnection, CommandText, parameters, UseStreamingMode);
 
         var count = 0;
 
@@ -102,7 +104,7 @@ public class DuckDBCommand : DbCommand
     {
         EnsureConnectionOpen();
 
-        var results = PreparedStatement.PrepareMultiple(connection!.NativeConnection, CommandText, parameters);
+        var results = PreparedStatement.PrepareMultiple(connection!.NativeConnection, CommandText, parameters, UseStreamingMode);
 
         var reader = new DuckDBDataReader(this, results, behavior);
 
