@@ -70,6 +70,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: pwsh
         run: |
-          ./.sonar/scanner/dotnet-sonarscanner begin /k:"Giorgi_DuckDB.NET" /o:"giorgi" /d:sonar.login="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io"
+          ./.sonar/scanner/dotnet-sonarscanner begin /k:"Giorgi_DuckDB.NET" /o:"giorgi" /d:sonar.login="${{ secrets.SONAR_TOKEN }}" /d:sonar.cs.opencover.reportsPaths=DuckDB.NET.Test/coverage.net8.0.info.xml /d:sonar.host.url="https://sonarcloud.io"
           dotnet build
+          dotnet test --configuration Release --verbosity normal --logger GitHubActions /p:CollectCoverage=true /p:BuildType=Full /p:DoesNotReturnAttribute="DoesNotReturnAttribute"
           ./.sonar/scanner/dotnet-sonarscanner end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
