@@ -80,27 +80,15 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
             return (T)(object)timeTz;
         }
 
-        if (DuckDBType == DuckDBType.Timestamp || DuckDBType == DuckDBType.TimestampTz)
+        return DuckDBType switch
         {
-            return ReadTimestamp<T>(offset, targetType);
-        }
-
-        if (DuckDBType == DuckDBType.TimestampS)
-        {
-            return ReadTimestamp<T>(offset, targetType, 1000000);
-        }
-
-        if (DuckDBType == DuckDBType.TimestampMs)
-        {
-            return ReadTimestamp<T>(offset, targetType, 1000);
-        }
-
-        if (DuckDBType == DuckDBType.TimestampNs)
-        {
-            return ReadTimestamp<T>(offset, targetType, 1, 1000);
-        }
-
-        return base.GetValidValue<T>(offset, targetType);
+            DuckDBType.Timestamp => ReadTimestamp<T>(offset, targetType),
+            DuckDBType.TimestampTz => ReadTimestamp<T>(offset, targetType),
+            DuckDBType.TimestampS => ReadTimestamp<T>(offset, targetType, 1000000),
+            DuckDBType.TimestampMs => ReadTimestamp<T>(offset, targetType, 1000),
+            DuckDBType.TimestampNs => ReadTimestamp<T>(offset, targetType, 1, 1000),
+            _ => base.GetValidValue<T>(offset, targetType)
+        };
     }
 
     private T ReadTimestamp<T>(ulong offset, Type targetType, int factor = 1, int divisor = 1)

@@ -93,14 +93,7 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
             }
             else
             {
-                if (allowNulls)
-                {
-                    list.Add(null);
-                }
-                else
-                {
-                    throw new InvalidCastException("The list contains null value");
-                }
+                list.Add(allowNulls ? null : throw new InvalidCastException("The list contains null value"));
             }
         }
 
@@ -118,14 +111,7 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
                 }
                 else
                 {
-                    if (allowNulls)
-                    {
-                        result.Add(default!);
-                    }
-                    else
-                    {
-                        throw new InvalidCastException("The list contains null value");
-                    }
+                    result.Add(allowNulls ? default! : throw new InvalidCastException("The list contains null value"));
                 }
             }
             return result;

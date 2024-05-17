@@ -171,8 +171,11 @@ public class DuckDBConnectionTests
         await using var duckDBConnection = new DuckDBConnection(dbInfo.ConnectionString);
         await duckDBConnection.OpenAsync();
 
-        await duckDBConnection.DisposeAsync();
-        await duckDBConnection.DisposeAsync();
+        await duckDBConnection.Invoking(async connection =>
+        {
+            await connection.DisposeAsync();
+            await connection.DisposeAsync();
+        }).Should().NotThrowAsync();
     }
 
     [Fact]
@@ -183,8 +186,11 @@ public class DuckDBConnectionTests
         await using var duckDBConnection = new DuckDBConnection(dbInfo.ConnectionString);
         await duckDBConnection.OpenAsync();
 
-        await duckDBConnection.CloseAsync();
-        await duckDBConnection.DisposeAsync();
+        await duckDBConnection.Invoking(async connection =>
+        {
+            await connection.CloseAsync();
+            await connection.DisposeAsync();
+        }).Should().NotThrowAsync();
     }
 
     [Fact]
