@@ -17,6 +17,7 @@ internal static class DuckDBSchema
             "TABLES" => GetTables(connection, restrictionValues),
             "COLUMNS" => GetColumns(connection, restrictionValues),
             "FOREIGNKEYS" => GetForeignKeys(connection, restrictionValues),
+            "INDEXES" => GetIndexes(connection, restrictionValues),
             _ => throw new ArgumentOutOfRangeException(nameof(collectionName), collectionName, "Invalid collection name.")
         };
 
@@ -34,9 +35,10 @@ internal static class DuckDBSchema
                 { DbMetaDataCollectionNames.MetaDataCollections, 0, 0 },
                 { DbMetaDataCollectionNames.Restrictions, 0, 0 },
                 { DbMetaDataCollectionNames.ReservedWords, 0, 0 },
-                { "Tables", 4, 3 },
-                { "Columns", 4, 4 },
-                { "ForeignKeys", 4, 3 }
+                { DuckDbMetaDataCollectionNames.Tables, 4, 3 },
+                { DuckDbMetaDataCollectionNames.Columns, 4, 4 },
+                { DuckDbMetaDataCollectionNames.ForeignKeys, 4, 3 },
+                { DuckDbMetaDataCollectionNames.Indexes, 4, 3 },
             }
         };
 
@@ -52,20 +54,25 @@ internal static class DuckDBSchema
             },
             Rows =
             {
-                { "Tables", "Catalog", "table_catalog", 1 },
-                { "Tables", "Schema", "table_schema", 2 },
-                { "Tables", "Table", "table_name", 3 },
-                { "Tables", "TableType", "table_type", 4 },
+                { DuckDbMetaDataCollectionNames.Tables, "Catalog", "table_catalog", 1 },
+                { DuckDbMetaDataCollectionNames.Tables, "Schema", "table_schema", 2 },
+                { DuckDbMetaDataCollectionNames.Tables, "Table", "table_name", 3 },
+                { DuckDbMetaDataCollectionNames.Tables, "TableType", "table_type", 4 },
 
-                { "Columns", "Catalog", "table_catalog", 1 },
-                { "Columns", "Schema", "table_schema", 2 },
-                { "Columns", "Table", "table_name", 3 },
-                { "Columns", "Column", "column_name", 4 },
+                { DuckDbMetaDataCollectionNames.Columns, "Catalog", "table_catalog", 1 },
+                { DuckDbMetaDataCollectionNames.Columns, "Schema", "table_schema", 2 },
+                { DuckDbMetaDataCollectionNames.Columns, "Table", "table_name", 3 },
+                { DuckDbMetaDataCollectionNames.Columns, "Column", "column_name", 4 },
 
-                { "ForeignKeys", "Catalog", "constraint_catalog", 1 },
-                { "ForeignKeys", "Schema", "constraint_schema", 2 },
-                { "ForeignKeys", "Table", "table_name", 3 },
-                { "ForeignKeys", "Constraint", "constraint_name", 4 }
+                { DuckDbMetaDataCollectionNames.ForeignKeys, "Catalog", "constraint_catalog", 1 },
+                { DuckDbMetaDataCollectionNames.ForeignKeys, "Schema", "constraint_schema", 2 },
+                { DuckDbMetaDataCollectionNames.ForeignKeys, "Table", "table_name", 3 },
+                { DuckDbMetaDataCollectionNames.ForeignKeys, "Constraint", "constraint_name", 4 },
+
+                { DuckDbMetaDataCollectionNames.Indexes, "Catalog", "constraint_catalog", 1 },
+                { DuckDbMetaDataCollectionNames.Indexes, "Schema", "constraint_schema", 2 },
+                { DuckDbMetaDataCollectionNames.Indexes, "Table", "table_name", 3 },
+                { DuckDbMetaDataCollectionNames.Indexes, "Constraint", "constraint_name", 4 },
             },
         };
 
@@ -84,7 +91,7 @@ internal static class DuckDBSchema
         using var command = BuildCommand(connection, query, restrictionValues, true,
             ["table_catalog", "table_schema", "table_name", "table_type"]);
 
-        return GetDataTable("Tables", command);
+        return GetDataTable(DuckDbMetaDataCollectionNames.Tables, command);
     }
 
     private static DataTable GetColumns(DuckDBConnection connection, string?[]? restrictionValues)
@@ -103,7 +110,7 @@ internal static class DuckDBSchema
         using var command = BuildCommand(connection, query, restrictionValues, true,
             ["table_catalog", "table_schema", "table_name", "column_name"]);
         
-        return GetDataTable("Columns", command);
+        return GetDataTable(DuckDbMetaDataCollectionNames.Columns, command);
     } 
     
     private static DataTable GetForeignKeys(DuckDBConnection connection, string?[]? restrictionValues)
@@ -120,7 +127,26 @@ internal static class DuckDBSchema
         using var command = BuildCommand(connection, query, restrictionValues, false,
             ["constraint_catalog", "constraint_schema", "table_name", "constraint_name"]);
         
-        return GetDataTable("ForeignKeys", command);
+        return GetDataTable(DuckDbMetaDataCollectionNames.ForeignKeys, command);
+    }
+    
+    private static DataTable GetIndexes(DuckDBConnection connection, string?[]? restrictionValues)
+    {
+        const string query =
+            """
+            SELECT
+            	database_name as index_catalog,
+            	schema_name as index_schema,
+            	index_name,
+            	table_name,
+            	is_unique,
+            	is_primary
+            FROM duckdb_indexes()
+            """;
+        using var command = BuildCommand(connection, query, restrictionValues, true,
+            ["index_catalog", "index_schema", "table_name", "index_name"]);
+        
+        return GetDataTable(DuckDbMetaDataCollectionNames.Indexes, command);
     }
 
     private static DuckDBCommand BuildCommand(DuckDBConnection connection, string query, string?[]? restrictions,
