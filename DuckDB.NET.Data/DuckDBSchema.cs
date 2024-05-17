@@ -16,6 +16,7 @@ internal static class DuckDBSchema
             "RESERVEDWORDS" => GetReservedWords(connection),
             "TABLES" => GetTables(connection, restrictionValues),
             "COLUMNS" => GetColumns(connection, restrictionValues),
+            "FOREIGNKEYS" => GetForeignKeys(connection, restrictionValues),
             _ => throw new ArgumentOutOfRangeException(nameof(collectionName), collectionName, "Invalid collection name.")
         };
 
@@ -34,7 +35,8 @@ internal static class DuckDBSchema
                 { DbMetaDataCollectionNames.Restrictions, 0, 0 },
                 { DbMetaDataCollectionNames.ReservedWords, 0, 0 },
                 { "Tables", 4, 3 },
-                { "Columns", 4, 4 }
+                { "Columns", 4, 4 },
+                { "ForeignKeys", 4, 3 }
             }
         };
 
@@ -58,8 +60,13 @@ internal static class DuckDBSchema
                 { "Columns", "Catalog", "table_catalog", 1 },
                 { "Columns", "Schema", "table_schema", 2 },
                 { "Columns", "Table", "table_name", 3 },
-                { "Columns", "Column", "column_name", 4 }
-            }
+                { "Columns", "Column", "column_name", 4 },
+
+                { "ForeignKeys", "Catalog", "constraint_catalog", 1 },
+                { "ForeignKeys", "Schema", "constraint_schema", 2 },
+                { "ForeignKeys", "Table", "table_name", 3 },
+                { "ForeignKeys", "Constraint", "constraint_name", 4 }
+            },
         };
 
     private static DataTable GetReservedWords(DuckDBConnection connection)
@@ -84,18 +91,36 @@ internal static class DuckDBSchema
     {
         const string query =
             """
-            SELECT table_catalog, table_schema, table_name, column_name, 
-                   ordinal_position, column_default, is_nullable, data_type, 
-                   character_maximum_length, character_octet_length, 
-                   numeric_precision, numeric_precision_radix, 
-                   numeric_scale, datetime_precision, 
-                   character_set_catalog, character_set_schema, character_set_name, collation_catalog 
+            SELECT
+                table_catalog, table_schema, table_name, column_name,
+                ordinal_position, column_default, is_nullable, data_type,
+                character_maximum_length, character_octet_length,
+                numeric_precision, numeric_precision_radix,
+                numeric_scale, datetime_precision,
+                character_set_catalog, character_set_schema, character_set_name, collation_catalog 
             FROM information_schema.columns 
             """;
         using var command = BuildCommand(connection, query, restrictionValues, true,
             ["table_catalog", "table_schema", "table_name", "column_name"]);
         
         return GetDataTable("Columns", command);
+    } 
+    
+    private static DataTable GetForeignKeys(DuckDBConnection connection, string?[]? restrictionValues)
+    {
+        const string query =
+            """
+            SELECT 
+                constraint_catalog, constraint_schema, constraint_name, 
+                table_catalog, table_schema, table_name, constraint_type, 
+                is_deferrable, initially_deferred 
+            FROM information_schema.table_constraints
+            WHERE constraint_type = 'FOREIGN KEY'
+            """;
+        using var command = BuildCommand(connection, query, restrictionValues, false,
+            ["constraint_catalog", "constraint_schema", "table_name", "constraint_name"]);
+        
+        return GetDataTable("ForeignKeys", command);
     }
 
     private static DuckDBCommand BuildCommand(DuckDBConnection connection, string query, string?[]? restrictions,

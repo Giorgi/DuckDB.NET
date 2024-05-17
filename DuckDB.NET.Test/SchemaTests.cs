@@ -12,9 +12,9 @@ public class SchemaTests : DuckDBTestBase
     {
         Command.CommandText =
             """
-            CREATE TABLE IF NOT EXISTS foo(foo_id INTEGER);
-            CREATE TABLE IF NOT EXISTS bar(bar_id INTEGER);
-            CREATE TABLE IF NOT EXISTS baz(baz_id INTEGER);
+            CREATE TABLE IF NOT EXISTS foo(foo_id INTEGER PRIMARY KEY);
+            CREATE TABLE IF NOT EXISTS bar(bar_id INTEGER PRIMARY KEY, foo_id INTEGER REFERENCES foo(foo_id));
+            CREATE TABLE IF NOT EXISTS baz(baz_id INTEGER PRIMARY KEY, bar_id INTEGER REFERENCES bar(bar_id));
             """;
         Command.ExecuteNonQuery();
     }
@@ -115,5 +115,13 @@ public class SchemaTests : DuckDBTestBase
         Assert.Equal(1, schema.Rows.Count);
         Assert.Equal("foo", schema.Rows[0]["table_name"]);
         Assert.Equal("foo_id", schema.Rows[0]["column_name"]);
+    }
+   
+    [Fact]
+    public void ForeignKeysWithRestrictions()
+    {
+        var schema = Connection.GetSchema("ForeignKeys", [null, null, "bar", null]);
+        Assert.Equal(1, schema.Rows.Count);
+        Assert.Equal("bar", schema.Rows[0]["table_name"]);
     }
 }
