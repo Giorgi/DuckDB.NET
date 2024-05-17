@@ -16,6 +16,7 @@ internal static class DuckDBSchema
             "RESTRICTIONS" => GetRestrictions(),
             "RESERVEDWORDS" => GetReservedWords(connection),
             "TABLES" => GetTables(connection, restrictionValues),
+            "COLUMNS" => GetColumns(connection, restrictionValues),
             _ => throw new ArgumentOutOfRangeException(nameof(collectionName), collectionName, "Invalid collection name.")
         };
     }
@@ -59,29 +60,38 @@ internal static class DuckDBSchema
 
     private static DataTable GetReservedWords(DuckDBConnection connection)
     {
-        var table = new DataTable(DbMetaDataCollectionNames.ReservedWords)
-        {
-            Columns = { { DbMetaDataColumnNames.ReservedWord, typeof(string) } }
-        };
-
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT keyword_name as ReservedWord FROM duckdb_keywords() WHERE keyword_category = 'reserved'";
         command.CommandType = CommandType.Text;
-        LoadData(command, table);
-        return table;
+        return GetDataTable(DbMetaDataCollectionNames.ReservedWords, command);
     }
 
     private static DataTable GetTables(DuckDBConnection connection, string?[]? restrictionValues)
     {
-        var table = new DataTable("Tables");
-
         const string query = "SELECT table_catalog, table_schema, table_name, table_type FROM information_schema.tables";
 
         using var command = BuildCommand(connection, query, restrictionValues, true,
             ["table_catalog", "table_schema", "table_name", "table_type"]);
+
+        return GetDataTable("Tables", command);
+    }
+
+    private static DataTable GetColumns(DuckDBConnection connection, string?[]? restrictionValues)
+    {
+        const string query =
+            """
+            SELECT table_catalog, table_schema, table_name, column_name, 
+                   ordinal_position, column_default, is_nullable, data_type, 
+                   character_maximum_length, character_octet_length, 
+                   numeric_precision, numeric_precision_radix, 
+                   numeric_scale, datetime_precision, 
+                   character_set_catalog, character_set_schema, character_set_name, collation_catalog 
+            FROM information_schema.columns 
+            """;
+        using var command = BuildCommand(connection, query, restrictionValues, true,
+            ["table_catalog", "table_schema", "table_name", "column_name"]);
         
-        LoadData(command, table);
-        return table;
+        return GetDataTable("Columns", command);
     }
 
     private static DuckDBCommand BuildCommand(DuckDBConnection connection, string query, string?[]? restrictions,
@@ -118,8 +128,9 @@ internal static class DuckDBSchema
         return command;
     }
 
-    private static void LoadData(DuckDBCommand command, DataTable table)
+    private static DataTable GetDataTable(string tableName, DuckDBCommand command)
     {
+        var table = new DataTable(tableName);
         try
         {
             using var reader = command.ExecuteReader();
@@ -130,5 +141,7 @@ internal static class DuckDBSchema
         {
             table.EndLoadData();
         }
+
+        return table;
     }
 }

@@ -4,10 +4,21 @@ using System.Data.Common;
 using System.Linq;
 using Xunit;
 
-namespace DuckDB.NET.Test.Parameters;
+namespace DuckDB.NET.Test;
 
-public class SchemaTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
+public class SchemaTests : DuckDBTestBase
 {
+    public SchemaTests(DuckDBDatabaseFixture db) : base(db)
+    {
+        Command.CommandText =
+            """
+            CREATE TABLE IF NOT EXISTS foo(foo_id INTEGER);
+            CREATE TABLE IF NOT EXISTS bar(bar_id INTEGER);
+            CREATE TABLE IF NOT EXISTS baz(baz_id INTEGER);
+            """;
+        Command.ExecuteNonQuery();
+    }
+
     [Fact]
     public void InvalidCollection()
     {
@@ -83,24 +94,26 @@ public class SchemaTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void Tables()
     {
-        Command.CommandText = "CREATE TABLE foo(key INTEGER)";
-        Command.ExecuteNonQuery();
-
         var schema = Connection.GetSchema("Tables");
-        Assert.Equal(1, schema.Rows.Count);
-        Assert.Equal("foo", schema.Rows[0]["table_name"]);
+        Assert.Equal(3, schema.Rows.Count);
+        var tableNames = schema.Rows.Cast<DataRow>().Select(x => (string)x["table_name"]);
+        Assert.Equal(tableNames, ["bar", "baz", "foo"]);
     }
     
     [Fact]
     public void TablesWithRestrictions()
     {
-        Command.CommandText = "CREATE TABLE bar(key INTEGER)";
-        Command.ExecuteNonQuery();
-        Command.CommandText = "CREATE TABLE baz(key INTEGER)";
-        Command.ExecuteNonQuery();
-
         var schema = Connection.GetSchema("Tables", [null, null, "bar"]);
         Assert.Equal(1, schema.Rows.Count);
         Assert.Equal("bar", schema.Rows[0]["table_name"]);
+    }
+   
+    [Fact]
+    public void ColumnsWithRestrictions()
+    {
+        var schema = Connection.GetSchema("Columns", [null, null, "foo", "foo_id"]);
+        Assert.Equal(1, schema.Rows.Count);
+        Assert.Equal("foo", schema.Rows[0]["table_name"]);
+        Assert.Equal("foo_id", schema.Rows[0]["column_name"]);
     }
 }
