@@ -39,11 +39,11 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
         switch (DuckDBType)
         {
             case DuckDBType.List:
-            {
-                var listData = (DuckDBListEntry*)DataPointer + offset;
+                {
+                    var listData = (DuckDBListEntry*)DataPointer + offset;
 
-                return GetList(targetType, listData->Offset, listData->Length);
-            }
+                    return GetList(targetType, listData->Offset, listData->Length);
+                }
             case DuckDBType.Array:
                 return GetList(targetType, offset * arraySize, arraySize);
             default:
@@ -61,43 +61,18 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
                    ?? throw new ArgumentException($"The type '{returnType.Name}' specified in parameter {nameof(returnType)} cannot be instantiated as an IList.");
 
         //Special case for specific types to avoid boxing
-        switch (list)
+        return list switch
         {
-            case List<int> theList:
-                return BuildList<int>(theList);
-            case List<int?> theList:
-                return BuildList<int?>(theList);
-            case List<float> theList:
-                return BuildList<float>(theList);
-            case List<float?> theList:
-                return BuildList<float?>(theList);
-            case List<double> theList:
-                return BuildList<double>(theList);
-            case List<double?> theList:
-                return BuildList<double?>(theList);
-            case List<decimal> theList:
-                return BuildList<decimal>(theList);
-            case List<decimal?> theList:
-                return BuildList<decimal?>(theList);
-        }
-
-        var targetType = nullableType ?? listType;
-
-        for (ulong i = 0; i < length; i++)
-        {
-            var childOffset = listOffset + i;
-            if (listDataReader.IsValid(childOffset))
-            {
-                var item = listDataReader.GetValue(childOffset, targetType);
-                list.Add(item);
-            }
-            else
-            {
-                list.Add(allowNulls ? null : throw new InvalidCastException("The list contains null value"));
-            }
-        }
-
-        return list;
+            List<int> theList => BuildList<int>(theList),
+            List<int?> theList => BuildList<int?>(theList),
+            List<float> theList => BuildList<float>(theList),
+            List<float?> theList => BuildList<float?>(theList),
+            List<double> theList => BuildList<double>(theList),
+            List<double?> theList => BuildList<double?>(theList),
+            List<decimal> theList => BuildList<decimal>(theList),
+            List<decimal?> theList => BuildList<decimal?>(theList),
+            _ => BuildListCommon(list, nullableType ?? listType)
+        };
 
         List<T> BuildList<T>(List<T> result)
         {
@@ -112,6 +87,24 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
                 else
                 {
                     result.Add(allowNulls ? default! : throw new InvalidCastException("The list contains null value"));
+                }
+            }
+            return result;
+        }
+
+        IList BuildListCommon(IList result, Type targetType)
+        {
+            for (ulong i = 0; i < length; i++)
+            {
+                var childOffset = listOffset + i;
+                if (listDataReader.IsValid(childOffset))
+                {
+                    var item = listDataReader.GetValue(childOffset, targetType);
+                    result.Add(item);
+                }
+                else
+                {
+                    result.Add(allowNulls ? null : throw new InvalidCastException("The list contains null value"));
                 }
             }
             return result;
