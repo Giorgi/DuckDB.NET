@@ -212,7 +212,7 @@ public class DuckDBConnection : DbConnection
     }
 
     public override DataTable GetSchema() =>
-        GetSchema("MetaDataCollections");
+        GetSchema(DbMetaDataCollectionNames.MetaDataCollections);
 
     public override DataTable GetSchema(string collectionName) =>
         GetSchema(collectionName, null);
