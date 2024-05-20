@@ -8,17 +8,13 @@ namespace DuckDB.NET.Data;
 
 internal static class DuckDBSchema
 {
-    private static readonly string[] TableRestrictions =
-        ["table_catalog", "table_schema", "table_name", "table_type"];
+    private static readonly string[] TableRestrictions = ["table_catalog", "table_schema", "table_name", "table_type"];
 
-    private static readonly string[] ColumnRestrictions =
-        ["table_catalog", "table_schema", "table_name", "column_name"];
+    private static readonly string[] ColumnRestrictions = ["table_catalog", "table_schema", "table_name", "column_name"];
 
-    private static readonly string[] ForeignKeyRestrictions =
-        ["constraint_catalog", "constraint_schema", "table_name", "constraint_name"];
+    private static readonly string[] ForeignKeyRestrictions = ["constraint_catalog", "constraint_schema", "table_name", "constraint_name"];
 
-    private static readonly string[] IndexesRestrictions =
-        ["index_catalog", "index_schema", "table_name", "index_name"];
+    private static readonly string[] IndexesRestrictions = ["index_catalog", "index_schema", "table_name", "index_name"];
 
     public static DataTable GetSchema(DuckDBConnection connection, string collectionName, string?[]? restrictionValues) =>
         collectionName.ToUpperInvariant() switch
@@ -92,14 +88,15 @@ internal static class DuckDBSchema
     {
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT keyword_name as ReservedWord FROM duckdb_keywords() WHERE keyword_category = 'reserved'";
-        command.CommandType = CommandType.Text;
         return GetDataTable(DbMetaDataCollectionNames.ReservedWords, command);
     }
 
     private static DataTable GetTables(DuckDBConnection connection, string?[]? restrictionValues)
     {
         if (restrictionValues?.Length > TableRestrictions.Length)
+        {
             throw new ArgumentException("Too many restrictions", nameof(restrictionValues));
+        }
 
         const string query = "SELECT table_catalog, table_schema, table_name, table_type FROM information_schema.tables";
 
@@ -111,7 +108,9 @@ internal static class DuckDBSchema
     private static DataTable GetColumns(DuckDBConnection connection, string?[]? restrictionValues)
     {
         if (restrictionValues?.Length > ColumnRestrictions.Length)
+        {
             throw new ArgumentException("Too many restrictions", nameof(restrictionValues));
+        }
 
         const string query =
             """
@@ -132,7 +131,9 @@ internal static class DuckDBSchema
     private static DataTable GetForeignKeys(DuckDBConnection connection, string?[]? restrictionValues)
     {
         if (restrictionValues?.Length > ForeignKeyRestrictions.Length)
+        {
             throw new ArgumentException("Too many restrictions", nameof(restrictionValues));
+        }
 
         const string query =
             """
@@ -151,7 +152,9 @@ internal static class DuckDBSchema
     private static DataTable GetIndexes(DuckDBConnection connection, string?[]? restrictionValues)
     {
         if (restrictionValues?.Length > IndexesRestrictions.Length)
+        {
             throw new ArgumentException("Too many restrictions", nameof(restrictionValues));
+        }
 
         const string query =
             """
@@ -169,8 +172,7 @@ internal static class DuckDBSchema
         return GetDataTable(DuckDbMetaDataCollectionNames.Indexes, command);
     }
 
-    private static DuckDBCommand BuildCommand(DuckDBConnection connection, string query, string?[]? restrictions,
-        bool addWhere, string[]? restrictionNames)
+    private static DuckDBCommand BuildCommand(DuckDBConnection connection, string query, string?[]? restrictions, bool addWhere, string[]? restrictionNames)
     {
         var command = connection.CreateCommand();
         if (restrictions is not { Length: > 0 } || restrictionNames == null)
