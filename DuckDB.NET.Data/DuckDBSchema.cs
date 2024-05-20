@@ -4,6 +4,8 @@ using System.Data.Common;
 using System.Linq;
 using System.Text;
 
+using DuckDB.NET.Native;
+
 namespace DuckDB.NET.Data;
 
 internal static class DuckDBSchema
@@ -20,6 +22,7 @@ internal static class DuckDBSchema
         collectionName.ToUpperInvariant() switch
         {
             "METADATACOLLECTIONS" => GetMetaDataCollections(),
+            "DATASOURCEINFORMATION" => GetDataSourceInformation(NativeMethods.Startup.DuckDBLibraryVersion().ToManagedString(false)),
             "RESTRICTIONS" => GetRestrictions(),
             "RESERVEDWORDS" => GetReservedWords(connection),
             "TABLES" => GetTables(connection, restrictionValues),
@@ -41,12 +44,59 @@ internal static class DuckDBSchema
             Rows =
             {
                 { DbMetaDataCollectionNames.MetaDataCollections, 0, 0 },
+                { DbMetaDataCollectionNames.DataSourceInformation, 0, 0 },
                 { DbMetaDataCollectionNames.Restrictions, 0, 0 },
                 { DbMetaDataCollectionNames.ReservedWords, 0, 0 },
                 { DuckDbMetaDataCollectionNames.Tables, TableRestrictions.Length, 3 },
                 { DuckDbMetaDataCollectionNames.Columns, ColumnRestrictions.Length, 4 },
                 { DuckDbMetaDataCollectionNames.ForeignKeys, ForeignKeyRestrictions.Length, 3 },
                 { DuckDbMetaDataCollectionNames.Indexes, IndexesRestrictions.Length, 3 },
+            }
+        };
+
+    private static DataTable GetDataSourceInformation(string? serverVersion) =>
+        new(DbMetaDataCollectionNames.DataSourceInformation) {
+            Columns =
+            {
+                { DbMetaDataColumnNames.CompositeIdentifierSeparatorPattern, typeof(string) },
+                { DbMetaDataColumnNames.DataSourceProductName, typeof(string) },
+                { DbMetaDataColumnNames.DataSourceProductVersion, typeof(string) },
+                { DbMetaDataColumnNames.DataSourceProductVersionNormalized, typeof(string) },
+                { DbMetaDataColumnNames.GroupByBehavior, typeof(GroupByBehavior) },
+                { DbMetaDataColumnNames.IdentifierPattern, typeof(string) },
+                { DbMetaDataColumnNames.IdentifierCase, typeof(IdentifierCase) },
+                { DbMetaDataColumnNames.OrderByColumnsInSelect, typeof(bool) },
+                { DbMetaDataColumnNames.ParameterMarkerFormat, typeof(string) },
+                { DbMetaDataColumnNames.ParameterMarkerPattern, typeof(string) }, 
+                { DbMetaDataColumnNames.ParameterNameMaxLength, typeof(int) },
+                { DbMetaDataColumnNames.ParameterNamePattern, typeof(string) },
+                { DbMetaDataColumnNames.QuotedIdentifierPattern, typeof(string) },
+                { DbMetaDataColumnNames.QuotedIdentifierCase, typeof(IdentifierCase) },
+                { DbMetaDataColumnNames.StatementSeparatorPattern, typeof(string) },
+                { DbMetaDataColumnNames.StringLiteralPattern, typeof(string) },
+                { DbMetaDataColumnNames.SupportedJoinOperators, typeof(SupportedJoinOperators) }
+            },
+            Rows =
+            {
+                    { 
+                        "\\.", 
+                        "duckdb", 
+                        serverVersion, 
+                        serverVersion, 
+                        GroupByBehavior.Unrelated, 
+                        "(^\\[\\p{Lo}\\p{Lu}\\p{Ll}_@#][\\p{Lo}\\p{Lu}\\p{Ll}\\p{Nd}@$#_]*$)|(^\\[[^\\]\\0]|\\]\\]+\\]$)|(^\\\"[^\\\"\\0]|\\\"\\\"+\\\"$)", 
+                        IdentifierCase.Insensitive, 
+                        false, 
+                        "{0}", 
+                        "$[\\p{Lo}\\p{Lu}\\p{Ll}\\p{Lm}_@#][\\p{Lo}\\p{Lu}\\p{Ll}\\p{Lm}\\p{Nd}\\uff3f_@#\\$]*(?=\\s+|$)", 
+                        128,
+                        "^[\\p{Lo}\\p{Lu}\\p{Ll}\\p{Lm}_@#][\\p{Lo}\\p{Lu}\\p{Ll}\\p{Lm}\\p{Nd}\\uff3f_@#\\$]*(?=\\s+|$)",
+                        "(([^\\[]|\\]\\])*)", 
+                        IdentifierCase.Insensitive, 
+                        ";", 
+                        "'(([^']|'')*)'", 
+                        SupportedJoinOperators.Inner | SupportedJoinOperators.LeftOuter | SupportedJoinOperators.RightOuter | SupportedJoinOperators.FullOuter
+                    }
             }
         };
 
