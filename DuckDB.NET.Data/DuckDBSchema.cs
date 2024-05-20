@@ -22,7 +22,7 @@ internal static class DuckDBSchema
         collectionName.ToUpperInvariant() switch
         {
             "METADATACOLLECTIONS" => GetMetaDataCollections(),
-            "DATASOURCEINFORMATION" => GetDataSourceInformation(NativeMethods.Startup.DuckDBLibraryVersion().ToManagedString(false)),
+            "DATASOURCEINFORMATION" => GetDataSourceInformation(connection.ServerVersion),
             "RESTRICTIONS" => GetRestrictions(),
             "RESERVEDWORDS" => GetReservedWords(connection),
             "TABLES" => GetTables(connection, restrictionValues),
