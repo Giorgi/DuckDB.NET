@@ -78,9 +78,12 @@ internal static class DuckDBSchema
             },
             Rows =
             {
-                    { 
+                    // For more information about pattern, parameters and so on go to:
+                    // https://duckdb.org/docs/sql/keywords_and_identifiers.html
+                    // https://duckdb.org/docs/sql/query_syntax/prepared_statements
+                    {
                         "\\.", 
-                        "duckdb", 
+                        "DuckDB", 
                         serverVersion, 
                         serverVersion, 
                         GroupByBehavior.Unrelated, 
