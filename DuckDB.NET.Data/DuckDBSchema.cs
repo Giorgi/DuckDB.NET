@@ -8,6 +8,18 @@ namespace DuckDB.NET.Data;
 
 internal static class DuckDBSchema
 {
+    private static readonly string[] TableRestrictions =
+        ["table_catalog", "table_schema", "table_name", "table_type"];
+
+    private static readonly string[] ColumnRestrictions =
+        ["table_catalog", "table_schema", "table_name", "column_name"];
+
+    private static readonly string[] ForeignKeyRestrictions =
+        ["constraint_catalog", "constraint_schema", "table_name", "constraint_name"];
+
+    private static readonly string[] IndexesRestrictions =
+        ["index_catalog", "index_schema", "table_name", "index_name"];
+
     public static DataTable GetSchema(DuckDBConnection connection, string collectionName, string?[]? restrictionValues) =>
         collectionName.ToUpperInvariant() switch
         {
@@ -35,10 +47,10 @@ internal static class DuckDBSchema
                 { DbMetaDataCollectionNames.MetaDataCollections, 0, 0 },
                 { DbMetaDataCollectionNames.Restrictions, 0, 0 },
                 { DbMetaDataCollectionNames.ReservedWords, 0, 0 },
-                { DuckDbMetaDataCollectionNames.Tables, 4, 3 },
-                { DuckDbMetaDataCollectionNames.Columns, 4, 4 },
-                { DuckDbMetaDataCollectionNames.ForeignKeys, 4, 3 },
-                { DuckDbMetaDataCollectionNames.Indexes, 4, 3 },
+                { DuckDbMetaDataCollectionNames.Tables, TableRestrictions.Length, 3 },
+                { DuckDbMetaDataCollectionNames.Columns, ColumnRestrictions.Length, 4 },
+                { DuckDbMetaDataCollectionNames.ForeignKeys, ForeignKeyRestrictions.Length, 3 },
+                { DuckDbMetaDataCollectionNames.Indexes, IndexesRestrictions.Length, 3 },
             }
         };
 
@@ -86,16 +98,21 @@ internal static class DuckDBSchema
 
     private static DataTable GetTables(DuckDBConnection connection, string?[]? restrictionValues)
     {
+        if (restrictionValues?.Length > TableRestrictions.Length)
+            throw new ArgumentException("Too many restrictions", nameof(restrictionValues));
+
         const string query = "SELECT table_catalog, table_schema, table_name, table_type FROM information_schema.tables";
 
-        using var command = BuildCommand(connection, query, restrictionValues, true,
-            ["table_catalog", "table_schema", "table_name", "table_type"]);
+        using var command = BuildCommand(connection, query, restrictionValues, true, TableRestrictions);
 
         return GetDataTable(DuckDbMetaDataCollectionNames.Tables, command);
     }
 
     private static DataTable GetColumns(DuckDBConnection connection, string?[]? restrictionValues)
     {
+        if (restrictionValues?.Length > ColumnRestrictions.Length)
+            throw new ArgumentException("Too many restrictions", nameof(restrictionValues));
+
         const string query =
             """
             SELECT
@@ -107,14 +124,16 @@ internal static class DuckDBSchema
                 character_set_catalog, character_set_schema, character_set_name, collation_catalog 
             FROM information_schema.columns 
             """;
-        using var command = BuildCommand(connection, query, restrictionValues, true,
-            ["table_catalog", "table_schema", "table_name", "column_name"]);
+        using var command = BuildCommand(connection, query, restrictionValues, true, ColumnRestrictions);
         
         return GetDataTable(DuckDbMetaDataCollectionNames.Columns, command);
     } 
     
     private static DataTable GetForeignKeys(DuckDBConnection connection, string?[]? restrictionValues)
     {
+        if (restrictionValues?.Length > ForeignKeyRestrictions.Length)
+            throw new ArgumentException("Too many restrictions", nameof(restrictionValues));
+
         const string query =
             """
             SELECT 
@@ -124,14 +143,16 @@ internal static class DuckDBSchema
             FROM information_schema.table_constraints
             WHERE constraint_type = 'FOREIGN KEY'
             """;
-        using var command = BuildCommand(connection, query, restrictionValues, false,
-            ["constraint_catalog", "constraint_schema", "table_name", "constraint_name"]);
+        using var command = BuildCommand(connection, query, restrictionValues, false, ForeignKeyRestrictions);
         
         return GetDataTable(DuckDbMetaDataCollectionNames.ForeignKeys, command);
     }
     
     private static DataTable GetIndexes(DuckDBConnection connection, string?[]? restrictionValues)
     {
+        if (restrictionValues?.Length > IndexesRestrictions.Length)
+            throw new ArgumentException("Too many restrictions", nameof(restrictionValues));
+
         const string query =
             """
             SELECT
@@ -143,8 +164,7 @@ internal static class DuckDBSchema
             	is_primary
             FROM duckdb_indexes()
             """;
-        using var command = BuildCommand(connection, query, restrictionValues, true,
-            ["index_catalog", "index_schema", "table_name", "index_name"]);
+        using var command = BuildCommand(connection, query, restrictionValues, true, IndexesRestrictions);
         
         return GetDataTable(DuckDbMetaDataCollectionNames.Indexes, command);
     }

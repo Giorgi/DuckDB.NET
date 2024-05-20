@@ -108,7 +108,13 @@ public class SchemaTests : DuckDBTestBase
         Assert.Equal(1, schema.Rows.Count);
         Assert.Equal("bar", schema.Rows[0]["table_name"]);
     }
-   
+ 
+    [Fact]
+    public void TablesTooManyRestrictions()
+    {
+        Assert.Throws<ArgumentException>(() => Connection.GetSchema("Tables", new string [5]));
+    }
+  
     [Fact]
     public void ColumnsWithRestrictions()
     {
@@ -117,13 +123,25 @@ public class SchemaTests : DuckDBTestBase
         Assert.Equal("foo", schema.Rows[0]["table_name"]);
         Assert.Equal("foo_id", schema.Rows[0]["column_name"]);
     }
-   
+
+    [Fact]
+    public void ColumnsTooManyRestrictions()
+    {
+        Assert.Throws<ArgumentException>(() => Connection.GetSchema("Columns", new string [5]));
+    }
+
     [Fact]
     public void ForeignKeysWithRestrictions()
     {
         var schema = Connection.GetSchema("ForeignKeys", [null, null, "bar", null]);
         Assert.Equal(1, schema.Rows.Count);
         Assert.Equal("bar", schema.Rows[0]["table_name"]);
+    }
+
+    [Fact]
+    public void ForeignKeysTooManyRestrictions()
+    {
+        Assert.Throws<ArgumentException>(() => Connection.GetSchema("ForeignKeys", new string [5]));
     }
 
     [Fact]
@@ -150,6 +168,12 @@ public class SchemaTests : DuckDBTestBase
         Assert.Equal("foo_name_uq", schema.Rows[0]["index_name"]);
         Assert.Equal(true, schema.Rows[0]["is_unique"]);
         Assert.Equal(false, schema.Rows[0]["is_primary"]);
+    }
+
+    [Fact]
+    public void IndexesTooManyRestrictions()
+    {
+        Assert.Throws<ArgumentException>(() => Connection.GetSchema("Indexes", new string [5]));
     }
 
     private static IEnumerable<string> GetValues(DataTable schema, string columnName) =>
