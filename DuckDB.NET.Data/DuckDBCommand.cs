@@ -24,6 +24,13 @@ public class DuckDBCommand : DbCommand
     public override bool DesignTimeVisible { get; set; }
     public override UpdateRowSource UpdatedRowSource { get; set; }
 
+    /// <summary>
+    /// A flag to determine whether to use streaming mode or not when executing a query. Defaults to false.
+    /// In streaming mode DuckDB will use less RAM but query execution might be slower. Applies only queries that return a result-set.
+    /// </summary>
+    /// <remarks>
+    /// Streaming mode uses `duckdb_execute_prepared_streaming` and `duckdb_stream_fetch_chunk`, non-streaming (materialized) mode uses `duckdb_execute_prepared` and `duckdb_result_get_chunk`.
+    /// </remarks>
     public bool UseStreamingMode { get; set; } = false;
 
     private string commandText = string.Empty;
