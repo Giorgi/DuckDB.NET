@@ -5,7 +5,7 @@ using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-internal class GuidVectorDataReader : VectorDataReaderBase
+internal sealed class GuidVectorDataReader : VectorDataReaderBase
 {
     internal unsafe GuidVectorDataReader(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {

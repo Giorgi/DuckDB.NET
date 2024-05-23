@@ -17,6 +17,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         Command.ExecuteNonQuery();
 
         Command.CommandText = "select * from GetOrdinalTests";
+        Command.UseStreamingMode = true;
         var reader = Command.ExecuteReader();
 
         reader.GetOrdinal("key").Should().Be(0);
@@ -128,7 +129,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.Invoking(r => r.GetValue(0)).Should().Throw<ArgumentOutOfRangeException>();
 
         interval.Months.Should().Be(12);
-        
+
         Command.CommandText = "SELECT INTERVAL '28' DAYS;";
         reader = Command.ExecuteReader();
         reader.Read();
@@ -302,6 +303,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         Command.CommandText = "CREATE TABLE t2 (i INT, j INT);";
         Command.ExecuteNonQuery();
 
+        Command.UseStreamingMode = true;
         Command.CommandText = @"INSERT INTO t2 
                                     SELECT 2 AS i, 3 AS j 
                                     RETURNING *, i * j AS i_times_j;";
@@ -322,5 +324,36 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.HasRows.Should().BeFalse();
 
         reader.Invoking(r => r.Close()).Should().NotThrow();
+    }
+
+    [Fact]
+    public void ReadDecimalSchema()
+    {
+        Command.CommandText = "CREATE TABLE decimaltbl(foo decimal(10,2));";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "INSERT INTO decimaltbl VALUES (3.45), (9.35), (7.24);";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "SELECT foo FROM decimaltbl";
+        using var reader = Command.ExecuteReader();
+
+        var schemaTable = reader.GetSchemaTable();
+        schemaTable.Rows[0]["NumericScale"].Should().Be(2);
+        schemaTable.Rows[0]["NumericPrecision"].Should().Be(10);
+    }
+
+    [Fact]
+    public void ReadDecimalSchemaWithoutTableRow()
+    {
+        Command.CommandText = "CREATE TABLE decimaltbl(foo decimal(10,2));";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "SELECT foo FROM decimaltbl";
+        using var reader = Command.ExecuteReader();
+
+        var schemaTable = reader.GetSchemaTable();
+        schemaTable.Rows[0]["NumericScale"].Should().Be(0);
+        schemaTable.Rows[0]["NumericPrecision"].Should().Be(0);
     }
 }

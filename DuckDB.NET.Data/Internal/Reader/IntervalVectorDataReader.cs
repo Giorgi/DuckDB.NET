@@ -4,7 +4,7 @@ using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-internal class IntervalVectorDataReader : VectorDataReaderBase
+internal sealed class IntervalVectorDataReader : VectorDataReaderBase
 {
     private static readonly Type TimeSpanType = typeof(TimeSpan);
     private static readonly Type TimeSpanNullableType = typeof(TimeSpan?);
