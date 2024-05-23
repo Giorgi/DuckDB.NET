@@ -84,4 +84,4 @@ If you encounter a bug with the library [Create an Issue](https://github.com/Gio
 
 A big thanks to the [AWS Open Source Software Fund](https://github.com/aws/dotnet-foss) for sponsoring the project!
 
-[![AWS](.github/sponsors/aws-logo-small.png)](https://github.com/aws/dotnet-foss)
+[![AWS](https://raw.githubusercontent.com/Giorgi/DuckDB.NET/main/.github/sponsors/aws-logo-small.png)](https://github.com/aws/dotnet-foss)
