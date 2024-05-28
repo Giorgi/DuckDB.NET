@@ -44,8 +44,20 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
         ListValuesInternal("BigInt", faker => faker.Random.Long());
     }
 
+    [Fact]
+    public void ListValuesFloat()
+    {
+        ListValuesInternal("Float", faker => faker.Random.Float());
+    }
 
-    public void ListValuesInternal<T>(string typeName, Func<Faker, T> generator, int? length = null)
+    [Fact]
+    public void ListValuesDouble()
+    {
+        ListValuesInternal("Double", faker => faker.Random.Double());
+    }
+
+
+    private void ListValuesInternal<T>(string typeName, Func<Faker, T> generator, int? length = null)
     {
         var rows = 2000;
         var table = $"managedAppender{typeName}Lists";

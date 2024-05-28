@@ -18,7 +18,7 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
     public ListVectorDataWriter(IntPtr vector, void* vectorData, DuckDBType columnType, DuckDBLogicalType logicalType) : base(vector, vectorData, columnType)
     {
         using var childType = IsList ? NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType) : NativeMethods.LogicalType.DuckDBArrayTypeChildType(logicalType);
-        var childVector = IsList ? NativeMethods.Vectors.DuckDBListVectorGetChild(vector) : NativeMethods.Vectors.DuckDBArrayVectorGetChild(vector); ;
+        var childVector = IsList ? NativeMethods.Vectors.DuckDBListVectorGetChild(vector) : NativeMethods.Vectors.DuckDBArrayVectorGetChild(vector);
 
         arraySize = IsList ? 0 : (ulong)NativeMethods.LogicalType.DuckDBArrayVectorGetSize(logicalType);
         listItemWriter = VectorDataWriterFactory.CreateWriter(childVector, childType);
@@ -42,6 +42,9 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
             IEnumerable<ushort> items => WriteItems(items),
             IEnumerable<uint> items => WriteItems(items),
             IEnumerable<ulong> items => WriteItems(items),
+
+            IEnumerable<float> items => WriteItems(items),
+            IEnumerable<double> items => WriteItems(items),
 
             IEnumerable<decimal> items => WriteItems(items),
             IEnumerable<BigInteger> items => WriteItems(items),
@@ -73,7 +76,7 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
             if (IsList == false && count != arraySize)
             {
                 throw new InvalidOperationException($"Column has Array size of {arraySize} but the specified value has size of {count}");
-            };
+            }
 
             var index = 0;
 
