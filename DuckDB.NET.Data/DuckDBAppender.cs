@@ -1,4 +1,5 @@
-﻿using DuckDB.NET.Data.Internal.Writer;
+﻿using DuckDB.NET.Data.Internal;
+using DuckDB.NET.Data.Internal.Writer;
 using DuckDB.NET.Native;
 using System;
 using System.Diagnostics;
@@ -8,7 +9,7 @@ namespace DuckDB.NET.Data;
 
 public class DuckDBAppender : IDisposable
 {
-    private static readonly ulong DuckDBVectorSize = NativeMethods.Helpers.DuckDBVectorSize();
+    private static readonly ulong DuckDBVectorSize = DuckDBGlobalData.VectorSize;
 
     private bool closed;
     private readonly Native.DuckDBAppender nativeAppender;

@@ -104,7 +104,7 @@ public class DuckDBAppenderRow
 
     #region Composite Types
 
-    public DuckDBAppenderRow AppendValue<T>(IReadOnlyCollection<T>? value) => AppendValueInternal(value);
+    public DuckDBAppenderRow AppendValue<T>(IEnumerable<T>? value) => AppendValueInternal(value);
 
     #endregion
 

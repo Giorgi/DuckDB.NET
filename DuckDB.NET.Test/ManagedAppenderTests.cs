@@ -197,7 +197,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         Command.CommandText = "CREATE TABLE managedAppenderGuids(a UUID);";
         Command.ExecuteNonQuery();
 
-        var guids = Enumerable.Range(0, 20).Select(i => (Guid?)Guid.NewGuid()).ToList();
+        var guids = GetRandomList<Guid?>(faker => faker.Random.Guid());
         guids.Add(null);
 
         using (var appender = Connection.CreateAppender("managedAppenderGuids"))
@@ -263,7 +263,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         result.Select(tuple => tuple.Item4).Should().BeEquivalentTo(dates);
         result.Select(tuple => tuple.Item5).Should().BeEquivalentTo(dates);
         result.Select(tuple => tuple.Item6).Should().BeEquivalentTo(dates);
-        result.Select(tuple => tuple.Item7).Should().BeEquivalentTo(dates.Select(time => time.ToDateTimeOffset(TimeSpan.FromHours(1))), 
+        result.Select(tuple => tuple.Item7).Should().BeEquivalentTo(dates.Select(time => time.ToDateTimeOffset(TimeSpan.FromHours(1))),
                                                               options => options.ComparingByMembers<DateTimeOffset>().Including(offset => offset.Offset).Including(offset => offset.TimeOfDay));
         result.Select(tuple => tuple.Item8).Should().BeEquivalentTo(dates.Select(TimeOnly.FromDateTime));
     }
@@ -271,20 +271,28 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     [Fact]
     public void ListValues()
     {
-        Command.CommandText = "CREATE TABLE managedAppenderLists(a INTEGER, b INTEGER[]" +
-                              ", c INTEGER[][]" +
-                              ");";
+        Command.CommandText = "CREATE TABLE managedAppenderLists(a INTEGER, b INTEGER[], c INTEGER[][]);";
         Command.ExecuteNonQuery();
 
-        var rows = 2;
+        var rows = 1000;
+
+        var lists = new List<List<int>>();
+        
+        lists.Add(GetRandomList(faker => faker.Random.Int(), 2050 * 2));
+
+        for (int i = 0; i < rows; i++)
+        {
+            lists.Add(GetRandomList(faker => faker.Random.Int(), Random.Shared.Next(0, 200)));
+        }
+
         using (var appender = Connection.CreateAppender("managedAppenderLists"))
         {
             for (int i = 0; i < rows; i++)
             {
                 appender.CreateRow()
                     .AppendValue(i)
-                    .AppendValue(Enumerable.Range(0, 2).ToList())
-                    .AppendValue(new List<List<int>> { Enumerable.Range(0, 5).ToList(), Enumerable.Range(i + 2, 4).ToList() })
+                    .AppendValue(lists[i])
+                    .AppendValue(new List<List<int>> { Enumerable.Range(0, i % 10 + 1).ToList(), Enumerable.Range(i + 2, 4).ToList() })
                     .EndRow();
             }
         }
@@ -295,9 +303,13 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         int index = 0;
         while (reader.Read())
         {
-            var ints = reader.GetFieldValue<List<int>>(1);
-            ints.Should().BeEquivalentTo(Enumerable.Range(0, 2).ToList());
-            var fieldValue = reader.GetFieldValue<List<List<int>>>(2);
+            var list = reader.GetFieldValue<List<int>>(1);
+            list.Should().BeEquivalentTo(lists[index]);
+
+            var nestedList = reader.GetFieldValue<List<List<int>>>(2);
+            nestedList.Should().BeEquivalentTo(new List<List<int>> { Enumerable.Range(0, index % 10 + 1).ToList(), Enumerable.Range(index + 2, 4).ToList() });
+
+            index++;
         }
     }
 

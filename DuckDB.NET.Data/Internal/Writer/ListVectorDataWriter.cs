@@ -1,25 +1,35 @@
-﻿using System;
+﻿using DuckDB.NET.Native;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
-using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Writer;
 
 internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
 {
     private ulong offset = 0;
+    private readonly ulong arraySize;
     private readonly VectorDataWriterBase listItemWriter;
+
+    public bool IsList => ColumnType == DuckDBType.List;
+    private ulong vectorReservedSize = DuckDBGlobalData.VectorSize;
 
     public ListVectorDataWriter(IntPtr vector, void* vectorData, DuckDBType columnType, DuckDBLogicalType logicalType) : base(vector, vectorData, columnType)
     {
-        using var childType = NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType);
-        var childVector = NativeMethods.Vectors.DuckDBListVectorGetChild(vector);
+        using var childType = IsList ? NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType) : NativeMethods.LogicalType.DuckDBArrayTypeChildType(logicalType);
+        var childVector = IsList ? NativeMethods.Vectors.DuckDBListVectorGetChild(vector) : NativeMethods.Vectors.DuckDBArrayVectorGetChild(vector); ;
+
+        arraySize = IsList ? 0 : (ulong)NativeMethods.LogicalType.DuckDBArrayVectorGetSize(logicalType);
         listItemWriter = VectorDataWriterFactory.CreateWriter(childVector, childType);
     }
 
-    internal override bool AppendCollection(IList value, int rowIndex)
+    internal override bool AppendCollection(ICollection value, int rowIndex)
     {
+        var count = (ulong)value.Count;
+
+        ResizeVector(rowIndex, count);
+
         _ = value switch
         {
             IEnumerable<bool> items => WriteItems(items),
@@ -32,10 +42,10 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
             IEnumerable<ushort> items => WriteItems(items),
             IEnumerable<uint> items => WriteItems(items),
             IEnumerable<ulong> items => WriteItems(items),
-            
+
             IEnumerable<decimal> items => WriteItems(items),
             IEnumerable<BigInteger> items => WriteItems(items),
-            
+
             IEnumerable<string> items => WriteItems(items),
             IEnumerable<Guid> items => WriteItems(items),
             IEnumerable<DateTime> items => WriteItems(items),
@@ -47,18 +57,24 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
             IEnumerable<TimeOnly> items => WriteItems(items),
 #endif
             IEnumerable<DateTimeOffset> items => WriteItems(items),
-            
+
             _ => WriteItems<object>((IEnumerable<object>)value)
         };
 
-        var result = AppendValueInternal(new DuckDBListEntry(offset, (ulong)value.Count), rowIndex);
+        var duckDBListEntry = new DuckDBListEntry(offset, count);
+        var result = !IsList || AppendValueInternal(duckDBListEntry, rowIndex);
 
-        offset += (ulong)value.Count;
+        offset += count;
 
         return result;
 
         int WriteItems<T>(IEnumerable<T> items)
         {
+            if (IsList == false && count != arraySize)
+            {
+                throw new InvalidOperationException($"Column has Array size of {arraySize} but the specified value has size of {count}");
+            };
+
             var index = 0;
 
             foreach (var item in items)
@@ -68,5 +84,33 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
 
             return 0;
         }
+    }
+
+    private void ResizeVector(int rowIndex, ulong count)
+    {
+        //If writing to a list column we need to make sure that enough space is allocated. Not needed for Arrays as DuckDB does it for us.
+        if (!IsList || offset + count <= vectorReservedSize) return;
+        
+        var factor = 2d;
+
+        if (rowIndex > DuckDBGlobalData.VectorSize * 0.25 && rowIndex < DuckDBGlobalData.VectorSize * 0.5)
+        {
+            factor = 1.75;
+        }
+
+        if (rowIndex > DuckDBGlobalData.VectorSize * 0.5 && rowIndex < DuckDBGlobalData.VectorSize * 0.75)
+        {
+            factor = 1.5;
+        }
+
+        if (rowIndex > DuckDBGlobalData.VectorSize * 0.75)
+        {
+            factor = 1.25;
+        }
+
+        vectorReservedSize = (ulong)Math.Max(vectorReservedSize * factor, offset + count);
+        var state = NativeMethods.Vectors.DuckDBListVectorReserve(Vector, vectorReservedSize);
+
+        listItemWriter.FetchDataPointer();
     }
 }
