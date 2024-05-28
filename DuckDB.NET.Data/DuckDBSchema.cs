@@ -87,16 +87,23 @@ internal static class DuckDBSchema
                         serverVersion, 
                         serverVersion, 
                         GroupByBehavior.Unrelated, 
-                        "(^\\[\\p{Lo}\\p{Lu}\\p{Ll}_@#][\\p{Lo}\\p{Lu}\\p{Ll}\\p{Nd}@$#_]*$)|(^\\[[^\\]\\0]|\\]\\]+\\]$)|(^\\\"[^\\\"\\0]|\\\"\\\"+\\\"$)", 
+                        // strings that begin with a single special character ($, letter, or underscore) followed by zero or more alphanumeric characters, underscore, $
+                        // or strings that begin with a double quote followed by one or more any characters (except double quotes or null character)
+                        "(^\\[\\p{Lo}\\p{Lu}\\p{Ll}_$][\\p{Lo}\\p{Lu}\\p{Ll}\\p{Nd}$$_]*$)|(^\\\"[^\\\"\\0]|\\\"\\\"+\\\"$)", 
                         IdentifierCase.Insensitive, 
                         false, 
                         "{0}", 
-                        "$[\\p{Lo}\\p{Lu}\\p{Ll}\\p{Lm}_@#][\\p{Lo}\\p{Lu}\\p{Ll}\\p{Lm}\\p{Nd}\\uff3f_@#\\$]*(?=\\s+|$)", 
+                        // identifies strings composed of letters, numbers, underscores and $
+                        "$[\\p{Lo}\\p{Lu}\\p{Ll}\\p{Lm}_$][\\p{Lo}\\p{Lu}\\p{Ll}\\p{Lm}\\p{Nd}\\uff3f_$\\$]*(?=\\s+|$)", 
                         128,
-                        "^[\\p{Lo}\\p{Lu}\\p{Ll}\\p{Lm}_@#][\\p{Lo}\\p{Lu}\\p{Ll}\\p{Lm}\\p{Nd}\\uff3f_@#\\$]*(?=\\s+|$)",
-                        "(([^\\[]|\\]\\])*)", 
+                        // This regexp matches a string that begins with a letter, number, underscore, or dollar sign, and can contain other similar characters, numbers, question marks, underscores, dollar signs, and white spaces.
+                        // The string must end with white space or the end of the string.
+                        "^[\\p{Lo}\\p{Lu}\\p{Ll}\\p{Lm}_$][\\p{Lo}\\p{Lu}\\p{Ll}\\p{Lm}\\p{Nd}\\uff3f_$\\$]*(?=\\s+|$)",
+                        // This regexp is used to find a sequence of characters that does not contain double quote or contains them in pairs.
+                        "((\"^\\\"\"|\\\"\\\")*)", 
                         IdentifierCase.Insensitive, 
                         ";", 
+                        // The regexp is used to find a sequence of one or more characters, excluding single quotes (').
                         "'(([^']|'')*)'", 
                         SupportedJoinOperators.Inner | SupportedJoinOperators.LeftOuter | SupportedJoinOperators.RightOuter | SupportedJoinOperators.FullOuter
                     }
