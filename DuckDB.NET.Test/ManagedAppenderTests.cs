@@ -274,40 +274,43 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         Command.CommandText = "CREATE TABLE managedAppenderLists(a INTEGER, b INTEGER[], c INTEGER[][]);";
         Command.ExecuteNonQuery();
 
-        var rows = 1000;
+        var rows = 2000;
 
         var lists = new List<List<int>>();
-        
-        lists.Add(GetRandomList(faker => faker.Random.Int(), 2050 * 2));
+        var nestedLists = new List<List<List<int>>>();
 
-        for (int i = 0; i < rows; i++)
+        for (var i = 0; i < rows; i++)
         {
             lists.Add(GetRandomList(faker => faker.Random.Int(), Random.Shared.Next(0, 200)));
+
+            var item = new List<List<int>>();
+            nestedLists.Add(item);
+
+            for (var j = 0; j < Random.Shared.Next(0, 10); j++)
+            {
+                item.Add(GetRandomList(faker => faker.Random.Int(), Random.Shared.Next(0, 20)));
+            }
         }
 
         using (var appender = Connection.CreateAppender("managedAppenderLists"))
         {
-            for (int i = 0; i < rows; i++)
+            for (var i = 0; i < rows; i++)
             {
-                appender.CreateRow()
-                    .AppendValue(i)
-                    .AppendValue(lists[i])
-                    .AppendValue(new List<List<int>> { Enumerable.Range(0, i % 10 + 1).ToList(), Enumerable.Range(i + 2, 4).ToList() })
-                    .EndRow();
+                appender.CreateRow().AppendValue(i).AppendValue(lists[i]).AppendValue(nestedLists[i]).EndRow();
             }
         }
 
         Command.CommandText = "SELECT * FROM managedAppenderLists order by 1";
         var reader = Command.ExecuteReader();
 
-        int index = 0;
+        var index = 0;
         while (reader.Read())
         {
             var list = reader.GetFieldValue<List<int>>(1);
             list.Should().BeEquivalentTo(lists[index]);
 
             var nestedList = reader.GetFieldValue<List<List<int>>>(2);
-            nestedList.Should().BeEquivalentTo(new List<List<int>> { Enumerable.Range(0, index % 10 + 1).ToList(), Enumerable.Range(index + 2, 4).ToList() });
+            nestedList.Should().BeEquivalentTo(nestedLists[index]);
 
             index++;
         }

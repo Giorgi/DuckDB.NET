@@ -28,7 +28,7 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
     {
         var count = (ulong)value.Count;
 
-        ResizeVector(rowIndex, count);
+        ResizeVector(rowIndex % (int)DuckDBGlobalData.VectorSize, count);
 
         _ = value switch
         {
@@ -90,7 +90,7 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
     {
         //If writing to a list column we need to make sure that enough space is allocated. Not needed for Arrays as DuckDB does it for us.
         if (!IsList || offset + count <= vectorReservedSize) return;
-        
+
         var factor = 2d;
 
         if (rowIndex > DuckDBGlobalData.VectorSize * 0.25 && rowIndex < DuckDBGlobalData.VectorSize * 0.5)
