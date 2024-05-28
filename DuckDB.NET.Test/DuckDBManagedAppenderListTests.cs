@@ -15,6 +15,12 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     }
 
     [Fact]
+    public void ListValuesString()
+    {
+        ListValuesInternal("Varchar", faker => faker.Random.Utf16String());
+    }
+
+    [Fact]
     public void ListValuesSByte()
     {
         ListValuesInternal("TinyInt", faker => faker.Random.SByte());
@@ -27,17 +33,25 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     }
 
     [Fact]
+    public void ArrayValuesInt()
+    {
+        ListValuesInternal("Integer", faker => faker.Random.Int(), 5);
+    }
+
+    [Fact]
     public void ListValuesLong()
     {
         ListValuesInternal("BigInt", faker => faker.Random.Long());
     }
 
-    public void ListValuesInternal<T>(string typeName, Func<Faker, T> generator)
+
+    public void ListValuesInternal<T>(string typeName, Func<Faker, T> generator, int? length = null)
     {
         var rows = 2000;
         var table = $"managedAppender{typeName}Lists";
 
-        Command.CommandText = $"CREATE TABLE {table} (a Integer, b {typeName}[], c {typeName}[][]);";
+        var columnLength = length.HasValue ? length.Value.ToString() : "";
+        Command.CommandText = $"CREATE TABLE {table} (a Integer, b {typeName}[{columnLength}], c {typeName}[][]);";
         Command.ExecuteNonQuery();
 
         var lists = new List<List<T>>();
@@ -45,7 +59,7 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
 
         for (var i = 0; i < rows; i++)
         {
-            lists.Add(GetRandomList(generator, Random.Shared.Next(0, 200)));
+            lists.Add(GetRandomList(generator, length ?? Random.Shared.Next(0, 200)));
 
             var item = new List<List<T>>();
             nestedLists.Add(item);
@@ -77,6 +91,18 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
             nestedList.Should().BeEquivalentTo(nestedLists[index]);
 
             index++;
+        }
+
+        //Test for appending an array with wrong length
+        if (length.HasValue)
+        {
+            var appender = Connection.CreateAppender(table);
+
+            appender.Invoking(app => app.CreateRow().AppendValue(0).AppendValue(GetRandomList(generator, length + 1)))
+                .Should().Throw<InvalidOperationException>().Where(exception => exception.Message.Contains(length.ToString()));
+
+            appender.Invoking(app => app.CreateRow().AppendValue(0).AppendValue(GetRandomList(generator, length - 1)))
+                .Should().Throw<InvalidOperationException>().Where(exception => exception.Message.Contains(length.ToString()));
         }
     }
 }

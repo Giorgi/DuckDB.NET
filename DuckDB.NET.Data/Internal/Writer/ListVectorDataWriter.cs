@@ -111,6 +111,11 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
         vectorReservedSize = (ulong)Math.Max(vectorReservedSize * factor, offset + count);
         var state = NativeMethods.Vectors.DuckDBListVectorReserve(Vector, vectorReservedSize);
 
+        if (!state.IsSuccess())
+        {
+            throw new DuckDBException($"Failed to reserve {vectorReservedSize} for the list vector");
+        }
+
         listItemWriter.FetchDataPointer();
     }
 }
