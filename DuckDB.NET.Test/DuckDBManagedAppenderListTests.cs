@@ -51,7 +51,7 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
         var table = $"managedAppender{typeName}Lists";
 
         var columnLength = length.HasValue ? length.Value.ToString() : "";
-        Command.CommandText = $"CREATE TABLE IF NOT EXISTS {table} (a Integer, b {typeName}[{columnLength}], c {typeName}[][]);";
+        Command.CommandText = $"CREATE OR REPLACE TABLE {table} (a Integer, b {typeName}[{columnLength}], c {typeName}[][]);";
         Command.ExecuteNonQuery();
 
         var lists = new List<List<T>>();
