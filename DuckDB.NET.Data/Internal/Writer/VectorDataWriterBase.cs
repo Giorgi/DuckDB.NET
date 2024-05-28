@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Numerics;
 using DuckDB.NET.Native;
 
@@ -59,6 +61,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
             TimeOnly val => AppendTimeOnly(val, rowIndex),
 #endif
             DateTimeOffset val => AppendDateTimeOffset(val, rowIndex),
+            ICollection val => AppendCollection(val, rowIndex),
             _ => ThrowException<T>()
         };
     }
@@ -93,6 +96,8 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
 
     internal virtual bool AppendBigInteger(BigInteger value, int rowIndex) => ThrowException<BigInteger>();
 
+    internal virtual bool AppendCollection(ICollection value, int rowIndex) => ThrowException<bool>();
+
     private bool ThrowException<T>()
     {
         throw new InvalidOperationException($"Cannot write {typeof(T).Name} to {columnType} column");
@@ -102,5 +107,10 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
     {
         ((T*)vectorData)[rowIndex] = value;
         return true;
+    }
+
+    internal void FetchDataPointer()
+    {
+        vectorData = NativeMethods.Vectors.DuckDBVectorGetData(Vector);
     }
 }
