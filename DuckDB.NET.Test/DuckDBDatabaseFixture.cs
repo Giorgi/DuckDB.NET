@@ -1,6 +1,9 @@
-﻿using System;
-using System.Data;
+﻿using Bogus;
 using DuckDB.NET.Data;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
 using Xunit;
 
 namespace DuckDB.NET.Test;
@@ -24,7 +27,14 @@ public class DuckDBDatabaseFixture : IDisposable
 public class DuckDBTestBase : IDisposable, IClassFixture<DuckDBDatabaseFixture>
 {
     protected DuckDBCommand Command { get; }
-    internal DuckDBConnection Connection { get; }
+    protected DuckDBConnection Connection { get; }
+
+    protected Faker Faker { get; init; } = new Faker();
+
+    protected List<T> GetRandomList<T>(Func<Faker, T> generator, int? count = 20)
+    {
+        return Enumerable.Range(0, count ?? Faker.Random.Int(0, 50)).Select(i => generator(Faker)).ToList();
+    }
 
     public DuckDBTestBase(DuckDBDatabaseFixture db)
     {

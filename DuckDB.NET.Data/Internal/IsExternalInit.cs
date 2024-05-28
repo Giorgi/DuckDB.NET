@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 
 namespace System.Runtime.CompilerServices
 {
@@ -12,6 +13,21 @@ public static class KeyValuePairExtensions
     {
         key = keyValuePair.Key;
         value = keyValuePair.Value;
+    }
+}
+
+static class IEnumerableExtensions
+{
+    public static bool TryGetNonEnumeratedCount<T>(this IEnumerable target, out int count)
+    {
+        if (target is ICollection collection)
+        {
+            count = collection.Count;
+            return true;
+        }
+
+        count = 0;
+        return false;
     }
 }
 
