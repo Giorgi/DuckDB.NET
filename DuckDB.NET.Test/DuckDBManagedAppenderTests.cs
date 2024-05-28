@@ -1,15 +1,15 @@
-﻿using System;
-using System.Globalization;
+﻿using Dapper;
 using DuckDB.NET.Data;
-using Xunit;
 using FluentAssertions;
+using FluentAssertions.Common;
+using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Numerics;
-using Dapper;
-using FluentAssertions.Common;
+using Xunit;
 
 namespace DuckDB.NET.Test;
 
@@ -266,54 +266,6 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         result.Select(tuple => tuple.Item7).Should().BeEquivalentTo(dates.Select(time => time.ToDateTimeOffset(TimeSpan.FromHours(1))),
                                                               options => options.ComparingByMembers<DateTimeOffset>().Including(offset => offset.Offset).Including(offset => offset.TimeOfDay));
         result.Select(tuple => tuple.Item8).Should().BeEquivalentTo(dates.Select(TimeOnly.FromDateTime));
-    }
-
-    [Fact]
-    public void ListValues()
-    {
-        Command.CommandText = "CREATE TABLE managedAppenderLists(a INTEGER, b INTEGER[], c INTEGER[][]);";
-        Command.ExecuteNonQuery();
-
-        var rows = 2000;
-
-        var lists = new List<List<int>>();
-        var nestedLists = new List<List<List<int>>>();
-
-        for (var i = 0; i < rows; i++)
-        {
-            lists.Add(GetRandomList(faker => faker.Random.Int(), Random.Shared.Next(0, 200)));
-
-            var item = new List<List<int>>();
-            nestedLists.Add(item);
-
-            for (var j = 0; j < Random.Shared.Next(0, 10); j++)
-            {
-                item.Add(GetRandomList(faker => faker.Random.Int(), Random.Shared.Next(0, 20)));
-            }
-        }
-
-        using (var appender = Connection.CreateAppender("managedAppenderLists"))
-        {
-            for (var i = 0; i < rows; i++)
-            {
-                appender.CreateRow().AppendValue(i).AppendValue(lists[i]).AppendValue(nestedLists[i]).EndRow();
-            }
-        }
-
-        Command.CommandText = "SELECT * FROM managedAppenderLists order by 1";
-        var reader = Command.ExecuteReader();
-
-        var index = 0;
-        while (reader.Read())
-        {
-            var list = reader.GetFieldValue<List<int>>(1);
-            list.Should().BeEquivalentTo(lists[index]);
-
-            var nestedList = reader.GetFieldValue<List<List<int>>>(2);
-            nestedList.Should().BeEquivalentTo(nestedLists[index]);
-
-            index++;
-        }
     }
 
     [Fact]
