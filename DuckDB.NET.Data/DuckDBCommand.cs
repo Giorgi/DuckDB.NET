@@ -122,7 +122,7 @@ public class DuckDBCommand : DbCommand
 
     protected override DbParameter CreateDbParameter() => new DuckDBParameter();
 
-    internal void CloseConnection() => Connection?.Close();
+    internal void CloseConnection() => Connection!.Close();
 
     private void EnsureConnectionOpen([CallerMemberName] string operation = "")
     {
