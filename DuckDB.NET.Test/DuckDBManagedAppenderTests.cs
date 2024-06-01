@@ -218,7 +218,13 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         Command.CommandText = "CREATE TABLE managedAppenderInterval(a INTERVAL);";
         Command.ExecuteNonQuery();
 
-        var timeSpans = Enumerable.Range(0, 20).Select(i => TimeSpan.FromSeconds(Random.Shared.Next(1_000_000, 1_000_000 * 10))).ToList();
+        //DuckDB's precision for Interval is MicroSeconds so results will be rounded down to the nearest 10th.
+        var timeSpans = GetRandomList<TimeSpan>(faker =>
+        {
+            var timespan = faker.Date.Timespan();
+
+            return TimeSpan.FromTicks(timespan.Ticks - timespan.Ticks % 10);
+        });
 
         using (var appender = Connection.CreateAppender("managedAppenderInterval"))
         {

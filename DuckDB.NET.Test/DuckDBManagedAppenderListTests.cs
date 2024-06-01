@@ -1,7 +1,9 @@
-﻿using System.Collections.Generic;
-using System;
-using Bogus;
+﻿using Bogus;
+using DuckDB.NET.Native;
 using FluentAssertions;
+using System;
+using System.Collections.Generic;
+using System.Numerics;
 using Xunit;
 
 namespace DuckDB.NET.Test;
@@ -39,6 +41,12 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     }
 
     [Fact]
+    public void ListValuesHugeInt()
+    {
+        ListValuesInternal("HugeInt", faker => BigInteger.Subtract(DuckDBHugeInt.HugeIntMaxValue, faker.Random.Int(min: 0)));
+    }
+
+    [Fact]
     public void ListValuesByte()
     {
         ListValuesInternal("UTinyInt", faker => faker.Random.Byte());
@@ -60,6 +68,12 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     public void ListValuesULong()
     {
         ListValuesInternal("UBigInt", faker => faker.Random.ULong());
+    }
+
+    [Fact]
+    public void ListValuesUHugeInt()
+    {
+        ListValuesInternal("UHugeInt", faker => BigInteger.Subtract(DuckDBHugeInt.HugeIntMaxValue, faker.Random.Int(min: 0)));
     }
 
     [Fact]
@@ -99,11 +113,21 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     }
 
     [Fact]
+    public void ListValuesInterval()
+    {
+        ListValuesInternal("Interval", faker =>
+        {
+            var timespan = faker.Date.Timespan();
+
+            return TimeSpan.FromTicks(timespan.Ticks - timespan.Ticks % 10);
+        });
+    }
+
+    [Fact]
     public void ArrayValuesInt()
     {
         ListValuesInternal("Integer", faker => faker.Random.Int(), 5);
     }
-
 
     private void ListValuesInternal<T>(string typeName, Func<Faker, T> generator, int? length = null)
     {
