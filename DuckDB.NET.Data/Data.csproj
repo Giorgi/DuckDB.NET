@@ -3,11 +3,9 @@
   <PropertyGroup>
     <Description>DuckDB ADO.NET Provider for C#.</Description>
     <PackageReleaseNotes>
-	  Update to DuckDB 0.10.3.
+	  Update to DuckDB v1.0.0 🚀
 	  
-Added support for writing decimal, Guid and DateTimeOffset values when using managed Appender.
-
-Implemented DuckDBConnection.GetSchema (By @hazzik)
+Added support for writing to List and Array columns when using managed Appender.
     </PackageReleaseNotes>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>

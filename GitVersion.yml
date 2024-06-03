@@ -1,4 +1,4 @@
-next-version: 0.10.4
+next-version: 1.0.0
 branches:
   develop:
     increment: None
