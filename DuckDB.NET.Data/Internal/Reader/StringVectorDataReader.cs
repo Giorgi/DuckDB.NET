@@ -1,8 +1,8 @@
-﻿using System;
+﻿using DuckDB.NET.Native;
+using System;
 using System.Collections;
 using System.IO;
 using System.Text;
-using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
@@ -53,6 +53,15 @@ internal sealed class StringVectorDataReader : VectorDataReaderBase
     {
         var bitArray = GetBitStringAsBitArray(offset);
 
+#if NET6_0_OR_GREATER
+        return string.Create(bitArray.Length, bitArray, (chars, array) =>
+        {
+            for (int index = 0; index < array.Length; index++)
+            {
+                chars[index] = array[index] ? '1' : '0';
+            }
+        });
+#else
         var output = new char[bitArray.Length];
 
         for (var index = 0; index < bitArray.Count; index++)
@@ -61,6 +70,7 @@ internal sealed class StringVectorDataReader : VectorDataReaderBase
         }
 
         return new string(output);
+#endif
     }
 
     //Copied from https://github.com/duckdb/duckdb/blob/8a17511028d306561d88da9425f9e0e88dedd70c/src/common/types/bit.cpp#L63
