@@ -197,7 +197,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         Command.CommandText = "CREATE TABLE managedAppenderGuids(a UUID);";
         Command.ExecuteNonQuery();
 
-        var guids = GetRandomList<Guid?>(faker => faker.Random.Guid());
+        var guids = GetRandomList<Guid?>(faker => faker.Random.Guid(), 5000);
         guids.Add(null);
 
         using (var appender = Connection.CreateAppender("managedAppenderGuids"))
