@@ -9,7 +9,7 @@ public class DuckDBAppenderTests
     [Fact]
     public void AppenderTests()
     {
-        var result = NativeMethods.Startup.DuckDBOpen(null, out var database);
+        var result = NativeMethods.Startup.DuckDBOpen((string)null, out var database);
         result.Should().Be(DuckDBState.Success);
 
         result = NativeMethods.Startup.DuckDBConnect(database, out var connection);

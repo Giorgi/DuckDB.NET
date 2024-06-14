@@ -9,7 +9,7 @@ public class QueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void QueryTest()
     {
-        var result = NativeMethods.Startup.DuckDBOpen(null, out var database);
+        var result = NativeMethods.Startup.DuckDBOpen((string)null, out var database);
         result.Should().Be(DuckDBState.Success);
 
         result = NativeMethods.Startup.DuckDBConnect(database, out var connection);
