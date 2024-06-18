@@ -59,9 +59,9 @@ internal sealed class PreparedStatement : IDisposable
             {
                 var status = NativeMethods.ExtractStatements.DuckDBPrepareExtractedStatement(connection, extractedStatements, index, out var statement);
 
-                using var preparedStatement = new PreparedStatement(statement);
                 if (status.IsSuccess())
                 {
+                    using var preparedStatement = new PreparedStatement(statement);
                     using var result = preparedStatement.Execute(parameters, useStreamingMode);
                     yield return result;
                 }
