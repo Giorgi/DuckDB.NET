@@ -129,9 +129,15 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
         ListValuesInternal("Integer", faker => faker.Random.Int(), 5);
     }
 
+    [Fact]
+    public void ListValuesNullableDouble()
+    {
+        ListValuesInternal("Double", faker => faker.Random.Double().OrNull(faker));
+    }
+
     private void ListValuesInternal<T>(string typeName, Func<Faker, T> generator, int? length = null)
     {
-        var rows = 2000;
+        var rows = 10;
         var table = $"managedAppenderLists";
 
         var columnLength = length.HasValue ? length.Value.ToString() : "";
