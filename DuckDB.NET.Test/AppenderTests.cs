@@ -1,11 +1,63 @@
+using DuckDB.NET.Data;
 using DuckDB.NET.Native;
-using Xunit;
 using FluentAssertions;
+using System;
+using System.Linq;
+using System.Numerics;
+using System.Threading.Tasks;
+using Xunit;
 
 namespace DuckDB.NET.Test;
 
 public class DuckDBAppenderTests
 {
+    [Fact]
+    public async Task AppendListWithNullableValues()
+    {
+        using var conn = new DuckDBConnection("Data Source=:memory:");
+        await conn.OpenAsync();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "CREATE TABLE appenderTest(a BIGINT, c INTEGER[])";
+        await cmd.ExecuteNonQueryAsync();
+        var rand = new Random();
+
+        AppenderRecord[] records = [
+            new AppenderRecord { Id = 1, Values = [0, 5, 5, null, 20, null] },
+            new AppenderRecord { Id = 2, Values = [null, 5, 5, 15, 10, null, 1, 3] }
+            ];
+
+        using (var appender = conn.CreateAppender("appenderTest"))
+        {
+            foreach (var record in records)
+            {
+                var row = appender.CreateRow();
+                row.AppendValue(record.Id);
+                row.AppendValue(record.Values);
+                row.EndRow();
+            }
+            appender.Close();
+        }
+
+        cmd.CommandText = "SELECT count(*) FROM appenderTest";
+        var count = await cmd.ExecuteScalarAsync();
+        count.Should().Be(2);
+
+        cmd.CommandText = "SELECT sum(list_aggregate(c, 'sum')) FROM appenderTest";
+        var sumLists = await cmd.ExecuteScalarAsync();
+        var intValue = records.SelectMany(x => x.Values).Sum();
+        intValue.Should().NotBeNull();
+
+        var expectedValue = new BigInteger(intValue.Value);
+        sumLists.Should().Be(expectedValue);
+    }
+
+    private class AppenderRecord
+    {
+        public long Id { get; set; }
+        public int?[] Values { get; set; }
+    }
+
     [Fact]
     public void AppenderTests()
     {
