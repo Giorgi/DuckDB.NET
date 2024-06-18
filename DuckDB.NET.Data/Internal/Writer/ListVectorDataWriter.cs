@@ -140,6 +140,6 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
             throw new DuckDBException($"Failed to reserve {vectorReservedSize} for the list vector");
         }
 
-        listItemWriter.FetchDataPointer();
+        listItemWriter.InitializerWriter();
     }
 }

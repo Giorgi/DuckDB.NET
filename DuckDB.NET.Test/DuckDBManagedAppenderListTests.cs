@@ -137,7 +137,7 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
 
     private void ListValuesInternal<T>(string typeName, Func<Faker, T> generator, int? length = null)
     {
-        var rows = 10;
+        var rows = 2000;
         var table = $"managedAppenderLists";
 
         var columnLength = length.HasValue ? length.Value.ToString() : "";

@@ -109,8 +109,9 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
         return true;
     }
 
-    internal void FetchDataPointer()
+    internal void InitializerWriter()
     {
+        validity = default;
         vectorData = NativeMethods.Vectors.DuckDBVectorGetData(Vector);
     }
 }
