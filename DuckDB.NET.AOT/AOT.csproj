@@ -1,0 +1,41 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net8.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DuckDB.NET.Bindings\Bindings.csproj" />
+    <ProjectReference Include="..\DuckDB.NET.Data\Data.csproj" />
+  </ItemGroup>
+
+	<Target Name="CallExecutable" BeforeTargets="GenerateAdditionalSources">
+		<MSBuild Projects="..\DuckDB.NET.Bindings\Bindings.csproj" Targets="DownloadNativeLibs" Properties="BuildType=Full;" />
+	</Target>
+	<ItemGroup>
+		<None Condition="'$(RuntimeIdentifier)'=='win-x64'" Include="..\DuckDB.NET.Bindings\obj\runtimes\**\*.dll">
+			<Visible>false</Visible>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<PackagePath>\</PackagePath>
+			<Link>%(FileName)%(Extension)</Link>
+		</None>
+		<None Condition="'$(RuntimeIdentifier)'=='linux-x64'" Include="..\DuckDB.NET.Bindings\obj\runtimes\**\*.so">
+			<Visible>false</Visible>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<PackagePath>\</PackagePath>
+			<Link>%(FileName)%(Extension)</Link>
+		</None>
+		<None Condition="'$(RuntimeIdentifier)'=='oxs'" Include="..\DuckDB.NET.Bindings\obj\runtimes\**\*.dylib">
+			<Visible>false</Visible>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<PackagePath>\</PackagePath>
+			<Link>%(FileName)%(Extension)</Link>
+		</None>
+	</ItemGroup>
+
+</Project>

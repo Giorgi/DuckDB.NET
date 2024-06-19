@@ -1,4 +1,5 @@
-﻿using System.Data.Common;
+﻿using System;
+using System.Data.Common;
 using System.Runtime.Serialization;
 using DuckDB.NET.Native;
 
@@ -10,6 +11,7 @@ public class DuckDBException : DbException
     {
     }
 
+    [Obsolete]
     internal DuckDBException(SerializationInfo info, StreamingContext context) : base(info, context)
     {
     }

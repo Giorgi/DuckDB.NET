@@ -1,8 +1,11 @@
-﻿using System;
+﻿using DuckDB.NET.Data.Extensions;
+using DuckDB.NET.Native;
+using System;
 using System.Collections;
 using System.Collections.Generic;
-using DuckDB.NET.Data.Extensions;
-using DuckDB.NET.Native;
+#if NET8_0_OR_GREATER
+using System.Diagnostics.CodeAnalysis;
+#endif
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
@@ -23,12 +26,17 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
         arraySize = IsList ? 0 : (ulong)NativeMethods.LogicalType.DuckDBArrayVectorGetSize(logicalType);
         listDataReader = VectorDataReaderFactory.CreateReader(childVector, childType, columnName);
     }
-
+#if NET8_0_OR_GREATER
+    [return:DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
+#endif
     protected override Type GetColumnType()
     {
         return typeof(List<>).MakeGenericType(listDataReader.ClrType);
     }
 
+#if NET8_0_OR_GREATER
+    [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
+#endif
     protected override Type GetColumnProviderSpecificType()
     {
         return typeof(List<>).MakeGenericType(listDataReader.ProviderSpecificClrType);
@@ -57,7 +65,7 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
 
         var allowNulls = listType.AllowsNullValue(out var _, out var nullableType);
 
-        var list = Activator.CreateInstance(returnType) as IList
+        var list = CreatorCache.GetCreator(returnType)() as IList
                    ?? throw new ArgumentException($"The type '{returnType.Name}' specified in parameter {nameof(returnType)} cannot be instantiated as an IList.");
 
         //Special case for specific types to avoid boxing

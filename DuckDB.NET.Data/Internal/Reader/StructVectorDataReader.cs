@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using DuckDB.NET.Data.Extensions;
 using DuckDB.NET.Native;
@@ -37,23 +38,13 @@ internal sealed class StructVectorDataReader : VectorDataReaderBase
 
         return base.GetValue(offset, targetType);
     }
-
-    private object GetStruct(ulong offset, Type returnType)
+    internal static TypeDetails GetTypeDetails(
+#if NET8_0_OR_GREATER
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)]
+#endif
+        Type returnType)
     {
-        var result = Activator.CreateInstance(returnType);
-
-        if (result is Dictionary<string, object?> dictionary)
-        {
-            foreach (var reader in structDataReaders)
-            {
-                var value = reader.Value.IsValid(offset) ? reader.Value.GetValue(offset) : null;
-                dictionary.Add(reader.Key, value);
-            }
-
-            return result;
-        }
-
-        var typeDetails = TypeCache.GetOrAdd(returnType, type =>
+        return TypeCache.GetOrAdd(returnType, type =>
         {
             var propertyInfos = returnType.GetProperties();
             var details = new TypeDetails();
@@ -80,6 +71,29 @@ internal sealed class StructVectorDataReader : VectorDataReaderBase
 
             return details;
         });
+    }
+    private object GetStruct(ulong offset,
+#if NET8_0_OR_GREATER
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)]
+#endif
+    Type returnType)
+    {
+        if (returnType.IsEquivalentTo(typeof(Dictionary<string, object?>)))
+        {
+            var dictionary = new Dictionary<string, object?>();
+
+            foreach (var reader in structDataReaders)
+            {
+                var value = reader.Value.IsValid(offset) ? reader.Value.GetValue(offset) : null;
+                dictionary.Add(reader.Key, value);
+            }
+
+            return dictionary;
+        }
+
+        var typeDetails = GetTypeDetails(returnType);
+
+        var result = CreatorCache.GetCreator(returnType)();
 
         foreach (var property in typeDetails.Properties)
         {
