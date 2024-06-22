@@ -1,4 +1,5 @@
-﻿using DuckDB.NET.Data.Internal.Writer;
+﻿using DuckDB.NET.Data.Internal;
+using DuckDB.NET.Data.Internal.Writer;
 using DuckDB.NET.Native;
 using System;
 using System.Diagnostics;
@@ -8,7 +9,7 @@ namespace DuckDB.NET.Data;
 
 public class DuckDBAppender : IDisposable
 {
-    private static readonly ulong DuckDBVectorSize = NativeMethods.Helpers.DuckDBVectorSize();
+    private static readonly ulong DuckDBVectorSize = DuckDBGlobalData.VectorSize;
 
     private bool closed;
     private readonly Native.DuckDBAppender nativeAppender;
@@ -38,6 +39,13 @@ public class DuckDBAppender : IDisposable
         }
 
         dataChunk = NativeMethods.DataChunks.DuckDBCreateDataChunk(logicalTypeHandles, columnCount);
+
+        for (long index = 0; index < vectorWriters.LongLength; index++)
+        {
+            var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(dataChunk, index);
+
+            vectorWriters[index] = VectorDataWriterFactory.CreateWriter(vector, logicalTypes[index]);
+        }
     }
 
     public DuckDBAppenderRow CreateRow()
@@ -47,11 +55,10 @@ public class DuckDBAppender : IDisposable
             throw new InvalidOperationException("Appender is already closed");
         }
 
-        if (rowCount % DuckDBVectorSize == 0)
+        if (rowCount == DuckDBVectorSize)
         {
             AppendDataChunk();
 
-            InitVectorWriters();
             rowCount = 0;
         }
 
@@ -91,16 +98,6 @@ public class DuckDBAppender : IDisposable
         if (!closed)
         {
             Close();
-        }
-    }
-
-    private unsafe void InitVectorWriters()
-    {
-        for (long index = 0; index < vectorWriters.LongLength; index++)
-        {
-            var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(dataChunk, index);
-
-            vectorWriters[index] = VectorDataWriterFactory.CreateWriter(vector, logicalTypes[index]);
         }
     }
 

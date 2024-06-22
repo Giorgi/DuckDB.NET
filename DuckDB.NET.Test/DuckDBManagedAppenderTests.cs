@@ -1,15 +1,15 @@
-﻿using System;
-using System.Globalization;
+﻿using Dapper;
 using DuckDB.NET.Data;
-using Xunit;
 using FluentAssertions;
+using FluentAssertions.Common;
+using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Numerics;
-using Dapper;
-using FluentAssertions.Common;
+using Xunit;
 
 namespace DuckDB.NET.Test;
 
@@ -197,7 +197,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         Command.CommandText = "CREATE TABLE managedAppenderGuids(a UUID);";
         Command.ExecuteNonQuery();
 
-        var guids = Enumerable.Range(0, 20).Select(i => (Guid?)Guid.NewGuid()).ToList();
+        var guids = GetRandomList<Guid?>(faker => faker.Random.Guid(), 5000);
         guids.Add(null);
 
         using (var appender = Connection.CreateAppender("managedAppenderGuids"))
@@ -218,7 +218,13 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         Command.CommandText = "CREATE TABLE managedAppenderInterval(a INTERVAL);";
         Command.ExecuteNonQuery();
 
-        var timeSpans = Enumerable.Range(0, 20).Select(i => TimeSpan.FromSeconds(Random.Shared.Next(1_000_000, 1_000_000 * 10))).ToList();
+        //DuckDB's precision for Interval is MicroSeconds so results will be rounded down to the nearest 10th.
+        var timeSpans = GetRandomList<TimeSpan>(faker =>
+        {
+            var timespan = faker.Date.Timespan();
+
+            return TimeSpan.FromTicks(timespan.Ticks - timespan.Ticks % 10);
+        });
 
         using (var appender = Connection.CreateAppender("managedAppenderInterval"))
         {
@@ -263,7 +269,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         result.Select(tuple => tuple.Item4).Should().BeEquivalentTo(dates);
         result.Select(tuple => tuple.Item5).Should().BeEquivalentTo(dates);
         result.Select(tuple => tuple.Item6).Should().BeEquivalentTo(dates);
-        result.Select(tuple => tuple.Item7).Should().BeEquivalentTo(dates.Select(time => time.ToDateTimeOffset(TimeSpan.FromHours(1))), 
+        result.Select(tuple => tuple.Item7).Should().BeEquivalentTo(dates.Select(time => time.ToDateTimeOffset(TimeSpan.FromHours(1))),
                                                               options => options.ComparingByMembers<DateTimeOffset>().Including(offset => offset.Offset).Including(offset => offset.TimeOfDay));
         result.Select(tuple => tuple.Item8).Should().BeEquivalentTo(dates.Select(TimeOnly.FromDateTime));
     }

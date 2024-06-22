@@ -41,7 +41,7 @@ internal sealed class PreparedStatement : IDisposable
         this.statement = statement;
     }
 
-    public static IEnumerable<DuckDBResult> PrepareMultiple(DuckDBNativeConnection connection, string query, DuckDBParameterCollection parameters)
+    public static IEnumerable<DuckDBResult> PrepareMultiple(DuckDBNativeConnection connection, string query, DuckDBParameterCollection parameters, bool useStreamingMode)
     {
         using var unmanagedQuery = query.ToUnmanagedString();
 
@@ -59,10 +59,10 @@ internal sealed class PreparedStatement : IDisposable
             {
                 var status = NativeMethods.ExtractStatements.DuckDBPrepareExtractedStatement(connection, extractedStatements, index, out var statement);
 
-                using var preparedStatement = new PreparedStatement(statement);
                 if (status.IsSuccess())
                 {
-                    using var result = preparedStatement.Execute(parameters);
+                    using var preparedStatement = new PreparedStatement(statement);
+                    using var result = preparedStatement.Execute(parameters, useStreamingMode);
                     yield return result;
                 }
                 else
@@ -75,11 +75,14 @@ internal sealed class PreparedStatement : IDisposable
         }
     }
 
-    public DuckDBResult Execute(DuckDBParameterCollection parameterCollection)
+    public DuckDBResult Execute(DuckDBParameterCollection parameterCollection, bool useStreamingMode)
     {
         BindParameters(statement, parameterCollection);
 
-        var status = NativeMethods.PreparedStatements.DuckDBExecutePreparedStreaming(statement, out var queryResult);
+        var status = useStreamingMode
+            ? NativeMethods.PreparedStatements.DuckDBExecutePreparedStreaming(statement, out var queryResult)
+            : NativeMethods.PreparedStatements.DuckDBExecutePrepared(statement, out queryResult);
+
         if (!status.IsSuccess())
         {
             var errorMessage = NativeMethods.Query.DuckDBResultError(ref queryResult).ToManagedString(false);

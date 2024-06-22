@@ -5,7 +5,7 @@ using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-internal class EnumVectorDataReader : VectorDataReaderBase
+internal sealed class EnumVectorDataReader : VectorDataReaderBase
 {
     private readonly DuckDBType enumType;
     private readonly DuckDBLogicalType logicalType;

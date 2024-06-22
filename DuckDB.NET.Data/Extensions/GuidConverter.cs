@@ -6,55 +6,58 @@ namespace DuckDB.NET.Data.Extensions;
 
 internal static class GuidConverter
 {
+    private const string GuidFormat = "D";
     private static readonly char[] HexDigits = "0123456789abcdef".ToCharArray();
 
     //Ported from duckdb source code UUID::ToString
     //https://github.com/duckdb/duckdb/blob/9c91b3a329073ea1767b0aaff94b51da98dd03e2/src/common/types/uuid.cpp#L56
     public static Guid ConvertToGuid(this DuckDBHugeInt input)
     {
-        var buffer = new char[36];
-
-        var upper = input.Upper ^ (((long)1) << 63);
+        Span<char> buffer = stackalloc char[36];
+        var num = input.Upper ^ long.MinValue;
         var position = 0;
-
-        ByteToHex((ulong)(upper >> 56 & 0xFF));
-        ByteToHex((ulong)(upper >> 48 & 0xFF));
-        ByteToHex((ulong)(upper >> 40 & 0xFF));
-        ByteToHex((ulong)(upper >> 32 & 0xFF));
-
+        
+        ByteToHex(buffer, ref position, (ulong)((num >> 56) & 0xFF));
+        ByteToHex(buffer, ref position, (ulong)((num >> 48) & 0xFF));
+        ByteToHex(buffer, ref position, (ulong)((num >> 40) & 0xFF));
+        ByteToHex(buffer, ref position, (ulong)((num >> 32) & 0xFF));
+        
         buffer[position++] = '-';
-
-        ByteToHex((ulong)(upper >> 24 & 0xFF));
-        ByteToHex((ulong)(upper >> 16 & 0xFF));
-
+        
+        ByteToHex(buffer, ref position, (ulong)((num >> 24) & 0xFF));
+        ByteToHex(buffer, ref position, (ulong)((num >> 16) & 0xFF));
+        
         buffer[position++] = '-';
-
-        ByteToHex((ulong)(upper >> 8 & 0xFF));
-        ByteToHex((ulong)(upper & 0xFF));
-
+        
+        ByteToHex(buffer, ref position, (ulong)((num >> 8) & 0xFF));
+        ByteToHex(buffer, ref position, (ulong)(num & 0xFF));
+        
         buffer[position++] = '-';
-
-        ByteToHex(input.Lower >> 56 & 0xFF);
-        ByteToHex(input.Lower >> 48 & 0xFF);
-
+        
+        ByteToHex(buffer, ref position, (input.Lower >> 56) & 0xFF);
+        ByteToHex(buffer, ref position, (input.Lower >> 48) & 0xFF);
+        
         buffer[position++] = '-';
+        
+        ByteToHex(buffer, ref position, (input.Lower >> 40) & 0xFF);
+        ByteToHex(buffer, ref position, (input.Lower >> 32) & 0xFF);
+        ByteToHex(buffer, ref position, (input.Lower >> 24) & 0xFF);
+        ByteToHex(buffer, ref position, (input.Lower >> 16) & 0xFF);
+        ByteToHex(buffer, ref position, (input.Lower >> 8) & 0xFF);
+        ByteToHex(buffer, ref position, input.Lower & 0xFF);
 
-        ByteToHex(input.Lower >> 40 & 0xFF);
-        ByteToHex(input.Lower >> 32 & 0xFF);
-        ByteToHex(input.Lower >> 24 & 0xFF);
-        ByteToHex(input.Lower >> 16 & 0xFF);
-        ByteToHex(input.Lower >> 8 & 0xFF);
-        ByteToHex(input.Lower & 0xFF);
+#if NET6_0_OR_GREATER
+        return Guid.ParseExact(buffer, GuidFormat);
+#else
+        return Guid.ParseExact(new string(buffer.ToArray()), GuidFormat);
+#endif
 
-        return new Guid(new string(buffer));
-
-        void ByteToHex(ulong value)
+        static void ByteToHex(Span<char> buffer, ref int position, ulong value)
         {
-            buffer[position++] = HexDigits[(value >> 4) & 0xf];
-            buffer[position++] = HexDigits[value & 0xf];
+            buffer[position++] = HexDigits[(value >> 4) & 0xF];
+            buffer[position++] = HexDigits[value & 0xF];
         }
     }
-
 
     //https://github.com/duckdb/duckdb/blob/9c91b3a329073ea1767b0aaff94b51da98dd03e2/src/common/types/uuid.cpp#L6
     public static DuckDBHugeInt ToHugeInt(this Guid guid)

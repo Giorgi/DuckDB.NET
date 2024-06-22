@@ -91,7 +91,7 @@ namespace DuckDB.NET.Samples
 
         private static void LowLevelBindingsSample()
         {
-            var result = Startup.DuckDBOpen(null, out var database);
+            var result = Startup.DuckDBOpen(new SafeUnmanagedMemoryHandle(IntPtr.Zero), out var database);
 
             using (database)
             {

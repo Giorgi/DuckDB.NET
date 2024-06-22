@@ -1,6 +1,7 @@
 ﻿using DuckDB.NET.Data.Internal.Writer;
 using DuckDB.NET.Native;
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 
 namespace DuckDB.NET.Data;
@@ -31,12 +32,9 @@ public class DuckDBAppenderRow
 
     public DuckDBAppenderRow AppendValue(bool? value) => AppendValueInternal(value);
 
-#if NET6_0_OR_GREATER
-
     public DuckDBAppenderRow AppendValue(byte[]? value) => AppendSpan(value);
 
     public DuckDBAppenderRow AppendValue(Span<byte> value) => AppendSpan(value);
-#endif
 
     public DuckDBAppenderRow AppendValue(string? value) => AppendValueInternal(value);
 
@@ -101,6 +99,12 @@ public class DuckDBAppenderRow
 
     #endregion
 
+    #region Composite Types
+
+    public DuckDBAppenderRow AppendValue<T>(IEnumerable<T>? value) => AppendValueInternal(value);
+
+    #endregion
+
     private DuckDBAppenderRow AppendValueInternal<T>(T? value)
     {
         CheckColumnAccess();
@@ -112,7 +116,6 @@ public class DuckDBAppenderRow
         return this;
     }
 
-#if NET6_0_OR_GREATER
     private unsafe DuckDBAppenderRow AppendSpan(Span<byte> val)
     {
         if (val == null)
@@ -130,8 +133,6 @@ public class DuckDBAppenderRow
         columnIndex++;
         return this;
     }
-
-#endif
 
     private void CheckColumnAccess()
     {
