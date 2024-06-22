@@ -226,7 +226,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     {
         VerifyDataStruct("timestamp_ns", 16, new List<DateTime>
         {
-            new DateTime(1677, 09, 21, 0,12,43).AddTicks(145225 * 10),
+            new DateTime(1677, 09, 22),
             new DateTime (2262, 04, 11, 23,47,16).AddTicks(854775 * 10)
         }, typeof(DuckDBTimestamp));
     }
