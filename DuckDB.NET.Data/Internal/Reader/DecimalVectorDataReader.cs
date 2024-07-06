@@ -4,9 +4,10 @@ using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-internal sealed class DecimalVectorDataReader : NumericVectorDataReader
+internal sealed class DecimalVectorDataReader : VectorDataReaderBase
 {
     private readonly DuckDBType decimalType;
+    private readonly NumericVectorDataReader numericVectorDataReader;
 
     internal unsafe DecimalVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
@@ -14,6 +15,8 @@ internal sealed class DecimalVectorDataReader : NumericVectorDataReader
         Scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
         Precision = NativeMethods.LogicalType.DuckDBDecimalWidth(logicalType);
         decimalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
+
+        numericVectorDataReader = new NumericVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName);
     }
 
     internal byte Scale { get; }
@@ -22,7 +25,7 @@ internal sealed class DecimalVectorDataReader : NumericVectorDataReader
 
     protected override T GetValidValue<T>(ulong offset, Type targetType)
     {
-        if (DuckDBType!= DuckDBType.Decimal)
+        if (DuckDBType != DuckDBType.Decimal)
         {
             return base.GetValidValue<T>(offset, targetType);
         }
@@ -54,7 +57,7 @@ internal sealed class DecimalVectorDataReader : NumericVectorDataReader
                 return decimal.Divide(GetFieldData<long>(offset), pow);
             case DuckDBType.HugeInt:
                 {
-                    var hugeInt = GetBigInteger(offset, false);
+                    var hugeInt = numericVectorDataReader.GetBigInteger(offset, false);
 
                     var result = (decimal)BigInteger.DivRem(hugeInt, (BigInteger)pow, out var remainder);
 
@@ -65,4 +68,9 @@ internal sealed class DecimalVectorDataReader : NumericVectorDataReader
         }
     }
 
+    public override void Dispose()
+    {
+        numericVectorDataReader.Dispose();
+        base.Dispose();
+    }
 }
