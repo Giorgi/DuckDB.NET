@@ -9,6 +9,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using Bogus;
 using Xunit;
 
 namespace DuckDB.NET.Test;
@@ -406,7 +407,6 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         Command.CommandText = "SELECT * FROM managedAppenderTestSchema.managedAppenderTest";
         using (var reader = Command.ExecuteReader())
         {
-
             var readRowIndex = 0;
             while (reader.Read())
             {
@@ -424,6 +424,39 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
             }
             readRowIndex.Should().Be(rows);
         }
+    }
+
+    [Fact]
+    public void ManagedAppenderOnTableAndColumns()
+    {
+        var table = "CREATE TABLE managedAppenderTest2(a INTEGER, b VARCHAR, c DateTime);";
+        Command.CommandText = table;
+        Command.ExecuteNonQuery();
+
+        var rows = 5000;
+        var date = DateTime.Today;
+
+        var categories = Enumerable.Range(0, rows)
+            .Select(i => new { id = i, name = Faker.Lorem.Word().OrNull(Faker), date = date.AddDays(i) })
+            .ToList();
+
+        using (var appender = Connection.CreateAppender("managedAppenderTest2"))
+        {
+            foreach (var item in categories)
+            {
+                var row = appender.CreateRow();
+                row
+                    .AppendValue(item.id)
+                    .AppendValue(item.name)
+                    .AppendValue(item.date)
+                    .EndRow();
+            }
+        }
+
+        var list = Connection.Query<(int id, string name, DateTime date)>("SELECT a, b, c FROM managedAppenderTest2").Select(tuple => new { tuple.id, tuple.name, tuple.date}).ToList();
+
+        list.Should().HaveCount(rows);
+        list.Should().BeEquivalentTo(categories);
     }
 
     [Theory]
