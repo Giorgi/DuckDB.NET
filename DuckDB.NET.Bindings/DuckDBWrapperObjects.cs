@@ -18,6 +18,11 @@ public class DuckDBNativeConnection() : SafeHandleZeroOrMinusOneIsInvalid(true)
         NativeMethods.Startup.DuckDBDisconnect(out handle);
         return true;
     }
+
+    public void Interrupt()
+    {
+        NativeMethods.Startup.DuckDBInterrupt(handle);
+    }
 }
 
 public class DuckDBPreparedStatement() : SafeHandleZeroOrMinusOneIsInvalid(true)

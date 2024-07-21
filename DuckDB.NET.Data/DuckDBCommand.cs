@@ -73,7 +73,7 @@ public class DuckDBCommand : DbCommand
     {
         if (connection != null)
         {
-            NativeMethods.Startup.DuckDBInterrupt(connection.NativeConnection.DangerousGetHandle());
+            connection.NativeConnection.Interrupt();
         }
     }
 
