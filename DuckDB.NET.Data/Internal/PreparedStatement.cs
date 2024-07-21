@@ -87,7 +87,18 @@ internal sealed class PreparedStatement : IDisposable
         {
             var errorMessage = NativeMethods.Query.DuckDBResultError(ref queryResult).ToManagedString(false);
             queryResult.Dispose();
-            throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, status);
+
+            if (string.IsNullOrEmpty(errorMessage))
+            {
+                errorMessage = "DuckDB execution failed";
+            }
+
+            if (errorMessage.StartsWith("INTERRUPT Error"))
+            {
+                throw new OperationCanceledException();
+            }
+
+            throw new DuckDBException(errorMessage, status);
         }
 
         return queryResult;

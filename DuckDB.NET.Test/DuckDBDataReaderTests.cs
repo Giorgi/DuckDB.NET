@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Data;
 using DuckDB.NET.Native;
 using Xunit;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace DuckDB.NET.Test;
 
@@ -355,5 +357,21 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         var schemaTable = reader.GetSchemaTable();
         schemaTable.Rows[0]["NumericScale"].Should().Be(0);
         schemaTable.Rows[0]["NumericPrecision"].Should().Be(0);
+    }
+
+    [Fact]
+    public async Task CancellingLongRunningQueryThrowsOperationCancelledException()
+    {
+        Command.CommandText = @"create table cnt as WITH RECURSIVE
+                       cnt(x) AS (
+                          SELECT 1
+                          UNION ALL
+                          SELECT x+1 FROM cnt
+                           where x < 300000
+                    ) select * from cnt;";
+
+        var source = new CancellationTokenSource(1000);
+
+        await Command.Invoking(async c => await c.ExecuteReaderAsync(source.Token)).Should().ThrowAsync<OperationCanceledException>();
     }
 }

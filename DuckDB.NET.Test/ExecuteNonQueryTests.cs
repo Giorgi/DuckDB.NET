@@ -1,5 +1,4 @@
-﻿using DuckDB.NET.Data;
-using FluentAssertions;
+﻿using FluentAssertions;
 using System.Collections.Generic;
 using Xunit;
 

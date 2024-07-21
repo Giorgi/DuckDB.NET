@@ -70,7 +70,12 @@ public class DuckDBCommand : DbCommand
     }
 
     public override void Cancel()
-    { }
+    {
+        if (connection != null)
+        {
+            NativeMethods.Startup.DuckDBInterrupt(connection.NativeConnection.DangerousGetHandle());
+        }
+    }
 
     public override int ExecuteNonQuery()
     {
