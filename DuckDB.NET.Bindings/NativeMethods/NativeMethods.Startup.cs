@@ -29,6 +29,9 @@ public partial class NativeMethods
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_disconnect")]
         public static extern void DuckDBDisconnect(out IntPtr connection);
 
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_interrupt")]
+        public static extern void DuckDBInterrupt(IntPtr connection);
+
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_library_version")]
         public static extern IntPtr DuckDBLibraryVersion();
     }
