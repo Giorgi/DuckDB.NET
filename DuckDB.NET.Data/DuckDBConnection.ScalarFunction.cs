@@ -80,7 +80,7 @@ partial class DuckDBConnection
         var dataChunk = new DuckDBDataChunk(chunk);
 
         var chunkSize = (int)NativeMethods.DataChunks.DuckDBDataChunkGetSize(dataChunk);
-        var handle = GCHandle.FromIntPtr(info);
+        var handle = GCHandle.FromIntPtr(NativeMethods.ScalarFunction.DuckDBScalarFunctionGetExtraInfo(info));
 
         if (handle.Target is not ScalarFunctionInfo functionInfo)
         {

@@ -30,5 +30,8 @@ public partial class NativeMethods
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_register_scalar_function")]
         public static extern DuckDBState DuckDBRegisterScalarFunction(DuckDBNativeConnection con, IntPtr scalarFunction);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_scalar_function_get_extra_info")]
+        public static extern IntPtr DuckDBScalarFunctionGetExtraInfo(IntPtr scalarFunction);
     }
 }
