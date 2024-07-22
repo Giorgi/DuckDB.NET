@@ -51,7 +51,7 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     public void RegisterScalarFunctionWithOneParameter()
     {
         var values = new List<long>();
-        Connection.RegisterScalarFunction<long, long>("my_rand", (readers, writer, rowCount) =>
+        Connection.RegisterScalarFunction<long, long>("my_random", (readers, writer, rowCount) =>
         {
             for (int index = 0; index < rowCount; index++)
             {
@@ -66,7 +66,7 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Command.CommandText = "CREATE TABLE big_table_2 AS SELECT (greatest(random(), 0.1) * 10000)::BIGINT i FROM range(100) t(i);";
         Command.ExecuteNonQuery();
 
-        var longs = Connection.Query<long>("SELECT my_rand(i) FROM big_table_2").ToList();
+        var longs = Connection.Query<long>("SELECT my_random(i) FROM big_table_2").ToList();
         longs.Should().BeEquivalentTo(values);
     }
 
