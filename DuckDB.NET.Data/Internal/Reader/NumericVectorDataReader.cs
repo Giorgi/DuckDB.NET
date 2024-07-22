@@ -6,7 +6,7 @@ using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-internal class NumericVectorDataReader : VectorDataReaderBase
+internal sealed class NumericVectorDataReader : VectorDataReaderBase
 {
     internal unsafe NumericVectorDataReader(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
@@ -85,7 +85,7 @@ internal class NumericVectorDataReader : VectorDataReaderBase
         throw new InvalidCastException($"Cannot cast from {value.GetType().Name} to {targetType.Name} in column {ColumnName}");
     }
 
-    protected unsafe BigInteger GetBigInteger(ulong offset, bool unsigned)
+    internal unsafe BigInteger GetBigInteger(ulong offset, bool unsigned)
     {
         if (unsigned)
         {
@@ -99,7 +99,7 @@ internal class NumericVectorDataReader : VectorDataReaderBase
         }
     }
 
-    protected T GetBigInteger<T>(ulong offset, bool unsigned)
+    private T GetBigInteger<T>(ulong offset, bool unsigned)
     {
         var bigInteger = GetBigInteger(offset, unsigned);
 
