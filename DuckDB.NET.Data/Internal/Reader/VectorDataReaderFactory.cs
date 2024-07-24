@@ -5,7 +5,7 @@ namespace DuckDB.NET.Data.Internal.Reader;
 
 internal static class VectorDataReaderFactory
 {
-    public static unsafe VectorDataReaderBase CreateReader(IntPtr vector, DuckDBLogicalType logicalColumnType, string columnName)
+    public static unsafe VectorDataReaderBase CreateReader(IntPtr vector, DuckDBLogicalType logicalColumnType, string columnName = "")
     {
         var columnType = NativeMethods.LogicalType.DuckDBGetTypeId(logicalColumnType);
         var dataPointer = NativeMethods.Vectors.DuckDBVectorGetData(vector);

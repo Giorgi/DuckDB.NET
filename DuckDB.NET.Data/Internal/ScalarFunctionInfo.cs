@@ -9,8 +9,8 @@ namespace DuckDB.NET.Data.Internal;
 class ScalarFunctionInfo(IReadOnlyList<DuckDBLogicalType> parameterTypes, DuckDBLogicalType returnType, Action<VectorDataReaderBase[], VectorDataWriterBase, int> action, bool varargs) : IDisposable
 {
     public bool Varargs { get; private set; } = varargs;
-    public DuckDBLogicalType ReturnType { get; private set; } = returnType;
-    public IReadOnlyList<DuckDBLogicalType> ParameterTypes { get; private set; } = parameterTypes;
+    public DuckDBLogicalType ReturnType { get; } = returnType;
+    public IReadOnlyList<DuckDBLogicalType> ParameterTypes { get; } = parameterTypes;
     public Action<VectorDataReaderBase[], VectorDataWriterBase, int> Action { get; private set; } = action;
 
     public void Dispose()

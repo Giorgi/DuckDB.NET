@@ -2,6 +2,6 @@
 
 public interface IDuckDBDataReader
 {
-    unsafe bool IsValid(ulong offset);
+    bool IsValid(ulong offset);
     T GetValue<T>(ulong offset);
 }

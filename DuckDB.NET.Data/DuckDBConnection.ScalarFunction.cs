@@ -15,25 +15,25 @@ namespace DuckDB.NET.Data;
 partial class DuckDBConnection
 {
 #if NET6_0_OR_GREATER
-    public unsafe void RegisterScalarFunction<T, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action, bool varargs = false)
+    public void RegisterScalarFunction<T, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action, bool varargs = false)
     {
         RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), varargs: varargs, DuckDBTypeMap.GetLogicalType<T>());
     }
 
-    public unsafe void RegisterScalarFunction<T1, T2, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action)
+    public void RegisterScalarFunction<T1, T2, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action)
     {
         RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), false, DuckDBTypeMap.GetLogicalType<T1>(), DuckDBTypeMap.GetLogicalType<T2>());
     }
 
-    public unsafe void RegisterScalarFunction<T1, T2, T3, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action)
+    public void RegisterScalarFunction<T1, T2, T3, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action)
     {
         RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), false,
-                       DuckDBTypeMap.GetLogicalType<T1>(),
+                              DuckDBTypeMap.GetLogicalType<T1>(),
                               DuckDBTypeMap.GetLogicalType<T2>(),
                               DuckDBTypeMap.GetLogicalType<T3>());
     }
 
-    public unsafe void RegisterScalarFunction<T1, T2, T3, T4, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action)
+    public void RegisterScalarFunction<T1, T2, T3, T4, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action)
     {
         RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), varargs: false,
                               DuckDBTypeMap.GetLogicalType<T1>(),
@@ -82,7 +82,7 @@ partial class DuckDBConnection
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static void ScalarFunctionCallback(IntPtr info, IntPtr chunk, IntPtr vector)
+    private static void ScalarFunctionCallback(IntPtr info, IntPtr chunk, IntPtr outputVector)
     {
         var dataChunk = new DuckDBDataChunk(chunk);
 
@@ -94,29 +94,20 @@ partial class DuckDBConnection
             throw new InvalidOperationException("User defined scalar function execution failed. Function extra info is null");
         }
 
-        VectorDataReaderBase[] readers;
+        var readers = new VectorDataReaderBase[NativeMethods.DataChunks.DuckDBDataChunkGetColumnCount(dataChunk)];
 
-        if (functionInfo.Varargs)
+        for (var index = 0; index < readers.Length; index++)
         {
-            var columnCount = NativeMethods.DataChunks.DuckDBDataChunkGetColumnCount(dataChunk);
-            readers = new VectorDataReaderBase[columnCount];
-            
-            for (var index = 0; index < columnCount; index++)
-            {
-                readers[index] = VectorDataReaderFactory.CreateReader(NativeMethods.DataChunks.DuckDBDataChunkGetVector(dataChunk, index), functionInfo.ParameterTypes[0], "");
-            }
-        }
-        else
-        {
-            readers = functionInfo.ParameterTypes.Select((type, index) => VectorDataReaderFactory.CreateReader(NativeMethods.DataChunks.DuckDBDataChunkGetVector(dataChunk, index), type, "")).ToArray();
+            var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(dataChunk, index);
+            readers[index] = VectorDataReaderFactory.CreateReader(vector, NativeMethods.Vectors.DuckDBVectorGetColumnType(vector));
         }
 
-        var writer = VectorDataWriterFactory.CreateWriter(vector, functionInfo.ReturnType);
+        var writer = VectorDataWriterFactory.CreateWriter(outputVector, functionInfo.ReturnType);
 
         functionInfo.Action(readers, writer, chunkSize);
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static unsafe void DestroyExtraInfo(IntPtr pointer) => pointer.FreeHandle();
+    private static void DestroyExtraInfo(IntPtr pointer) => pointer.FreeHandle();
 #endif
 }
