@@ -51,7 +51,7 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
         }
     }
 
-    private unsafe object GetList(Type returnType, ulong listOffset, ulong length)
+    private object GetList(Type returnType, ulong listOffset, ulong length)
     {
         var listType = returnType.GetGenericArguments()[0];
 

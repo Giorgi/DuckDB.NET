@@ -24,7 +24,7 @@ internal sealed class GuidVectorDataReader : VectorDataReaderBase
         return (T)(object)guid;
     }
 
-    internal override unsafe object GetValue(ulong offset, Type targetType)
+    internal override object GetValue(ulong offset, Type targetType)
     {
         if (DuckDBType != DuckDBType.Uuid)
         {
