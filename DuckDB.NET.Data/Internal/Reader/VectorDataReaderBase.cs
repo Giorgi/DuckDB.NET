@@ -85,7 +85,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
         return (T)GetValue(offset, targetType);
     }
 
-    internal object GetValue(ulong offset)
+    public object GetValue(ulong offset)
     {
         return GetValue(offset, ClrType);
     }

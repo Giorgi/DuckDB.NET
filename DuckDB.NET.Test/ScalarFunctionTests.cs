@@ -1,7 +1,9 @@
 ﻿using Dapper;
+using DuckDB.NET.Native;
 using FluentAssertions;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Xunit;
 
@@ -91,5 +93,51 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Command.CommandText = "SELECT MIN(my_addition(i, i)) FROM big_table;";
         var scalar = Command.ExecuteScalar();
         scalar.Should().Be(minValue);
+    }
+
+    [Fact]
+    public void RegisterScalarFunctionWithAny()
+    {
+        Connection.RegisterScalarFunction<object, string, string>("to_string", (readers, writer, rowCount) =>
+        {
+            for (int index = 0; index < rowCount; index++)
+            {
+                var format = readers[1].GetValue<string>((ulong)index);
+
+                switch (readers[0].DuckDBType)
+                {
+                    case DuckDBType.Integer:
+                        writer.AppendValue(readers[0].GetValue<int>((ulong)index).ToString(format, CultureInfo.InvariantCulture), index);
+                        break;
+                    case DuckDBType.Date:
+                        writer.AppendValue(readers[0].GetValue<DateOnly>((ulong)index).ToString(format, CultureInfo.InvariantCulture), index);
+                        break;
+                    case DuckDBType.Double:
+                        writer.AppendValue(readers[0].GetValue<double>((ulong)index).ToString(format, CultureInfo.InvariantCulture), index);
+                        break;
+                    default:
+                        writer.AppendValue(readers[0].GetValue((ulong)index).ToString(), index);
+                        break;
+                }
+            }
+        });
+
+        Command.CommandText = "CREATE TABLE TestTableAnyType (a Integer, b Date, c double)";
+        Command.ExecuteNonQuery();
+
+        var randomList = GetRandomList(faker => new { a = faker.Random.Int(), b = DateOnly.FromDateTime(faker.Date.Past()), c = faker.Random.Double() });
+
+        using (var appender = Connection.CreateAppender("TestTableAnyType"))
+        {
+            foreach (var item in randomList)
+            {
+                appender.CreateRow().AppendValue(item.a).AppendValue((DateOnly?)item.b).AppendValue(item.c).EndRow();
+            }
+        }
+
+        Command.CommandText = "SELECT a, to_string(a, 'G'), b, to_string(b, 'dd-MM-yyyy'), c, to_string(c, 'G'), FROM TestTableAnyType;";
+
+        var rows = Connection.Query<(int a, string formatA, DateOnly b, string formatB, double c, string formatC)>(Command.CommandText).ToList();
+        rows.Should().BeEquivalentTo(randomList.Select(item => (item.a, item.a.ToString("G", CultureInfo.InvariantCulture), item.b, item.b.ToString("dd-MM-yyyy", CultureInfo.InvariantCulture), item.c, item.c.ToString("G", CultureInfo.InvariantCulture))));
     }
 }

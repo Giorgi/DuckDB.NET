@@ -6,7 +6,6 @@ using DuckDB.NET.Data.Reader;
 using DuckDB.NET.Data.Writer;
 using DuckDB.NET.Native;
 using System;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -61,13 +60,14 @@ partial class DuckDBConnection
             foreach (var type in parameterTypes)
             {
                 NativeMethods.ScalarFunction.DuckDBScalarFunctionAddParameter(function, type);
+                type.Dispose();
             }
         }
 
         NativeMethods.ScalarFunction.DuckDBScalarFunctionSetReturnType(function, returnType);
         NativeMethods.ScalarFunction.DuckDBScalarFunctionSetFunction(function, &ScalarFunctionCallback);
 
-        var info = new ScalarFunctionInfo(parameterTypes, returnType, action, varargs);
+        var info = new ScalarFunctionInfo(returnType, action);
 
         NativeMethods.ScalarFunction.DuckDBScalarFunctionSetExtraInfo(function, info.ToHandle(), &DestroyExtraInfo);
 

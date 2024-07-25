@@ -55,6 +55,7 @@ internal static class DuckDBTypeMap
         { typeof(BigInteger), DuckDBType.HugeInt},
         { typeof(string), DuckDBType.Varchar},
         { typeof(decimal), DuckDBType.Decimal},
+        { typeof(object), DuckDBType.Any},
 
     };
 
