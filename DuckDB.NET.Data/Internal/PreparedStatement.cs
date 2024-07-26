@@ -69,7 +69,7 @@ internal sealed class PreparedStatement : IDisposable
                 {
                     var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(statement).ToManagedString(false);
 
-                    throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage, status);
+                    throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage);
                 }
             }
         }
@@ -86,6 +86,7 @@ internal sealed class PreparedStatement : IDisposable
         if (!status.IsSuccess())
         {
             var errorMessage = NativeMethods.Query.DuckDBResultError(ref queryResult).ToManagedString(false);
+            var errorType = NativeMethods.Query.DuckDBResultErrorType(ref queryResult);
             queryResult.Dispose();
 
             if (string.IsNullOrEmpty(errorMessage))
@@ -93,12 +94,12 @@ internal sealed class PreparedStatement : IDisposable
                 errorMessage = "DuckDB execution failed";
             }
 
-            if (errorMessage.StartsWith("INTERRUPT Error"))
+            if (errorType == DuckDBErrorType.Interrupt)
             {
                 throw new OperationCanceledException();
             }
 
-            throw new DuckDBException(errorMessage, status);
+            throw new DuckDBException(errorMessage, errorType);
         }
 
         return queryResult;

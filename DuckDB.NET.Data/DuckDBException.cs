@@ -6,6 +6,8 @@ namespace DuckDB.NET.Data;
 
 public class DuckDBException : DbException
 {
+    public DuckDBErrorType ErrorType { get; }
+
     internal DuckDBException()
     {
     }
@@ -18,8 +20,8 @@ public class DuckDBException : DbException
     {
     }
 
-    internal DuckDBException(string message, DuckDBState state) : base(message, (int)state)
+    internal DuckDBException(string message, DuckDBErrorType errorType) : base(message, (int)errorType)
     {
-
+        ErrorType = errorType;
     }
 }
