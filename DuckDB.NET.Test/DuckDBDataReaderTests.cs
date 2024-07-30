@@ -1,12 +1,13 @@
 ﻿using DuckDB.NET.Data;
+using DuckDB.NET.Native;
 using FluentAssertions;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using DuckDB.NET.Native;
-using Xunit;
-using System.Threading.Tasks;
+using System.Numerics;
 using System.Threading;
+using System.Threading.Tasks;
+using Xunit;
 
 namespace DuckDB.NET.Test;
 
@@ -373,5 +374,15 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         var source = new CancellationTokenSource(1000);
 
         await Command.Invoking(async c => await c.ExecuteReaderAsync(source.Token)).Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public void ReadVarint()
+    {
+        Command.CommandText = "SELECT (-1234)::VARINT";
+
+        var reader = Command.ExecuteReader();
+        reader.Read();
+        var value = (BigInteger)reader.GetValue(0);
     }
 }

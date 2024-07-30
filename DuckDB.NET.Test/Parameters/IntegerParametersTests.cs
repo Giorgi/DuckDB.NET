@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Numerics;
 using DuckDB.NET.Data;
 using FluentAssertions;
 using Xunit;
@@ -22,7 +24,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
         value.Should().Be(expectedValue);
     }
 
-    private void TestSimple<TValue>(string duckDbType, TValue expectedValue, Func<DuckDBDataReader, TValue> getValue)
+    private void TestSimple<TValue>(string duckDbType, TValue? expectedValue, Func<DuckDBDataReader, TValue?> getValue) where TValue : struct, INumberBase<TValue>
     {
         Command.CommandText = $"CREATE TABLE {duckDbType}_test (a {duckDbType});";
         Command.ExecuteNonQuery();
@@ -61,11 +63,11 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
             Command.ExecuteNonQuery();
         }
 
-        void TestReadValueAs<T>(DuckDBDataReader reader)
+        void TestReadValueAs<T>(DuckDBDataReader reader) where T : INumberBase<T>
         {
             try
             {
-                var convertedExpectedValue = (T)Convert.ChangeType(expectedValue, typeof(T));
+                var convertedExpectedValue = expectedValue.HasValue ? T.CreateChecked(expectedValue.Value) : default;
                 convertedExpectedValue.Should().Be(reader.GetFieldValue<T>(0));
             }
             catch (Exception)
@@ -81,7 +83,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     [InlineData(byte.MaxValue)]
     public void ByteTest(byte value)
     {
-        TestSimple("UTINYINT", value, r => r.GetByte(0));
+        TestSimple<byte>("UTINYINT", value, r => r.GetByte(0));
         TestBind(value, new DuckDBParameter(value), r => r.GetByte(0));
     }
 
@@ -91,7 +93,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     [InlineData(sbyte.MaxValue)]
     public void SByteTest(sbyte value)
     {
-        TestSimple("TINYINT", value, r => r.GetFieldValue<sbyte>(0));
+        TestSimple<sbyte>("TINYINT", value, r => r.GetFieldValue<sbyte>(0));
         TestBind(value, new DuckDBParameter(value), r => r.GetFieldValue<sbyte>(0));
     }
 
@@ -101,7 +103,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     [InlineData(ushort.MaxValue)]
     public void UInt16Test(ushort value)
     {
-        TestSimple("USMALLINT", value, r => r.GetFieldValue<ushort>(0));
+        TestSimple<ushort>("USMALLINT", value, r => r.GetFieldValue<ushort>(0));
         TestBind(value, new DuckDBParameter(value), r => r.GetFieldValue<ushort>(0));
     }
 
@@ -111,7 +113,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     [InlineData(short.MaxValue)]
     public void Int16Test(short value)
     {
-        TestSimple("SMALLINT", value, r => r.GetInt16(0));
+        TestSimple<short>("SMALLINT", value, r => r.GetInt16(0));
         TestBind(value, new DuckDBParameter(value), r => r.GetInt16(0));
     }
 
@@ -121,7 +123,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     [InlineData(uint.MaxValue)]
     public void UInt32Test(uint value)
     {
-        TestSimple("UINTEGER", value, r => r.GetFieldValue<uint>(0));
+        TestSimple<uint>("UINTEGER", value, r => r.GetFieldValue<uint>(0));
         TestBind(value, new DuckDBParameter(value), r => r.GetFieldValue<uint>(0));
     }
 
@@ -131,10 +133,10 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     [InlineData(int.MaxValue)]
     public void Int32Test(int value)
     {
-        TestSimple("INTEGER", value, r => r.GetInt32(0));
+        TestSimple<int>("INTEGER", value, r => r.GetInt32(0));
         TestBind(value, new DuckDBParameter(value), r => r.GetInt32(0));
 
-        TestSimple("INTEGER", value, r => r.GetFieldValue<int?>(0));
+        TestSimple<int>("INTEGER", value, r => r.GetFieldValue<int?>(0));
     }
 
     [Theory]
@@ -143,7 +145,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     [InlineData(ulong.MaxValue)]
     public void UInt64Test(ulong value)
     {
-        TestSimple("UBIGINT", value, r => r.GetFieldValue<ulong>(0));
+        TestSimple<ulong>("UBIGINT", value, r => r.GetFieldValue<ulong>(0));
         TestBind(value, new DuckDBParameter(value), r => r.GetFieldValue<ulong>(0));
 
         TestSimple("UBIGINT", value, r => r.GetFieldValue<ulong?>(0));
@@ -155,9 +157,25 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     [InlineData(long.MaxValue)]
     public void Int64Test(long value)
     {
-        TestSimple("BIGINT", value, r => r.GetInt64(0));
+        TestSimple<long>("BIGINT", value, r => r.GetInt64(0));
         TestBind(value, new DuckDBParameter(value), r => r.GetInt64(0));
 
         TestSimple("BIGINT", value, r => r.GetFieldValue<long?>(0));
+    }
+
+    [Theory]
+    [MemberData(nameof(GetBigIntegers))]
+    public void VarintTest(BigInteger expectedValue)
+    {
+        TestSimple<BigInteger>("VARINT", expectedValue, r => r.GetFieldValue<BigInteger>(0));
+    }
+
+    public static IEnumerable<object[]> GetBigIntegers()
+    {
+        for (int i = 0; i < 1024 * 1; i++)
+        {
+            yield return new object[] { new BigInteger(i) };
+            yield return new object[] { new BigInteger(-i) };
+        }
     }
 }
