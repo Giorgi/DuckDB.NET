@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
+using Bogus;
 using DuckDB.NET.Data;
 using FluentAssertions;
 using Xunit;
@@ -172,10 +174,31 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
 
     public static IEnumerable<object[]> GetBigIntegers()
     {
-        for (int i = 0; i < 1024 * 1; i++)
+        for (int i = 0; i < 1024 * 1 + 10; i++)
         {
             yield return new object[] { new BigInteger(i) };
             yield return new object[] { new BigInteger(-i) };
+
+            yield return new object[] { new BigInteger(int.MaxValue - i) };
+            yield return new object[] { new BigInteger(int.MaxValue + i) };
+
+            yield return new object[] { new BigInteger(int.MinValue + i) };
+            yield return new object[] { new BigInteger(int.MinValue - i) };
+
+            yield return new object[] { new BigInteger(long.MaxValue - i) };
+            yield return new object[] { new BigInteger(long.MaxValue + i) };
+
+            yield return new object[] { new BigInteger(long.MinValue + i) };
+            yield return new object[] { new BigInteger(long.MinValue - i) };
         }
+
+        //var faker = new Faker();
+        //var left = Enumerable.Range(0, 50).Select(i => faker.Random.Long(long.MaxValue - 100)).ToList();
+        //var right = Enumerable.Range(0, 50).Select(i => faker.Random.Long(long.MaxValue - 100)).ToList();
+
+        //foreach (var bigInteger in left.Zip(right, (l, r) => new BigInteger(l) * new BigInteger(r)))
+        //{
+        //    yield return new object[] { bigInteger };
+        //}
     }
 }

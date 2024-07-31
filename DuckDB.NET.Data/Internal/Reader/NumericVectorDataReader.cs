@@ -137,14 +137,14 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
         {
             var quotient = new List<char>();
 
-            var remainder = 0;
+            byte remainder = 0;
 
             foreach (var @byte in bytes)
             {
                 var newValue = remainder * 256 + @byte;
                 quotient.Add(DigitToChar(newValue / 10));
 
-                remainder = newValue % 10;
+                remainder = (byte)(newValue % 10);
             }
 
             bigIntegerDigits.Push(DigitToChar(remainder));
