@@ -9,12 +9,12 @@ namespace DuckDB.NET.Data.Internal.Writer;
 
 internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, DuckDBType columnType) : IDuckDBDataWriter
 {
-    private unsafe ulong* validity;
+    private ulong* validity;
 
     internal IntPtr Vector => vector;
     internal DuckDBType ColumnType => columnType;
 
-    public unsafe void AppendNull(int rowIndex)
+    public void AppendNull(int rowIndex)
     {
         if (validity == default)
         {
@@ -25,7 +25,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
         NativeMethods.ValidityMask.DuckDBValiditySetRowValidity(validity, (ulong)rowIndex, false);
     }
 
-    public unsafe void AppendValue<T>(T value, int rowIndex)
+    public void AppendValue<T>(T value, int rowIndex)
     {
         if (value == null)
         {
@@ -104,7 +104,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
         throw new InvalidOperationException($"Cannot write {typeof(T).Name} to {columnType} column");
     }
 
-    internal unsafe bool AppendValueInternal<T>(T value, int rowIndex) where T : unmanaged
+    internal bool AppendValueInternal<T>(T value, int rowIndex) where T : unmanaged
     {
         ((T*)vectorData)[rowIndex] = value;
         return true;

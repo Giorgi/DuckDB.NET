@@ -21,7 +21,7 @@ public class DuckDBAppender : IDisposable
     private readonly DuckDBDataChunk dataChunk;
     private readonly VectorDataWriterBase[] vectorWriters;
 
-    internal unsafe DuckDBAppender(Native.DuckDBAppender appender, string qualifiedTableName)
+    internal DuckDBAppender(Native.DuckDBAppender appender, string qualifiedTableName)
     {
         nativeAppender = appender;
         this.qualifiedTableName = qualifiedTableName;
@@ -96,7 +96,7 @@ public class DuckDBAppender : IDisposable
         }
     }
 
-    private unsafe void InitVectorWriters()
+    private void InitVectorWriters()
     {
         for (long index = 0; index < vectorWriters.LongLength; index++)
         {
