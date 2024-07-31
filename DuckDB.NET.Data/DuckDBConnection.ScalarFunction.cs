@@ -14,34 +14,42 @@ namespace DuckDB.NET.Data;
 partial class DuckDBConnection
 {
 #if NET6_0_OR_GREATER
-    public void RegisterScalarFunction<T, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action, bool varargs = false)
+    public void RegisterScalarFunction<TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action, bool isPureFunction = false)
     {
-        RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), varargs: varargs, DuckDBTypeMap.GetLogicalType<T>());
+        RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), varargs: false, !isPureFunction);
     }
 
-    public void RegisterScalarFunction<T1, T2, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action)
+    public void RegisterScalarFunction<T, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action, bool isPureFunction = true, bool varargs = false)
     {
-        RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), false, DuckDBTypeMap.GetLogicalType<T1>(), DuckDBTypeMap.GetLogicalType<T2>());
+        RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), varargs, !isPureFunction, DuckDBTypeMap.GetLogicalType<T>());
     }
 
-    public void RegisterScalarFunction<T1, T2, T3, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action)
+    public void RegisterScalarFunction<T1, T2, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action, bool isPureFunction = true)
     {
-        RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), false,
+        RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), varargs: false, !isPureFunction,
+                              DuckDBTypeMap.GetLogicalType<T1>(), 
+                              DuckDBTypeMap.GetLogicalType<T2>());
+    }
+
+    public void RegisterScalarFunction<T1, T2, T3, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action, bool isPureFunction = true)
+    {
+        RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), varargs: false, !isPureFunction,
                               DuckDBTypeMap.GetLogicalType<T1>(),
                               DuckDBTypeMap.GetLogicalType<T2>(),
                               DuckDBTypeMap.GetLogicalType<T3>());
     }
 
-    public void RegisterScalarFunction<T1, T2, T3, T4, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action)
+    public void RegisterScalarFunction<T1, T2, T3, T4, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action, bool isPureFunction = true)
     {
-        RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), varargs: false,
+        RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), varargs: false, !isPureFunction,
                               DuckDBTypeMap.GetLogicalType<T1>(),
                               DuckDBTypeMap.GetLogicalType<T2>(),
                               DuckDBTypeMap.GetLogicalType<T3>(),
                               DuckDBTypeMap.GetLogicalType<T4>());
     }
 
-    private unsafe void RegisterScalarMethod(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action, DuckDBLogicalType returnType, bool varargs, params DuckDBLogicalType[] parameterTypes)
+    private unsafe void RegisterScalarMethod(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action, DuckDBLogicalType returnType,
+                                             bool varargs, bool @volatile, params DuckDBLogicalType[] parameterTypes)
     {
         var function = NativeMethods.ScalarFunction.DuckDBCreateScalarFunction();
         NativeMethods.ScalarFunction.DuckDBScalarFunctionSetName(function, name.ToUnmanagedString());
@@ -62,6 +70,11 @@ partial class DuckDBConnection
                 NativeMethods.ScalarFunction.DuckDBScalarFunctionAddParameter(function, type);
                 type.Dispose();
             }
+        }
+
+        if (@volatile)
+        {
+            NativeMethods.ScalarFunction.DuckDBScalarFunctionSetVolatile(function);
         }
 
         NativeMethods.ScalarFunction.DuckDBScalarFunctionSetReturnType(function, returnType);

@@ -1,5 +1,4 @@
 ﻿using Dapper;
-using DuckDB.NET.Native;
 using FluentAssertions;
 using System;
 using System.Collections.Generic;
@@ -21,6 +20,11 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             {
                 var value = 0L;
 
+                if (readers.Length == 0)
+                {
+                    value = Random.Shared.NextInt64();
+                }
+
                 if (readers.Length == 1)
                 {
                     value = Random.Shared.NextInt64(readers[0].GetValue<long>((ulong)index));
@@ -35,12 +39,17 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
                 values.Add(value);
             }
-        }, true);
+        }, false, true);
 
         Command.CommandText = "CREATE TABLE big_table_1 AS SELECT (greatest(random(), 0.1) * 10000)::BIGINT i FROM range(10000) t(i);";
         Command.ExecuteNonQuery();
 
-        var longs = Connection.Query<long>("SELECT my_rand(i) FROM big_table_1").ToList();
+        var longs = Connection.Query<long>("SELECT my_rand() FROM big_table_1").ToList();
+        longs.Should().BeEquivalentTo(values);
+
+        values.Clear();
+
+        longs = Connection.Query<long>("SELECT my_rand(i) FROM big_table_1").ToList();
         longs.Should().BeEquivalentTo(values);
 
         values.Clear();
@@ -50,10 +59,33 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    public void RegisterScalarFunctionWithoutParameters()
+    {
+        var values = new List<long>();
+        Connection.RegisterScalarFunction<long>("my_random", (readers, writer, rowCount) =>
+        {
+            for (int index = 0; index < rowCount; index++)
+            {
+                var value = Random.Shared.NextInt64();
+
+                writer.AppendValue(value, index);
+
+                values.Add(value);
+            }
+        });
+
+        Command.CommandText = "CREATE TABLE big_table_2 AS SELECT (greatest(random(), 0.1) * 10000)::BIGINT i FROM range(100) t(i);";
+        Command.ExecuteNonQuery();
+
+        var longs = Connection.Query<long>("SELECT my_random() FROM big_table_2").ToList();
+        longs.Should().BeEquivalentTo(values);
+    }
+
+    [Fact]
     public void RegisterScalarFunctionWithOneParameter()
     {
         var values = new List<long>();
-        Connection.RegisterScalarFunction<long, long>("my_random", (readers, writer, rowCount) =>
+        Connection.RegisterScalarFunction<long, long>("my_random_scalar", (readers, writer, rowCount) =>
         {
             for (int index = 0; index < rowCount; index++)
             {
@@ -65,10 +97,10 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             }
         });
 
-        Command.CommandText = "CREATE TABLE big_table_2 AS SELECT (greatest(random(), 0.1) * 10000)::BIGINT i FROM range(100) t(i);";
+        Command.CommandText = "CREATE TABLE big_table_3 AS SELECT (greatest(random(), 0.1) * 10000)::BIGINT i FROM range(100) t(i);";
         Command.ExecuteNonQuery();
 
-        var longs = Connection.Query<long>("SELECT my_random(i) FROM big_table_2").ToList();
+        var longs = Connection.Query<long>("SELECT my_random_scalar(i) FROM big_table_3").ToList();
         longs.Should().BeEquivalentTo(values);
     }
 
@@ -104,21 +136,28 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             {
                 var format = readers[1].GetValue<string>((ulong)index);
 
-                switch (readers[0].DuckDBType)
+                var value = readers[0].GetValue((ulong)index);
+
+                if (value is IFormattable formattable)
                 {
-                    case DuckDBType.Integer:
-                        writer.AppendValue(readers[0].GetValue<int>((ulong)index).ToString(format, CultureInfo.InvariantCulture), index);
-                        break;
-                    case DuckDBType.Date:
-                        writer.AppendValue(readers[0].GetValue<DateOnly>((ulong)index).ToString(format, CultureInfo.InvariantCulture), index);
-                        break;
-                    case DuckDBType.Double:
-                        writer.AppendValue(readers[0].GetValue<double>((ulong)index).ToString(format, CultureInfo.InvariantCulture), index);
-                        break;
-                    default:
-                        writer.AppendValue(readers[0].GetValue((ulong)index).ToString(), index);
-                        break;
+                    writer.AppendValue(formattable.ToString(format, CultureInfo.InvariantCulture), index);
                 }
+
+                //switch (readers[0].DuckDBType)
+                //{
+                //    case DuckDBType.Integer:
+                //        writer.AppendValue(readers[0].GetValue<int>((ulong)index).ToString(format, CultureInfo.InvariantCulture), index);
+                //        break;
+                //    case DuckDBType.Date:
+                //        writer.AppendValue(readers[0].GetValue<DateOnly>((ulong)index).ToString(format, CultureInfo.InvariantCulture), index);
+                //        break;
+                //    case DuckDBType.Double:
+                //        writer.AppendValue(readers[0].GetValue<double>((ulong)index).ToString(format, CultureInfo.InvariantCulture), index);
+                //        break;
+                //    default:
+                //        writer.AppendValue(readers[0].GetValue((ulong)index).ToString(), index);
+                //        break;
+                //}
             }
         });
 
