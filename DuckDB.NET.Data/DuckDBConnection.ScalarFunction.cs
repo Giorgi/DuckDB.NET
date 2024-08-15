@@ -19,9 +19,9 @@ partial class DuckDBConnection
         RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), varargs: false, !isPureFunction);
     }
 
-    public void RegisterScalarFunction<T, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action, bool isPureFunction = true, bool varargs = false)
+    public void RegisterScalarFunction<T, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action, bool isPureFunction = true, bool @params = false)
     {
-        RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), varargs, !isPureFunction, DuckDBTypeMap.GetLogicalType<T>());
+        RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), @params, !isPureFunction, DuckDBTypeMap.GetLogicalType<T>());
     }
 
     public void RegisterScalarFunction<T1, T2, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, int> action, bool isPureFunction = true)
@@ -58,7 +58,7 @@ partial class DuckDBConnection
         {
             if (parameterTypes.Length != 1)
             {
-                throw new InvalidOperationException("Cannot use varargs with multiple parameters");
+                throw new InvalidOperationException("Cannot use params with multiple parameters");
             }
 
             NativeMethods.ScalarFunction.DuckDBScalarFunctionSetVarargs(function, parameterTypes[0]);
