@@ -95,13 +95,40 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
                 values.Add(value);
             }
-        });
+        }, false);
 
         Command.CommandText = "CREATE TABLE big_table_3 AS SELECT (greatest(random(), 0.1) * 10000)::BIGINT i FROM range(100) t(i);";
         Command.ExecuteNonQuery();
 
         var longs = Connection.Query<long>("SELECT my_random_scalar(i) FROM big_table_3").ToList();
         longs.Should().BeEquivalentTo(values);
+    }
+
+    [Fact]
+    public void RegisterScalarFunctionIsPrime()
+    {
+        Connection.RegisterScalarFunction<int, bool>("is_prime", (readers, writer, rowCount) =>
+        {
+            for (int index = 0; index < rowCount; index++)
+            {
+                var value = readers[0].GetValue<int>((ulong)index);
+                var prime = true;
+
+                for (int i = 2; i <= Math.Sqrt(value); i++)
+                {
+                    if (value % i == 0)
+                    {
+                        prime = false;
+                        break;
+                    }
+                }
+
+                writer.AppendValue(prime, index);
+            }
+        }, false);
+
+        var primes = Connection.Query<int>("SELECT i FROM range(2, 100) t(i) where is_prime(i::INT)").ToList();
+        primes.Should().BeEquivalentTo(new List<int>() { 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97 });
     }
 
     [Fact]
