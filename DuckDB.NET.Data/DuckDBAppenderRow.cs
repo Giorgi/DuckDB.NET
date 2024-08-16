@@ -109,7 +109,7 @@ public class DuckDBAppenderRow
     {
         CheckColumnAccess();
 
-        vectorWriters[columnIndex].AppendValue(value, rowIndex);
+        vectorWriters[columnIndex].WriteValue(value, rowIndex);
 
         columnIndex++;
 

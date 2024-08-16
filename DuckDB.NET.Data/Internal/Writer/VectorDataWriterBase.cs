@@ -18,7 +18,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
     internal IntPtr Vector => vector;
     internal DuckDBType ColumnType => columnType;
 
-    public void AppendNull(ulong rowIndex)
+    public void WriteNull(ulong rowIndex)
     {
         if (validity == default)
         {
@@ -29,11 +29,11 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
         NativeMethods.ValidityMask.DuckDBValiditySetRowValidity(validity, rowIndex, false);
     }
 
-    public void AppendValue<T>(T value, ulong rowIndex)
+    public void WriteValue<T>(T value, ulong rowIndex)
     {
         if (value == null)
         {
-            AppendNull(rowIndex);
+            WriteNull(rowIndex);
             return;
         }
 

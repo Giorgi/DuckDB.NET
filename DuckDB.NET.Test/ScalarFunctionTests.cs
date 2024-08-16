@@ -37,7 +37,7 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
                     value = Random.Shared.NextInt64(readers[0].GetValue<long>(index), readers[1].GetValue<long>(index));
                 }
 
-                writer.AppendValue(value, index);
+                writer.WriteValue(value, index);
 
                 values.Add(value);
             }
@@ -70,7 +70,7 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             {
                 var value = Random.Shared.NextInt64();
 
-                writer.AppendValue(value, index);
+                writer.WriteValue(value, index);
 
                 values.Add(value);
             }
@@ -93,7 +93,7 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             {
                 var value = Random.Shared.NextInt64(readers[0].GetValue<long>(index));
 
-                writer.AppendValue(value, index);
+                writer.WriteValue(value, index);
 
                 values.Add(value);
             }
@@ -125,9 +125,9 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
                     }
                 }
 
-                writer.AppendValue(prime, index);
+                writer.WriteValue(prime, index);
             }
-        }, false);
+        });
 
         var primes = Connection.Query<int>("SELECT i FROM range(2, 100) t(i) where is_prime(i::INT)").ToList();
         primes.Should().BeEquivalentTo(new List<int>() { 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97 });
@@ -142,7 +142,7 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             for (ulong index = 0; index < rowCount; index++)
             {
                 var value = readers[0].GetValue<long>(index) + readers[1].GetValue<long>(index);
-                writer.AppendValue(value, index);
+                writer.WriteValue(value, index);
 
                 minValue = long.Min(minValue, value);
             }
@@ -169,22 +169,22 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
                 if (value is IFormattable formattable)
                 {
-                    writer.AppendValue(formattable.ToString(format, CultureInfo.InvariantCulture), index);
+                    writer.WriteValue(formattable.ToString(format, CultureInfo.InvariantCulture), index);
                 }
 
                 //switch (readers[0].DuckDBType)
                 //{
                 //    case DuckDBType.Integer:
-                //        writer.AppendValue(readers[0].GetValue<int>((ulong)index).ToString(format, CultureInfo.InvariantCulture), index);
+                //        writer.WriteValue(readers[0].GetValue<int>(index).ToString(format, CultureInfo.InvariantCulture), index);
                 //        break;
                 //    case DuckDBType.Date:
-                //        writer.AppendValue(readers[0].GetValue<DateOnly>((ulong)index).ToString(format, CultureInfo.InvariantCulture), index);
+                //        writer.WriteValue(readers[0].GetValue<DateOnly>(index).ToString(format, CultureInfo.InvariantCulture), index);
                 //        break;
                 //    case DuckDBType.Double:
-                //        writer.AppendValue(readers[0].GetValue<double>((ulong)index).ToString(format, CultureInfo.InvariantCulture), index);
+                //        writer.WriteValue(readers[0].GetValue<double>(index).ToString(format, CultureInfo.InvariantCulture), index);
                 //        break;
                 //    default:
-                //        writer.AppendValue(readers[0].GetValue((ulong)index).ToString(), index);
+                //        writer.WriteValue(readers[0].GetValue(index).ToString(), index);
                 //        break;
                 //}
             }

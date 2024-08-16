@@ -103,7 +103,7 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
 
             foreach (var item in items)
             {
-                listItemWriter.AppendValue(item, offset + (index++));
+                listItemWriter.WriteValue(item, offset + (index++));
             }
 
             return 0;
