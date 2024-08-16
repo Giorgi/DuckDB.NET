@@ -6,6 +6,7 @@ using DuckDB.NET.Data.Reader;
 using DuckDB.NET.Data.Writer;
 using DuckDB.NET.Native;
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -13,17 +14,20 @@ namespace DuckDB.NET.Data;
 
 partial class DuckDBConnection
 {
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
+    [Experimental("DuckDBNET001")]
     public void RegisterScalarFunction<TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, ulong> action, bool isPureFunction = false)
     {
         RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), varargs: false, !isPureFunction);
     }
 
+    [Experimental("DuckDBNET001")]
     public void RegisterScalarFunction<T, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, ulong> action, bool isPureFunction = true, bool @params = false)
     {
         RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), @params, !isPureFunction, DuckDBTypeMap.GetLogicalType<T>());
     }
 
+    [Experimental("DuckDBNET001")]
     public void RegisterScalarFunction<T1, T2, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, ulong> action, bool isPureFunction = true)
     {
         RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), varargs: false, !isPureFunction,
@@ -31,6 +35,7 @@ partial class DuckDBConnection
                               DuckDBTypeMap.GetLogicalType<T2>());
     }
 
+    [Experimental("DuckDBNET001")]
     public void RegisterScalarFunction<T1, T2, T3, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, ulong> action, bool isPureFunction = true)
     {
         RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), varargs: false, !isPureFunction,
@@ -39,6 +44,7 @@ partial class DuckDBConnection
                               DuckDBTypeMap.GetLogicalType<T3>());
     }
 
+    [Experimental("DuckDBNET001")]
     public void RegisterScalarFunction<T1, T2, T3, T4, TResult>(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, ulong> action, bool isPureFunction = true)
     {
         RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), varargs: false, !isPureFunction,
@@ -48,6 +54,7 @@ partial class DuckDBConnection
                               DuckDBTypeMap.GetLogicalType<T4>());
     }
 
+    [Experimental("DuckDBNET001")]
     private unsafe void RegisterScalarMethod(string name, Action<IDuckDBDataReader[], IDuckDBDataWriter, ulong> action, DuckDBLogicalType returnType,
                                              bool varargs, bool @volatile, params DuckDBLogicalType[] parameterTypes)
     {

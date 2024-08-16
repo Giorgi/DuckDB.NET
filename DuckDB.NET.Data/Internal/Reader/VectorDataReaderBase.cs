@@ -8,7 +8,12 @@ using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
-internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
+internal class VectorDataReaderBase : IDisposable
+#if NET8_0_OR_GREATER
+#pragma warning disable DuckDBNET001
+    , IDuckDBDataReader 
+#pragma warning restore DuckDBNET001
+#endif
 {
     private readonly unsafe ulong* validityMaskPointer;
 

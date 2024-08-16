@@ -6,7 +6,12 @@ using System.Numerics;
 
 namespace DuckDB.NET.Data.Internal.Writer;
 
-internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, DuckDBType columnType) : IDuckDBDataWriter
+internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, DuckDBType columnType)
+#if NET8_0_OR_GREATER
+#pragma warning disable DuckDBNET001
+    : IDuckDBDataWriter
+#pragma warning restore DuckDBNET001
+#endif
 {
     private ulong* validity;
 
@@ -46,7 +51,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
             ulong val => AppendNumeric(val, rowIndex),
             float val => AppendNumeric(val, rowIndex),
             double val => AppendNumeric(val, rowIndex),
-            
+
             decimal val => AppendDecimal(val, rowIndex),
             BigInteger val => AppendBigInteger(val, rowIndex),
 
