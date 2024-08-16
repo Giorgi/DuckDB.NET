@@ -74,7 +74,7 @@ public class DuckDBDataReader : DbDataReader
 
             rowsReadFromCurrentChunk = 0;
 
-            currentChunkRowCount = (ulong)NativeMethods.DataChunks.DuckDBDataChunkGetSize(currentChunk);
+            currentChunkRowCount = NativeMethods.DataChunks.DuckDBDataChunkGetSize(currentChunk);
 
             if (vectorReaders.Length != fieldCount)
             {

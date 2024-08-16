@@ -16,7 +16,7 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         var values = new List<long>();
         Connection.RegisterScalarFunction<long, long>("my_rand", (readers, writer, rowCount) =>
         {
-            for (int index = 0; index < rowCount; index++)
+            for (ulong index = 0; index < rowCount; index++)
             {
                 var value = 0L;
 
@@ -27,12 +27,12 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
                 if (readers.Length == 1)
                 {
-                    value = Random.Shared.NextInt64(readers[0].GetValue<long>((ulong)index));
+                    value = Random.Shared.NextInt64(readers[0].GetValue<long>(index));
                 }
 
                 if (readers.Length == 2)
                 {
-                    value = Random.Shared.NextInt64(readers[0].GetValue<long>((ulong)index), readers[1].GetValue<long>((ulong)index));
+                    value = Random.Shared.NextInt64(readers[0].GetValue<long>(index), readers[1].GetValue<long>(index));
                 }
 
                 writer.AppendValue(value, index);
@@ -64,7 +64,7 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         var values = new List<long>();
         Connection.RegisterScalarFunction<long>("my_random", (readers, writer, rowCount) =>
         {
-            for (int index = 0; index < rowCount; index++)
+            for (ulong index = 0; index < rowCount; index++)
             {
                 var value = Random.Shared.NextInt64();
 
@@ -87,9 +87,9 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         var values = new List<long>();
         Connection.RegisterScalarFunction<long, long>("my_random_scalar", (readers, writer, rowCount) =>
         {
-            for (int index = 0; index < rowCount; index++)
+            for (ulong index = 0; index < rowCount; index++)
             {
-                var value = Random.Shared.NextInt64(readers[0].GetValue<long>((ulong)index));
+                var value = Random.Shared.NextInt64(readers[0].GetValue<long>(index));
 
                 writer.AppendValue(value, index);
 
@@ -109,9 +109,9 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     {
         Connection.RegisterScalarFunction<int, bool>("is_prime", (readers, writer, rowCount) =>
         {
-            for (int index = 0; index < rowCount; index++)
+            for (ulong index = 0; index < rowCount; index++)
             {
-                var value = readers[0].GetValue<int>((ulong)index);
+                var value = readers[0].GetValue<int>(index);
                 var prime = true;
 
                 for (int i = 2; i <= Math.Sqrt(value); i++)
@@ -137,9 +137,9 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         var minValue = long.MaxValue;
         Connection.RegisterScalarFunction<long, long, long>("my_addition", (readers, writer, rowCount) =>
         {
-            for (int index = 0; index < rowCount; index++)
+            for (ulong index = 0; index < rowCount; index++)
             {
-                var value = readers[0].GetValue<long>((ulong)index) + readers[1].GetValue<long>((ulong)index);
+                var value = readers[0].GetValue<long>(index) + readers[1].GetValue<long>(index);
                 writer.AppendValue(value, index);
 
                 minValue = long.Min(minValue, value);
@@ -159,11 +159,11 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     {
         Connection.RegisterScalarFunction<object, string, string>("to_string", (readers, writer, rowCount) =>
         {
-            for (int index = 0; index < rowCount; index++)
+            for (ulong index = 0; index < rowCount; index++)
             {
-                var format = readers[1].GetValue<string>((ulong)index);
+                var format = readers[1].GetValue<string>(index);
 
-                var value = readers[0].GetValue((ulong)index);
+                var value = readers[0].GetValue(index);
 
                 if (value is IFormattable formattable)
                 {
