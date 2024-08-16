@@ -192,13 +192,13 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
             yield return new object[] { new BigInteger(long.MinValue - i) };
         }
 
-        //var faker = new Faker();
-        //var left = Enumerable.Range(0, 50).Select(i => faker.Random.Long(long.MaxValue - 100)).ToList();
-        //var right = Enumerable.Range(0, 50).Select(i => faker.Random.Long(long.MaxValue - 100)).ToList();
+        var faker = new Faker();
+        var left = Enumerable.Range(0, 50).Select(i => faker.Random.Long(long.MaxValue - 100)).ToList();
+        var right = Enumerable.Range(0, 50).Select(i => faker.Random.Long(long.MaxValue - 100)).ToList();
 
-        //foreach (var bigInteger in left.Zip(right, (l, r) => new BigInteger(l) * new BigInteger(r)))
-        //{
-        //    yield return new object[] { bigInteger };
-        //}
+        foreach (var bigInteger in left.Zip(right, (l, r) => new BigInteger(l) * new BigInteger(r)))
+        {
+            yield return new object[] { bigInteger };
+        }
     }
 }
