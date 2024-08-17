@@ -530,7 +530,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
             Select(p => '"' + p + '"')
         );
 
-    private enum TestEnum : long
+    private enum TestEnum
     {
         Test1 = 0,
         Test2 = 1,
