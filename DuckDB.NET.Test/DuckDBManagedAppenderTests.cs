@@ -276,6 +276,26 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    public void EnumValues()
+    {
+        Command.CommandText = "CREATE TYPE test_enum AS ENUM ('test1', 'test2', 'test3')";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "CREATE TABLE managedAppenderEnum(a test_enum, b test_enum, c test_enum);";
+        Command.ExecuteNonQuery();
+
+        using (var appender = Connection.CreateAppender("managedAppenderEnum"))
+        {
+            appender.CreateRow().AppendValue("test1").AppendValue("test2").AppendValue(TestEnum.Test3).EndRow();
+        }
+
+        var result = Connection.Query<(string, string, TestEnum)>("SELECT a, b, c FROM managedAppenderEnum").ToList();
+        result.Select(tuple => tuple.Item1).Should().BeEquivalentTo("test1");
+        result.Select(tuple => tuple.Item2).Should().BeEquivalentTo("test2");
+        result.Select(tuple => tuple.Item3).Should().Equal(TestEnum.Test3);
+    }
+
+    [Fact]
     public void IncompleteRowThrowsException()
     {
         var table = "CREATE TABLE managedAppenderIncompleteTest(a BOOLEAN, b TINYINT, c INTEGER);";
@@ -509,4 +529,11 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
             Where(p => !string.IsNullOrWhiteSpace(p)).
             Select(p => '"' + p + '"')
         );
+
+    private enum TestEnum : long
+    {
+        Test1 = 0,
+        Test2 = 1,
+        Test3 = 2,
+    }
 }
