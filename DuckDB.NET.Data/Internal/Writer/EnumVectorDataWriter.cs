@@ -68,7 +68,7 @@ internal sealed unsafe class EnumVectorDataWriter : VectorDataWriterBase
     internal override bool AppendEnum<TEnum>(TEnum value, int rowIndex)
     {
         ulong enumValue = ConvertEnumValueToUInt64(value);
-        if (enumValue <= enumDictionarySize)
+        if (enumValue < enumDictionarySize)
         {
             // The following casts to byte, ushort and uint are safe because we ensure in the constructor that the value enumDictionarySize is not too high.
             return enumType switch
@@ -80,7 +80,7 @@ internal sealed unsafe class EnumVectorDataWriter : VectorDataWriterBase
             };
         }
 
-        throw new InvalidOperationException($"Failed to write Enum column because the value is outside the range (0-{enumDictionarySize}).");
+        throw new InvalidOperationException($"Failed to write Enum column because the value is outside the range (0-{enumDictionarySize-1}).");
     }
 
     private static ulong ConvertEnumValueToUInt64<TEnum>(TEnum value) where TEnum : Enum
