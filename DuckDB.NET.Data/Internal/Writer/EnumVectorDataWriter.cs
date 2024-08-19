@@ -1,8 +1,6 @@
-﻿using System;
+﻿using DuckDB.NET.Native;
+using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
-using System.Threading;
-using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Writer;
 
@@ -21,14 +19,6 @@ internal sealed unsafe class EnumVectorDataWriter : VectorDataWriterBase
 
         enumType = NativeMethods.LogicalType.DuckDBEnumInternalType(logicalType);
         enumDictionarySize = NativeMethods.LogicalType.DuckDBEnumDictionarySize(logicalType);
-
-        var maxEnumDictionarySize = enumType switch
-        {
-            DuckDBType.UnsignedTinyInt => byte.MaxValue,
-            DuckDBType.UnsignedSmallInt => ushort.MaxValue,
-            DuckDBType.UnsignedInteger => uint.MaxValue,
-            _ => throw new NotSupportedException($"The internal enum type must be utinyint, usmallint, or uinteger."),
-        };
     }
 
     internal override bool AppendString(string value, int rowIndex)
