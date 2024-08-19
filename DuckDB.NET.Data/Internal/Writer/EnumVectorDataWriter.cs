@@ -8,19 +8,14 @@ namespace DuckDB.NET.Data.Internal.Writer;
 
 internal sealed unsafe class EnumVectorDataWriter : VectorDataWriterBase
 {
-    private readonly DuckDBLogicalType logicalType;
-
     private readonly DuckDBType enumType;
 
     private readonly uint enumDictionarySize;
 
-    private readonly Lazy<Dictionary<string, uint>> enumValues;
-
-    private Dictionary<string, uint> EnumValues => enumValues.Value;
+    private readonly Dictionary<string, uint> enumValues;
 
     public EnumVectorDataWriter(IntPtr vector, void* vectorData, DuckDBLogicalType logicalType, DuckDBType columnType) : base(vector, vectorData, columnType)
     {
-        this.logicalType = logicalType;
         enumType = NativeMethods.LogicalType.DuckDBEnumInternalType(logicalType);
         enumDictionarySize = NativeMethods.LogicalType.DuckDBEnumDictionarySize(logicalType);
 
@@ -36,13 +31,18 @@ internal sealed unsafe class EnumVectorDataWriter : VectorDataWriterBase
             // This exception should only be thrown if the DuckDB library has a bug.
             throw new InvalidOperationException($"The internal enum type is \"{enumType}\" but the enum dictionary size is greater than {maxEnumDictionarySize}.");
         }
-
-        enumValues = new Lazy<Dictionary<string, uint>>(GetEnumValues, LazyThreadSafetyMode.None);
+       
+        enumValues = [];
+        for (uint index = 0; index < enumDictionarySize; index++)
+        {
+            string enumValueName = NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType, index).ToManagedString();
+            enumValues.Add(enumValueName, index);
+        }
     }
 
     internal override bool AppendString(string value, int rowIndex)
     {
-        if (EnumValues.TryGetValue(value, out uint enumValue))
+        if (enumValues.TryGetValue(value, out uint enumValue))
         {
             // The following casts to byte and ushort are safe because we ensure in the constructor that the value enumDictionarySize is not too high.
             return enumType switch
@@ -73,19 +73,6 @@ internal sealed unsafe class EnumVectorDataWriter : VectorDataWriterBase
         }
 
         throw new InvalidOperationException($"Failed to write Enum column because the value is outside the range (0-{enumDictionarySize-1}).");
-    }
-
-    private Dictionary<string, uint> GetEnumValues()
-    {
-        Dictionary<string, uint> enumValues = [];
-
-        for (uint index = 0; index < enumDictionarySize; index++)
-        {
-            string enumValueName = NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType, index).ToManagedString();
-            enumValues.Add(enumValueName, index);
-        }
-
-        return enumValues;
     }
 
     private static ulong ConvertEnumValueToUInt64<TEnum>(TEnum value) where TEnum : Enum
