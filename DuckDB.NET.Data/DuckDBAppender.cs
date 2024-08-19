@@ -76,7 +76,7 @@ public class DuckDBAppender : IDisposable
 
             foreach (var writer in vectorWriters)
             {
-                writer.Dispose();
+                writer?.Dispose();
             }
 
             var state = NativeMethods.Appender.DuckDBAppenderClose(nativeAppender);
