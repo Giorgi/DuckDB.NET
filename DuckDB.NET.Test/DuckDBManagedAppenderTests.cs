@@ -412,6 +412,35 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    public void EnumNotValidValueThrowException()
+    {
+        Command.CommandText = GetCreateEnumTypeSql("enum_not_valid_value_test_enum", "test", 100);
+        Command.ExecuteNonQuery();
+
+        var table = "CREATE TABLE managedAppenderEnumNotValidValueTest(a enum_not_valid_value_test_enum);";
+        Command.CommandText = table;
+        Command.ExecuteNonQuery();
+
+        Connection.Invoking(dbConnection =>
+        {
+            using var appender = dbConnection.CreateAppender("managedAppenderEnumNotValidValueTest");
+            appender
+                .CreateRow()
+                .AppendValue("test12345")
+                .EndRow();
+        }).Should().Throw<InvalidOperationException>();
+
+        Connection.Invoking(dbConnection =>
+        {
+            using var appender = dbConnection.CreateAppender("managedAppenderEnumNotValidValueTest");
+            appender
+                .CreateRow()
+                .AppendValue(EnumNotValidValueTestEnum.NotValid)
+                .EndRow();
+        }).Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
     public void TableWithSchema()
     {
         var schema = "CREATE SCHEMA managedAppenderTestSchema";
@@ -594,5 +623,10 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     {
         Test6699 = 6698,
         Test100000 = 99999,
+    }
+
+    private enum EnumNotValidValueTestEnum
+    {
+        NotValid = 12345,
     }
 }
