@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Writer;
@@ -13,7 +14,9 @@ internal sealed unsafe class EnumVectorDataWriter : VectorDataWriterBase
 
     private readonly uint enumDictionarySize;
 
-    private Dictionary<string, uint>? enumValues;
+    private readonly Lazy<Dictionary<string, uint>> enumValues;
+
+    private Dictionary<string, uint> EnumValues => enumValues.Value;
 
     public EnumVectorDataWriter(IntPtr vector, void* vectorData, DuckDBLogicalType logicalType, DuckDBType columnType) : base(vector, vectorData, columnType)
     {
@@ -34,23 +37,12 @@ internal sealed unsafe class EnumVectorDataWriter : VectorDataWriterBase
             throw new InvalidOperationException($"The internal enum type is \"{enumType}\" but the enum dictionary size is greater than {maxEnumDictionarySize}.");
         }
 
-        enumValues = null;
+        enumValues = new Lazy<Dictionary<string, uint>>(GetEnumValues, LazyThreadSafetyMode.None);
     }
 
     internal override bool AppendString(string value, int rowIndex)
     {
-        // lazy initialization
-        if (enumValues == null)
-        {
-            enumValues = [];
-            for (uint index = 0; index < enumDictionarySize; index++)
-            {
-                string enumValueName = NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType, index).ToManagedString();
-                enumValues.Add(enumValueName, index);
-            }
-        }
-
-        if (enumValues.TryGetValue(value, out uint enumValue))
+        if (EnumValues.TryGetValue(value, out uint enumValue))
         {
             // The following casts to byte and ushort are safe because we ensure in the constructor that the value enumDictionarySize is not too high.
             return enumType switch
@@ -83,28 +75,32 @@ internal sealed unsafe class EnumVectorDataWriter : VectorDataWriterBase
         throw new InvalidOperationException($"Failed to write Enum column because the value is outside the range (0-{enumDictionarySize-1}).");
     }
 
+    private Dictionary<string, uint> GetEnumValues()
+    {
+        Dictionary<string, uint> enumValues = [];
+
+        for (uint index = 0; index < enumDictionarySize; index++)
+        {
+            string enumValueName = NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType, index).ToManagedString();
+            enumValues.Add(enumValueName, index);
+        }
+
+        return enumValues;
+    }
+
     private static ulong ConvertEnumValueToUInt64<TEnum>(TEnum value) where TEnum : Enum
     {
-        switch (Convert.GetTypeCode(value))
+        return Convert.GetTypeCode(value) switch
         {
-            case TypeCode.SByte:
-                return (ulong)Convert.ToSByte(value);
-            case TypeCode.Byte:
-                return Convert.ToByte(value);
-            case TypeCode.Int16:
-                return (ulong)Convert.ToInt16(value);
-            case TypeCode.UInt16: 
-                return Convert.ToUInt16(value);
-            case TypeCode.Int32:
-                return (ulong)Convert.ToInt32(value);
-            case TypeCode.UInt32: 
-                return Convert.ToUInt32(value);
-            case TypeCode.Int64:
-                return (ulong)Convert.ToInt64(value);
-            case TypeCode.UInt64:
-                return Convert.ToUInt64(value);
+            TypeCode.SByte => (ulong)Convert.ToSByte(value),
+            TypeCode.Byte => Convert.ToByte(value),
+            TypeCode.Int16 => (ulong)Convert.ToInt16(value),
+            TypeCode.UInt16 => Convert.ToUInt16(value),
+            TypeCode.Int32 => (ulong)Convert.ToInt32(value),
+            TypeCode.UInt32 => Convert.ToUInt32(value),
+            TypeCode.Int64 => (ulong)Convert.ToInt64(value),
+            TypeCode.UInt64 => Convert.ToUInt64(value),
+            _ => throw new InvalidOperationException($"Failed to convert the enum value {value} to ulong."),
         };
-
-        throw new InvalidOperationException($"Failed to convert the enum value {value} to ulong.");
     }
 }
