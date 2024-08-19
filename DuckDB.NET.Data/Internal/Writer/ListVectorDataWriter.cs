@@ -10,6 +10,7 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
 {
     private ulong offset = 0;
     private readonly ulong arraySize;
+    private readonly DuckDBLogicalType childType;
     private readonly VectorDataWriterBase listItemWriter;
 
     public bool IsList => ColumnType == DuckDBType.List;
@@ -17,7 +18,7 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
 
     public ListVectorDataWriter(IntPtr vector, void* vectorData, DuckDBType columnType, DuckDBLogicalType logicalType) : base(vector, vectorData, columnType)
     {
-        using var childType = IsList ? NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType) : NativeMethods.LogicalType.DuckDBArrayTypeChildType(logicalType);
+        childType = IsList ? NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType) : NativeMethods.LogicalType.DuckDBArrayTypeChildType(logicalType);
         var childVector = IsList ? NativeMethods.Vectors.DuckDBListVectorGetChild(vector) : NativeMethods.Vectors.DuckDBArrayVectorGetChild(vector);
 
         arraySize = IsList ? 0 : (ulong)NativeMethods.LogicalType.DuckDBArrayVectorGetSize(logicalType);
@@ -81,6 +82,7 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
 #endif
             IEnumerable<DateTimeOffset> items => WriteItems(items),
             IEnumerable<DateTimeOffset?> items => WriteItems(items),
+            IEnumerable<object> items => WriteItems(items),
 
             _ => WriteItemsFallback(value),
         };
@@ -158,5 +160,11 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
         }
 
         listItemWriter.InitializerWriter();
+    }
+
+    public override void Dispose()
+    {
+        listItemWriter.Dispose();
+        childType.Dispose();
     }
 }

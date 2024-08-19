@@ -6,7 +6,7 @@ using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Writer;
 
-internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, DuckDBType columnType)
+internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, DuckDBType columnType) : IDisposable
 {
     private ulong* validity;
 
@@ -117,5 +117,10 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
     {
         validity = default;
         vectorData = NativeMethods.Vectors.DuckDBVectorGetData(Vector);
+    }
+
+    public virtual void Dispose()
+    {
+        
     }
 }

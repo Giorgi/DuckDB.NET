@@ -9,40 +9,40 @@ namespace DuckDB.NET.Data.Internal.Writer;
 internal sealed unsafe class EnumVectorDataWriter : VectorDataWriterBase
 {
     private readonly DuckDBType enumType;
+    private readonly DuckDBLogicalType logicalType;
 
     private readonly uint enumDictionarySize;
 
-    private readonly Dictionary<string, uint> enumValues;
+    private readonly Dictionary<string, uint> enumValues = [];
 
     public EnumVectorDataWriter(IntPtr vector, void* vectorData, DuckDBLogicalType logicalType, DuckDBType columnType) : base(vector, vectorData, columnType)
     {
+        this.logicalType = logicalType;
+
         enumType = NativeMethods.LogicalType.DuckDBEnumInternalType(logicalType);
         enumDictionarySize = NativeMethods.LogicalType.DuckDBEnumDictionarySize(logicalType);
 
-        uint maxEnumDictionarySize = enumType switch
+        var maxEnumDictionarySize = enumType switch
         {
             DuckDBType.UnsignedTinyInt => byte.MaxValue,
             DuckDBType.UnsignedSmallInt => ushort.MaxValue,
             DuckDBType.UnsignedInteger => uint.MaxValue,
             _ => throw new NotSupportedException($"The internal enum type must be utinyint, usmallint, or uinteger."),
         };
-        if (enumDictionarySize > maxEnumDictionarySize)
-        {
-            // This exception should only be thrown if the DuckDB library has a bug.
-            throw new InvalidOperationException($"The internal enum type is \"{enumType}\" but the enum dictionary size is greater than {maxEnumDictionarySize}.");
-        }
-       
-        enumValues = [];
-        for (uint index = 0; index < enumDictionarySize; index++)
-        {
-            string enumValueName = NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType, index).ToManagedString();
-            enumValues.Add(enumValueName, index);
-        }
     }
 
     internal override bool AppendString(string value, int rowIndex)
     {
-        if (enumValues.TryGetValue(value, out uint enumValue))
+        if (enumValues.Count == 0)
+        {
+            for (uint index = 0; index < enumDictionarySize; index++)
+            {
+                var enumValueName = NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType, index).ToManagedString();
+                enumValues.Add(enumValueName, index);
+            }
+        }
+
+        if (enumValues.TryGetValue(value, out var enumValue))
         {
             // The following casts to byte and ushort are safe because we ensure in the constructor that the value enumDictionarySize is not too high.
             return enumType switch
@@ -59,7 +59,7 @@ internal sealed unsafe class EnumVectorDataWriter : VectorDataWriterBase
 
     internal override bool AppendEnum<TEnum>(TEnum value, int rowIndex)
     {
-        ulong enumValue = ConvertEnumValueToUInt64(value);
+        var enumValue = ConvertEnumValueToUInt64(value);
         if (enumValue < enumDictionarySize)
         {
             // The following casts to byte, ushort and uint are safe because we ensure in the constructor that the value enumDictionarySize is not too high.
@@ -72,12 +72,12 @@ internal sealed unsafe class EnumVectorDataWriter : VectorDataWriterBase
             };
         }
 
-        throw new InvalidOperationException($"Failed to write Enum column because the value is outside the range (0-{enumDictionarySize-1}).");
+        throw new InvalidOperationException($"Failed to write Enum column because the value is outside the range (0-{enumDictionarySize - 1}).");
     }
 
     private static ulong ConvertEnumValueToUInt64<TEnum>(TEnum value) where TEnum : Enum
     {
-        return Convert.GetTypeCode(value) switch
+        return value.GetTypeCode() switch
         {
             TypeCode.SByte => (ulong)Convert.ToSByte(value),
             TypeCode.Byte => Convert.ToByte(value),
@@ -89,5 +89,11 @@ internal sealed unsafe class EnumVectorDataWriter : VectorDataWriterBase
             TypeCode.UInt64 => Convert.ToUInt64(value),
             _ => throw new InvalidOperationException($"Failed to convert the enum value {value} to ulong."),
         };
+    }
+
+    public override void Dispose()
+    {
+        logicalType.Dispose();
+        base.Dispose();
     }
 }
