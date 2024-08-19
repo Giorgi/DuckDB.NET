@@ -11,6 +11,7 @@ using System.Linq;
 using System.Numerics;
 using Bogus;
 using Xunit;
+using System.Text;
 
 namespace DuckDB.NET.Test;
 
@@ -278,21 +279,45 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     [Fact]
     public void EnumValues()
     {
-        Command.CommandText = "CREATE TYPE test_enum AS ENUM ('test1', 'test2', 'test3')";
+        Command.CommandText = GetCreateEnumTypeSql("test_enum1", "test", 10);
         Command.ExecuteNonQuery();
 
-        Command.CommandText = "CREATE TABLE managedAppenderEnum(a test_enum, b test_enum, c test_enum);";
+        Command.CommandText = GetCreateEnumTypeSql("test_enum2", "test", 1000);
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = GetCreateEnumTypeSql("test_enum3", "test", 100000);
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "CREATE TABLE managedAppenderEnum(a test_enum1, b test_enum1, c test_enum1, d test_enum1, e test_enum1, f test_enum2, g test_enum2, h test_enum3, i test_enum3);";
         Command.ExecuteNonQuery();
 
         using (var appender = Connection.CreateAppender("managedAppenderEnum"))
         {
-            appender.CreateRow().AppendValue("test1").AppendValue("test2").AppendValue(TestEnum.Test3).EndRow();
+            appender
+                .CreateRow()
+                .AppendNullValue()
+                .AppendNullValue()
+                .AppendValue("test1")
+                .AppendValue(TestEnum1.Test2)
+                .AppendValue(TestEnum1.Test3)
+                .AppendValue("test327")
+                .AppendValue(TestEnum2.Test1000)
+                .AppendValue("test100000")
+                .AppendValue(TestEnum3.Test6699)
+                .EndRow();
         }
 
-        var result = Connection.Query<(string, string, TestEnum)>("SELECT a, b, c FROM managedAppenderEnum").ToList();
-        result.Select(tuple => tuple.Item1).Should().BeEquivalentTo("test1");
-        result.Select(tuple => tuple.Item2).Should().BeEquivalentTo("test2");
-        result.Select(tuple => tuple.Item3).Should().Equal(TestEnum.Test3);
+        var queryResult = Connection.Query<(string, TestEnum1?, TestEnum1, string, TestEnum1, TestEnum2, string, string, TestEnum3)>("SELECT a, b, c, d, e, f, g, h, i FROM managedAppenderEnum").ToList();
+        var result = queryResult[0];
+        result.Item1.Should().BeNull();
+        result.Item2.Should().BeNull();
+        result.Item3.Should().Be(TestEnum1.Test1);
+        result.Item4.Should().Be("test2");
+        result.Item5.Should().Be(TestEnum1.Test3);
+        result.Item6.Should().Be(TestEnum2.Test327);
+        result.Item7.Should().Be("test1000");
+        result.Item8.Should().Be("test100000");
+        result.Item9.Should().Be(TestEnum3.Test6699);
     }
 
     [Fact]
@@ -524,16 +549,50 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         }
     }
 
+    private static string GetCreateEnumTypeSql(string enumName, string enumValueNamePrefix, int count)
+    {
+        var stringBuilder = new StringBuilder();
+        stringBuilder.AppendFormat(CultureInfo.InvariantCulture, "CREATE TYPE {0} AS ENUM(", enumName);
+
+        for (int i = 1; i <= count; i++)
+        {
+            if (i > 1)
+            {
+                stringBuilder.Append(',');
+            }
+
+            stringBuilder.Append('\'');
+            stringBuilder.Append(enumValueNamePrefix);
+            stringBuilder.Append(i);
+            stringBuilder.Append('\'');
+        }
+
+        stringBuilder.Append(");");
+        return stringBuilder.ToString();
+    }
+
     private static string GetQualifiedObjectName(params string[] parts) =>
         string.Join('.', parts.
             Where(p => !string.IsNullOrWhiteSpace(p)).
             Select(p => '"' + p + '"')
         );
 
-    private enum TestEnum
+    private enum TestEnum1
     {
         Test1 = 0,
         Test2 = 1,
         Test3 = 2,
+    }
+
+    private enum TestEnum2 : short
+    {
+        Test327 = 326,
+        Test1000 = 999,
+    }
+
+    private enum TestEnum3 : ulong
+    {
+        Test6699 = 6698,
+        Test100000 = 99999,
     }
 }
