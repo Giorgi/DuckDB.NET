@@ -279,7 +279,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     [Fact]
     public void EnumValues()
     {
-        Command.CommandText = GetCreateEnumTypeSql("test_enum1", "test", 10);
+        Command.CommandText = GetCreateEnumTypeSql("test_enum1", "test", 3);
         Command.ExecuteNonQuery();
 
         Command.CommandText = GetCreateEnumTypeSql("test_enum2", "test", 1000);
