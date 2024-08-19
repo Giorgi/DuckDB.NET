@@ -82,7 +82,7 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
             IEnumerable<DateTimeOffset> items => WriteItems(items),
             IEnumerable<DateTimeOffset?> items => WriteItems(items),
 
-            _ => WriteItems<object>((IEnumerable<object>)value)
+            _ => WriteItemsFallback(value),
         };
 
         var duckDBListEntry = new DuckDBListEntry(offset, count);
@@ -93,6 +93,23 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
         return result;
 
         int WriteItems<T>(IEnumerable<T> items)
+        {
+            if (IsList == false && count != arraySize)
+            {
+                throw new InvalidOperationException($"Column has Array size of {arraySize} but the specified value has size of {count}");
+            }
+
+            var index = 0;
+
+            foreach (var item in items)
+            {
+                listItemWriter.AppendValue(item, (int)offset + (index++));
+            }
+
+            return 0;
+        }
+
+        int WriteItemsFallback(IEnumerable items)
         {
             if (IsList == false && count != arraySize)
             {

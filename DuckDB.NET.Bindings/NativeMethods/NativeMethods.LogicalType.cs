@@ -26,6 +26,9 @@ public partial class NativeMethods
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_enum_internal_type")]
         public static extern DuckDBType DuckDBEnumInternalType(DuckDBLogicalType type);
 
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_enum_dictionary_size")]
+        public static extern uint DuckDBEnumDictionarySize(DuckDBLogicalType type);
+
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_enum_dictionary_value")]
         public static extern IntPtr DuckDBEnumDictionaryValue(DuckDBLogicalType type, long index);
 

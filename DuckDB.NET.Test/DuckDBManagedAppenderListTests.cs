@@ -208,6 +208,16 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
         ListValuesInternal("Integer", faker => faker.Random.Int(), 5);
     }
 
+    [Fact]
+    public void ListValuesEnum()
+    {
+        Command.CommandText = "CREATE TYPE test_enum AS ENUM('test1','test2','test3');";
+        Command.ExecuteNonQuery();
+
+        ListValuesInternal("test_enum", faker => faker.Random.CollectionItem([null, "test1", "test2", "test3"]));
+        ListValuesInternal("test_enum", faker => faker.Random.CollectionItem<TestEnum?>([null, TestEnum.Test1, TestEnum.Test2, TestEnum.Test3]));
+    }
+
     private void ListValuesInternal<T>(string typeName, Func<Faker, T> generator, int? length = null)
     {
         var rows = 2000;
@@ -267,5 +277,12 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
             appender.Invoking(app => app.CreateRow().AppendValue(0).AppendValue(GetRandomList(generator, length - 1)))
                 .Should().Throw<InvalidOperationException>().Where(exception => exception.Message.Contains(length.ToString()));
         }
+    }
+
+    private enum TestEnum
+    {
+        Test1 = 0,
+        Test2 = 1,
+        Test3 = 2,
     }
 }
