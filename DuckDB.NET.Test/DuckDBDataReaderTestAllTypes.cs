@@ -1,10 +1,10 @@
-﻿using System;
+﻿using DuckDB.NET.Data;
+using DuckDB.NET.Native;
+using FluentAssertions;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
-using DuckDB.NET.Data;
-using DuckDB.NET.Native;
-using FluentAssertions;
 using Xunit;
 
 namespace DuckDB.NET.Test;
@@ -174,7 +174,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadDate()
     {
-        VerifyDataStruct("date", 11, new List<DuckDBDateOnly>
+        VerifyDataStruct("date", 12, new List<DuckDBDateOnly>
         {
             new(-5877641, 6, 25),
             new(5881580, 7, 10)
@@ -184,7 +184,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadTime()
     {
-        VerifyDataStruct("time", 12, new List<DuckDBTimeOnly>
+        VerifyDataStruct("time", 13, new List<DuckDBTimeOnly>
         {
             new(0,0,0),
             new(24, 0, 0,0)
@@ -194,7 +194,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadTimeStamp()
     {
-        VerifyDataStruct("timestamp", 13, new List<DuckDBTimestamp>
+        VerifyDataStruct("timestamp", 14, new List<DuckDBTimestamp>
         {
             new(new(-290308, 12, 22), new(0,0,0)),
             new(new(294247, 1, 10), new(4,0,54,775806))
@@ -204,7 +204,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadTimeStampS()
     {
-        VerifyDataStruct("timestamp_s", 14, new List<DuckDBTimestamp>
+        VerifyDataStruct("timestamp_s", 15, new List<DuckDBTimestamp>
         {
             new(new(-290308, 12, 22), new(0,0,0)),
             new(new(294247, 1, 10), new(4,0,54))
@@ -214,7 +214,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadTimeStampMS()
     {
-        VerifyDataStruct("timestamp_ms", 15, new List<DuckDBTimestamp>
+        VerifyDataStruct("timestamp_ms", 16, new List<DuckDBTimestamp>
         {
             new(new(-290308, 12, 22), new(0,0,0)),
             new(new(294247, 1, 10), new(4,0,54,775000))
@@ -224,7 +224,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadTimeStampNS()
     {
-        VerifyDataStruct("timestamp_ns", 16, new List<DateTime>
+        VerifyDataStruct("timestamp_ns", 17, new List<DateTime>
         {
             new DateTime(1677, 09, 22),
             new DateTime (2262, 04, 11, 23,47,16).AddTicks(854775 * 10)
@@ -234,7 +234,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadTimeTz()
     {
-        VerifyDataStruct("time_tz", 17, new List<DuckDBTimeTz>
+        VerifyDataStruct("time_tz", 18, new List<DuckDBTimeTz>
         {
             new()
             {
@@ -252,7 +252,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadTimeStampTz()
     {
-        VerifyDataStruct("timestamp_tz", 18, new List<DuckDBTimestamp>
+        VerifyDataStruct("timestamp_tz", 19, new List<DuckDBTimestamp>
         {
             new(new(-290308, 12, 22), new(0,0,0)),
             new(new(294247, 1, 10), new(4,0,54,775806))
@@ -262,49 +262,49 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadFloat()
     {
-        VerifyDataStruct("float", 19, new List<float> { float.MinValue, float.MaxValue });
+        VerifyDataStruct("float", 20, new List<float> { float.MinValue, float.MaxValue });
     }
 
     [Fact]
     public void ReadDouble()
     {
-        VerifyDataStruct("double", 20, new List<double> { double.MinValue, double.MaxValue });
+        VerifyDataStruct("double", 21, new List<double> { double.MinValue, double.MaxValue });
     }
 
     [Fact]
     public void ReadDecimal1()
     {
-        VerifyDataStruct("dec_4_1", 21, new List<decimal> { -999.9m, 999.9m });
+        VerifyDataStruct("dec_4_1", 22, new List<decimal> { -999.9m, 999.9m });
     }
 
     [Fact]
     public void ReadDecimal2()
     {
-        VerifyDataStruct("dec_9_4", 22, new List<decimal> { -99999.9999m, 99999.9999m });
+        VerifyDataStruct("dec_9_4", 23, new List<decimal> { -99999.9999m, 99999.9999m });
     }
 
     [Fact]
     public void ReadDecimal3()
     {
-        VerifyDataStruct("dec_18_6", 23, new List<decimal> { -999999999999.999999m, 999999999999.999999m });
+        VerifyDataStruct("dec_18_6", 24, new List<decimal> { -999999999999.999999m, 999999999999.999999m });
     }
 
     [Fact]
     public void ReadDecimal4()
     {
-        VerifyDataStruct("dec38_10", 24, new List<decimal> { -9999999999999999999999999999.9999999999m, 9999999999999999999999999999.9999999999m });
+        VerifyDataStruct("dec38_10", 25, new List<decimal> { -9999999999999999999999999999.9999999999m, 9999999999999999999999999999.9999999999m });
     }
 
     [Fact]
     public void ReadGuid()
     {
-        VerifyDataStruct("uuid", 25, new List<Guid> { Guid.Parse("00000000-0000-0000-0000-000000000000"), Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff") });
+        VerifyDataStruct("uuid", 26, new List<Guid> { Guid.Parse("00000000-0000-0000-0000-000000000000"), Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff") });
     }
 
     [Fact]
     public void ReadInterval()
     {
-        VerifyDataStruct("interval", 26, new List<DuckDBInterval>
+        VerifyDataStruct("interval", 27, new List<DuckDBInterval>
         {
             new(),
             new(999,999,999999999),
@@ -314,13 +314,13 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadString()
     {
-        VerifyDataClass("varchar", 27, new List<string> { "🦆🦆🦆🦆🦆🦆", "goo\0se" });
+        VerifyDataClass("varchar", 28, new List<string> { "🦆🦆🦆🦆🦆🦆", "goo\0se" });
     }
 
     [Fact]
     public void ReadBlob()
     {
-        var columnIndex = 28;
+        var columnIndex = 29;
         reader.GetOrdinal("blob").Should().Be(columnIndex);
         reader.GetProviderSpecificFieldType(columnIndex).Should().Be(typeof(Stream));
 
@@ -349,43 +349,43 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadBit()
     {
-        VerifyDataClass("bit", 29, new List<string> { "0010001001011100010101011010111", "10101" });
+        VerifyDataClass("bit", 30, new List<string> { "0010001001011100010101011010111", "10101" });
     }
 
     [Fact]
     public void ReadSmallEnum()
     {
-        VerifyDataClass("small_enum", 30, new List<string> { "DUCK_DUCK_ENUM", "GOOSE" });
+        VerifyDataClass("small_enum", 31, new List<string> { "DUCK_DUCK_ENUM", "GOOSE" });
     }
 
     [Fact]
     public void ReadMediumEnum()
     {
-        VerifyDataClass("medium_enum", 31, new List<string> { "enum_0", "enum_299" });
+        VerifyDataClass("medium_enum", 32, new List<string> { "enum_0", "enum_299" });
     }
 
     [Fact]
     public void ReadLargeEnum()
     {
-        VerifyDataClass("large_enum", 32, new List<string> { "enum_0", "enum_69999" });
+        VerifyDataClass("large_enum", 33, new List<string> { "enum_0", "enum_69999" });
     }
 
     [Fact]
     public void ReadIntList()
     {
-        VerifyDataList("int_array", 33, new List<List<int?>> { new(), new() { 42, 999, null, null, -42 } });
+        VerifyDataList("int_array", 34, new List<List<int?>> { new(), new() { 42, 999, null, null, -42 } });
     }
 
     [Fact]
     public void ReadDoubleList()
     {
-        VerifyDataList("double_array", 34, new List<List<double?>> { new(), new() { 42.0, double.NaN, double.PositiveInfinity, double.NegativeInfinity, null, -42.0 } });
+        VerifyDataList("double_array", 35, new List<List<double?>> { new(), new() { 42.0, double.NaN, double.PositiveInfinity, double.NegativeInfinity, null, -42.0 } });
     }
 
     [Fact]
     public void ReadDateList()
     {
-        VerifyDataList("date_array", 35, new List<List<DuckDBDateOnly?>> { new(), new()
+        VerifyDataList("date_array", 36, new List<List<DuckDBDateOnly?>> { new(), new()
         {
             new DuckDBDateOnly(1970, 1, 1),
             new DuckDBDateOnly(5881580, 7, 11),
@@ -410,14 +410,14 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadStringList()
     {
-        VerifyDataListClass("varchar_array", 38, new List<List<string>> { new(), new() { "🦆🦆🦆🦆🦆🦆", "goose", null, "" } });
+        VerifyDataListClass("varchar_array", 39, new List<List<string>> { new(), new() { "🦆🦆🦆🦆🦆🦆", "goose", null, "" } });
     }
 
     [Fact]
     public void ReadNestedIntList()
     {
         var data = new List<int?>() { 42, 999, null, null, -42 };
-        VerifyDataListClass("nested_int_array", 39, new List<List<List<int?>>> {new (), new()
+        VerifyDataListClass("nested_int_array", 40, new List<List<List<int?>>> {new (), new()
         {
             new(),
             data,
@@ -430,7 +430,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadStruct()
     {
-        var columnIndex = 40;
+        var columnIndex = 41;
         reader.GetOrdinal("struct").Should().Be(columnIndex);
         reader.GetProviderSpecificFieldType(columnIndex).Should().Be(typeof(Dictionary<string, object>));
 
@@ -456,7 +456,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadStructOfArray()
     {
-        var columnIndex = 41;
+        var columnIndex = 42;
         reader.GetOrdinal("struct_of_arrays").Should().Be(columnIndex);
 
         reader.GetFieldValue<StructOfArrayTest>(columnIndex).Should().BeEquivalentTo(new StructOfArrayTest());
@@ -478,7 +478,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadArrayOfStructs()
     {
-        var columnIndex = 42;
+        var columnIndex = 43;
         reader.GetOrdinal("array_of_structs").Should().Be(columnIndex);
 
         reader.GetFieldValue<List<StructTest>>(columnIndex).Should().BeEquivalentTo(new List<StructTest>());
@@ -505,7 +505,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadMap()
     {
-        var columnIndex = 43;
+        var columnIndex = 44;
         reader.GetOrdinal("map").Should().Be(columnIndex);
 
         reader.GetValue(columnIndex).Should().BeEquivalentTo(new Dictionary<string, string>());
@@ -525,19 +525,19 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadFixedIntArray()
     {
-        VerifyDataList("fixed_int_array", 45, new List<List<int?>> { new() { null, 2, 3 }, new() { 4, 5, 6 }, new() { 42, 999, null, null, -42 } });
+        VerifyDataList("fixed_int_array", 46, new List<List<int?>> { new() { null, 2, 3 }, new() { 4, 5, 6 }, new() { 42, 999, null, null, -42 } });
     }
 
     [Fact]
     public void ReadFixedVarcharArray()
     {
-        VerifyDataListClass("fixed_varchar_array", 46, new List<List<string>> { new() { "a", null, "c" }, new() { "d", "e", "f" } });
+        VerifyDataListClass("fixed_varchar_array", 47, new List<List<string>> { new() { "a", null, "c" }, new() { "d", "e", "f" } });
     }
 
     [Fact]
     public void ReadFixedNestedIntArray()
     {
-        VerifyDataListClass("fixed_nested_int_array", 47, new List<List<List<int?>>>
+        VerifyDataListClass("fixed_nested_int_array", 48, new List<List<List<int?>>>
         {
             new ()
             {
@@ -557,7 +557,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadFixedNestedVarcharArray()
     {
-        VerifyDataListClass("fixed_nested_varchar_array", 48, new List<List<List<string>>>
+        VerifyDataListClass("fixed_nested_varchar_array", 49, new List<List<List<string>>>
         {
             new ()
             {
@@ -577,7 +577,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadFixedStructArray()
     {
-        var columnIndex = 49;
+        var columnIndex = 50;
         reader.GetOrdinal("fixed_struct_array").Should().Be(columnIndex);
 
         reader.GetFieldValue<List<StructTest>>(columnIndex).Should().BeEquivalentTo(new List<StructTest>()
@@ -617,7 +617,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadStructOfFixedArray()
     {
-        var columnIndex = 50;
+        var columnIndex = 51;
         reader.GetOrdinal("struct_of_fixed_array").Should().Be(columnIndex);
 
         reader.GetFieldValue<StructOfArrayTest>(columnIndex).Should().BeEquivalentTo(new StructOfArrayTest()
@@ -643,7 +643,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadFixedArrayIntList()
     {
-        VerifyDataListClass("fixed_array_of_int_list", 51, new List<List<List<int?>>>
+        VerifyDataListClass("fixed_array_of_int_list", 52, new List<List<List<int?>>>
         {
             new ()
             {
@@ -663,7 +663,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadListFixedIntArray()
     {
-        VerifyDataListClass("list_of_fixed_int_array", 52, new List<List<List<int?>>>
+        VerifyDataListClass("list_of_fixed_int_array", 53, new List<List<List<int?>>>
         {
             new ()
             {
