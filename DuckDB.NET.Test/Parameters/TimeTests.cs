@@ -159,4 +159,30 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
         dateTimeOffset.Offset.Should().Be(new TimeSpan(offsetHours, offsetHours >= 0 ? offsetMinutes : -offsetMinutes, 0));
     }
+
+    [Theory]
+    [InlineData(12, 15, 17, 350_000)]
+    [InlineData(12, 17, 15, 450_000)]
+    [InlineData(18, 15, 17, 125_000)]
+    [InlineData(12, 15, 17, 350_300)]
+    [InlineData(12, 17, 15, 450_500)]
+    [InlineData(18, 15, 17, 125_700)]
+    public void BindTimeOnly(int hour, int minute, int second, int microsecond)
+    {
+        var expectedValue = new TimeOnly(hour, minute, second,0).Add(TimeSpan.FromMicroseconds(microsecond));
+        
+        Command.CommandText = "SELECT ?;";
+        Command.Parameters.Add(new DuckDBParameter(expectedValue));
+
+        var scalar = Command.ExecuteScalar();
+
+        scalar.Should().BeOfType<TimeOnly>();
+
+        var timeOnly = (TimeOnly)scalar;
+
+        timeOnly.Hour.Should().Be((byte)hour);
+        timeOnly.Minute.Should().Be((byte)minute);
+        timeOnly.Second.Should().Be((byte)second);
+        timeOnly.Ticks.Should().Be(expectedValue.Ticks);
+    }
 }

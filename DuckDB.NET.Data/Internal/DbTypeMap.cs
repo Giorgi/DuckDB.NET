@@ -30,6 +30,10 @@ internal static class DbTypeMap
         {typeof(DateTime), DbType.DateTime},
         {typeof(DuckDBDateOnly), DbType.Date},
         {typeof(DuckDBTimeOnly), DbType.Time},
+#if NET6_0_OR_GREATER
+        {typeof(DateOnly), DbType.Date},
+        {typeof(TimeOnly), DbType.Time},  
+	#endif
     };
 
 

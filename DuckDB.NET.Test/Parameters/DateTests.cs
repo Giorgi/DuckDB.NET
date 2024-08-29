@@ -95,4 +95,26 @@ public class DateTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Command.CommandText = "DROP TABLE DateOnlyTestTable;";
         Command.ExecuteNonQuery();
     }
+
+    [Theory]
+    [InlineData(1992, 09, 20)]
+    [InlineData(2022, 05, 04)]
+    [InlineData(2022, 04, 05)]
+    public void BindDateOnly(int year, int mon, int day)
+    {
+        var expectedValue = new DateOnly(year, mon, day);
+
+        Command.CommandText = "SELECT ?;";
+        Command.Parameters.Add(new DuckDBParameter(expectedValue));
+
+        var scalar = Command.ExecuteScalar();
+
+        scalar.Should().BeOfType<DateOnly>();
+
+        var dateOnly = (DateOnly)scalar;
+
+        dateOnly.Year.Should().Be(year);
+        dateOnly.Month.Should().Be((byte)mon);
+        dateOnly.Day.Should().Be((byte)day);
+    }
 }
