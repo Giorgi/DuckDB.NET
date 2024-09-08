@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using DuckDB.NET.Data.Extensions;
@@ -8,6 +9,8 @@ namespace DuckDB.NET.Data.Internal.Reader;
 
 internal sealed class NumericVectorDataReader : VectorDataReaderBase
 {
+    private const int VarIntHeaderSize = 3;
+
     internal unsafe NumericVectorDataReader(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
     }
@@ -39,6 +42,7 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
                 DuckDBType.UnsignedBigInt => GetUnmanagedTypeValue<ulong, T>(offset),
                 DuckDBType.HugeInt => GetBigInteger<T>(offset, false),
                 DuckDBType.UnsignedHugeInt => GetBigInteger<T>(offset, true),
+                DuckDBType.VarInt => GetBigInteger<T>(offset),
                 _ => base.GetValidValue<T>(offset, targetType)
             };
         }
@@ -67,6 +71,7 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
             DuckDBType.Double => GetFieldData<double>(offset),
             DuckDBType.HugeInt => GetBigInteger(offset, false),
             DuckDBType.UnsignedHugeInt => GetBigInteger(offset, true),
+            DuckDBType.VarInt => GetBigInteger<BigInteger>(offset),
             _ => base.GetValue(offset, targetType)
         };
 
@@ -99,9 +104,104 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
         }
     }
 
+    private unsafe T GetBigInteger<T>(ulong offset)
+    {
+        var data = (DuckDBString*)DataPointer + offset;
+
+        if (data->Length < VarIntHeaderSize + 1)
+        {
+            throw new DuckDBException("Invalid blob size for Varint.");
+        }
+
+        var buffer = new ReadOnlySpan<byte>(data->Data, data->Length);
+
+        var isNegative = (buffer[0] & 0x80) == 0;
+
+        var bytes = new List<byte>(data->Length - VarIntHeaderSize);
+
+        for (var index = VarIntHeaderSize; index < buffer.Length; index++)
+        {
+            if (isNegative)
+            {
+                bytes.Add((byte)~buffer[index]);
+            }
+            else
+            {
+                bytes.Add(buffer[index]);
+            }
+        }
+
+        var bigIntegerDigits = new Stack<char>();
+
+        while (bytes.Count > 0)
+        {
+            var quotient = new List<char>();
+
+            byte remainder = 0;
+
+            foreach (var @byte in bytes)
+            {
+                var newValue = remainder * 256 + @byte;
+                quotient.Add(DigitToChar(newValue / 10));
+
+                remainder = (byte)(newValue % 10);
+            }
+
+            bigIntegerDigits.Push(DigitToChar(remainder));
+
+            // Remove leading zeros from the quotient
+            bytes.Clear();
+
+            foreach (var digit in quotient)
+            {
+                if (digit != '0' || bytes.Count > 0)
+                {
+                    bytes.Add(CharToDigit(digit));
+                }
+            }
+        }
+
+        if (isNegative)
+        {
+            bigIntegerDigits.Push('-');
+        }
+        
+        var integer = BigInteger.Parse(new string(bigIntegerDigits.ToArray()));
+        
+        try
+        {
+            return CastTo<T>(integer);
+        }
+        catch (OverflowException)
+        {
+            throw new InvalidCastException($"Cannot cast from {nameof(BigInteger)} to {typeof(T).Name} in column {ColumnName}");
+        }
+
+        char DigitToChar(int c) => (char)(c + '0');
+
+        byte CharToDigit(char digit) => (byte)(digit-'0');
+    }
+
     private T GetBigInteger<T>(ulong offset, bool unsigned)
     {
         var bigInteger = GetBigInteger(offset, unsigned);
+
+        try
+        {
+            return CastTo<T>(bigInteger);
+        }
+        catch (OverflowException)
+        {
+            throw new InvalidCastException($"Cannot cast from {nameof(BigInteger)} to {typeof(T).Name} in column {ColumnName}");
+        }
+    }
+
+    private static T CastTo<T>(BigInteger bigInteger)
+    {
+        if (typeof(T) == typeof(byte))
+        {
+            return (T)(object)(byte)bigInteger;
+        }
 
         if (typeof(T) == typeof(sbyte))
         {
@@ -113,19 +213,24 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
             return (T)(object)(short)bigInteger;
         }
 
+        if (typeof(T) == typeof(ushort))
+        {
+            return (T)(object)(ushort)bigInteger;
+        }
+
         if (typeof(T) == typeof(int))
         {
             return (T)(object)(int)bigInteger;
         }
 
-        if (typeof(T) == typeof(long))
-        {
-            return (T)(object)(long)bigInteger;
-        }
-
         if (typeof(T) == typeof(uint))
         {
             return (T)(object)(uint)bigInteger;
+        }
+
+        if (typeof(T) == typeof(long))
+        {
+            return (T)(object)(long)bigInteger;
         }
 
         if (typeof(T) == typeof(ulong))

@@ -81,7 +81,9 @@ public enum DuckDBType
     // duckdb_timestamp
     TimestampTz = 31,
     // ANY type
-    Any = 34
+    Any = 34,
+    // duckdb_varint
+    VarInt = 35,
 }
 
 [StructLayout(LayoutKind.Sequential)]
