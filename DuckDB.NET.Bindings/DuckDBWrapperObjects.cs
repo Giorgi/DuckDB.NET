@@ -1,4 +1,5 @@
-﻿using Microsoft.Win32.SafeHandles;
+﻿using System;
+using Microsoft.Win32.SafeHandles;
 
 namespace DuckDB.NET.Native;
 
@@ -70,8 +71,17 @@ public class DuckDBLogicalType() : SafeHandleZeroOrMinusOneIsInvalid(true)
     }
 }
 
-public class DuckDBDataChunk() : SafeHandleZeroOrMinusOneIsInvalid(true)
+public class DuckDBDataChunk : SafeHandleZeroOrMinusOneIsInvalid
 {
+    public DuckDBDataChunk() : base(true)
+    {
+    }
+
+    public DuckDBDataChunk(IntPtr chunk) : base(false)
+    {
+        SetHandle(chunk);
+    }
+
     protected override bool ReleaseHandle()
     {
         NativeMethods.DataChunks.DuckDBDestroyDataChunk(out handle);

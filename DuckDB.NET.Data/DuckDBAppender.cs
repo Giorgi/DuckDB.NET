@@ -9,8 +9,6 @@ namespace DuckDB.NET.Data;
 
 public class DuckDBAppender : IDisposable
 {
-    private static readonly ulong DuckDBVectorSize = DuckDBGlobalData.VectorSize;
-
     private bool closed;
     private readonly Native.DuckDBAppender nativeAppender;
     private readonly string qualifiedTableName;
@@ -48,7 +46,7 @@ public class DuckDBAppender : IDisposable
             throw new InvalidOperationException("Appender is already closed");
         }
 
-        if (rowCount % DuckDBVectorSize==0)
+        if (rowCount % DuckDBGlobalData.VectorSize == 0)
         {
             AppendDataChunk();
 
@@ -104,7 +102,7 @@ public class DuckDBAppender : IDisposable
 
             if (vectorWriters[index] == null)
             {
-                vectorWriters[index] = VectorDataWriterFactory.CreateWriter(vector, logicalTypes[index]); 
+                vectorWriters[index] = VectorDataWriterFactory.CreateWriter(vector, logicalTypes[index]);
             }
             else
             {

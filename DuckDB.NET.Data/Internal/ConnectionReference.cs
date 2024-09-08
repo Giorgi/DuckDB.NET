@@ -7,7 +7,7 @@ namespace DuckDB.NET.Data.Internal;
 /// </summary>
 internal class ConnectionReference(FileRef fileRefCounter, DuckDBNativeConnection nativeConnection)
 {
-    public FileRef FileRefCounter { get; private set; } = fileRefCounter;
+    public FileRef FileRefCounter { get; } = fileRefCounter;
     public DuckDBNativeConnection NativeConnection { get; private set; } = nativeConnection;
 
     public override string? ToString() => FileRefCounter?.ToString();

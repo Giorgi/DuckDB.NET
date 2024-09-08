@@ -24,11 +24,11 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
         listItemWriter = VectorDataWriterFactory.CreateWriter(childVector, childType);
     }
 
-    internal override bool AppendCollection(ICollection value, int rowIndex)
+    internal override bool AppendCollection(ICollection value, ulong rowIndex)
     {
         var count = (ulong)value.Count;
 
-        ResizeVector(rowIndex % (int)DuckDBGlobalData.VectorSize, count);
+        ResizeVector(rowIndex % DuckDBGlobalData.VectorSize, count);
 
         _ = value switch
         {
@@ -82,7 +82,7 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
             IEnumerable<DateTimeOffset> items => WriteItems(items),
             IEnumerable<DateTimeOffset?> items => WriteItems(items),
 
-            _ => WriteItems<object>((IEnumerable<object>)value)
+            _ => WriteItems((IEnumerable<object>)value)
         };
 
         var duckDBListEntry = new DuckDBListEntry(offset, count);
@@ -99,18 +99,18 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
                 throw new InvalidOperationException($"Column has Array size of {arraySize} but the specified value has size of {count}");
             }
 
-            var index = 0;
+            var index = 0ul;
 
             foreach (var item in items)
             {
-                listItemWriter.AppendValue(item, (int)offset + (index++));
+                listItemWriter.WriteValue(item, offset + (index++));
             }
 
             return 0;
         }
     }
 
-    private void ResizeVector(int rowIndex, ulong count)
+    private void ResizeVector(ulong rowIndex, ulong count)
     {
         //If writing to a list column we need to make sure that enough space is allocated. Not needed for Arrays as DuckDB does it for us.
         if (!IsList || offset + count <= vectorReservedSize) return;

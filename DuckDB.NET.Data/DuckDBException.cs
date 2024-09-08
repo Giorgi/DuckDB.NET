@@ -12,9 +12,11 @@ public class DuckDBException : DbException
     {
     }
 
+#if !NET8_0_OR_GREATER
     internal DuckDBException(SerializationInfo info, StreamingContext context) : base(info, context)
     {
     }
+#endif
 
     internal DuckDBException(string message) : base(message)
     {
