@@ -210,13 +210,21 @@ internal sealed class PreparedStatement : IDisposable
 
     private static DuckDBState BindDateOnly(DuckDBPreparedStatement preparedStatement, long index, object value)
     {
+#if NET6_0_OR_GREATER
+        var date = NativeMethods.DateTimeHelpers.DuckDBToDate(value is DateOnly dateOnly ? (DuckDBDateOnly)dateOnly : (DuckDBDateOnly)value);
+#else
         var date = NativeMethods.DateTimeHelpers.DuckDBToDate((DuckDBDateOnly)value);
+#endif
         return NativeMethods.PreparedStatements.DuckDBBindDate(preparedStatement, index, date);
     }
 
     private static DuckDBState BindTimeOnly(DuckDBPreparedStatement preparedStatement, long index, object value)
     {
+#if NET6_0_OR_GREATER
+        var time = NativeMethods.DateTimeHelpers.DuckDBToTime(value is TimeOnly dateOnly ? (DuckDBTimeOnly)dateOnly : (DuckDBTimeOnly)value);
+#else
         var time = NativeMethods.DateTimeHelpers.DuckDBToTime((DuckDBTimeOnly)value);
+#endif
         return NativeMethods.PreparedStatements.DuckDBBindTime(preparedStatement, index, time);
     }
 

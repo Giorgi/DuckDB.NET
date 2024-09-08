@@ -68,6 +68,12 @@ public class DuckDBAppenderRow
 
     #endregion
 
+    #region Append Enum
+
+    public DuckDBAppenderRow AppendValue<TEnum>(TEnum? value) where TEnum : Enum => AppendValueInternal(value);
+
+    #endregion
+
     #region Append Float
 
     public DuckDBAppenderRow AppendValue(float? value) => AppendValueInternal(value);

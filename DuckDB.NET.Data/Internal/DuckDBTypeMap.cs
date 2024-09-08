@@ -1,9 +1,9 @@
+using DuckDB.NET.Data.Extensions;
+using DuckDB.NET.Native;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Numerics;
-using DuckDB.NET.Data.Extensions;
-using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal;
 
@@ -30,6 +30,10 @@ internal static class DuckDBTypeMap
         {typeof(DateTime), DbType.DateTime},
         {typeof(DuckDBDateOnly), DbType.Date},
         {typeof(DuckDBTimeOnly), DbType.Time},
+#if NET6_0_OR_GREATER
+        {typeof(DateOnly), DbType.Date},
+        {typeof(TimeOnly), DbType.Time},
+#endif
     };
 
     private static readonly Dictionary<Type, DuckDBType> ClrToDuckDBTypeMap = new()
@@ -58,8 +62,6 @@ internal static class DuckDBTypeMap
         { typeof(object), DuckDBType.Any},
 
     };
-
-
 
     public static DbType GetDbTypeForValue(object? value)
     {

@@ -55,6 +55,8 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
             decimal val => AppendDecimal(val, rowIndex),
             BigInteger val => AppendBigInteger(val, rowIndex),
 
+            Enum val => AppendEnum(val, rowIndex),
+
             string val => AppendString(val, rowIndex),
             Guid val => AppendGuid(val, rowIndex),
             DateTime val => AppendDateTime(val, rowIndex),
@@ -101,6 +103,8 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
 
     internal virtual bool AppendBigInteger(BigInteger value, ulong rowIndex) => ThrowException<BigInteger>();
 
+    internal virtual bool AppendEnum<TEnum>(TEnum value, ulong rowIndex) where TEnum : Enum => ThrowException<TEnum>();
+
     internal virtual bool AppendCollection(ICollection value, ulong rowIndex) => ThrowException<bool>();
 
     private bool ThrowException<T>()
@@ -118,5 +122,10 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
     {
         validity = default;
         vectorData = NativeMethods.Vectors.DuckDBVectorGetData(Vector);
+    }
+
+    public virtual void Dispose()
+    {
+        
     }
 }
