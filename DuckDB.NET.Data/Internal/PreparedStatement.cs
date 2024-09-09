@@ -11,27 +11,71 @@ namespace DuckDB.NET.Data.Internal;
 
 internal sealed class PreparedStatement : IDisposable
 {
-    private static readonly Dictionary<DbType, Func<DuckDBPreparedStatement, long, object, DuckDBState>> Binders = new()
+    private static readonly Dictionary<DbType, Func<object, DuckDBValue>> ValueCreators = new()
     {
-        { DbType.Guid, BindObject },
-        { DbType.Currency, BindObject },
-        { DbType.Boolean, BindBoolean },
-        { DbType.SByte, BindInt8 },
-        { DbType.Int16, BindInt16 },
-        { DbType.Int32, BindInt32 },
-        { DbType.Int64, BindInt64 },
-        { DbType.Byte, BindUInt8 },
-        { DbType.UInt16, BindUInt16 },
-        { DbType.UInt32, BindUInt32 },
-        { DbType.UInt64, BindUInt64 },
-        { DbType.Single, BindFloat },
-        { DbType.Double, BindDouble },
-        { DbType.String, BindString },
-        { DbType.VarNumeric, BindHugeInt },
-        { DbType.Binary, BindBlob },
-        { DbType.Date, BindDateOnly },
-        { DbType.Time, BindTimeOnly },
-        { DbType.DateTime, BindTimestamp }
+        { DbType.Guid, value =>
+            {
+                using var handle = value.ToString().ToUnmanagedString();
+                return NativeMethods.Value.DuckDBCreateVarchar(handle);
+            }
+        },
+        { DbType.Currency, value =>
+            {
+                using var handle = ((decimal)value).ToString(CultureInfo.InvariantCulture).ToUnmanagedString();
+                return NativeMethods.Value.DuckDBCreateVarchar(handle);
+            }
+        },
+        { DbType.Boolean, value => NativeMethods.Value.DuckDBCreateBool((bool)value) },
+        { DbType.SByte, value => NativeMethods.Value.DuckDBCreateInt8((sbyte)value) },
+        { DbType.Int16, value => NativeMethods.Value.DuckDBCreateInt16((short)value) },
+        { DbType.Int32, value => NativeMethods.Value.DuckDBCreateInt32((int)value) },
+        { DbType.Int64, value => NativeMethods.Value.DuckDBCreateInt64((long)value) },
+        { DbType.Byte, value => NativeMethods.Value.DuckDBCreateUInt8((byte)value) },
+        { DbType.UInt16, value => NativeMethods.Value.DuckDBCreateUInt16((ushort)value) },
+        { DbType.UInt32, value => NativeMethods.Value.DuckDBCreateUInt32((uint)value) },
+        { DbType.UInt64, value => NativeMethods.Value.DuckDBCreateUInt64((ulong)value) },
+        { DbType.Single, value => NativeMethods.Value.DuckDBCreateFloat((float)value) },
+        { DbType.Double, value => NativeMethods.Value.DuckDBCreateDouble((double)value) },
+        { DbType.String, value =>
+            {
+                using var handle = ((string)value).ToUnmanagedString();
+                return NativeMethods.Value.DuckDBCreateVarchar(handle);
+            }
+        },
+        { DbType.VarNumeric, value => NativeMethods.Value.DuckDBCreateHugeInt(new((BigInteger)value)) },
+        { DbType.Binary, value =>
+            {
+                var bytes = (byte[])value;
+                return NativeMethods.Value.DuckDBCreateBlob(bytes, bytes.Length);
+            }
+        },
+        { DbType.Date, value =>
+            {
+#if NET6_0_OR_GREATER
+                var date = NativeMethods.DateTimeHelpers.DuckDBToDate(value is DateOnly dateOnly ? (DuckDBDateOnly)dateOnly : (DuckDBDateOnly)value);
+#else
+                var date = NativeMethods.DateTimeHelpers.DuckDBToDate((DuckDBDateOnly)value);
+#endif
+                return NativeMethods.Value.DuckDBCreateDate(date);
+            }
+        },
+        { DbType.Time, value =>
+            {
+#if NET6_0_OR_GREATER
+                var time = NativeMethods.DateTimeHelpers.DuckDBToTime(value is TimeOnly timeOnly ? (DuckDBTimeOnly)timeOnly : (DuckDBTimeOnly)value);
+#else
+                var time = NativeMethods.DateTimeHelpers.DuckDBToTime((DuckDBTimeOnly)value);
+#endif
+                return NativeMethods.Value.DuckDBCreateTime(time);
+            }
+        },
+        { DbType.DateTime, value =>
+            {
+                var timestamp = DuckDBTimestamp.FromDateTime((DateTime)value);
+                var timestampStruct = NativeMethods.DateTimeHelpers.DuckDBToTimestamp(timestamp);
+                return NativeMethods.Value.DuckDBCreateTimestamp(timestampStruct);
+            }
+        },
     };
 
     private readonly DuckDBPreparedStatement statement;
@@ -142,97 +186,19 @@ internal sealed class PreparedStatement : IDisposable
             return;
         }
 
-        if (!Binders.TryGetValue(parameter.DbType, out var binder))
+        if (!ValueCreators.TryGetValue(parameter.DbType, out var func))
         {
             throw new InvalidOperationException($"Unable to bind value of type {parameter.DbType}.");
         }
 
-        var result = binder(preparedStatement, index, parameter.Value!);
+        using var duckDBValue = func(parameter.Value!);
+        var result = NativeMethods.PreparedStatements.DuckDBBindValue(preparedStatement, index, duckDBValue);
 
         if (!result.IsSuccess())
         {
             var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(preparedStatement).ToManagedString(false);
             throw new InvalidOperationException($"Unable to bind parameter {index}: {errorMessage}");
         }
-    }
-
-    private static DuckDBState BindObject(DuckDBPreparedStatement preparedStatement, long index, object value)
-        => BindString(preparedStatement, index, Convert.ToString(value, CultureInfo.InvariantCulture)!);
-
-    private static DuckDBState BindBoolean(DuckDBPreparedStatement preparedStatement, long index, object value)
-        => NativeMethods.PreparedStatements.DuckDBBindBoolean(preparedStatement, index, (bool)value);
-
-    private static DuckDBState BindInt8(DuckDBPreparedStatement preparedStatement, long index, object value)
-        => NativeMethods.PreparedStatements.DuckDBBindInt8(preparedStatement, index, (sbyte)value);
-
-    private static DuckDBState BindInt16(DuckDBPreparedStatement preparedStatement, long index, object value)
-        => NativeMethods.PreparedStatements.DuckDBBindInt16(preparedStatement, index, (short)value);
-
-    private static DuckDBState BindInt32(DuckDBPreparedStatement preparedStatement, long index, object value)
-        => NativeMethods.PreparedStatements.DuckDBBindInt32(preparedStatement, index, (int)value);
-
-    private static DuckDBState BindInt64(DuckDBPreparedStatement preparedStatement, long index, object value)
-        => NativeMethods.PreparedStatements.DuckDBBindInt64(preparedStatement, index, (long)value);
-
-    private static DuckDBState BindUInt8(DuckDBPreparedStatement preparedStatement, long index, object value)
-        => NativeMethods.PreparedStatements.DuckDBBindUInt8(preparedStatement, index, (byte)value);
-
-    private static DuckDBState BindUInt16(DuckDBPreparedStatement preparedStatement, long index, object value)
-        => NativeMethods.PreparedStatements.DuckDBBindUInt16(preparedStatement, index, (ushort)value);
-
-    private static DuckDBState BindUInt32(DuckDBPreparedStatement preparedStatement, long index, object value)
-        => NativeMethods.PreparedStatements.DuckDBBindUInt32(preparedStatement, index, (uint)value);
-
-    private static DuckDBState BindUInt64(DuckDBPreparedStatement preparedStatement, long index, object value)
-        => NativeMethods.PreparedStatements.DuckDBBindUInt64(preparedStatement, index, (ulong)value);
-
-
-    private static DuckDBState BindFloat(DuckDBPreparedStatement preparedStatement, long index, object value)
-        => NativeMethods.PreparedStatements.DuckDBBindFloat(preparedStatement, index, (float)value);
-
-    private static DuckDBState BindDouble(DuckDBPreparedStatement preparedStatement, long index, object value)
-        => NativeMethods.PreparedStatements.DuckDBBindDouble(preparedStatement, index, (double)value);
-
-    private static DuckDBState BindString(DuckDBPreparedStatement preparedStatement, long index, object value)
-    {
-        using var unmanagedString = (value as string)?.ToUnmanagedString() ?? throw new ArgumentException(nameof(value));
-        return NativeMethods.PreparedStatements.DuckDBBindVarchar(preparedStatement, index, unmanagedString);
-    }
-
-    private static DuckDBState BindHugeInt(DuckDBPreparedStatement preparedStatement, long index, object value) =>
-        NativeMethods.PreparedStatements.DuckDBBindHugeInt(preparedStatement, index, new((BigInteger)value));
-
-    private static DuckDBState BindBlob(DuckDBPreparedStatement preparedStatement, long index, object value)
-    {
-        var bytes = (byte[])value;
-        return NativeMethods.PreparedStatements.DuckDBBindBlob(preparedStatement, index, bytes, bytes.LongLength);
-    }
-
-    private static DuckDBState BindDateOnly(DuckDBPreparedStatement preparedStatement, long index, object value)
-    {
-#if NET6_0_OR_GREATER
-        var date = NativeMethods.DateTimeHelpers.DuckDBToDate(value is DateOnly dateOnly ? (DuckDBDateOnly)dateOnly : (DuckDBDateOnly)value);
-#else
-        var date = NativeMethods.DateTimeHelpers.DuckDBToDate((DuckDBDateOnly)value);
-#endif
-        return NativeMethods.PreparedStatements.DuckDBBindDate(preparedStatement, index, date);
-    }
-
-    private static DuckDBState BindTimeOnly(DuckDBPreparedStatement preparedStatement, long index, object value)
-    {
-#if NET6_0_OR_GREATER
-        var time = NativeMethods.DateTimeHelpers.DuckDBToTime(value is TimeOnly dateOnly ? (DuckDBTimeOnly)dateOnly : (DuckDBTimeOnly)value);
-#else
-        var time = NativeMethods.DateTimeHelpers.DuckDBToTime((DuckDBTimeOnly)value);
-#endif
-        return NativeMethods.PreparedStatements.DuckDBBindTime(preparedStatement, index, time);
-    }
-
-    private static DuckDBState BindTimestamp(DuckDBPreparedStatement preparedStatement, long index, object value)
-    {
-        var timestamp = DuckDBTimestamp.FromDateTime((DateTime)value);
-        var timestampStruct = NativeMethods.DateTimeHelpers.DuckDBToTimestamp(timestamp);
-        return NativeMethods.PreparedStatements.DuckDBBindTimestamp(preparedStatement, index, timestampStruct);
     }
 
     public void Dispose()
