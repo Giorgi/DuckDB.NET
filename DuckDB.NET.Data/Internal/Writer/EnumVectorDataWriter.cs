@@ -4,24 +4,15 @@ using System.Collections.Generic;
 
 namespace DuckDB.NET.Data.Internal.Writer;
 
-internal sealed unsafe class EnumVectorDataWriter : VectorDataWriterBase
+internal sealed unsafe class EnumVectorDataWriter(IntPtr vector, void* vectorData, DuckDBLogicalType logicalType, DuckDBType columnType) : VectorDataWriterBase(vector, vectorData, columnType)
 {
-    private readonly DuckDBType enumType;
-    private readonly DuckDBLogicalType logicalType;
+    private readonly DuckDBType enumType = NativeMethods.LogicalType.DuckDBEnumInternalType(logicalType);
 
-    private readonly uint enumDictionarySize;
+    private readonly uint enumDictionarySize = NativeMethods.LogicalType.DuckDBEnumDictionarySize(logicalType);
 
     private readonly Dictionary<string, uint> enumValues = [];
 
-    public EnumVectorDataWriter(IntPtr vector, void* vectorData, DuckDBLogicalType logicalType, DuckDBType columnType) : base(vector, vectorData, columnType)
-    {
-        this.logicalType = logicalType;
-
-        enumType = NativeMethods.LogicalType.DuckDBEnumInternalType(logicalType);
-        enumDictionarySize = NativeMethods.LogicalType.DuckDBEnumDictionarySize(logicalType);
-    }
-
-    internal override bool AppendString(string value, int rowIndex)
+    internal override bool AppendString(string value, ulong rowIndex)
     {
         if (enumValues.Count == 0)
         {
@@ -47,7 +38,7 @@ internal sealed unsafe class EnumVectorDataWriter : VectorDataWriterBase
         throw new InvalidOperationException($"Failed to write Enum column because the value \"{value}\" is not valid.");
     }
 
-    internal override bool AppendEnum<TEnum>(TEnum value, int rowIndex)
+    internal override bool AppendEnum<TEnum>(TEnum value, ulong rowIndex)
     {
         var enumValue = ConvertEnumValueToUInt64(value);
         if (enumValue < enumDictionarySize)

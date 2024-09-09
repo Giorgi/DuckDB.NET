@@ -2,7 +2,7 @@
 
 namespace DuckDB.NET.Data.Internal;
 
-public static class DuckDBGlobalData
+internal static class DuckDBGlobalData
 {
     public static ulong VectorSize { get; } = NativeMethods.Helpers.DuckDBVectorSize();
 }

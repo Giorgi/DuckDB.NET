@@ -28,7 +28,7 @@ public class DuckDBParameter : DbParameter
             if (this.value != value)
             {
                 this.value = value;
-                DbType = DbTypeMap.GetDbTypeForValue(value);
+                DbType = DuckDBTypeMap.GetDbTypeForValue(value);
             }
         }
     }
@@ -50,7 +50,7 @@ public class DuckDBParameter : DbParameter
     { }
 
     public DuckDBParameter(object value) 
-        : this(string.Empty, DbTypeMap.GetDbTypeForValue(value), value)
+        : this(string.Empty, DuckDBTypeMap.GetDbTypeForValue(value), value)
     {
     }
 
@@ -60,7 +60,7 @@ public class DuckDBParameter : DbParameter
     }
 
     public DuckDBParameter(string name, object? value) 
-        : this(name, DbTypeMap.GetDbTypeForValue(value), value)
+        : this(name, DuckDBTypeMap.GetDbTypeForValue(value), value)
     {
     }
 

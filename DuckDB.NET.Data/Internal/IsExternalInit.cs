@@ -16,27 +16,15 @@ public static class KeyValuePairExtensions
     }
 }
 
-static class IEnumerableExtensions
+namespace System.Diagnostics
 {
-    public static bool TryGetNonEnumeratedCount<T>(this IEnumerable target, out int count)
-    {
-        if (target is ICollection collection)
-        {
-            count = collection.Count;
-            return true;
-        }
-
-        count = 0;
-        return false;
-    }
+    [AttributeUsage(AttributeTargets.Method)]
+    class StackTraceHiddenAttribute : Attribute { }
 }
 
 namespace System.Diagnostics.CodeAnalysis
 {
     [AttributeUsage(AttributeTargets.Method)]
     class DoesNotReturnAttribute: Attribute { }
-
-    [AttributeUsage(AttributeTargets.Method)]
-    class StackTraceHiddenAttribute : Attribute { }
 }
 #endif

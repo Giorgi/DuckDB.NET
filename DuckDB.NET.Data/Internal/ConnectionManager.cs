@@ -75,7 +75,7 @@ internal class ConnectionManager
 
                     if (!resultOpen.IsSuccess())
                     {
-                        throw new DuckDBException($"DuckDBOpen failed: {error.ToManagedString()}", resultOpen);
+                        throw new DuckDBException($"DuckDBOpen failed: {error.ToManagedString()}");
                     }
                     fileRef.Database = db; 
                 }
@@ -89,7 +89,7 @@ internal class ConnectionManager
             }
             else
             {
-                throw new DuckDBException("DuckDBConnect failed", resultConnect);
+                throw new DuckDBException("DuckDBConnect failed");
             }
 
             return new ConnectionReference(fileRef, nativeConnection);
@@ -149,7 +149,7 @@ internal class ConnectionManager
             }
             else
             {
-                throw new DuckDBException("DuckDBConnect failed", resultConnect);
+                throw new DuckDBException("DuckDBConnect failed");
             }
             return new ConnectionReference(fileRef, duplicatedNativeConnection);
         }

@@ -1,16 +1,16 @@
 ﻿using DuckDB.NET.Data.ConnectionString;
 using DuckDB.NET.Data.Internal;
+using DuckDB.NET.Native;
 using System;
 using System.ComponentModel;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data;
 
-public class DuckDBConnection : DbConnection
+public partial class DuckDBConnection : DbConnection
 {
     private readonly ConnectionManager connectionManager = ConnectionManager.Default;
     private ConnectionState connectionState = ConnectionState.Closed;

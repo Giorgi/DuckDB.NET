@@ -3,11 +3,17 @@ using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
 using DuckDB.NET.Data.Extensions;
+using DuckDB.NET.Data.Reader;
 using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
 internal class VectorDataReaderBase : IDisposable
+#if NET8_0_OR_GREATER
+#pragma warning disable DuckDBNET001
+    , IDuckDBDataReader 
+#pragma warning restore DuckDBNET001
+#endif
 {
     private readonly unsafe ulong* validityMaskPointer;
 
@@ -31,7 +37,7 @@ internal class VectorDataReaderBase : IDisposable
         ColumnName = columnName;
     }
 
-    internal unsafe bool IsValid(ulong offset)
+    public unsafe bool IsValid(ulong offset)
     {
         if (validityMaskPointer == default)
         {
@@ -48,7 +54,7 @@ internal class VectorDataReaderBase : IDisposable
         return isValid;
     }
 
-    internal virtual T GetValue<T>(ulong offset)
+    public virtual T GetValue<T>(ulong offset)
     {
         var (isNullableValueType, targetType) = TypeExtensions.IsNullableValueType<T>();
 
@@ -84,7 +90,7 @@ internal class VectorDataReaderBase : IDisposable
         return (T)GetValue(offset, targetType);
     }
 
-    internal object GetValue(ulong offset)
+    public object GetValue(ulong offset)
     {
         return GetValue(offset, ClrType);
     }
@@ -145,6 +151,7 @@ internal class VectorDataReaderBase : IDisposable
             DuckDBType.Struct => typeof(Dictionary<string, object>),
             DuckDBType.Bit => typeof(string),
             DuckDBType.TimestampTz => typeof(DateTime),
+            DuckDBType.VarInt => typeof(BigInteger),
             _ => throw new ArgumentException($"Unrecognised type {DuckDBType} ({(int)DuckDBType}) for column {ColumnName}")
         };
     }
@@ -183,6 +190,7 @@ internal class VectorDataReaderBase : IDisposable
             DuckDBType.Struct => typeof(Dictionary<string, object>),
             DuckDBType.Bit => typeof(string),
             DuckDBType.TimestampTz => typeof(DuckDBTimestamp),
+            DuckDBType.VarInt => typeof(BigInteger),
             _ => throw new ArgumentException($"Unrecognised type {DuckDBType} ({(int)DuckDBType}) for column {ColumnName}")
         };
     }

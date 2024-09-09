@@ -51,5 +51,8 @@ public partial class NativeMethods
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_result_error")]
         public static extern IntPtr DuckDBResultError([In, Out] ref DuckDBResult result);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_result_error_type")]
+        public static extern DuckDBErrorType DuckDBResultErrorType(ref DuckDBResult result);
     }
 }
