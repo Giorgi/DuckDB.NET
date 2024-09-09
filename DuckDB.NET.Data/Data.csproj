@@ -3,9 +3,13 @@
   <PropertyGroup>
     <Description>DuckDB ADO.NET Provider for C#.</Description>
     <PackageReleaseNotes>
-	  Update to DuckDB v1.0.0 🚀
-	  
-Added support for writing to List and Array columns when using managed Appender.
+	  Added support for creating user defined scalar functions.
+
+Added support for Varint type.
+
+Added support for writing to Enum columns when using managed Appender.
+
+Updated to DuckDB v1.1.0
     </PackageReleaseNotes>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
