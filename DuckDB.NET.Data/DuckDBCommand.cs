@@ -4,6 +4,8 @@ using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 using DuckDB.NET.Data.Internal;
 using DuckDB.NET.Native;
 
@@ -13,6 +15,7 @@ public class DuckDBCommand : DbCommand
 {
     private DuckDBConnection? connection;
     private readonly DuckDBParameterCollection parameters = new();
+    private QueryProgressObservable? progressObservable;
 
     protected override DbTransaction? DbTransaction { get; set; }
     protected override DbParameterCollection DbParameterCollection => parameters;
@@ -24,13 +27,6 @@ public class DuckDBCommand : DbCommand
     public override bool DesignTimeVisible { get; set; }
     public override UpdateRowSource UpdatedRowSource { get; set; }
 
-    /// <summary>
-    /// A flag to determine whether to use streaming mode or not when executing a query. Defaults to false.
-    /// In streaming mode DuckDB will use less RAM but query execution might be slower. Applies only to queries that return a result-set.
-    /// </summary>
-    /// <remarks>
-    /// Streaming mode uses `duckdb_execute_prepared_streaming` and `duckdb_stream_fetch_chunk`, non-streaming (materialized) mode uses `duckdb_execute_prepared` and `duckdb_result_get_chunk`.
-    /// </remarks>
     public bool UseStreamingMode { get; set; } = false;
 
     private string commandText = string.Empty;
@@ -44,7 +40,6 @@ public class DuckDBCommand : DbCommand
         get => commandText;
         set
         {
-            // TODO: We shouldn't be able to change the CommandText when the command is in execution (requires CommandState implementation)
             commandText = value ?? string.Empty;
         }
     }
@@ -55,8 +50,7 @@ public class DuckDBCommand : DbCommand
         set => connection = (DuckDBConnection?)value;
     }
 
-    public DuckDBCommand()
-    { }
+    public DuckDBCommand() { }
 
     public DuckDBCommand(string commandText)
     {
@@ -120,6 +114,14 @@ public class DuckDBCommand : DbCommand
 
         var reader = new DuckDBDataReader(this, results, behavior);
 
+        // Check progress if callback is set
+        if (ProgressCallback != null)
+        {
+            progressObservable = new QueryProgressObservable(connection);
+            progressObservable.Subscribe(new ProgressObserver(ProgressCallback));
+            progressObservable.Start();
+        }
+
         return reader;
     }
 
@@ -134,6 +136,27 @@ public class DuckDBCommand : DbCommand
         if (Connection is null || Connection.State != ConnectionState.Open)
         {
             throw new InvalidOperationException($"{operation} requires an open connection");
+        }
+    }
+
+    public Action<int>? ProgressCallback { get; set; }
+
+    private class ProgressObserver : IObserver<int>
+    {
+        private readonly Action<int> progressCallback;
+
+        public ProgressObserver(Action<int> progressCallback)
+        {
+            this.progressCallback = progressCallback;
+        }
+
+        public void OnCompleted() { }
+
+        public void OnError(Exception error) { }
+
+        public void OnNext(int value)
+        {
+            progressCallback(value);
         }
     }
 }
