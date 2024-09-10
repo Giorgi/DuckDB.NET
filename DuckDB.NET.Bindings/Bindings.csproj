@@ -12,7 +12,7 @@ Added support for writing to Enum columns when using managed Appender.
 Updated to DuckDB v1.1.0
     </PackageReleaseNotes>
     <RootNamespace>DuckDB.NET.Native</RootNamespace>
-    <RuntimeIdentifiers>win-x64;linux-x64;linux-arm64;osx</RuntimeIdentifiers>
+    <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx</RuntimeIdentifiers>
     <DuckDbArtifactRoot Condition=" '$(DuckDbArtifactRoot)' == '' ">https://github.com/duckdb/duckdb/releases/download/v1.1.0</DuckDbArtifactRoot>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
@@ -27,6 +27,7 @@ Updated to DuckDB v1.1.0
   <!-- Download and include the native libraries into the nuget package-->
   <Target Name="DownloadNativeLibs" BeforeTargets="GenerateAdditionalSources" Condition="'$(BuildType)' == 'Full' ">
     <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=win-x64;LibUrl=$(DuckDbArtifactRoot)/libduckdb-windows-amd64.zip" />
+    <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=win-arm64;LibUrl=$(DuckDbArtifactRoot)/libduckdb-windows-arm64.zip" />
     <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=linux-x64;LibUrl=$(DuckDbArtifactRoot)/libduckdb-linux-amd64.zip" />
     <MSBuild Condition=" '$(SkipLinuxArm)' == '' " Projects="DownloadNativeLibs.targets" Properties="Rid=linux-arm64;LibUrl=$(DuckDbArtifactRoot)/libduckdb-linux-aarch64.zip" />
     <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=osx;LibUrl=$(DuckDbArtifactRoot)/libduckdb-osx-universal.zip" />
