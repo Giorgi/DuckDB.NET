@@ -88,3 +88,12 @@ public class DuckDBDataChunk : SafeHandleZeroOrMinusOneIsInvalid
         return true;
     }
 }
+
+public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true)
+{
+    protected override bool ReleaseHandle()
+    {
+        NativeMethods.Value.DuckDBDestroyValue(out handle);
+        return true;
+    }
+}
