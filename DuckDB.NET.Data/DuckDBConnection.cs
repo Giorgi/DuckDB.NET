@@ -70,8 +70,11 @@ public partial class DuckDBConnection : DbConnection
         }
     }
 
-    internal DuckDBNativeConnection NativeConnection => connectionReference?.NativeConnection
-                                                        ?? throw new InvalidOperationException("The DuckDBConnection must be open to access the native connection.");
+    /// <summary>
+    /// Returns the native connection object that can be used to call DuckDB C API functions.
+    /// </summary>
+    public DuckDBNativeConnection NativeConnection => connectionReference?.NativeConnection
+                                                      ?? throw new InvalidOperationException("The DuckDBConnection must be open to access the native connection.");
 
     public override string ServerVersion => NativeMethods.Startup.DuckDBLibraryVersion().ToManagedString(false);
 

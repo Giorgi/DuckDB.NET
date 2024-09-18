@@ -222,89 +222,9 @@ public struct DuckDBString
     }
 }
 
-public enum DuckDBStatementType
+public struct DuckDBQueryProgressType
 {
-    Invalid = 0,
-    Select,
-    Insert,
-    Update,
-    Explain,
-    Delete,
-    Prepare,
-    Create,
-    Execute,
-    Alter,
-    Transaction,
-    Copy,
-    Analyze,
-    VariableSet,
-    CreateFunc,
-    Drop,
-    Export,
-    Pragma,
-    Show,
-    Vacuum,
-    Call,
-    Set,
-    Load,
-    Relation,
-    Extension,
-    LogicalPlan,
-    Attach,
-    Detach,
-    Multi,
-}
-
-public enum DuckDBResultType
-{
-    Invalid = 0,
-    ChangedRows,
-    Nothing,
-    QueryResult,
-}
-
-public enum DuckDBErrorType
-{
-    Invalid = 0,
-    OutOfRange = 1,
-    Conversion = 2,
-    UnknownType = 3,
-    Decimal = 4,
-    MismatchType = 5,
-    DivideByZero = 6,
-    ObjectSize = 7,
-    InvalidType = 8,
-    Serialization = 9,
-    Transaction = 10,
-    NotImplemented = 11,
-    Expression = 12,
-    Catalog = 13,
-    Parser = 14,
-    Planner = 15,
-    Scheduler = 16,
-    Executor = 17,
-    Constraint = 18,
-    Index = 19,
-    Stat = 20,
-    Connection = 21,
-    Syntax = 22,
-    Settings = 23,
-    Binder = 24,
-    Network = 25,
-    Optimizer = 26,
-    NullPointer = 27,
-    Io = 28,
-    Interrupt = 29,
-    Fatal = 30,
-    Internal = 31,
-    InvalidInput = 32,
-    OutOfMemory = 33,
-    Permission = 34,
-    ParameterNotResolved = 35,
-    ParameterNotAllowed = 36,
-    Dependency = 37,
-    Http = 38,
-    MissingExtension = 39,
-    Autoload = 40,
-    Sequence = 41
+    public double Percentage { get; set; }
+    public ulong RowsProcessed { get; set; }
+    public ulong TotalRowsToProcess { get; set; }
 }

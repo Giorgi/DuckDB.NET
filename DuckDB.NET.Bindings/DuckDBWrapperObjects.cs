@@ -22,7 +22,7 @@ public class DuckDBNativeConnection() : SafeHandleZeroOrMinusOneIsInvalid(true)
 
     public void Interrupt()
     {
-        NativeMethods.Startup.DuckDBInterrupt(handle);
+        NativeMethods.Startup.DuckDBInterrupt(this);
     }
 }
 
