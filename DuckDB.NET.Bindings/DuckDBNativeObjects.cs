@@ -84,6 +84,8 @@ public enum DuckDBType
     Any = 34,
     // duckdb_varint
     VarInt = 35,
+    // SQLNULL type
+    SqlNull = 36,
 }
 
 [StructLayout(LayoutKind.Sequential)]
