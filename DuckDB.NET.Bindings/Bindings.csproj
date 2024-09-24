@@ -3,17 +3,17 @@
   <PropertyGroup>
     <Description>DuckDB Bindings for C#.</Description>
     <PackageReleaseNotes>
-	  Added support for creating user defined scalar functions.
+	  Added support for creating user-defined scalar functions.
 
 Added support for Varint type.
 
 Added support for writing to Enum columns when using managed Appender.
 
-Updated to DuckDB v1.1.0
+Updated to DuckDB v1.1.1
     </PackageReleaseNotes>
     <RootNamespace>DuckDB.NET.Native</RootNamespace>
     <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx</RuntimeIdentifiers>
-    <DuckDbArtifactRoot Condition=" '$(DuckDbArtifactRoot)' == '' ">https://github.com/duckdb/duckdb/releases/download/v1.1.0</DuckDbArtifactRoot>
+    <DuckDbArtifactRoot Condition=" '$(DuckDbArtifactRoot)' == '' ">https://github.com/duckdb/duckdb/releases/download/v1.1.1</DuckDbArtifactRoot>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -24,7 +24,7 @@ Updated to DuckDB v1.1.0
     <Description>$(Description) $(NoNativeText)</Description>
   </PropertyGroup>
   
-  <!-- Download and include the native libraries into the nuget package-->
+  <!-- Download and include the native libraries into the NuGet package-->
   <Target Name="DownloadNativeLibs" BeforeTargets="GenerateAdditionalSources" Condition="'$(BuildType)' == 'Full' ">
     <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=win-x64;LibUrl=$(DuckDbArtifactRoot)/libduckdb-windows-amd64.zip" />
     <MSBuild Condition="'$(SkipArm)' == ''" Projects="DownloadNativeLibs.targets" Properties="Rid=win-arm64;LibUrl=$(DuckDbArtifactRoot)/libduckdb-windows-arm64.zip" />

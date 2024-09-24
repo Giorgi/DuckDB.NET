@@ -3,13 +3,13 @@
   <PropertyGroup>
     <Description>DuckDB ADO.NET Provider for C#.</Description>
     <PackageReleaseNotes>
-	  Added support for creating user defined scalar functions.
+	  Added support for creating user-defined scalar functions.
 
 Added support for Varint type.
 
 Added support for writing to Enum columns when using managed Appender.
 
-Updated to DuckDB v1.1.0
+Updated to DuckDB v1.1.1
     </PackageReleaseNotes>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
