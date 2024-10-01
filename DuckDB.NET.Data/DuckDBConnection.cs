@@ -95,7 +95,13 @@ public partial class DuckDBConnection : DbConnection
             throw new InvalidOperationException("Connection is already closed.");
         }
 
-        Dispose(true);
+        if (connectionReference is not null) //Should always be the case
+        {
+            connectionManager.ReturnConnectionReference(connectionReference);
+        }
+
+        connectionState = ConnectionState.Closed;
+        OnStateChange(FromOpenToClosedEventArgs);
     }
 
     public override void Open()
@@ -182,15 +188,10 @@ public partial class DuckDBConnection : DbConnection
     {
         if (disposing)
         {
+            // this check is to ensure exact same behavior as previous version
+            // where Close() was calling Dispose(true) instead of the other way around.
             if (connectionState == ConnectionState.Open)
-            {
-                if (connectionReference is not null) //Should always be the case
-                {
-                    connectionManager.ReturnConnectionReference(connectionReference);
-                }
-                connectionState = ConnectionState.Closed;
-                OnStateChange(FromOpenToClosedEventArgs);
-            }
+                Close();
         }
 
         base.Dispose(disposing);
