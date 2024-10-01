@@ -494,4 +494,46 @@ public class DuckDBConnectionTests
             value.Should().Be(threads);
         }
     }
+
+    [Fact]
+    public void ConnectionStateHandlerIsCalledOnOpen()
+    {
+        using var dbInfo = DisposableFile.GenerateInTemp("db");
+        using var connection = new DuckDBConnection(dbInfo.ConnectionString);
+        var handlerCalled = false;
+        connection.StateChange += Assert;
+        connection.Open();
+        connection.StateChange -= Assert; // otherwise the dispose/close will trigger the assert
+        
+        handlerCalled.Should().BeTrue();
+        return;
+
+        void Assert(object sender, StateChangeEventArgs args)
+        {
+            args.OriginalState.Should().Be(ConnectionState.Closed);
+            args.CurrentState.Should().Be(ConnectionState.Open);
+            handlerCalled = true;
+        }
+    }
+
+    [Fact]
+    public async Task ConnectionStateHandlerIsCalledOnClose()
+    {
+        using var dbInfo = DisposableFile.GenerateInTemp("db");
+        await using var connection = new DuckDBConnection(dbInfo.ConnectionString);
+        var handlerCalled = false;
+        await connection.OpenAsync();
+        connection.StateChange += Assert; 
+        await connection.CloseAsync();
+        
+        handlerCalled.Should().BeTrue();
+        return;
+
+        void Assert(object sender, StateChangeEventArgs args)
+        {
+            args.OriginalState.Should().Be(ConnectionState.Open);
+            args.CurrentState.Should().Be(ConnectionState.Closed);
+            handlerCalled = true;
+        }
+    }
 }
