@@ -17,6 +17,9 @@ public partial class DuckDBConnection : DbConnection
     private DuckDBConnectionString? parsedConnection;
     private ConnectionReference? connectionReference;
     private bool inMemoryDuplication = false;
+    
+    private static readonly StateChangeEventArgs FromClosedToOpenEventArgs = new(ConnectionState.Closed, ConnectionState.Open);
+    private static readonly StateChangeEventArgs FromOpenToClosedEventArgs = new(ConnectionState.Open, ConnectionState.Closed);
 
     #region Protected Properties
 
@@ -107,6 +110,7 @@ public partial class DuckDBConnection : DbConnection
                                                   : connectionManager.GetConnectionReference(ParsedConnection);
 
         connectionState = ConnectionState.Open;
+        OnStateChange(FromClosedToOpenEventArgs);
     }
 
     protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
@@ -185,6 +189,7 @@ public partial class DuckDBConnection : DbConnection
                     connectionManager.ReturnConnectionReference(connectionReference);
                 }
                 connectionState = ConnectionState.Closed;
+                OnStateChange(FromOpenToClosedEventArgs);
             }
         }
 
