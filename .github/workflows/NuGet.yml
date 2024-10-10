@@ -14,7 +14,7 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         workflow: ci.yml
         workflow_conclusion: success
-        branch: main
+        branch: ${{github.ref_name}}
         name: nugetPackages-${{github.ref_name}}
 
     - name: Display structure of downloaded files
