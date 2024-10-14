@@ -13,7 +13,7 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
     private readonly DuckDBLogicalType childType;
     private readonly VectorDataWriterBase listItemWriter;
 
-    public bool IsList => ColumnType == DuckDBType.List;
+    private bool IsList => ColumnType == DuckDBType.List;
     private ulong vectorReservedSize = DuckDBGlobalData.VectorSize;
 
     public ListVectorDataWriter(IntPtr vector, void* vectorData, DuckDBType columnType, DuckDBLogicalType logicalType) : base(vector, vectorData, columnType)

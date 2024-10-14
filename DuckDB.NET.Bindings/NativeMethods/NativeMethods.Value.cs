@@ -7,6 +7,9 @@ public partial class NativeMethods
 {
     public static class Value
     {
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_value")]
+        public static extern void DuckDBDestroyValue(out IntPtr config);
+        
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_varchar")]
         public static extern DuckDBValue DuckDBCreateVarchar(SafeUnmanagedMemoryHandle value);
 
@@ -66,8 +69,8 @@ public partial class NativeMethods
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_blob")]
         public static extern DuckDBValue DuckDBCreateBlob([In] byte[] value, long length);
-
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_value")]
-        public static extern void DuckDBDestroyValue(out IntPtr config);
+        
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_list_value")]
+        public static extern DuckDBValue DuckDBCreateListValue(DuckDBLogicalType logicalType, IntPtr[] values, long count);
     }
 }

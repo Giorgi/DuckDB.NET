@@ -14,6 +14,8 @@ public class DuckDBParameter : DbParameter
 
     public override DbType DbType { get; set; }
 
+    public DuckDBParameterType DuckDBType { get; set; }
+
 #if NET6_0_OR_GREATER
     [AllowNull]
 #endif
@@ -74,4 +76,9 @@ public class DuckDBParameter : DbParameter
 
     public override void ResetDbType()
         => DbType = DefaultDbType;
+}
+
+public enum DuckDBParameterType
+{
+    List
 }

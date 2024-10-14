@@ -186,13 +186,15 @@ internal sealed class PreparedStatement : IDisposable
             return;
         }
 
-        if (!ValueCreators.TryGetValue(parameter.DbType, out var func))
-        {
-            throw new InvalidOperationException($"Unable to bind value of type {parameter.DbType}.");
-        }
+        // if (!ValueCreators.TryGetValue(parameter.DbType, out var func))
+        // {
+        //     throw new InvalidOperationException($"Unable to bind value of type {parameter.DbType}.");
+        // }
 
-        using var duckDBValue = func(parameter.Value!);
-        var result = NativeMethods.PreparedStatements.DuckDBBindValue(preparedStatement, index, duckDBValue);
+        var duckDBValue2 = parameter.Value!.ToDuckDBValue();
+
+        //using var duckDBValue = func(parameter.Value!);
+        var result = NativeMethods.PreparedStatements.DuckDBBindValue(preparedStatement, index, duckDBValue2);
 
         if (!result.IsSuccess())
         {
