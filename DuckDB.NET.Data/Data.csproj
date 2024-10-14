@@ -9,7 +9,7 @@ Added support for Varint type.
 
 Added support for writing to Enum columns when using managed Appender.
 
-Updated to DuckDB v1.1.1
+Updated to DuckDB v1.1.2
     </PackageReleaseNotes>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
