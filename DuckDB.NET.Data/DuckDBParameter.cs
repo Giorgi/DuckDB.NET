@@ -14,7 +14,7 @@ public class DuckDBParameter : DbParameter
 
     public override DbType DbType { get; set; }
 
-    public DuckDBParameterType DuckDBType { get; set; }
+    public DuckDBDbType DuckDBType { get; set; }
 
 #if NET6_0_OR_GREATER
     [AllowNull]
@@ -34,7 +34,6 @@ public class DuckDBParameter : DbParameter
             }
         }
     }
-
 
     public override ParameterDirection Direction { get; set; }
     public override bool IsNullable { get; set; }
@@ -74,11 +73,5 @@ public class DuckDBParameter : DbParameter
         SourceColumn = string.Empty;
     }
 
-    public override void ResetDbType()
-        => DbType = DefaultDbType;
-}
-
-public enum DuckDBParameterType
-{
-    List
+    public override void ResetDbType() => DbType = DefaultDbType;
 }

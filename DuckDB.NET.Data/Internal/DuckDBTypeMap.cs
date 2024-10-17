@@ -1,11 +1,9 @@
-using DuckDB.NET.Data.Extensions;
-using DuckDB.NET.Native;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Data;
-using System.Linq;
 using System.Numerics;
+using DuckDB.NET.Data.Extensions;
+using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal;
 
@@ -62,7 +60,6 @@ internal static class DuckDBTypeMap
         { typeof(string), DuckDBType.Varchar},
         { typeof(decimal), DuckDBType.Decimal},
         { typeof(object), DuckDBType.Any},
-
     };
 
     public static DbType GetDbTypeForValue(object? value)
@@ -80,7 +77,6 @@ internal static class DuckDBTypeMap
         }
 
         return DbType.Object;
-        throw new InvalidOperationException($"Values of type {type.FullName} are not supported.");
     }
 
     public static DuckDBLogicalType GetLogicalType<T>()
@@ -91,38 +87,5 @@ internal static class DuckDBTypeMap
         }
 
         throw new InvalidOperationException($"Cannot map type {typeof(T).FullName} to DuckDBType.");
-    }
-}
-
-internal static class ValueConverter
-{
-    public static DuckDBValue ToDuckDBValue(this object value)
-    {
-        return value switch
-        {
-            int intValue => NativeMethods.Value.DuckDBCreateInt32(intValue),
-            long longValue => NativeMethods.Value.DuckDBCreateInt64(longValue),
-            ICollection<int> ints => CreateListValue(DuckDBType.Integer, ints),
-            _ => throw new InvalidCastException(
-                $"Cannot convert value of type {value.GetType().FullName} to DuckDBValue.")
-        };
-    }
-
-    private static DuckDBValue CreateListValue<T>(DuckDBType duckDBType, ICollection<T> collection)
-    {
-        using var logicalType = NativeMethods.LogicalType.DuckDBCreateLogicalType(duckDBType);
-        
-        var values = new IntPtr[collection.Count];
-        
-        var index = 0;
-        foreach (var item in collection)
-        {
-            using var duckDBValue = item.ToDuckDBValue();
-            values[index] = duckDBValue.DangerousGetHandle();
-            index++;
-        }
-        
-        return NativeMethods.Value.DuckDBCreateListValue(logicalType,
-            collection.Select(i => i.ToDuckDBValue().DangerousGetHandle()).ToArray(), collection.Count);
     }
 }

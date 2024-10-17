@@ -91,9 +91,21 @@ public class DuckDBDataChunk : SafeHandleZeroOrMinusOneIsInvalid
 
 public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true)
 {
+    private DuckDBValue[] childValues = [];
+
     protected override bool ReleaseHandle()
     {
+        foreach (var value in childValues)
+        {
+            value.Dispose();
+        }
+        
         NativeMethods.Value.DuckDBDestroyValue(out handle);
         return true;
+    }
+
+    internal void SetChildValues(DuckDBValue[] values)
+    { 
+        childValues = values;
     }
 }
