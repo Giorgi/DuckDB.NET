@@ -237,7 +237,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         VerifyDataStruct("timestamp_ns", 17, new List<DateTime>
         {
             new DateTime(1677, 09, 22),
-            new DateTime (2262, 04, 11, 23,47,16).AddTicks(854775 * 10)
+            new DateTime (2262, 04, 11, 23,47,16).AddTicks(8547758)
         }, typeof(DuckDBTimestamp));
     }
 
@@ -633,7 +633,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         reader.GetFieldValue<StructOfArrayTest>(columnIndex).Should().BeEquivalentTo(new StructOfArrayTest()
         {
             A = new() { null, 2, 3 },
-            B = new() { "a", null, "c"}
+            B = new() { "a", null, "c" }
         });
 
         reader.Read();

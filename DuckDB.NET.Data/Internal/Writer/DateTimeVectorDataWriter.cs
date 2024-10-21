@@ -1,4 +1,5 @@
 ﻿using System;
+using DuckDB.NET.Data.Extensions;
 using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal.Writer;
@@ -17,6 +18,8 @@ internal sealed unsafe class DateTimeVectorDataWriter(IntPtr vector, void* vecto
         if (ColumnType == DuckDBType.TimestampNs)
         {
             timestamp.Micros *= 1000;
+
+            timestamp.Micros += value.Nanoseconds();
         }
 
         if (ColumnType == DuckDBType.TimestampMs)

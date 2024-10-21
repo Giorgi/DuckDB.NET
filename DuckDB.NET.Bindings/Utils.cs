@@ -7,8 +7,6 @@ namespace DuckDB.NET.Native;
 
 public static class Utils
 {
-    internal const long UnixEpochTicks = 621355968000000000;
-
     public static bool IsSuccess(this DuckDBState state)
     {
         return state == DuckDBState.Success;
