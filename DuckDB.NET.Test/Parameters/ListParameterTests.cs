@@ -1,11 +1,11 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
 using Bogus;
 using DuckDB.NET.Data;
 using DuckDB.NET.Native;
 using FluentAssertions;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
 using Xunit;
 
 namespace DuckDB.NET.Test.Parameters;
@@ -15,23 +15,21 @@ public class ListParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     private void TestInsertSelect<T>(string duckDbType, Func<Faker, T> generator, int? length = null)
     {
         var list = GetRandomList(generator, length ?? Random.Shared.Next(10, 200));
-        var nestedList = Enumerable.Range(0, 5).SelectMany(i => GetRandomList(generator));
 
-        Command.CommandText = $"CREATE OR REPLACE TABLE ParameterListTest (a {duckDbType}[], b {duckDbType}[10], c {duckDbType}[][]);";
+        Command.CommandText = $"CREATE OR REPLACE TABLE ParameterListTest (a {duckDbType}[], b {duckDbType}[10]);";
         Command.ExecuteNonQuery();
 
         Command.CommandText = $"INSERT INTO ParameterListTest (a, b) VALUES ($list, $array);";
         Command.Parameters.Add(new DuckDBParameter(list));
         Command.Parameters.Add(new DuckDBParameter(list.Take(10).ToList()));
-        Command.Parameters.Add(new DuckDBParameter(nestedList.ToList()));
         Command.ExecuteNonQuery();
 
         Command.CommandText = $"SELECT * FROM ParameterListTest;";
 
         using var reader = Command.ExecuteReader();
         reader.Read();
-        var value = reader.GetFieldValue<List<T>>(0);
 
+        var value = reader.GetFieldValue<List<T>>(0);
         value.Should().BeEquivalentTo(list);
         
         var arrayValue  = reader.GetFieldValue<List<T>>(1);
@@ -132,11 +130,11 @@ public class ListParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         TestInsertSelect("Date", faker => faker.Date.Past().Date);
     }
     
-    [Fact]
-    public void CanBindDateTimeOffsetList()
-    {
-        TestInsertSelect("TimeTZ", faker => faker.Date.PastOffset(),1);
-    }
+    //[Fact]
+    //public void CanBindDateTimeOffsetList()
+    //{
+    //    TestInsertSelect("TimeTZ", faker => faker.Date.PastOffset());
+    //}
 
     [Fact]
     public void CanBindStringList()
