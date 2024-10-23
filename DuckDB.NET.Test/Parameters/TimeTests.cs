@@ -157,7 +157,17 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         dateTimeOffset.Second.Should().Be((byte)second);
         dateTimeOffset.Ticks.Should().Be(new TimeOnly(hour, minute, second).Add(TimeSpan.FromTicks(microsecond * 10)).Ticks);
 
-        dateTimeOffset.Offset.Should().Be(new TimeSpan(offsetHours, offsetHours >= 0 ? offsetMinutes : -offsetMinutes, 0));
+        var timeSpan = new TimeSpan(offsetHours, offsetHours >= 0 ? offsetMinutes : -offsetMinutes, 0);
+        dateTimeOffset.Offset.Should().Be(timeSpan);
+        
+        Command.CommandText = "SELECT ?";
+        Command.Parameters.Add(new DuckDBParameter(dateTimeOffset));
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        var fieldValue = reader.GetFieldValue<DateTimeOffset>(0);
+        fieldValue.Offset.Should().Be(timeSpan);
     }
 
     [Theory]

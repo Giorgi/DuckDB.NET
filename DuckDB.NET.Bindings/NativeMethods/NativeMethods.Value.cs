@@ -59,8 +59,8 @@ public partial class NativeMethods
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_time")]
         public static extern DuckDBValue DuckDBCreateTime(DuckDBTime value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_time_tz")]
-        public static extern DuckDBValue DuckDBCreateTimeTz(DuckDBTimeTz value);
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_time_tz_value")]
+        public static extern DuckDBValue DuckDBCreateTimeTz(DuckDBTimeTzStruct value);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_timestamp")]
         public static extern DuckDBValue DuckDBCreateTimestamp(DuckDBTimestampStruct value);
