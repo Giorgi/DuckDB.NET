@@ -18,7 +18,6 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
 
     private static readonly Type TimeOnlyType = typeof(TimeOnly);
     private static readonly Type TimeOnlyNullableType = typeof(TimeOnly?);
-
 #endif
 
     internal unsafe DateTimeVectorDataReader(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
@@ -86,24 +85,21 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
             DuckDBType.TimestampTz => ReadTimestamp<T>(offset, targetType),
             DuckDBType.TimestampS => ReadTimestamp<T>(offset, targetType, 1000000),
             DuckDBType.TimestampMs => ReadTimestamp<T>(offset, targetType, 1000),
-            DuckDBType.TimestampNs => ReadTimestamp<T>(offset, targetType, 1, 1000),
+            DuckDBType.TimestampNs => ReadTimestamp<T>(offset, targetType, 1, 1000, true),
             _ => base.GetValidValue<T>(offset, targetType)
         };
     }
 
-    private T ReadTimestamp<T>(ulong offset, Type targetType, int factor = 1, int divisor = 1)
+    private T ReadTimestamp<T>(ulong offset, Type targetType, int factor = 1, int divisor = 1, bool keepNanoseconds = false)
     {
-        var timestampStruct = GetFieldData<DuckDBTimestampStruct>(offset);
-
-        timestampStruct.Micros = timestampStruct.Micros * factor / divisor;
+        var (additionalTicks, timestamp) = ReadTimestamp(offset, factor, divisor, keepNanoseconds);
 
         if (targetType == DateTimeType || targetType == DateTimeNullableType)
         {
-            var dateTime = timestampStruct.ToDateTime();
+            var dateTime = timestamp.ToDateTime().AddTicks(additionalTicks);
             return (T)(object)dateTime;
         }
 
-        var timestamp = NativeMethods.DateTimeHelpers.DuckDBFromTimestamp(timestampStruct);
         return (T)(object)timestamp;
     }
 
@@ -118,7 +114,7 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
             DuckDBType.TimestampTz => GetDateTime(offset, targetType),
             DuckDBType.TimestampS => GetDateTime(offset, targetType, 1000000),
             DuckDBType.TimestampMs => GetDateTime(offset, targetType, 1000),
-            DuckDBType.TimestampNs => GetDateTime(offset, targetType, 1, 1000),
+            DuckDBType.TimestampNs => GetDateTime(offset, targetType, 1, 1000, true),
             _ => base.GetValue(offset, targetType)
         };
     }
@@ -176,18 +172,18 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
         return timeOnly;
     }
 
-    private object GetDateTime(ulong offset, Type targetType, int factor = 1, int divisor = 1)
+    private object GetDateTime(ulong offset, Type targetType, int factor = 1, int divisor = 1, bool keepNanoseconds = false)
     {
-        var data = GetFieldData<DuckDBTimestampStruct>(offset);
-
-        data.Micros = (data.Micros * factor / divisor);
+        var (additionalTicks, timestamp) = ReadTimestamp(offset, factor, divisor, keepNanoseconds);
 
         if (targetType == typeof(DateTime))
         {
-            return data.ToDateTime();
+            var dateTime = timestamp.ToDateTime().AddTicks(additionalTicks);
+
+            return dateTime;
         }
 
-        return NativeMethods.DateTimeHelpers.DuckDBFromTimestamp(data);
+        return timestamp;
     }
 
     private object GetDateTimeOffset(ulong offset, Type targetType)
@@ -200,5 +196,21 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
         }
 
         return timeTz;
+    }
+
+    private (int additionalTicks, DuckDBTimestamp timestamp) ReadTimestamp(ulong offset, int factor, int divisor, bool keepNanoseconds)
+    {
+        var data = GetFieldData<DuckDBTimestampStruct>(offset);
+        var additionalTicks = 0;
+
+        if (keepNanoseconds)
+        {
+            additionalTicks = (int)(data.Micros % 1000 / 100);
+        }
+
+        data.Micros = (data.Micros * factor / divisor);
+
+        var timestamp = NativeMethods.DateTimeHelpers.DuckDBFromTimestamp(data);
+        return (additionalTicks, timestamp);
     }
 }
