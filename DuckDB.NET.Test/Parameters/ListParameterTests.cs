@@ -97,7 +97,7 @@ public class ListParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void CanBindULongList()
     {
-        TestInsertSelect("UBigInt", faker => faker.Random.UInt());
+        TestInsertSelect("UBigInt", faker => faker.Random.ULong());
     }
     
     [Fact]
