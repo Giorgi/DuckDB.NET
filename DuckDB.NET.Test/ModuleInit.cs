@@ -1,6 +1,7 @@
 ﻿using DuckDB.NET.Test.Helpers;
 using FluentAssertions;
 using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 #nullable enable
@@ -12,8 +13,19 @@ public static class ModuleInit
     {
         NativeLibraryHelper.TryLoad();
 
-        AssertionOptions.AssertEquivalencyUsing(options => options.ComparingByMembers<DateTimeOffset>().Including(info => 
-            info.Name == nameof(DateTimeOffset.Offset) || 
-            info.Name == nameof(DateTimeOffset.TimeOfDay)));
+        AssertionOptions.AssertEquivalencyUsing(options => options.Using<DateTimeOffset>(new DateTimeOffsetTimeComparer()));
+    }
+
+    class DateTimeOffsetTimeComparer : IEqualityComparer<DateTimeOffset>
+    {
+        public bool Equals(DateTimeOffset x, DateTimeOffset y)
+        {
+            return x.Offset==y.Offset && x.TimeOfDay==y.TimeOfDay;
+        }
+
+        public int GetHashCode(DateTimeOffset obj)
+        {
+            return obj.GetHashCode();
+        }
     }
 }
