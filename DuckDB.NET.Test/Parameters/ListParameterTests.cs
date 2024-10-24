@@ -2,6 +2,7 @@ using Bogus;
 using DuckDB.NET.Data;
 using DuckDB.NET.Native;
 using FluentAssertions;
+using FluentAssertions.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -72,8 +73,7 @@ public class ListParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void CanBindHugeIntList()
     {
-        TestInsertSelect("HugeInt",
-            faker => BigInteger.Subtract(DuckDBHugeInt.HugeIntMaxValue, faker.Random.Int(min: 0)));
+        TestInsertSelect("HugeInt", faker => BigInteger.Subtract(DuckDBHugeInt.HugeIntMaxValue, faker.Random.Int(min: 0)));
     }
 
     [Fact]
@@ -130,11 +130,23 @@ public class ListParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         TestInsertSelect("Date", faker => faker.Date.Past().Date);
     }
 
-    //[Fact]
-    //public void CanBindDateTimeOffsetList()
-    //{
-    //    TestInsertSelect("TimeTZ", faker => faker.Date.PastOffset());
-    //}
+    [Fact]
+    public void CanBindDateTimeOffsetList()
+    {
+        TestInsertSelect("TimeTZ", faker =>
+        {
+            var dateTime = faker.Date.Between(DateTime.Now.AddYears(-100), DateTime.Now.AddYears(100));
+
+            if (dateTime.Hour < 1)
+            {
+                dateTime = dateTime.AddHours(1);
+            }
+
+            dateTime = dateTime.AddTicks(-dateTime.Ticks % 10);
+
+            return dateTime.ToDateTimeOffset(TimeSpan.FromHours(1));
+        });
+    }
 
     [Fact]
     public void CanBindStringList()
