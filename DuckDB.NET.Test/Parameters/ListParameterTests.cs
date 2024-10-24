@@ -31,10 +31,10 @@ public class ListParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
         var value = reader.GetFieldValue<List<T>>(0);
         value.Should().BeEquivalentTo(list);
-        
-        var arrayValue  = reader.GetFieldValue<List<T>>(1);
+
+        var arrayValue = reader.GetFieldValue<List<T>>(1);
         arrayValue.Should().BeEquivalentTo(list.Take(10));
-        
+
         Command.CommandText = $"DROP TABLE ParameterListTest";
         Command.ExecuteNonQuery();
     }
@@ -99,7 +99,7 @@ public class ListParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     {
         TestInsertSelect("UBigInt", faker => faker.Random.ULong());
     }
-    
+
     [Fact]
     public void CanBindFloatList()
     {
@@ -129,7 +129,7 @@ public class ListParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     {
         TestInsertSelect("Date", faker => faker.Date.Past().Date);
     }
-    
+
     //[Fact]
     //public void CanBindDateTimeOffsetList()
     //{
@@ -150,6 +150,35 @@ public class ListParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             var timespan = faker.Date.Timespan();
 
             return TimeSpan.FromTicks(timespan.Ticks - timespan.Ticks % 10);
+        });
+    }
+
+    [Fact]
+    public void CanBindDuckDBDateOnlyList()
+    {
+        TestInsertSelect("Date", faker => (DuckDBDateOnly)faker.Date.Past().Date);
+    }
+
+    [Fact]
+    public void CanBindDuckDBTimeOnlyList()
+    {
+        TestInsertSelect("Time", faker => (DuckDBTimeOnly)faker.Date.Past());
+    }
+
+    [Fact]
+    public void CanBindDateOnlyList()
+    {
+        TestInsertSelect("Date", faker => DateOnly.FromDateTime(faker.Date.Past().Date));
+    }
+
+    [Fact]
+    public void CanBindTimeOnlyList()
+    {
+        TestInsertSelect("Time", faker =>
+        {
+            //Truncate nanoseconds because duckdb doesn't store it.
+            var dateTime = faker.Date.Past();
+            return new TimeOnly(dateTime.TimeOfDay.Ticks - dateTime.TimeOfDay.Ticks % 10);
         });
     }
 }

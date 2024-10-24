@@ -89,7 +89,12 @@ internal static class ClrToDuckDBConverter
             ICollection<DateTime> items => CreateCollectionValue(DuckDBType.Date, items),
             ICollection<DateTimeOffset> items => CreateCollectionValue(DuckDBType.TimeTz, items),
             ICollection<TimeSpan> items => CreateCollectionValue(DuckDBType.Interval, items),
-            ICollection<object> items => CreateCollectionValue(DuckDBType.List, items),
+            ICollection<DuckDBDateOnly> items => CreateCollectionValue(DuckDBType.Date, items),
+            ICollection<DuckDBTimeOnly> items => CreateCollectionValue(DuckDBType.Time, items),
+#if NET6_0_OR_GREATER
+            ICollection<DateOnly> items => CreateCollectionValue(DuckDBType.Date, items),
+            ICollection<TimeOnly> items => CreateCollectionValue(DuckDBType.Time, items),
+#endif
             _ => throw new InvalidOperationException($"Cannot convert collection type {collection.GetType().FullName} to DuckDBValue.")
         };
     }
