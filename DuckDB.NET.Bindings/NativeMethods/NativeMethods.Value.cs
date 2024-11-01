@@ -70,6 +70,9 @@ public partial class NativeMethods
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_blob")]
         public static extern DuckDBValue DuckDBCreateBlob([In] byte[] value, long length);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_int32")]
+        public static extern int DuckDBGetInt32(DuckDBValue value);
         
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_list_value")]
         public static extern DuckDBValue DuckDBCreateListValue(DuckDBLogicalType logicalType, IntPtr[] values, long count);
