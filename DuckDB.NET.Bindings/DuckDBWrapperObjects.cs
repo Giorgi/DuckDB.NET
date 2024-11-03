@@ -1,5 +1,5 @@
-﻿using System;
-using Microsoft.Win32.SafeHandles;
+﻿using Microsoft.Win32.SafeHandles;
+using System;
 
 namespace DuckDB.NET.Native;
 
@@ -89,7 +89,7 @@ public class DuckDBDataChunk : SafeHandleZeroOrMinusOneIsInvalid
     }
 }
 
-public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true)
+public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBValueReader
 {
     private DuckDBValue[] childValues = [];
 
@@ -107,5 +107,12 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true)
     internal void SetChildValues(DuckDBValue[] values)
     { 
         childValues = values;
+    }
+
+    public T GetValue<T>()
+    {
+        var value = NativeMethods.Value.DuckDBGetInt32(this);
+        return (T)(object)value;
+        //return Unsafe.As<int, T>(ref value);
     }
 }

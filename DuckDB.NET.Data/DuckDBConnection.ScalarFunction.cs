@@ -97,7 +97,7 @@ partial class DuckDBConnection
 
         if (!state.IsSuccess())
         {
-            throw new InvalidOperationException("Error registering user defined scalar function");
+            throw new InvalidOperationException($"Error registering user defined scalar function: {name}");
         }
     }
 

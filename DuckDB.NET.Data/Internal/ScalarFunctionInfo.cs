@@ -1,8 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using DuckDB.NET.Data.Internal.Reader;
+﻿using DuckDB.NET.Data.Internal.Reader;
 using DuckDB.NET.Data.Internal.Writer;
 using DuckDB.NET.Native;
+using System;
 
 namespace DuckDB.NET.Data.Internal;
 

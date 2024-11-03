@@ -7,10 +7,10 @@ public partial class NativeMethods
 {
     public static class TableFunction
     {
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_tableFunction")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_table_function")]
         public static extern IntPtr DuckDBCreateTableFunction();
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_tableFunction")]
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_table_function")]
         public static extern void DuckDBDestroyTableFunction(out IntPtr tableFunction);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_table_function_set_name")]
@@ -25,16 +25,19 @@ public partial class NativeMethods
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_table_function_set_bind")]
         public static extern unsafe void DuckDBTableFunctionSetBind(IntPtr tableFunction, delegate* unmanaged[Cdecl]<IntPtr, void> bind);
 
-        //[DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_table_function_set_init")]
-        //public static extern unsafe void DuckDBTableFunctionSetInit(IntPtr tableFunction, duckdb_tableFunction_init_t init);
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_table_function_set_init")]
+        public static extern unsafe void DuckDBTableFunctionSetInit(IntPtr tableFunction, delegate* unmanaged[Cdecl]<IntPtr, void> init);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_table_function_set_function")]
-        public static extern unsafe void DuckDBTableFunctionSetFunction(IntPtr tableFunction, delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, void> callback);
+        public static extern unsafe void DuckDBTableFunctionSetFunction(IntPtr tableFunction, delegate* unmanaged[Cdecl]<IntPtr, IntPtr, void> callback);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_register_table_function")]
         public static extern DuckDBState DuckDBRegisterTableFunction(DuckDBNativeConnection con, IntPtr tableFunction);
 
         #region TableFunctionBind
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_get_extra_info")]
+        public static extern unsafe IntPtr DuckDBBindGetExtraInfo(IntPtr info);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_add_result_column")]
         public static extern unsafe void DuckDBBindAddResultColumn(IntPtr info, SafeUnmanagedMemoryHandle name, DuckDBLogicalType type);
@@ -52,8 +55,11 @@ public partial class NativeMethods
 
         #region TableFunction
 
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_function_get_extra_info")]
+        public static extern unsafe IntPtr DuckDBFunctionGetExtraInfo(IntPtr info);
+
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_function_get_bind_data")]
-        public static extern unsafe void* duckdb_function_get_bind_data(IntPtr info);
+        public static extern unsafe IntPtr DuckDBFunctionGetBindData(IntPtr info);
 
         #endregion
     }

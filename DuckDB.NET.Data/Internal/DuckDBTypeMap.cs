@@ -79,13 +79,15 @@ internal static class DuckDBTypeMap
         return DbType.Object;
     }
 
-    public static DuckDBLogicalType GetLogicalType<T>()
+    public static DuckDBLogicalType GetLogicalType<T>() => GetLogicalType(typeof(T));
+
+    public static DuckDBLogicalType GetLogicalType(Type type)
     {
-        if (ClrToDuckDBTypeMap.TryGetValue(typeof(T), out var duckDBType))
+        if (ClrToDuckDBTypeMap.TryGetValue(type, out var duckDBType))
         {
             return NativeMethods.LogicalType.DuckDBCreateLogicalType(duckDBType);
         }
 
-        throw new InvalidOperationException($"Cannot map type {typeof(T).FullName} to DuckDBType.");
+        throw new InvalidOperationException($"Cannot map type {type.FullName} to DuckDBType.");
     }
 }
