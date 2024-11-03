@@ -1,31 +1,26 @@
 ﻿using DuckDB.NET.Data.Extensions;
 using DuckDB.NET.Data.Internal;
+using DuckDB.NET.Data.Internal.Writer;
+using DuckDB.NET.Data.Writer;
 using DuckDB.NET.Native;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using DuckDB.NET.Data.Internal.Writer;
-using DuckDB.NET.Data.Writer;
 
 namespace DuckDB.NET.Data;
 
-public record ColumnInfo(string Name, Type Type)
-{
-}
+public record ColumnInfo(string Name, Type Type);
 
-public record TableFunction(IReadOnlyList<ColumnInfo> Columns, IEnumerable Data)
-{
-}
+public record TableFunction(IReadOnlyList<ColumnInfo> Columns, IEnumerable Data);
 
 partial class DuckDBConnection
 {
 #if NET8_0_OR_GREATER
     [Experimental("DuckDBNET001")]
-    public unsafe void RegisterTableFunction<T>(string name, Func<IEnumerable<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[]> mapperCallback)
+    public unsafe void RegisterTableFunction<T>(string name, Func<IEnumerable<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
     {
         var function = NativeMethods.TableFunction.DuckDBCreateTableFunction();
         NativeMethods.TableFunction.DuckDBTableFunctionSetName(function, name.ToUnmanagedString());
@@ -89,10 +84,10 @@ partial class DuckDBConnection
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    public static unsafe void Init(IntPtr info) { }
+    public static void Init(IntPtr info) { }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    public static unsafe void TableFunction(IntPtr info, IntPtr chunk)
+    public static void TableFunction(IntPtr info, IntPtr chunk)
     {
         var bindData = GCHandle.FromIntPtr(NativeMethods.TableFunction.DuckDBFunctionGetBindData(info));
         var extraInfo = GCHandle.FromIntPtr(NativeMethods.TableFunction.DuckDBFunctionGetExtraInfo(info));
@@ -125,7 +120,7 @@ partial class DuckDBConnection
         {
             if (tableFunctionBindData.DataEnumerator.MoveNext())
             {
-                tableFunctionInfo.Mapper(tableFunctionBindData.DataEnumerator.Current, writers);
+                tableFunctionInfo.Mapper(tableFunctionBindData.DataEnumerator.Current, writers, size);
             }
             else
             {

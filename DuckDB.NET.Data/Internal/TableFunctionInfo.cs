@@ -6,10 +6,10 @@ using System.Collections.Generic;
 
 namespace DuckDB.NET.Data.Internal;
 
-class TableFunctionInfo(Func<IEnumerable<IDuckDBValueReader>, TableFunction> bind, Action<object?, VectorDataWriterBase[]> mapper)
+class TableFunctionInfo(Func<IEnumerable<IDuckDBValueReader>, TableFunction> bind, Action<object?, VectorDataWriterBase[], ulong> mapper)
 {
     public Func<IEnumerable<IDuckDBValueReader>, TableFunction> Bind { get; private set; } = bind;
-    public Action<object?, VectorDataWriterBase[]> Mapper { get; private set; } = mapper;
+    public Action<object?, VectorDataWriterBase[], ulong> Mapper { get; private set; } = mapper;
 }
 
 class TableFunctionBindData(IReadOnlyList<ColumnInfo> columns, IEnumerator dataEnumerator) : IDisposable
