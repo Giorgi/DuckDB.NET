@@ -1,9 +1,9 @@
-﻿using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using Dapper;
+﻿using Dapper;
 using DuckDB.NET.Data;
 using FluentAssertions;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using Xunit;
 
 namespace DuckDB.NET.Test;
@@ -34,7 +34,9 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void RegisterTableFunctionWithOneParameterTwoColumns()
     {
-        Connection.RegisterTableFunction<int>("demo", (parameters) =>
+        var count = 3000;
+
+        Connection.RegisterTableFunction<int>("demo2", (parameters) =>
         {
             var value = parameters.ElementAt(0).GetValue<int>();
 
@@ -49,9 +51,9 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             writers[1].WriteValue($"string{item}", rowIndex);
         });
 
-        var data = Connection.Query<(int, string)>("SELECT * FROM demo(3000);").ToList();
+        var data = Connection.Query<(int, string)>($"SELECT * FROM demo2({count});").ToList();
 
-        data.Select(tuple => tuple.Item1).Should().BeEquivalentTo(Enumerable.Range(0, 3000));
-        data.Select(tuple => tuple.Item2).Should().BeEquivalentTo(Enumerable.Range(0, 3000).Select(i => $"string{i}"));
+        data.Select(tuple => tuple.Item1).Should().BeEquivalentTo(Enumerable.Range(0, count));
+        data.Select(tuple => tuple.Item2).Should().BeEquivalentTo(Enumerable.Range(0, count).Select(i => $"string{i}"));
     }
 }
