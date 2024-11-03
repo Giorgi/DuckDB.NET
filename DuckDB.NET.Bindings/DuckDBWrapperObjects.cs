@@ -113,6 +113,7 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
 
     public T GetValue<T>()
     {
+        return (T)(object)NativeMethods.Value.DuckDBGetInt32(this);
         var type = typeof(T);
         var logicalType = NativeMethods.Value.DuckDBGetValueType(this);
         var duckDBType = NativeMethods.LogicalType.DuckDBGetTypeId(logicalType);
