@@ -113,9 +113,13 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
 
     public T GetValue<T>()
     {
-        return (T)(object)NativeMethods.Value.DuckDBGetInt32(this);
-        var type = typeof(T);
         var logicalType = NativeMethods.Value.DuckDBGetValueType(this);
+
+        //Logical type is part of the duckdb_value object and it shouldn't be released separately
+        //It will get released when the duckdb_value object is destroyed below.
+        var add = false;
+        logicalType.DangerousAddRef(ref add);
+
         var duckDBType = NativeMethods.LogicalType.DuckDBGetTypeId(logicalType);
 
         return duckDBType switch
@@ -145,7 +149,7 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
             DuckDBType.Varchar => ReadValue<string>(NativeMethods.Value.DuckDBGetVarchar(this)),
             //DuckDBType.Decimal => ReadValue<T>(),
             //DuckDBType.Uuid => expr,
-            _ => throw new NotImplementedException($"Cannot read value of type {type.FullName}")
+            _ => throw new NotImplementedException($"Cannot read value of type {typeof(T).FullName}")
         };
 
         T ReadValue<TSource>(TSource value)
