@@ -6,9 +6,9 @@ using System.Collections.Generic;
 
 namespace DuckDB.NET.Data.Internal;
 
-class TableFunctionInfo(Func<IEnumerable<IDuckDBValueReader>, TableFunction> bind, Action<object?, VectorDataWriterBase[], ulong> mapper)
+class TableFunctionInfo(Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> bind, Action<object?, VectorDataWriterBase[], ulong> mapper)
 {
-    public Func<IEnumerable<IDuckDBValueReader>, TableFunction> Bind { get; private set; } = bind;
+    public Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> Bind { get; private set; } = bind;
     public Action<object?, VectorDataWriterBase[], ulong> Mapper { get; private set; } = mapper;
 }
 

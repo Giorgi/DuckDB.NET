@@ -20,13 +20,65 @@ partial class DuckDBConnection
 {
 #if NET8_0_OR_GREATER
     [Experimental("DuckDBNET001")]
-    public unsafe void RegisterTableFunction<T>(string name, Func<IEnumerable<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
+    public void RegisterTableFunction<T>(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
+    {
+        RegisterTableFunctionInternal(name, resultCallback, mapperCallback, typeof(T));
+    }
+
+    [Experimental("DuckDBNET001")]
+    public void RegisterTableFunction<T1, T2>(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
+    {
+        RegisterTableFunctionInternal(name, resultCallback, mapperCallback, typeof(T1), typeof(T2));
+    }
+
+    [Experimental("DuckDBNET001")]
+    public void RegisterTableFunction<T1, T2, T3>(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
+    {
+        RegisterTableFunctionInternal(name, resultCallback, mapperCallback, typeof(T1), typeof(T2), typeof(T3));
+    }
+
+    [Experimental("DuckDBNET001")]
+    public void RegisterTableFunction<T1, T2, T3, T4>(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
+    {
+        RegisterTableFunctionInternal(name, resultCallback, mapperCallback, typeof(T1), typeof(T2), typeof(T3), typeof(T4));
+    }
+
+    [Experimental("DuckDBNET001")]
+    public void RegisterTableFunction<T1, T2, T3, T4, T5>(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
+    {
+        RegisterTableFunctionInternal(name, resultCallback, mapperCallback, typeof(T1), typeof(T2), typeof(T3), typeof(T4), typeof(T5));
+    }
+
+    [Experimental("DuckDBNET001")]
+    public void RegisterTableFunction<T1, T2, T3, T4, T5, T6>(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
+    {
+        RegisterTableFunctionInternal(name, resultCallback, mapperCallback, typeof(T1), typeof(T2), typeof(T3), typeof(T4), typeof(T5), typeof(T6));
+    }
+
+    [Experimental("DuckDBNET001")]
+    public void RegisterTableFunction<T1, T2, T3, T4, T5, T6, T7>(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
+    {
+        RegisterTableFunctionInternal(name, resultCallback, mapperCallback, typeof(T1), typeof(T2), typeof(T3), typeof(T4), typeof(T5), typeof(T6), typeof(T7));
+    }
+
+    [Experimental("DuckDBNET001")]
+    public void RegisterTableFunction<T1, T2, T3, T4, T5, T6, T7, T8>(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
+    {
+        RegisterTableFunctionInternal(name, resultCallback, mapperCallback, typeof(T1), typeof(T2), typeof(T3), typeof(T4), typeof(T5), typeof(T6), typeof(T7), typeof(T8));
+    }
+
+    [Experimental("DuckDBNET001")]
+    private unsafe void RegisterTableFunctionInternal(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback, params Type[] parameterTypes)
     {
         var function = NativeMethods.TableFunction.DuckDBCreateTableFunction();
-        NativeMethods.TableFunction.DuckDBTableFunctionSetName(function, name.ToUnmanagedString());
-
-        using (var logicalType = DuckDBTypeMap.GetLogicalType<T>())
+        using (var handle = name.ToUnmanagedString())
         {
+            NativeMethods.TableFunction.DuckDBTableFunctionSetName(function, handle);
+        }
+
+        foreach (var type in parameterTypes)
+        {
+            using var logicalType = DuckDBTypeMap.GetLogicalType(type);
             NativeMethods.TableFunction.DuckDBTableFunctionAddParameter(function, logicalType);
         }
 
@@ -69,7 +121,7 @@ partial class DuckDBConnection
 
         foreach (var parameter in parameters)
         {
-            (parameter as IDisposable)?.Dispose();
+            ((DuckDBValue)parameter).Dispose();
         }
 
         foreach (var columnInfo in tableFunctionData.Columns)
