@@ -527,7 +527,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
             }
         }
 
-        var list = Connection.Query<(int id, string name, DateTime date)>("SELECT a, b, c FROM managedAppenderTest2").Select(tuple => new { tuple.id, tuple.name, tuple.date}).ToList();
+        var list = Connection.Query<(int id, string name, DateTime date)>("SELECT a, b, c FROM managedAppenderTest2").Select(tuple => new { tuple.id, tuple.name, tuple.date }).ToList();
 
         list.Should().HaveCount(rows);
         list.Should().BeEquivalentTo(categories);
@@ -576,6 +576,28 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
                 valueIdx++;
             }
         }
+    }
+
+    [Fact]
+    public void ManagedAppenderAppendToAttachedDatabase()
+    {
+        Command.CommandText = "ATTACH 'append_to_other.db'";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "CREATE OR REPLACE TABLE append_to_other.tbl(i INTEGER)";
+        Command.ExecuteNonQuery();
+
+        var appender = Connection.CreateAppender("append_to_other", "main", "tbl");
+        {
+            for (int i = 0; i < 200; i++)
+            {
+                appender.CreateRow().AppendValue((int?)2).EndRow();
+            }
+            appender.Close();
+        }
+
+        var sum = Connection.QuerySingle<int>("SELECT sum(i)::BIGINT FROM append_to_other.main.tbl");
+        sum.Should().Be(400);
     }
 
     private static string GetCreateEnumTypeSql(string enumName, string enumValueNamePrefix, int count)
