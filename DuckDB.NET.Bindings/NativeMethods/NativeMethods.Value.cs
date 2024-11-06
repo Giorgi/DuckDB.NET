@@ -70,6 +70,66 @@ public partial class NativeMethods
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_blob")]
         public static extern DuckDBValue DuckDBCreateBlob([In] byte[] value, long length);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_bool")]
+        public static extern bool DuckDBGetBool(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_int8")]
+        public static extern sbyte DuckDBGetInt8(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_uint8")]
+        public static extern byte DuckDBGetUInt8(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_int16")]
+        public static extern short DuckDBGetInt16(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_uint16")]
+        public static extern ushort DuckDBGetUInt16(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_int32")]
+        public static extern int DuckDBGetInt32(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_uint32")]
+        public static extern uint DuckDBGetUInt32(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_int64")]
+        public static extern long DuckDBGetInt64(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_uint64")]
+        public static extern ulong DuckDBGetUInt64(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_hugeint")]
+        public static extern DuckDBHugeInt DuckDBGetHugeInt(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_uhugeint")]
+        public static extern DuckDBUHugeInt DuckDBGetUHugeInt(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_float")]
+        public static extern float DuckDBGetFloat(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_double")]
+        public static extern double DuckDBGetDouble(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_date")]
+        public static extern unsafe DuckDBDate DuckDBGetDate(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_time")]
+        public static extern unsafe DuckDBTime DuckDBGetTime(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_time_tz")] 
+        public static extern unsafe DuckDBTimeTzStruct DuckDBGetTimeTz(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_timestamp")]
+        public static extern unsafe DuckDBTimestampStruct DuckDBGetTimestamp(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_interval")]
+        public static extern unsafe DuckDBInterval DuckDBGetInterval(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention =  CallingConvention.Cdecl, EntryPoint = "duckdb_get_value_type")]
+        public static extern unsafe DuckDBLogicalType DuckDBGetValueType(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_varchar")]
+        public static extern string DuckDBGetVarchar(DuckDBValue value);
         
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_list_value")]
         public static extern DuckDBValue DuckDBCreateListValue(DuckDBLogicalType logicalType, IntPtr[] values, long count);

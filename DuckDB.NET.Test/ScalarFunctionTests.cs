@@ -22,17 +22,17 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             {
                 var value = 0L;
 
-                if (readers.Length == 0)
+                if (readers.Count == 0)
                 {
                     value = Random.Shared.NextInt64();
                 }
 
-                if (readers.Length == 1)
+                if (readers.Count == 1)
                 {
                     value = Random.Shared.NextInt64(readers[0].GetValue<long>(index));
                 }
 
-                if (readers.Length == 2)
+                if (readers.Count == 2)
                 {
                     value = Random.Shared.NextInt64(readers[0].GetValue<long>(index), readers[1].GetValue<long>(index));
                 }
@@ -64,7 +64,7 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     public void RegisterScalarFunctionWithoutParameters()
     {
         var values = new List<long>();
-        Connection.RegisterScalarFunction<long>("my_random", (readers, writer, rowCount) =>
+        Connection.RegisterScalarFunction<long>("my_random", (_, writer, rowCount) =>
         {
             for (ulong index = 0; index < rowCount; index++)
             {
