@@ -117,4 +117,35 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         var bytes = guid.ToByteArray(false).Append((byte)4);
         data.Should().BeEquivalentTo(bytes);
     }
+
+    [Fact]
+    public void RegisterTableFunctionWithEmptyResult()
+    {
+        Connection.RegisterTableFunction<sbyte, ushort, uint, ulong, float>("demo5", (parameters) =>
+        {
+            var param1 = parameters[0].GetValue<sbyte>();
+            var param2 = parameters[1].GetValue<ushort>();
+            var param3 = parameters[2].GetValue<uint>();
+            var param4 = parameters[3].GetValue<ulong>();
+            var param5 = parameters[4].GetValue<float>();
+
+            param1.Should().Be(1);
+            param2.Should().Be(2);
+            param3.Should().Be(3);
+            param4.Should().Be(4);
+            param5.Should().Be(5.6f);
+
+            return new TableFunction(new List<ColumnInfo>()
+            {
+                new ColumnInfo("foo", typeof(int)),
+            }, Enumerable.Empty<int>());
+        }, (item, writers, rowIndex) =>
+        {
+            writers[0].WriteValue((int)item, rowIndex);
+        });
+
+        var data = Connection.Query<int>($"SELECT * FROM demo5(1::TINYINT, 2::USMALLINT, 3::UINTEGER, 4::UBIGINT, 5.6);").ToList();
+
+        data.Should().BeEquivalentTo(Enumerable.Empty<int>());
+    }
 }
