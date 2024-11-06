@@ -1,6 +1,5 @@
 ﻿using Microsoft.Win32.SafeHandles;
 using System;
-using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Native;
@@ -124,35 +123,35 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
 
         return duckDBType switch
         {
-            DuckDBType.Boolean => ReadValue<bool>(NativeMethods.Value.DuckDBGetBool(this)),
+            DuckDBType.Boolean => Cast(NativeMethods.Value.DuckDBGetBool(this)),
 
-            DuckDBType.TinyInt => ReadValue<sbyte>(NativeMethods.Value.DuckDBGetInt8(this)),
-            DuckDBType.SmallInt => ReadValue<short>(NativeMethods.Value.DuckDBGetInt16(this)),
-            DuckDBType.Integer => ReadValue<int>(NativeMethods.Value.DuckDBGetInt32(this)),
-            DuckDBType.BigInt => ReadValue<long>(NativeMethods.Value.DuckDBGetInt64(this)),
+            DuckDBType.TinyInt => Cast(NativeMethods.Value.DuckDBGetInt8(this)),
+            DuckDBType.SmallInt => Cast(NativeMethods.Value.DuckDBGetInt16(this)),
+            DuckDBType.Integer => Cast(NativeMethods.Value.DuckDBGetInt32(this)),
+            DuckDBType.BigInt => Cast(NativeMethods.Value.DuckDBGetInt64(this)),
 
-            DuckDBType.UnsignedTinyInt => ReadValue<byte>(NativeMethods.Value.DuckDBGetUInt8(this)),
-            DuckDBType.UnsignedSmallInt => ReadValue<ushort>(NativeMethods.Value.DuckDBGetUInt16(this)),
-            DuckDBType.UnsignedInteger => ReadValue<uint>(NativeMethods.Value.DuckDBGetUInt32(this)),
-            DuckDBType.UnsignedBigInt => ReadValue<ulong>(NativeMethods.Value.DuckDBGetUInt64(this)),
+            DuckDBType.UnsignedTinyInt => Cast(NativeMethods.Value.DuckDBGetUInt8(this)),
+            DuckDBType.UnsignedSmallInt => Cast(NativeMethods.Value.DuckDBGetUInt16(this)),
+            DuckDBType.UnsignedInteger => Cast(NativeMethods.Value.DuckDBGetUInt32(this)),
+            DuckDBType.UnsignedBigInt => Cast(NativeMethods.Value.DuckDBGetUInt64(this)),
 
-            DuckDBType.Float => ReadValue<float>(NativeMethods.Value.DuckDBGetFloat(this)),
-            DuckDBType.Double => ReadValue<double>(NativeMethods.Value.DuckDBGetDouble(this)),
+            DuckDBType.Float => Cast(NativeMethods.Value.DuckDBGetFloat(this)),
+            DuckDBType.Double => Cast(NativeMethods.Value.DuckDBGetDouble(this)),
 
-            //DuckDBType.Timestamp => ReadValue<T>(),
-            //DuckDBType.Interval => ReadValue<T>(),
-            //DuckDBType.Date => ReadValue<T>(),
-            //DuckDBType.Time => ReadValue<T>(),
-            //DuckDBType.TimeTz => ReadValue<T>(),
-            //DuckDBType.HugeInt => ReadValue<DuckDBHugeInt>(NativeMethods.Value.DuckDBGetHugeInt(this)),
-            //DuckDBType.UnsignedHugeInt => ReadValue<T>(),
-            DuckDBType.Varchar => ReadValue<string>(NativeMethods.Value.DuckDBGetVarchar(this)),
-            //DuckDBType.Decimal => ReadValue<T>(),
-            //DuckDBType.Uuid => expr,
+            DuckDBType.Varchar => Cast(NativeMethods.Value.DuckDBGetVarchar(this)),
+            DuckDBType.Timestamp => Cast(NativeMethods.DateTimeHelpers.DuckDBFromTimestamp(NativeMethods.Value.DuckDBGetTimestamp(this)).ToDateTime()),
+            //DuckDBType.Decimal => Cast(decimal.Parse(NativeMethods.Value.DuckDBGetVarchar(this))),
+            //DuckDBType.Uuid => Cast(new Guid(NativeMethods.Value.DuckDBGetVarchar(this))),
+            //DuckDBType.TimestampS => expr,
+            //DuckDBType.TimestampMs => expr,
+            //DuckDBType.TimestampNs => expr,
+            //DuckDBType.TimeTz => expr,
+            //DuckDBType.TimestampTz => expr,
+
             _ => throw new NotImplementedException($"Cannot read value of type {typeof(T).FullName}")
         };
 
-        T ReadValue<TSource>(TSource value)
+        T Cast<TSource>(TSource value)
         {
             return Unsafe.As<TSource, T>(ref value);
         }

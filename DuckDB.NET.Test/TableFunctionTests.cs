@@ -33,37 +33,11 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    public void RegisterTableFunctionWithOneParameterTwoColumns()
-    {
-        var count = 3000;
-
-        Connection.RegisterTableFunction<int>("demo2", (parameters) =>
-        {
-            var value = parameters[0].GetValue<int>();
-
-            return new TableFunction(new List<ColumnInfo>()
-            {
-                new ColumnInfo("foo", typeof(int)),
-                new ColumnInfo("bar", typeof(string)),
-            }, Enumerable.Range(0, value));
-        }, (item, writers, rowIndex) =>
-        {
-            writers[0].WriteValue((int)item, rowIndex);
-            writers[1].WriteValue($"string{item}", rowIndex);
-        });
-
-        var data = Connection.Query<(int, string)>($"SELECT * FROM demo2({count});").ToList();
-
-        data.Select(tuple => tuple.Item1).Should().BeEquivalentTo(Enumerable.Range(0, count));
-        data.Select(tuple => tuple.Item2).Should().BeEquivalentTo(Enumerable.Range(0, count).Select(i => $"string{i}"));
-    }
-
-    [Fact]
     public void RegisterTableFunctionWithTwoParameterTwoColumns()
     {
         var count = 50;
 
-        Connection.RegisterTableFunction<short, string>("demo3", (parameters) =>
+        Connection.RegisterTableFunction<short, string>("demo2", (parameters) =>
         {
             var start = parameters[0].GetValue<short>();
             var prefix = parameters[1].GetValue<string>();
@@ -80,9 +54,38 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             writers[1].WriteValue(pair.Value, rowIndex);
         });
 
-        var data = Connection.Query<(int, string)>($"SELECT * FROM demo3(30::SmallInt, 'DuckDB');").ToList();
+        var data = Connection.Query<(int, string)>($"SELECT * FROM demo2(30::SmallInt, 'DuckDB');").ToList();
 
         data.Select(tuple => tuple.Item1).Should().BeEquivalentTo(Enumerable.Range(30, count));
         data.Select(tuple => tuple.Item2).Should().BeEquivalentTo(Enumerable.Range(30, count).Select(i => $"DuckDB{i}"));
+    }
+
+    [Fact]
+    public void RegisterTableFunctionWithThreeParameters()
+    {
+        var count = 30;
+        var startDate = new DateTime(2024, 11, 6);
+        var minutesParam= 10;
+        var secondsParam = 2.5;
+
+        Connection.RegisterTableFunction<DateTime, long, double>("demo3", (parameters) =>
+        {
+            var date = parameters[0].GetValue<DateTime>();
+            var minutes = parameters[1].GetValue<long>();
+            var seconds = parameters[2].GetValue<double>();
+
+            return new TableFunction(new List<ColumnInfo>()
+            {
+                new ColumnInfo("foo", typeof(DateTime)),
+            }, Enumerable.Range(0, count).Select(i => date.AddDays(i).AddMinutes(minutes).AddSeconds(seconds)));
+        }, (item, writers, rowIndex) =>
+        {
+            writers[0].WriteValue((DateTime)item, rowIndex);
+        });
+
+        var data = Connection.Query<DateTime>($"SELECT * FROM demo3('2024-11-06'::TIMESTAMP, 10, 2.5 );").ToList();
+
+        var dateTimes = Enumerable.Range(0, count).Select(i => startDate.AddDays(i).AddMinutes(minutesParam).AddSeconds(secondsParam));
+        data.Select(dateTime => dateTime).Should().BeEquivalentTo(dateTimes);
     }
 }

@@ -110,6 +110,21 @@ public partial class NativeMethods
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_double")]
         public static extern double DuckDBGetDouble(DuckDBValue value);
 
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_date")]
+        public static extern unsafe DuckDBDate DuckDBGetDate(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_time")]
+        public static extern unsafe DuckDBTime DuckDBGetTime(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_time_tz")] 
+        public static extern unsafe DuckDBTimeTzStruct DuckDBGetTimeTz(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_timestamp")]
+        public static extern unsafe DuckDBTimestampStruct DuckDBGetTimestamp(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_interval")]
+        public static extern unsafe DuckDBInterval DuckDBGetInterval(DuckDBValue value);
+
         [DllImport(DuckDbLibrary, CallingConvention =  CallingConvention.Cdecl, EntryPoint = "duckdb_get_value_type")]
         public static extern unsafe DuckDBLogicalType DuckDBGetValueType(DuckDBValue value);
 
