@@ -137,17 +137,24 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
 
             DuckDBType.Float => Cast(NativeMethods.Value.DuckDBGetFloat(this)),
             DuckDBType.Double => Cast(NativeMethods.Value.DuckDBGetDouble(this)),
-
+            
+            DuckDBType.Decimal => Cast(decimal.Parse(NativeMethods.Value.DuckDBGetVarchar(this))),
+            DuckDBType.Uuid => Cast(new Guid(NativeMethods.Value.DuckDBGetVarchar(this))),
+            
+            //DuckDBType.HugeInt => expr,
+            //DuckDBType.UnsignedHugeInt => expr,
+            
             DuckDBType.Varchar => Cast(NativeMethods.Value.DuckDBGetVarchar(this)),
+            
+            //DuckDBType.Date => expr,
+            //DuckDBType.Time => expr,
+            //DuckDBType.TimeTz => expr,
+            //DuckDBType.Interval => expr,
             DuckDBType.Timestamp => Cast(NativeMethods.DateTimeHelpers.DuckDBFromTimestamp(NativeMethods.Value.DuckDBGetTimestamp(this)).ToDateTime()),
-            //DuckDBType.Decimal => Cast(decimal.Parse(NativeMethods.Value.DuckDBGetVarchar(this))),
-            //DuckDBType.Uuid => Cast(new Guid(NativeMethods.Value.DuckDBGetVarchar(this))),
             //DuckDBType.TimestampS => expr,
             //DuckDBType.TimestampMs => expr,
             //DuckDBType.TimestampNs => expr,
-            //DuckDBType.TimeTz => expr,
             //DuckDBType.TimestampTz => expr,
-
             _ => throw new NotImplementedException($"Cannot read value of type {typeof(T).FullName}")
         };
 

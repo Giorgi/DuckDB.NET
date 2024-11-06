@@ -65,7 +65,7 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     {
         var count = 30;
         var startDate = new DateTime(2024, 11, 6);
-        var minutesParam= 10;
+        var minutesParam = 10;
         var secondsParam = 2.5;
 
         Connection.RegisterTableFunction<DateTime, long, double>("demo3", (parameters) =>
@@ -86,6 +86,35 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         var data = Connection.Query<DateTime>($"SELECT * FROM demo3('2024-11-06'::TIMESTAMP, 10, 2.5 );").ToList();
 
         var dateTimes = Enumerable.Range(0, count).Select(i => startDate.AddDays(i).AddMinutes(minutesParam).AddSeconds(secondsParam));
-        data.Select(dateTime => dateTime).Should().BeEquivalentTo(dateTimes);
+        data.Should().BeEquivalentTo(dateTimes);
+    }
+
+    [Fact]
+    public void RegisterTableFunctionWithFourParameters()
+    {
+        var guid = Guid.NewGuid();
+
+        Connection.RegisterTableFunction<bool, decimal, byte, Guid>("demo4", (parameters) =>
+        {
+            var param1 = parameters[0].GetValue<bool>();
+            var param2 = parameters[1].GetValue<decimal>();
+            var param3 = parameters[2].GetValue<byte>();
+            var param4 = parameters[3].GetValue<Guid>();
+            
+            var enumerable = param4.ToByteArray(param1).Append(param3);
+            
+            return new TableFunction(new List<ColumnInfo>()
+            {
+                new ColumnInfo("foo", typeof(byte)),
+            }, enumerable);
+        }, (item, writers, rowIndex) =>
+        {
+            writers[0].WriteValue((byte)item, rowIndex);
+        });
+
+        var data = Connection.Query<byte>($"SELECT * FROM demo4(false, 10::DECIMAL(18, 3), 4::UTINYINT, '{guid}'::UUID );").ToList();
+
+        var bytes = guid.ToByteArray(false).Append((byte)4);
+        data.Should().BeEquivalentTo(bytes);
     }
 }

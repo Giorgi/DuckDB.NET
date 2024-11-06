@@ -49,6 +49,7 @@ internal static class DuckDBTypeMap
         { typeof(ulong), DuckDBType.UnsignedBigInt },
         { typeof(float), DuckDBType.Float },
         { typeof(double), DuckDBType.Double},
+        { typeof(Guid), DuckDBType.Uuid},
         { typeof(DateTime), DuckDBType.Timestamp},
         { typeof(TimeSpan), DuckDBType.Interval},
 #if NET6_0_OR_GREATER
@@ -83,6 +84,11 @@ internal static class DuckDBTypeMap
 
     public static DuckDBLogicalType GetLogicalType(Type type)
     {
+        if (type == typeof(decimal))
+        {
+            return NativeMethods.LogicalType.DuckDBCreateDecimalType(38, 18);
+        }
+
         if (ClrToDuckDBTypeMap.TryGetValue(type, out var duckDBType))
         {
             return NativeMethods.LogicalType.DuckDBCreateLogicalType(duckDBType);
