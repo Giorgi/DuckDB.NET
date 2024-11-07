@@ -110,13 +110,7 @@ internal sealed class PreparedStatement : IDisposable
 
     private static void BindParameter(DuckDBPreparedStatement preparedStatement, long index, DuckDBParameter parameter)
     {
-        if (parameter.Value.IsNull())
-        {
-            NativeMethods.PreparedStatements.DuckDBBindNull(preparedStatement, index);
-            return;
-        }
-
-        using var duckDBValue = parameter.Value!.ToDuckDBValue();
+        using var duckDBValue = parameter.Value.ToDuckDBValue();
 
         var result = NativeMethods.PreparedStatements.DuckDBBindValue(preparedStatement, index, duckDBValue);
 
