@@ -11,6 +11,9 @@ public partial class NativeMethods
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_logical_type")]
         public static extern DuckDBLogicalType DuckDBCreateLogicalType(DuckDBType type);
 
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_decimal_type")]
+        public static extern DuckDBLogicalType DuckDBCreateDecimalType(byte width, byte scale);
+
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_type_id")]
         public static extern DuckDBType DuckDBGetTypeId(DuckDBLogicalType type);
 

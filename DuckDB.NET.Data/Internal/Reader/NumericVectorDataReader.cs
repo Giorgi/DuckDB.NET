@@ -242,21 +242,60 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
     }
 
     private TResult GetUnmanagedTypeValue<TQuery, TResult>(ulong offset) where TQuery : unmanaged
+#if NET8_0_OR_GREATER
+        , INumberBase<TQuery> 
+#endif
     {
+        var resultType = typeof(TResult);
         var value = GetFieldData<TQuery>(offset);
 
-        if (typeof(TQuery) == typeof(TResult))
+        if (typeof(TQuery) == resultType)
         {
             return Unsafe.As<TQuery, TResult>(ref value);
         }
 
         try
         {
-            return (TResult)Convert.ChangeType(value, typeof(TResult));
+#if NET8_0_OR_GREATER
+            if (resultType == typeof(byte))
+            {
+                return (TResult)(object)byte.CreateChecked(value);
+            }
+            if (resultType == typeof(sbyte))
+            {
+                return (TResult)(object)sbyte.CreateChecked(value);
+            }
+            if (resultType == typeof(short))
+            {
+                return (TResult)(object)short.CreateChecked(value);
+            }
+            if (resultType == typeof(ushort))
+            {
+                return (TResult)(object)ushort.CreateChecked(value);
+            }
+            if (resultType == typeof(int))
+            {
+                return (TResult)(object)int.CreateChecked(value);
+            }
+            if (resultType == typeof(uint))
+            {
+                return (TResult)(object)uint.CreateChecked(value);
+            }
+            if (resultType == typeof(long))
+            {
+                return (TResult)(object)long.CreateChecked(value);
+            }
+            if (resultType == typeof(ulong))
+            {
+                return (TResult)(object)ulong.CreateChecked(value);
+            }
+#endif
+
+            return (TResult)Convert.ChangeType(value, resultType);
         }
         catch (OverflowException)
         {
-            throw new InvalidCastException($"Cannot cast from {value.GetType().Name} to {typeof(TResult).Name} in column {ColumnName}");
+            throw new InvalidCastException($"Cannot cast from {value.GetType().Name} to {resultType.Name} in column {ColumnName}");
         }
     }
 }

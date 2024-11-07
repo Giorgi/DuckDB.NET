@@ -1,9 +1,9 @@
-using DuckDB.NET.Data.Extensions;
-using DuckDB.NET.Native;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Numerics;
+using DuckDB.NET.Data.Extensions;
+using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Internal;
 
@@ -49,6 +49,7 @@ internal static class DuckDBTypeMap
         { typeof(ulong), DuckDBType.UnsignedBigInt },
         { typeof(float), DuckDBType.Float },
         { typeof(double), DuckDBType.Double},
+        { typeof(Guid), DuckDBType.Uuid},
         { typeof(DateTime), DuckDBType.Timestamp},
         { typeof(TimeSpan), DuckDBType.Interval},
 #if NET6_0_OR_GREATER
@@ -60,7 +61,6 @@ internal static class DuckDBTypeMap
         { typeof(string), DuckDBType.Varchar},
         { typeof(decimal), DuckDBType.Decimal},
         { typeof(object), DuckDBType.Any},
-
     };
 
     public static DbType GetDbTypeForValue(object? value)
@@ -76,16 +76,24 @@ internal static class DuckDBTypeMap
         {
             return dbType;
         }
-        throw new InvalidOperationException($"Values of type {type.FullName} are not supported.");
+
+        return DbType.Object;
     }
 
-    public static DuckDBLogicalType GetLogicalType<T>()
+    public static DuckDBLogicalType GetLogicalType<T>() => GetLogicalType(typeof(T));
+
+    public static DuckDBLogicalType GetLogicalType(Type type)
     {
-        if (ClrToDuckDBTypeMap.TryGetValue(typeof(T), out var duckDBType))
+        if (type == typeof(decimal))
+        {
+            return NativeMethods.LogicalType.DuckDBCreateDecimalType(38, 18);
+        }
+
+        if (ClrToDuckDBTypeMap.TryGetValue(type, out var duckDBType))
         {
             return NativeMethods.LogicalType.DuckDBCreateLogicalType(duckDBType);
         }
 
-        throw new InvalidOperationException($"Cannot map type {typeof(T).FullName} to DuckDBType.");
+        throw new InvalidOperationException($"Cannot map type {type.FullName} to DuckDBType.");
     }
 }
