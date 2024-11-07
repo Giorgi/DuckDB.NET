@@ -148,4 +148,25 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
         data.Should().BeEquivalentTo(Enumerable.Empty<int>());
     }
+
+    [Fact]
+    public void RegisterTableFunctionWithNullParameter()
+    {
+        Connection.RegisterTableFunction<int>("demo6", (parameters) =>
+        {
+            parameters[0].IsNull().Should().BeTrue();
+
+            return new TableFunction(new List<ColumnInfo>()
+            {
+                new("foo", typeof(int)),
+            }, Enumerable.Empty<int>());
+        }, (item, writers, rowIndex) =>
+        {
+            writers[0].WriteValue((int)item, rowIndex);
+        });
+
+        var data = Connection.Query<int>($"SELECT * FROM demo6(NULL::INTEGER);").ToList();
+
+        data.Should().BeEquivalentTo(Enumerable.Empty<int>());
+    }
 }

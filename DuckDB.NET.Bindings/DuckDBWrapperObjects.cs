@@ -110,6 +110,8 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
         childValues = values;
     }
 
+    public bool IsNull() => NativeMethods.Value.DuckDBIsNullValue(this);
+
     public T GetValue<T>()
     {
         var logicalType = NativeMethods.Value.DuckDBGetValueType(this);

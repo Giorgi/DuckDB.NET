@@ -137,6 +137,9 @@ public partial class NativeMethods
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_null_value")]
         public static extern DuckDBValue DuckDBCreateNullValue();
 
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_is_null_value")]
+        public static extern bool DuckDBIsNullValue(DuckDBValue value);
+
         public static DuckDBValue DuckDBCreateListValue(DuckDBLogicalType logicalType, DuckDBValue[] values, int count)
         {
             var duckDBValue = DuckDBCreateListValue(logicalType, values.Select(item => item.DangerousGetHandle()).ToArray(), count);
