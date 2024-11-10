@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using DuckDB.NET.Native;
 
@@ -23,7 +24,11 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
 
     internal byte Precision { get; }
 
+#if NET8_0_OR_GREATER
+    protected override T GetValidValue<T>(ulong offset, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)] Type targetType)
+#else
     protected override T GetValidValue<T>(ulong offset, Type targetType)
+#endif
     {
         if (DuckDBType != DuckDBType.Decimal)
         {
@@ -34,7 +39,11 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
         return (T)(object)value; //JIT will optimize the casts at least for not nullable T
     }
 
+#if NET8_0_OR_GREATER
+    internal override object GetValue(ulong offset, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)] Type targetType)
+#else
     internal override object GetValue(ulong offset, Type targetType)
+#endif
     {
         if (DuckDBType != DuckDBType.Decimal)
         {

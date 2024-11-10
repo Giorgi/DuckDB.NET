@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using DuckDB.NET.Data.Internal.Reader;
 using DuckDB.NET.Native;
@@ -198,7 +199,11 @@ public class DuckDBDataReader : DbDataReader
         return GetFieldValue<string>(ordinal);
     }
 
-    public override T GetFieldValue<T>(int ordinal)
+#if NET8_0_OR_GREATER
+    public override T GetFieldValue<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)] T>(int ordinal)
+#else
+    public override T GetFieldValue<T>(int ordinal) 
+#endif
     {
         CheckRowRead();
 

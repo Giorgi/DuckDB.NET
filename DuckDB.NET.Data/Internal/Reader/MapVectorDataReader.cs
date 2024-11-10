@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using DuckDB.NET.Data.Extensions;
 using DuckDB.NET.Native;
@@ -37,7 +38,11 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
         return typeof(Dictionary<,>).MakeGenericType(keyReader.ProviderSpecificClrType, valueReader.ProviderSpecificClrType);
     }
 
+#if NET8_0_OR_GREATER
+    internal override unsafe object GetValue(ulong offset, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)] Type targetType)
+#else
     internal override unsafe object GetValue(ulong offset, Type targetType)
+#endif
     {
         if (DuckDBType != DuckDBType.Map)
         {

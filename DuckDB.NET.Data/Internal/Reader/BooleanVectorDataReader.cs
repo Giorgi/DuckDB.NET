@@ -1,6 +1,7 @@
 ﻿using DuckDB.NET.Data.Extensions;
 using System;
 using DuckDB.NET.Native;
+using System.Diagnostics.CodeAnalysis;
 
 namespace DuckDB.NET.Data.Internal.Reader;
 
@@ -10,7 +11,11 @@ internal sealed class BooleanVectorDataReader : VectorDataReaderBase
     {
     }
 
-    protected override T GetValidValue<T>(ulong offset, Type targetType)
+#if NET8_0_OR_GREATER
+    protected override T GetValidValue<T>(ulong offset, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)] Type targetType)
+#else
+    protected override T GetValidValue<T>(ulong offset, Type targetType) 
+#endif
     {
         if (DuckDBType != DuckDBType.Boolean)
         {
@@ -21,7 +26,11 @@ internal sealed class BooleanVectorDataReader : VectorDataReaderBase
         return (T)(object)value; //JIT will optimize the casts at least for not nullable T
     }
 
+#if NET8_0_OR_GREATER
+    internal override object GetValue(ulong offset, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)] Type targetType)
+#else
     internal override object GetValue(ulong offset, Type targetType)
+#endif
     {
         if (DuckDBType != DuckDBType.Boolean)
         {

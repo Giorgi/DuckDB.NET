@@ -1,6 +1,7 @@
 ﻿using DuckDB.NET.Native;
 using System;
 using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
 
@@ -12,7 +13,11 @@ internal sealed class StringVectorDataReader : VectorDataReaderBase
     {
     }
 
+#if NET8_0_OR_GREATER
+    protected override T GetValidValue<T>(ulong offset, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)] Type targetType)
+#else
     protected override T GetValidValue<T>(ulong offset, Type targetType)
+#endif
     {
         return DuckDBType switch
         {
@@ -23,7 +28,11 @@ internal sealed class StringVectorDataReader : VectorDataReaderBase
         };
     }
 
+#if NET8_0_OR_GREATER
+    internal override object GetValue(ulong offset, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)] Type targetType)
+#else
     internal override object GetValue(ulong offset, Type targetType)
+#endif
     {
         return DuckDBType switch
         {

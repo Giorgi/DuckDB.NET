@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using DuckDB.NET.Data.Extensions;
 using DuckDB.NET.Native;
 
@@ -11,7 +12,11 @@ internal sealed class GuidVectorDataReader : VectorDataReaderBase
     {
     }
 
+#if NET8_0_OR_GREATER
+    protected override T GetValidValue<T>(ulong offset, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)] Type targetType)
+#else
     protected override T GetValidValue<T>(ulong offset, Type targetType)
+#endif
     {
         if (DuckDBType != DuckDBType.Uuid)
         {
@@ -24,7 +29,11 @@ internal sealed class GuidVectorDataReader : VectorDataReaderBase
         return (T)(object)guid;
     }
 
+#if NET8_0_OR_GREATER
+    internal override object GetValue(ulong offset, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)] Type targetType)
+#else
     internal override object GetValue(ulong offset, Type targetType)
+#endif
     {
         if (DuckDBType != DuckDBType.Uuid)
         {

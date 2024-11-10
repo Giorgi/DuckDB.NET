@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using DuckDB.NET.Data.Extensions;
@@ -15,7 +16,11 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
     {
     }
 
+#if NET8_0_OR_GREATER
+    protected override T GetValidValue<T>(ulong offset, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)] Type targetType)
+#else
     protected override T GetValidValue<T>(ulong offset, Type targetType)
+#endif
     {
         var isFloatingNumericType = TypeExtensions.IsFloatingNumericType<T>();
         var isIntegralNumericType = TypeExtensions.IsIntegralNumericType<T>();
@@ -55,7 +60,11 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
         };
     }
 
+#if NET8_0_OR_GREATER
+    internal override object GetValue(ulong offset, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)] Type targetType)
+#else
     internal override object GetValue(ulong offset, Type targetType)
+#endif
     {
         var value = DuckDBType switch
         {

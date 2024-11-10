@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using DuckDB.NET.Native;
@@ -16,7 +17,11 @@ internal sealed class EnumVectorDataReader : VectorDataReaderBase
         enumType = NativeMethods.LogicalType.DuckDBEnumInternalType(logicalType);
     }
 
+#if NET8_0_OR_GREATER
+    protected override T GetValidValue<T>(ulong offset, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)] Type targetType)
+#else
     protected override T GetValidValue<T>(ulong offset, Type targetType)
+#endif
     {
         if (DuckDBType != DuckDBType.Enum)
         {
@@ -55,7 +60,11 @@ internal sealed class EnumVectorDataReader : VectorDataReaderBase
         }
     }
 
+#if NET8_0_OR_GREATER
+    internal override object GetValue(ulong offset, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)] Type targetType)
+#else
     internal override object GetValue(ulong offset, Type targetType)
+#endif
     {
         if (DuckDBType == DuckDBType.Enum)
         {

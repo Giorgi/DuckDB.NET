@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using DuckDB.NET.Data.Extensions;
 using DuckDB.NET.Native;
 
@@ -34,7 +35,11 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
         return typeof(List<>).MakeGenericType(listDataReader.ProviderSpecificClrType);
     }
 
+#if NET8_0_OR_GREATER
+    internal override unsafe object GetValue(ulong offset, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)] Type targetType)
+#else
     internal override unsafe object GetValue(ulong offset, Type targetType)
+#endif
     {
         switch (DuckDBType)
         {

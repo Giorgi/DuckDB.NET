@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using DuckDB.NET.Data.Extensions;
 using DuckDB.NET.Native;
@@ -22,13 +23,17 @@ internal sealed class StructVectorDataReader : VectorDataReaderBase
         {
             var name = NativeMethods.LogicalType.DuckDBStructTypeChildName(logicalType, index).ToManagedString();
             var childVector = NativeMethods.Vectors.DuckDBStructVectorGetChild(vector, index);
-            
+
             using var childType = NativeMethods.LogicalType.DuckDBStructTypeChildType(logicalType, index);
             structDataReaders[name] = VectorDataReaderFactory.CreateReader(childVector, childType, columnName);
         }
     }
 
+#if NET8_0_OR_GREATER
+    internal override object GetValue(ulong offset, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)] Type targetType)
+#else
     internal override object GetValue(ulong offset, Type targetType)
+#endif
     {
         if (DuckDBType == DuckDBType.Struct)
         {
@@ -38,7 +43,11 @@ internal sealed class StructVectorDataReader : VectorDataReaderBase
         return base.GetValue(offset, targetType);
     }
 
-    private object GetStruct(ulong offset, Type returnType)
+#if NET8_0_OR_GREATER
+    private object GetStruct(ulong offset, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)] Type returnType)
+#else
+    private object GetStruct(ulong offset, Type returnType) 
+#endif
     {
         var result = Activator.CreateInstance(returnType);
 

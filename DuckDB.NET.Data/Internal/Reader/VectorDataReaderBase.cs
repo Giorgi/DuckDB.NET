@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Numerics;
 using DuckDB.NET.Data.Extensions;
@@ -54,7 +55,11 @@ internal class VectorDataReaderBase : IDisposable
         return isValid;
     }
 
-    public virtual T GetValue<T>(ulong offset)
+#if NET8_0_OR_GREATER
+    public virtual T GetValue<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)] T>(ulong offset)
+#else
+    public virtual T GetValue<T>(ulong offset) 
+#endif
     {
         var (isNullableValueType, targetType) = TypeExtensions.IsNullableValueType<T>();
 
@@ -85,7 +90,11 @@ internal class VectorDataReaderBase : IDisposable
     /// <param name="offset">Position to read the data from</param>
     /// <param name="targetType">Type of the return value</param>
     /// <returns>Data at the specified offset</returns>
-    protected virtual T GetValidValue<T>(ulong offset, Type targetType)
+#if NET8_0_OR_GREATER
+    protected virtual T GetValidValue<T>(ulong offset, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)] Type targetType)
+#else
+    protected virtual T GetValidValue<T>(ulong offset, Type targetType) 
+#endif
     {
         return (T)GetValue(offset, targetType);
     }
@@ -95,7 +104,11 @@ internal class VectorDataReaderBase : IDisposable
         return GetValue(offset, ClrType);
     }
 
+#if NET8_0_OR_GREATER
+    internal virtual object GetValue(ulong offset, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)] Type targetType)
+#else
     internal virtual object GetValue(ulong offset, Type targetType)
+#endif
     {
         return DuckDBType switch
         {
