@@ -19,7 +19,7 @@ Updated to DuckDB v1.1.3
     <Description>$(Description) $(NoNativeText)</Description>
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(BuildType)' == 'Full'">
     <PackageReference Include="GitVersion.MsBuild" Version="5.11.1" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
