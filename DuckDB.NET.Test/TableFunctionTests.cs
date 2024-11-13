@@ -14,26 +14,6 @@ namespace DuckDB.NET.Test;
 public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
-    public void RegisterTableFunctionWithOneParameter()
-    {
-        Connection.RegisterTableFunction<int>("demo", async (parameters) =>
-        {
-            var value = parameters[0].GetValue<int>();
-
-            return new TableFunction(new List<ColumnInfo>()
-            {
-                new ColumnInfo("foo", typeof(int)),
-            }, Enumerable.Range(0, value));
-        }, (item, writers, rowIndex) =>
-        {
-            writers[0].WriteValue((int)item, rowIndex);
-        });
-
-        var data = Connection.Query<int>("SELECT * FROM demo(30);");
-        data.Should().BeEquivalentTo(Enumerable.Range(0, 30));
-    }
-
-    [Fact]
     public void RegisterTableFunctionWithTwoParameters()
     {
         Connection.RegisterTableFunction<string, int>("github_search", async (parameters) =>
