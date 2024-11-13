@@ -42,7 +42,7 @@ Updated to DuckDB v1.1.3
       <Link>runtimes\%(RecursiveDir)\%(FileName)%(Extension)</Link>
     </None>
   </ItemGroup>
-  <ItemGroup Condition="'$(BuildType)' == 'Full'">
+  <ItemGroup Condition="'$(CI)' == 'true'">
     <PackageReference Include="GitVersion.MsBuild" Version="5.11.1" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
