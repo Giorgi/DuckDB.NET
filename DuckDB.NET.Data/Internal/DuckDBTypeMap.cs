@@ -56,7 +56,7 @@ internal static class DuckDBTypeMap
         { typeof(DateOnly), DuckDBType.Date},
         { typeof(TimeOnly), DuckDBType.Time},
 #endif
-        { typeof(DateTimeOffset), DuckDBType.TimeTz},
+        { typeof(DateTimeOffset), DuckDBType.TimestampTz},
         { typeof(BigInteger), DuckDBType.HugeInt},
         { typeof(string), DuckDBType.Varchar},
         { typeof(decimal), DuckDBType.Decimal},
