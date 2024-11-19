@@ -95,5 +95,8 @@ public partial class NativeMethods
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_execute_prepared_streaming")]
         public static extern DuckDBState DuckDBExecutePreparedStreaming(DuckDBPreparedStatement preparedStatement, out DuckDBResult result);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_param_logical_type")]
+        public static extern DuckDBLogicalType DuckDBParamLogicalType(DuckDBPreparedStatement preparedStatement, long index);
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Reflection;
 
@@ -7,21 +8,18 @@ namespace DuckDB.NET.Data.Extensions;
 
 internal static class TypeExtensions
 {
-    private static readonly HashSet<Type> FloatingNumericTypes = new()
-    {
-        typeof(decimal), typeof(float), typeof(double)
-    };
+    private static readonly HashSet<Type> FloatingNumericTypes = [typeof(decimal), typeof(float), typeof(double)];
 
-    private static readonly HashSet<Type> IntegralNumericTypes = new()
-    {
+    private static readonly HashSet<Type> IntegralNumericTypes =
+    [
         typeof(byte), typeof(sbyte),
         typeof(short), typeof(ushort),
         typeof(int), typeof(uint),
-        typeof(long),typeof(ulong),
+        typeof(long), typeof(ulong),
         typeof(BigInteger)
-    };
+    ];
 
-    public static bool IsNull(this object? value) => value is null or DBNull;
+    public static bool IsNull([NotNullWhen(false)] this object? value) => value is null or DBNull;
 
     public static (bool isNullableValueType, Type type) IsNullableValueType<T>()
     {

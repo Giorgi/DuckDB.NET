@@ -11,9 +11,9 @@ namespace DuckDB.NET.Test.Parameters;
 
 public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
-    private void TestBind<TValue>(TValue expectedValue, DuckDBParameter parameter, Func<DuckDBDataReader, TValue> getValue)
+    private void TestBind<TValue>(string duckDbType, TValue expectedValue, DuckDBParameter parameter, Func<DuckDBDataReader, TValue> getValue)
     {
-        Command.CommandText = "SELECT ?;";
+        Command.CommandText = $"SELECT ?::{duckDbType};";
         Command.Parameters.Add(parameter);
 
         var scalar = Command.ExecuteScalar();
@@ -86,7 +86,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     public void ByteTest(byte value)
     {
         TestSimple<byte>("UTINYINT", value, r => r.GetByte(0));
-        TestBind(value, new DuckDBParameter(value), r => r.GetByte(0));
+        TestBind("UTINYINT", value, new DuckDBParameter(value), r => r.GetByte(0));
     }
 
     [Theory]
@@ -96,7 +96,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     public void SByteTest(sbyte value)
     {
         TestSimple<sbyte>("TINYINT", value, r => r.GetFieldValue<sbyte>(0));
-        TestBind(value, new DuckDBParameter(value), r => r.GetFieldValue<sbyte>(0));
+        TestBind("TINYINT", value, new DuckDBParameter(value), r => r.GetFieldValue<sbyte>(0));
     }
 
     [Theory]
@@ -106,7 +106,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     public void UInt16Test(ushort value)
     {
         TestSimple<ushort>("USMALLINT", value, r => r.GetFieldValue<ushort>(0));
-        TestBind(value, new DuckDBParameter(value), r => r.GetFieldValue<ushort>(0));
+        TestBind("USMALLINT", value, new DuckDBParameter(value), r => r.GetFieldValue<ushort>(0));
     }
 
     [Theory]
@@ -116,7 +116,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     public void Int16Test(short value)
     {
         TestSimple<short>("SMALLINT", value, r => r.GetInt16(0));
-        TestBind(value, new DuckDBParameter(value), r => r.GetInt16(0));
+        TestBind("SMALLINT", value, new DuckDBParameter(value), r => r.GetInt16(0));
     }
 
     [Theory]
@@ -126,7 +126,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     public void UInt32Test(uint value)
     {
         TestSimple<uint>("UINTEGER", value, r => r.GetFieldValue<uint>(0));
-        TestBind(value, new DuckDBParameter(value), r => r.GetFieldValue<uint>(0));
+        TestBind("UINTEGER", value, new DuckDBParameter(value), r => r.GetFieldValue<uint>(0));
     }
 
     [Theory]
@@ -136,7 +136,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     public void Int32Test(int value)
     {
         TestSimple<int>("INTEGER", value, r => r.GetInt32(0));
-        TestBind(value, new DuckDBParameter(value), r => r.GetInt32(0));
+        TestBind("INTEGER", value, new DuckDBParameter(value), r => r.GetInt32(0));
 
         TestSimple<int>("INTEGER", value, r => r.GetFieldValue<int?>(0));
     }
@@ -148,7 +148,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     public void UInt64Test(ulong value)
     {
         TestSimple<ulong>("UBIGINT", value, r => r.GetFieldValue<ulong>(0));
-        TestBind(value, new DuckDBParameter(value), r => r.GetFieldValue<ulong>(0));
+        TestBind("UBIGINT", value, new DuckDBParameter(value), r => r.GetFieldValue<ulong>(0));
 
         TestSimple("UBIGINT", value, r => r.GetFieldValue<ulong?>(0));
     }
@@ -160,7 +160,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     public void Int64Test(long value)
     {
         TestSimple<long>("BIGINT", value, r => r.GetInt64(0));
-        TestBind(value, new DuckDBParameter(value), r => r.GetInt64(0));
+        TestBind("BIGINT", value, new DuckDBParameter(value), r => r.GetInt64(0));
 
         TestSimple("BIGINT", value, r => r.GetFieldValue<long?>(0));
     }

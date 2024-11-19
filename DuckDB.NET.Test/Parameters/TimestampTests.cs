@@ -48,7 +48,7 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     {
         var expectedValue = new DateTime(year, mon, day, hour, minute, second).AddTicks(microsecond * 10);
 
-        Command.CommandText = "SELECT ?;";
+        Command.CommandText = "SELECT ?::TimeStamp;";
         Command.Parameters.Add(new DuckDBParameter(expectedValue));
 
         var scalar = Command.ExecuteScalar();

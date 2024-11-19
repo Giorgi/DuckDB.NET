@@ -40,7 +40,7 @@ public class DuckDBClientFactoryTests
             
         connection.ConnectionString = connectionStringBuilder.ConnectionString;
 
-        command.CommandText = "Select ?";
+        command.CommandText = "Select ?::integer";
         command.Connection = connection;
         parameter.Value = 42;
         command.Parameters.Add(parameter);

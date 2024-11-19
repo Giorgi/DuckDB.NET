@@ -154,4 +154,64 @@ internal static class ClrToDuckDBConverter
 
         return NativeMethods.Value.DuckDBCreateListValue(listItemType, values, collection.Count);
     }
+
+    public static DuckDBValue ToDuckDBValue(this object? item, DuckDBLogicalType logicalType)
+    {
+        if (item.IsNull())
+        {
+            return NativeMethods.Value.DuckDBCreateNullValue();
+        }
+
+        var duckDBType = NativeMethods.LogicalType.DuckDBGetTypeId(logicalType);
+
+        return (duckDBType, item) switch
+        {
+            (DuckDBType.Boolean, bool value) => NativeMethods.Value.DuckDBCreateBool(value),
+
+            (DuckDBType.TinyInt, _) => NativeMethods.Value.DuckDBCreateInt8(ConvertTo<sbyte>()),
+            (DuckDBType.SmallInt, _) => NativeMethods.Value.DuckDBCreateInt16(ConvertTo<short>()),
+            (DuckDBType.Integer, _) => NativeMethods.Value.DuckDBCreateInt32(ConvertTo<int>()),
+            (DuckDBType.BigInt, _) => NativeMethods.Value.DuckDBCreateInt64(ConvertTo<long>()),
+
+            (DuckDBType.UnsignedTinyInt, _) => NativeMethods.Value.DuckDBCreateUInt8(ConvertTo<byte>()),
+            (DuckDBType.UnsignedSmallInt, _) => NativeMethods.Value.DuckDBCreateUInt16(ConvertTo<ushort>()),
+            (DuckDBType.UnsignedInteger, _) => NativeMethods.Value.DuckDBCreateUInt32(ConvertTo<uint>()),
+            (DuckDBType.UnsignedBigInt, _) => NativeMethods.Value.DuckDBCreateUInt64(ConvertTo<ulong>()),
+
+            (DuckDBType.Float, float value) => NativeMethods.Value.DuckDBCreateFloat(value),
+            (DuckDBType.Double, double value) => NativeMethods.Value.DuckDBCreateDouble(value),
+
+            (DuckDBType.Decimal, decimal value) => DecimalToDuckDBValue(value),
+            (DuckDBType.HugeInt, BigInteger value) => NativeMethods.Value.DuckDBCreateHugeInt(new DuckDBHugeInt(value)),
+
+            (DuckDBType.Varchar, string value) => StringToDuckDBValue(value),
+            (DuckDBType.Uuid, Guid value) => GuidToDuckDBValue(value),
+
+            (DuckDBType.Timestamp, DateTime value) => NativeMethods.Value.DuckDBCreateTimestamp(NativeMethods.DateTimeHelpers.DuckDBToTimestamp(DuckDBTimestamp.FromDateTime(value))),
+            (DuckDBType.Interval, TimeSpan value) => NativeMethods.Value.DuckDBCreateInterval(value),
+            (DuckDBType.Date, DuckDBDateOnly value) => NativeMethods.Value.DuckDBCreateDate(NativeMethods.DateTimeHelpers.DuckDBToDate(value)),
+            (DuckDBType.Time, DuckDBTimeOnly value) => NativeMethods.Value.DuckDBCreateTime(NativeMethods.DateTimeHelpers.DuckDBToTime(value)),
+#if NET6_0_OR_GREATER
+            (DuckDBType.Date, DateOnly value) => NativeMethods.Value.DuckDBCreateDate(NativeMethods.DateTimeHelpers.DuckDBToDate(value)),
+            (DuckDBType.Time, TimeOnly value) => NativeMethods.Value.DuckDBCreateTime(NativeMethods.DateTimeHelpers.DuckDBToTime(value)),
+#endif
+            (DuckDBType.TimeTz, DateTimeOffset value) => DateTimeOffsetToDuckDBValue(value),
+            (DuckDBType.Blob, byte[] value) => NativeMethods.Value.DuckDBCreateBlob(value, value.Length),
+            (DuckDBType.List, ICollection value) => CreateCollectionValue(value),
+            (DuckDBType.Array, ICollection value) => CreateCollectionValue(value),
+            _ => throw new InvalidOperationException($"Cannot bind parameter type {item.GetType().FullName} to column of type {duckDBType}")
+        };
+
+        T ConvertTo<T>()
+        {
+            try
+            {
+                return (T)Convert.ChangeType(item, typeof(T));
+            }
+            catch (Exception)
+            {
+                throw new ArgumentOutOfRangeException($"Cannot bind parameter type {item.GetType().FullName} to column of type {duckDBType}");
+            }
+        }
+    }
 }

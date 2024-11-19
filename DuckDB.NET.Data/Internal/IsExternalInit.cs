@@ -25,6 +25,14 @@ namespace System.Diagnostics
 namespace System.Diagnostics.CodeAnalysis
 {
     [AttributeUsage(AttributeTargets.Method)]
-    class DoesNotReturnAttribute: Attribute { }
+    class DoesNotReturnAttribute : Attribute { }
+
+    [AttributeUsage(AttributeTargets.Parameter, Inherited = false)]
+    class NotNullWhenAttribute : Attribute
+    {
+        public NotNullWhenAttribute(bool returnValue) => ReturnValue = returnValue;
+
+        public bool ReturnValue { get; }
+    }
 }
 #endif

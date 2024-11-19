@@ -12,9 +12,9 @@ namespace DuckDB.NET.Test.Parameters;
 public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Theory]
-    [InlineData("SELECT ?1;")]
-    [InlineData("SELECT ?;")]
-    [InlineData("SELECT $1;")]
+    [InlineData("SELECT ?1::INT;")]
+    [InlineData("SELECT ?::INT;")]
+    [InlineData("SELECT $1::INT;")]
     public void BindSingleValueTest(string query)
     {
         Command.Parameters.Add(new DuckDBParameter("1", 42));
@@ -65,7 +65,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
         Command.CommandText = "CREATE TABLE ParameterConstructorTests (key INTEGER, value double, State Boolean, ErrorCode Long, value2 float)";
         Command.ExecuteNonQuery();
 
-        Command.CommandText = "Insert Into ParameterConstructorTests values (?,?,?,?,?)";
+        Command.CommandText = "Insert Into ParameterConstructorTests values (?::INT,?::double,?::Boolean,?::BIGINT,?::float)";
         Command.Parameters.Add(new DuckDBParameter(DbType.Double, 2.4));
         Command.Parameters.Add(new DuckDBParameter(true));
         Command.Parameters.Insert(0, new DuckDBParameter(2));
@@ -159,10 +159,10 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Theory]
-    [InlineData("INSERT INTO ParametersTestInvalidOrderKeyValue (KEY, VALUE) VALUES (?2, ?1)")]
-    [InlineData("INSERT INTO ParametersTestInvalidOrderKeyValue (KEY, VALUE) VALUES ($2, $1)")]
-    [InlineData("UPDATE ParametersTestInvalidOrderKeyValue SET Key = ?2, Value = ?1;")]
-    [InlineData("UPDATE ParametersTestInvalidOrderKeyValue SET Key = $2, Value = $1;")]
+    [InlineData("INSERT INTO ParametersTestInvalidOrderKeyValue (KEY, VALUE) VALUES (?2::VARCHAR, ?1::INT)")]
+    [InlineData("INSERT INTO ParametersTestInvalidOrderKeyValue (KEY, VALUE) VALUES ($2::VARCHAR, $1::INT)")]
+    [InlineData("UPDATE ParametersTestInvalidOrderKeyValue SET Key = ?2::INT, Value = ?1::VARCHAR;")]
+    [InlineData("UPDATE ParametersTestInvalidOrderKeyValue SET Key = $2::INT, Value = $1::VARCHAR;")]
     public void BindMultipleValuesInvalidOrderTest(string queryStatement)
     {
         using var defer = new Defer(() => Connection.Execute("DROP TABLE ParametersTestInvalidOrderKeyValue;"));
@@ -175,14 +175,12 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
         Command.CommandText = queryStatement;
         Command.Parameters.Add(new DuckDBParameter("param1", 42));
         Command.Parameters.Add(new DuckDBParameter("param2", "hello"));
-        Command.Invoking(cmd => cmd.ExecuteNonQuery())
-            .Should().ThrowExactly<DuckDBException>();
+        Command.Invoking(cmd => cmd.ExecuteNonQuery()).Should().ThrowExactly<DuckDBException>();
 
         Command.Parameters.Clear();
         Command.Parameters.Add(new DuckDBParameter(42));
         Command.Parameters.Add(new DuckDBParameter("hello"));
-        Command.Invoking(cmd => cmd.ExecuteNonQuery())
-            .Should().ThrowExactly<DuckDBException>();
+        Command.Invoking(cmd => cmd.ExecuteNonQuery()).Should().ThrowExactly<InvalidOperationException>();
     }
 
     [Theory]
@@ -282,7 +280,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     [Fact]
     public void BindUnreferencedNamedParameterTest()
     {
-        Command.CommandText = "SELECT $used";
+        Command.CommandText = "SELECT $used::INT";
         Command.Parameters.Add(new DuckDBParameter("unused", 24));
         Command.Parameters.Add(new DuckDBParameter("used", 42));
         var scalar = Command.ExecuteScalar();
@@ -301,14 +299,14 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     [Fact]
     public void BindUnicodeParameterTest()
     {
-        Command.CommandText = "SELECT $数字";
+        Command.CommandText = "SELECT $数字::INT";
         Command.Parameters.Add(new DuckDBParameter("数字",42));
         Command.ExecuteScalar().Should().Be(42);
     }
 
     [Theory]
-    [InlineData("SELECT $2 - $1", 18)]
-    [InlineData("SELECT ? - ?", -18)]
+    [InlineData("SELECT $2::INT - $1::INT", 18)]
+    [InlineData("SELECT ?::INT - ?::INT", -18)]
     public void BindParameterWithPositionOrAutoIncrement(string query, int result)
     {
         Command.Parameters.Add(new DuckDBParameter(24));

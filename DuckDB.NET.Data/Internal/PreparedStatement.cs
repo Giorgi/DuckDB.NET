@@ -96,6 +96,10 @@ internal sealed class PreparedStatement : IDisposable
                 {
                     BindParameter(preparedStatement, index, param);
                 }
+                else
+                {
+                    throw new DuckDBException($"Cannot get index for parameter {param.ParameterName}");
+                }
             }
         }
         else
@@ -110,7 +114,8 @@ internal sealed class PreparedStatement : IDisposable
 
     private static void BindParameter(DuckDBPreparedStatement preparedStatement, long index, DuckDBParameter parameter)
     {
-        using var duckDBValue = parameter.Value.ToDuckDBValue();
+        using var parameterLogicalType = NativeMethods.PreparedStatements.DuckDBParamLogicalType(preparedStatement, index);
+        using var duckDBValue = parameter.Value.ToDuckDBValue(parameterLogicalType);
 
         var result = NativeMethods.PreparedStatements.DuckDBBindValue(preparedStatement, index, duckDBValue);
 
