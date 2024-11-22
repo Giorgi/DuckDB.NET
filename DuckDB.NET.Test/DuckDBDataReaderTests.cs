@@ -30,6 +30,22 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    public void GetOrdinalRepeatedColumnReturnsFirstIndex()
+    {
+        Command.CommandText = "CREATE TABLE GetOrdinalTests (key INTEGER, value TEXT, State Boolean)";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "select value, key, value from GetOrdinalTests";
+        Command.UseStreamingMode = true;
+        var reader = Command.ExecuteReader();
+
+        reader.GetOrdinal("key").Should().Be(1);
+        reader.GetOrdinal("value").Should().Be(0);
+
+        reader.Invoking(dataReader => dataReader.GetOrdinal("Random")).Should().Throw<DuckDBException>();
+    }
+
+    [Fact]
     public void CloseConnectionClosesConnection()
     {
         Command.CommandText = "CREATE TABLE CloseConnectionTests (key INTEGER, value TEXT, State Boolean)";
