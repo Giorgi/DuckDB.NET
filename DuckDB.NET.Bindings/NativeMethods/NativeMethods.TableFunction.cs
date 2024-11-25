@@ -51,6 +51,9 @@ public partial class NativeMethods
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_set_bind_data")]
         public static extern unsafe void DuckDBBindSetBindData(IntPtr info, IntPtr bindData, delegate* unmanaged[Cdecl]<IntPtr, void> destroy);
 
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_set_error")]
+        public static extern unsafe void DuckDBBindSetError(IntPtr info, SafeUnmanagedMemoryHandle error);
+
         #endregion
 
         #region TableFunction
@@ -60,6 +63,9 @@ public partial class NativeMethods
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_function_get_bind_data")]
         public static extern unsafe IntPtr DuckDBFunctionGetBindData(IntPtr info);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_function_set_error")]
+        public static extern unsafe void DuckDBFunctionSetError(IntPtr info, SafeUnmanagedMemoryHandle error);
 
         #endregion
     }
