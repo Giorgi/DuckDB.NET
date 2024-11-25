@@ -176,29 +176,28 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    public void RegisterTableFunctionWithErrors() {
-        Connection.RegisterTableFunction<string>("bind_err", parameters => {
+    public void RegisterTableFunctionWithErrors()
+    {
+        Connection.RegisterTableFunction<string>("bind_err", parameters =>
+        {
             throw new Exception("bind_err_msg");
-        }, (item, writer, rowIndex) => {
+        }, (item, writer, rowIndex) =>
+        {
         });
 
-        Assert.Contains("bind_err_msg",
-            Assert.Throws<DuckDBException>(() => {
-                var data = Connection.Query<int>($"SELECT * FROM bind_err('')").ToList();
-            }).Message);
+        Connection.Invoking(con=>con.Query<int>("SELECT * FROM bind_err('')")). Should().Throw<DuckDBException>().WithMessage("bind_err_msg");
 
-        Connection.RegisterTableFunction<string>("map_err", parameters => {
+        Connection.RegisterTableFunction<string>("map_err", parameters =>
+        {
             return new TableFunction(
                 new[] { new ColumnInfo("t1", typeof(string)) },
                 new[] { "a" }
             );
-        }, (item, writer, rowIndex) => {
+        }, (item, writer, rowIndex) =>
+        {
             throw new NotSupportedException("map_err_msg");
         });
-        Assert.Contains("map_err_msg",
-            Assert.Throws<DuckDBException>(() => {
-                var data = Connection.Query<int>($"SELECT * FROM map_err('')").ToList();
-            }).Message);
-	}
 
+        Connection.Invoking(con => con.Query<int>("SELECT * FROM map_err('')")).Should().Throw<DuckDBException>().WithMessage("map_err_msg");
+    }
 }

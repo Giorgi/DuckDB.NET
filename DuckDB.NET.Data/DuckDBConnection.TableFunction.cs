@@ -102,7 +102,7 @@ partial class DuckDBConnection
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     public static unsafe void Bind(IntPtr info)
     {
-        IDuckDBValueReader[]? parameters = null;
+        IDuckDBValueReader[] parameters = [];
         try
         {
             var handle = GCHandle.FromIntPtr(NativeMethods.TableFunction.DuckDBBindGetExtraInfo(info));
@@ -134,22 +134,16 @@ partial class DuckDBConnection
         }
         catch (Exception ex)
         {
-            using (var errMsgHandle = ex.Message.ToUnmanagedString())
-            {
-                NativeMethods.TableFunction.DuckDBBindSetError(info, errMsgHandle);
-            }
-            return;
+            using var errorMessage = ex.Message.ToUnmanagedString();
+            NativeMethods.TableFunction.DuckDBBindSetError(info, errorMessage);
         }
         finally
         {
-            if (parameters!=null)
-                foreach (var parameter in parameters)
-                {
-                    if (parameter != null)
-                        ((DuckDBValue)parameter).Dispose();
-                }
+            foreach (var parameter in parameters)
+            {
+                (parameter as IDisposable)?.Dispose();
+            }
         }
-
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
@@ -203,10 +197,8 @@ partial class DuckDBConnection
         }
         catch (Exception ex)
         {
-            using (var errMsgHandle = ex.Message.ToUnmanagedString())
-            {
-                NativeMethods.TableFunction.DuckDBFunctionSetError(info, errMsgHandle);
-            }
+            using var errorMessage = ex.Message.ToUnmanagedString();
+            NativeMethods.TableFunction.DuckDBFunctionSetError(info, errorMessage);
         }
     }
 #endif
