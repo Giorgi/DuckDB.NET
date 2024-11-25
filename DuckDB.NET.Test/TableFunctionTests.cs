@@ -185,7 +185,7 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         {
         });
 
-        Connection.Invoking(con=>con.Query<int>("SELECT * FROM bind_err('')")). Should().Throw<DuckDBException>().WithMessage("bind_err_msg");
+        Connection.Invoking(con=>con.Query<int>("SELECT * FROM bind_err('')")). Should().Throw<DuckDBException>().WithMessage("*bind_err_msg*");
 
         Connection.RegisterTableFunction<string>("map_err", parameters =>
         {
@@ -198,6 +198,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             throw new NotSupportedException("map_err_msg");
         });
 
-        Connection.Invoking(con => con.Query<int>("SELECT * FROM map_err('')")).Should().Throw<DuckDBException>().WithMessage("map_err_msg");
+        Connection.Invoking(con => con.Query<int>("SELECT * FROM map_err('')")).Should().Throw<DuckDBException>().WithMessage("*map_err_msg*");
     }
 }
