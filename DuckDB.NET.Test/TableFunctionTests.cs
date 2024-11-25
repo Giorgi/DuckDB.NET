@@ -174,4 +174,34 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
         data.Should().BeEquivalentTo(BigInteger.Parse("123456789876543210").ToByteArray().Select(b => TimeSpan.FromDays(1 + b)));
     }
+
+    [Fact]
+    public void RegisterTableFunctionWithErrors() {
+        Connection.RegisterTableFunction<string>("bind_err", parameters => {
+            throw new Exception("bind_err_msg");
+        }, (item, writer, rowIndex) => {
+        });
+
+        Assert.Throws<DuckDBException>(() => {
+            try {
+                var data = Connection.Query<int>($"SELECT * FROM bind_err('')").ToList();
+            } catch (Exception ex) {
+                Assert.Contains("bind_err_msg", ex.Message);
+                throw;
+            }
+        });
+
+        Connection.RegisterTableFunction<string>("map_err", parameters => {
+            return new TableFunction(
+                new[] { new ColumnInfo("t1", typeof(string)) },
+                new[] { "a" }
+            );
+        }, (item, writer, rowIndex) => {
+            throw new NotSupportedException("map_err_msg");
+        });
+        Assert.Throws<NotSupportedException>(() => {
+            var data = Connection.Query<int>($"SELECT * FROM map_err('')").ToList();
+        });
+	}
+
 }

@@ -117,11 +117,19 @@ partial class DuckDBConnection
             parameters[i] = value;
         }
 
-        var tableFunctionData = functionInfo.Bind(parameters);
-
-        foreach (var parameter in parameters)
-        {
-            ((DuckDBValue)parameter).Dispose();
+        TableFunction tableFunctionData;
+        try {
+            tableFunctionData = functionInfo.Bind(parameters);
+        } catch (Exception ex) {
+            using (var errMsgHandle = ex.Message.ToUnmanagedString())
+            {
+                NativeMethods.TableFunction.DuckDBBindSetError(info, errMsgHandle);
+            }
+            return;
+        } finally {
+            foreach (var parameter in parameters) {
+                ((DuckDBValue)parameter).Dispose();
+            }
         }
 
         foreach (var columnInfo in tableFunctionData.Columns)
