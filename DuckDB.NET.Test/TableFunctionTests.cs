@@ -182,14 +182,10 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         }, (item, writer, rowIndex) => {
         });
 
-        Assert.Throws<DuckDBException>(() => {
-            try {
+        Assert.Contains("bind_err_msg",
+            Assert.Throws<DuckDBException>(() => {
                 var data = Connection.Query<int>($"SELECT * FROM bind_err('')").ToList();
-            } catch (Exception ex) {
-                Assert.Contains("bind_err_msg", ex.Message);
-                throw;
-            }
-        });
+            }).Message);
 
         Connection.RegisterTableFunction<string>("map_err", parameters => {
             return new TableFunction(
@@ -199,9 +195,10 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         }, (item, writer, rowIndex) => {
             throw new NotSupportedException("map_err_msg");
         });
-        Assert.Throws<NotSupportedException>(() => {
-            var data = Connection.Query<int>($"SELECT * FROM map_err('')").ToList();
-        });
+        Assert.Contains("map_err_msg",
+            Assert.Throws<DuckDBException>(() => {
+                var data = Connection.Query<int>($"SELECT * FROM map_err('')").ToList();
+            }).Message);
 	}
 
 }

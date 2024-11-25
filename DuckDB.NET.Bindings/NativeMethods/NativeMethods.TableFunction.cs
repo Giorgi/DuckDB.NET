@@ -64,6 +64,9 @@ public partial class NativeMethods
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_function_get_bind_data")]
         public static extern unsafe IntPtr DuckDBFunctionGetBindData(IntPtr info);
 
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_function_set_error")]
+        public static extern unsafe void DuckDBFunctionSetError(IntPtr info, SafeUnmanagedMemoryHandle error);
+
         #endregion
     }
 }
