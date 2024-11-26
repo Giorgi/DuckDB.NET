@@ -77,13 +77,13 @@ public class DuckDBAppender : IDisposable
                 writer?.Dispose();
             }
 
+            dataChunk.Dispose();
+
             var state = NativeMethods.Appender.DuckDBAppenderClose(nativeAppender);
             if (!state.IsSuccess())
             {
                 ThrowLastError(nativeAppender);
             }
-
-            dataChunk.Dispose();
         }
         finally
         {
@@ -105,14 +105,8 @@ public class DuckDBAppender : IDisposable
         {
             var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(dataChunk, index);
 
-            if (vectorWriters[index] == null)
-            {
-                vectorWriters[index] = VectorDataWriterFactory.CreateWriter(vector, logicalTypes[index]);
-            }
-            else
-            {
-                vectorWriters[index].InitializerWriter();
-            }
+            vectorWriters[index]?.Dispose();
+            vectorWriters[index] = VectorDataWriterFactory.CreateWriter(vector, logicalTypes[index]);
         }
     }
 
