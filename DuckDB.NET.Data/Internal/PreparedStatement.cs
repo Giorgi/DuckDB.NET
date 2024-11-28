@@ -96,10 +96,6 @@ internal sealed class PreparedStatement : IDisposable
                 {
                     BindParameter(preparedStatement, index, param);
                 }
-                else
-                {
-                    throw new DuckDBException($"Cannot get index for parameter {param.ParameterName}");
-                }
             }
         }
         else
