@@ -16,13 +16,15 @@ public class ListParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     private void TestInsertSelect<T>(string duckDbType, Func<Faker, T> generator, int? length = null)
     {
         var list = GetRandomList(generator, length ?? Random.Shared.Next(10, 200));
+        var nestedList = new List<List<T>> { GetRandomList(generator, 5), GetRandomList(generator, 10), GetRandomList(generator, 20) };
 
-        Command.CommandText = $"CREATE OR REPLACE TABLE ParameterListTest (a {duckDbType}[], b {duckDbType}[10]);";
+        Command.CommandText = $"CREATE OR REPLACE TABLE ParameterListTest (a {duckDbType}[], b {duckDbType}[10], c {duckDbType}[][]);";
         Command.ExecuteNonQuery();
 
-        Command.CommandText = "INSERT INTO ParameterListTest (a, b) VALUES ($list, $array);";
+        Command.CommandText = "INSERT INTO ParameterListTest (a, b, c) VALUES ($list, $array, $nestedList);";
         Command.Parameters.Add(new DuckDBParameter(list));
         Command.Parameters.Add(new DuckDBParameter(list.Take(10).ToList()));
+        Command.Parameters.Add(new DuckDBParameter(nestedList));
         Command.ExecuteNonQuery();
 
         Command.CommandText = "SELECT * FROM ParameterListTest;";
@@ -35,6 +37,9 @@ public class ListParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
         var arrayValue = reader.GetFieldValue<List<T>>(1);
         arrayValue.Should().BeEquivalentTo(list.Take(10));
+
+        var nestedListValue = reader.GetFieldValue<List<List<T>>>(2);
+        nestedListValue.Should().BeEquivalentTo(nestedList);
 
         Command.CommandText = "DROP TABLE ParameterListTest";
         Command.ExecuteNonQuery();
