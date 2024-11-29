@@ -1,11 +1,11 @@
-﻿using System;
+﻿using DuckDB.NET.Data.Internal.Reader;
+using DuckDB.NET.Native;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.IO;
-using DuckDB.NET.Data.Internal.Reader;
-using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data;
 
@@ -29,6 +29,7 @@ public class DuckDBDataReader : DbDataReader
 
     private readonly IEnumerator<DuckDBResult> resultEnumerator;
     private VectorDataReaderBase[] vectorReaders = [];
+    private Dictionary<string, int> columnMapping = [];
 
     internal DuckDBDataReader(DuckDBCommand command, IEnumerable<DuckDBResult> queryResults, CommandBehavior behavior)
     {
@@ -48,6 +49,7 @@ public class DuckDBDataReader : DbDataReader
                 currentChunkIndex = 0;
                 currentResult = resultEnumerator.Current;
 
+                columnMapping = [];
                 fieldCount = (int)NativeMethods.Query.DuckDBColumnCount(ref currentResult);
                 streamingResult = NativeMethods.Types.DuckDBResultIsStreaming(currentResult) > 0;
 
@@ -80,7 +82,7 @@ public class DuckDBDataReader : DbDataReader
             {
                 vectorReaders = new VectorDataReaderBase[fieldCount];
             }
-            
+
             for (int index = 0; index < fieldCount; index++)
             {
                 var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(currentChunk, index);
@@ -89,6 +91,17 @@ public class DuckDBDataReader : DbDataReader
 
                 vectorReaders[index] = VectorDataReaderFactory.CreateReader(vector, logicalType, vectorReaders[index]?.ColumnName ??
                                                                             NativeMethods.Query.DuckDBColumnName(ref currentResult, index).ToManagedString(false));
+            }
+
+            if (columnMapping.Count == 0)
+            {
+                for (var i = 0; i < vectorReaders.Length; i++)
+                {
+                    if (!columnMapping.ContainsKey(vectorReaders[i].ColumnName))
+                    {
+                        columnMapping.Add(vectorReaders[i].ColumnName, i);
+                    }
+                }
             }
 
             return currentChunkRowCount > 0;
@@ -182,12 +195,9 @@ public class DuckDBDataReader : DbDataReader
 
     public override int GetOrdinal(string name)
     {
-        for (var i = 0; i < fieldCount; i++)
+        if (columnMapping.TryGetValue(name, out var index))
         {
-            if (GetName(i) == name)
-            {
-                return i;
-            }
+            return index;
         }
 
         throw new DuckDBException($"Column with name {name} was not found.");

@@ -1,10 +1,11 @@
-﻿using System;
-using Dapper;
+﻿using Dapper;
 using DuckDB.NET.Data;
 using FluentAssertions;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Numerics;
 using Xunit;
 
 namespace DuckDB.NET.Test;
@@ -100,9 +101,9 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             var param2 = parameters[1].GetValue<decimal>();
             var param3 = parameters[2].GetValue<byte>();
             var param4 = parameters[3].GetValue<Guid>();
-            
+
             var enumerable = param4.ToByteArray(param1).Append(param3);
-            
+
             return new TableFunction(new List<ColumnInfo>()
             {
                 new ColumnInfo("foo", typeof(byte)),
@@ -147,6 +148,56 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         var data = Connection.Query<int>($"SELECT * FROM demo5(1::TINYINT, 2::USMALLINT, 3::UINTEGER, 4::UBIGINT, 5.6);").ToList();
 
         data.Should().BeEquivalentTo(Enumerable.Empty<int>());
+    }
+
+    [Fact]
+    public void RegisterTableFunctionWithBigInteger()
+    {
+        Connection.RegisterTableFunction<BigInteger, TimeSpan>("demo6", parameters =>
+        {
+            var param1 = parameters[0].GetValue<BigInteger>();
+            var param2 = parameters[1].GetValue<TimeSpan>();
+
+            var timeSpans = param1.ToByteArray().Select(b => param2.Add(TimeSpan.FromDays(b)));
+
+            return new TableFunction(new List<ColumnInfo>()
+            {
+                new ColumnInfo("foo", typeof(TimeSpan)),
+            }, timeSpans);
+        }, (item, writers, rowIndex) =>
+        {
+            writers[0].WriteValue((TimeSpan)item, rowIndex);
+        });
+
+        var data = Connection.Query<TimeSpan>("SELECT * FROM demo6('123456789876543210'::HUGEINT, '24:00:00'::INTERVAL);").ToList();
+
+        data.Should().BeEquivalentTo(BigInteger.Parse("123456789876543210").ToByteArray().Select(b => TimeSpan.FromDays(1 + b)));
+    }
+
+    [Fact]
+    public void RegisterTableFunctionWithErrors()
+    {
+        Connection.RegisterTableFunction<string>("bind_err", parameters =>
+        {
+            throw new Exception("bind_err_msg");
+        }, (item, writer, rowIndex) =>
+        {
+        });
+
+        Connection.Invoking(con=>con.Query<int>("SELECT * FROM bind_err('')")). Should().Throw<DuckDBException>().WithMessage("*bind_err_msg*");
+
+        Connection.RegisterTableFunction<string>("map_err", parameters =>
+        {
+            return new TableFunction(
+                new[] { new ColumnInfo("t1", typeof(string)) },
+                new[] { "a" }
+            );
+        }, (item, writer, rowIndex) =>
+        {
+            throw new NotSupportedException("map_err_msg");
+        });
+
+        Connection.Invoking(con => con.Query<int>("SELECT * FROM map_err('')")).Should().Throw<DuckDBException>().WithMessage("*map_err_msg*");
     }
 
     [Fact]
