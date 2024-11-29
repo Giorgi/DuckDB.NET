@@ -9,14 +9,12 @@ namespace DuckDB.NET.Data.Internal;
 
 internal static class ClrToDuckDBConverter
 {
-    public static DuckDBValue ToDuckDBValue(this object? item, DuckDBLogicalType logicalType)
+    public static DuckDBValue ToDuckDBValue(this object? item, DuckDBLogicalType logicalType, DuckDBType duckDBType)
     {
         if (item.IsNull())
         {
             return NativeMethods.Value.DuckDBCreateNullValue();
         }
-
-        var duckDBType = NativeMethods.LogicalType.DuckDBGetTypeId(logicalType);
 
         return (duckDBType, item) switch
         {
@@ -76,12 +74,14 @@ internal static class ClrToDuckDBConverter
         using var collectionItemType = isList ? NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType) :
                                                 NativeMethods.LogicalType.DuckDBArrayTypeChildType(logicalType);
 
+        var duckDBType = NativeMethods.LogicalType.DuckDBGetTypeId(collectionItemType);
+
         var values = new DuckDBValue[collection.Count];
 
         var index = 0;
         foreach (var item in collection)
         {
-            var duckDBValue = item.ToDuckDBValue(collectionItemType);
+            var duckDBValue = item.ToDuckDBValue(collectionItemType, duckDBType);
             values[index] = duckDBValue;
             index++;
         }

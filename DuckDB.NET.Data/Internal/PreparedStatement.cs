@@ -111,7 +111,9 @@ internal sealed class PreparedStatement : IDisposable
     private static void BindParameter(DuckDBPreparedStatement preparedStatement, long index, DuckDBParameter parameter)
     {
         using var parameterLogicalType = NativeMethods.PreparedStatements.DuckDBParamLogicalType(preparedStatement, index);
-        using var duckDBValue = parameter.Value.ToDuckDBValue(parameterLogicalType);
+        var duckDBType = NativeMethods.LogicalType.DuckDBGetTypeId(parameterLogicalType);
+
+        using var duckDBValue = parameter.Value.ToDuckDBValue(parameterLogicalType, duckDBType);
 
         var result = NativeMethods.PreparedStatements.DuckDBBindValue(preparedStatement, index, duckDBValue);
 
