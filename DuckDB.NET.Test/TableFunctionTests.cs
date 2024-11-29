@@ -203,7 +203,7 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void RegisterTableFunctionWithNullParameter()
     {
-        Connection.RegisterTableFunction<int>("demo6", (parameters) =>
+        Connection.RegisterTableFunction<int>("nullParam", (parameters) =>
         {
             parameters[0].IsNull().Should().BeTrue();
 
@@ -216,7 +216,7 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             writers[0].WriteValue((int)item, rowIndex);
         });
 
-        var data = Connection.Query<int>($"SELECT * FROM demo6(NULL::INTEGER);").ToList();
+        var data = Connection.Query<int>($"SELECT * FROM nullParam(NULL::INTEGER);").ToList();
 
         data.Should().BeEquivalentTo(Enumerable.Empty<int>());
     }
