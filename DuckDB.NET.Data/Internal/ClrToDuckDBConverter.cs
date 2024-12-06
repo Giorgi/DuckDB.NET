@@ -39,10 +39,10 @@ internal static class ClrToDuckDBConverter
             (DuckDBType.Varchar, string value) => StringToDuckDBValue(value),
             (DuckDBType.Uuid, Guid value) => GuidToDuckDBValue(value),
 
-            (DuckDBType.Timestamp, DateTime value) => DateTimeToTimestamp(DuckDBType.Timestamp, value),
-            (DuckDBType.TimestampS, DateTime value) => DateTimeToTimestamp(DuckDBType.TimestampS, value, divisor: 1000000),
-            (DuckDBType.TimestampMs, DateTime value) => DateTimeToTimestamp(DuckDBType.TimestampMs, value, divisor: 1000),
-            (DuckDBType.TimestampNs, DateTime value) => DateTimeToTimestamp(DuckDBType.TimestampNs, value, factor: 1000, extra: value.Nanoseconds()),
+            (DuckDBType.Timestamp, DateTime value) => NativeMethods.Value.DuckDBCreateTimestamp(value.ToTimestampStruct(duckDBType)),
+            (DuckDBType.TimestampS, DateTime value) => NativeMethods.Value.DuckDBCreateTimestampS(value.ToTimestampStruct(duckDBType)),
+            (DuckDBType.TimestampMs, DateTime value) => NativeMethods.Value.DuckDBCreateTimestampMs(value.ToTimestampStruct(duckDBType)),
+            (DuckDBType.TimestampNs, DateTime value) => NativeMethods.Value.DuckDBCreateTimestampNs(value.ToTimestampStruct(duckDBType)),
             (DuckDBType.Interval, TimeSpan value) => NativeMethods.Value.DuckDBCreateInterval(value),
             (DuckDBType.Date, DateTime value) => NativeMethods.Value.DuckDBCreateDate(NativeMethods.DateTimeHelpers.DuckDBToDate((DuckDBDateOnly)value)),
             (DuckDBType.Date, DuckDBDateOnly value) => NativeMethods.Value.DuckDBCreateDate(NativeMethods.DateTimeHelpers.DuckDBToDate(value)),
@@ -70,21 +70,6 @@ internal static class ClrToDuckDBConverter
             {
                 throw new ArgumentOutOfRangeException($"Cannot bind parameter type {item.GetType().FullName} to column of type {duckDBType}");
             }
-        }
-
-        DuckDBValue DateTimeToTimestamp(DuckDBType type, DateTime value, int factor = 1, int divisor = 1, int extra = 0)
-        {
-            var timestamp = NativeMethods.DateTimeHelpers.DuckDBToTimestamp(DuckDBTimestamp.FromDateTime(value));
-
-            timestamp.Micros = timestamp.Micros * factor / divisor;
-
-            return type switch
-            {
-                DuckDBType.Timestamp => NativeMethods.Value.DuckDBCreateTimestamp(timestamp),
-                DuckDBType.TimestampS => NativeMethods.Value.DuckDBCreateTimestampS(timestamp),
-                DuckDBType.TimestampMs => NativeMethods.Value.DuckDBCreateTimestampMs(timestamp),
-                DuckDBType.TimestampNs => NativeMethods.Value.DuckDBCreateTimestampNs(timestamp),
-            };
         }
     }
 

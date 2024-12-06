@@ -1,4 +1,5 @@
 ﻿using System;
+using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Extensions;
 
@@ -15,5 +16,54 @@ internal static class DateTimeExtensions
 #else
         return (int)(self.Ticks % TimeSpan.TicksPerMillisecond % TicksPerMicrosecond) * NanosecondsPerTick;
 #endif
+    }
+
+    public static DuckDBTimestampStruct ToTimestampStruct(this DateTime value, DuckDBType duckDBType)
+    {
+        var timestamp = NativeMethods.DateTimeHelpers.DuckDBToTimestamp(DuckDBTimestamp.FromDateTime(value));
+
+        if (duckDBType == DuckDBType.TimestampNs)
+        {
+            timestamp.Micros *= 1000;
+
+            timestamp.Micros += value.Nanoseconds();
+        }
+
+        if (duckDBType == DuckDBType.TimestampMs)
+        {
+            timestamp.Micros /= 1000;
+        }
+
+        if (duckDBType == DuckDBType.TimestampS)
+        {
+            timestamp.Micros /= 1000000;
+        }
+
+        return timestamp;
+    }
+
+    public static (DuckDBTimestamp result, int additionalTicks) ToDuckDBTimestamp(this DuckDBTimestampStruct timestamp, DuckDBType duckDBType)
+    {
+        var additionalTicks = 0;
+
+        if (duckDBType == DuckDBType.TimestampNs)
+        {
+            additionalTicks = (int)(timestamp.Micros % 1000 / 100);
+            timestamp.Micros /= 1000;
+        }
+
+        if (duckDBType == DuckDBType.TimestampMs)
+        {
+            timestamp.Micros *= 1000;
+        }
+
+        if (duckDBType == DuckDBType.TimestampS)
+        {
+            timestamp.Micros *= 1000000;
+        }
+
+        var result = NativeMethods.DateTimeHelpers.DuckDBFromTimestamp(timestamp);
+
+        return (result, additionalTicks);
     }
 }

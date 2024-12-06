@@ -2,6 +2,7 @@ using DuckDB.NET.Data;
 using DuckDB.NET.Native;
 using FluentAssertions;
 using System;
+using FluentAssertions.Extensions;
 using Xunit;
 
 namespace DuckDB.NET.Test.Parameters;
@@ -70,15 +71,15 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Theory]
-    [InlineData(1992, 09, 20, 12, 15, 17, 350_000)]
-    [InlineData(2022, 05, 04, 12, 17, 15, 450_000)]
-    [InlineData(2022, 04, 05, 18, 15, 17, 125_000)]
-    [InlineData(1992, 09, 20, 12, 15, 17, 350_300)]
-    [InlineData(2022, 05, 04, 12, 17, 15, 450_500)]
-    [InlineData(2022, 04, 05, 18, 15, 17, 125_700)]
-    public void InsertAndQueryTest(int year, int mon, int day, byte hour, byte minute, byte second, int microsecond)
+    [InlineData(1992, 09, 20, 12, 15, 17, 350_000, 0)]
+    [InlineData(2022, 05, 04, 12, 17, 15, 450_000, 0)]
+    [InlineData(2022, 04, 05, 18, 15, 17, 125_000, 0)]
+    [InlineData(1992, 09, 20, 12, 15, 17, 350_300, 0)]
+    [InlineData(2022, 05, 04, 12, 17, 15, 450_543, 200)]
+    [InlineData(2022, 04, 05, 18, 15, 17, 125_700, 0)]
+    public void InsertAndQueryTest(int year, int mon, int day, byte hour, byte minute, byte second, int microsecond, int nanosecond)
     {
-        var expectedValue = new DateTime(year, mon, day, hour, minute, second).AddTicks(microsecond * 10);
+        var expectedValue = new DateTime(year, mon, day, hour, minute, second).AddTicks(microsecond * 10).AddNanoseconds(nanosecond);
 
         TestTimestampInsert("TIMESTAMP", DuckDBType.Timestamp, expectedValue);
 
@@ -93,6 +94,7 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     {
         expectedValue = duckDBType switch
         {
+            DuckDBType.Timestamp => Trim(expectedValue, TimeSpan.TicksPerMicrosecond),
             DuckDBType.TimestampS => Trim(expectedValue, TimeSpan.TicksPerSecond),
             DuckDBType.TimestampMs => Trim(expectedValue, TimeSpan.TicksPerMillisecond),
             DuckDBType.TimestampNs => Trim(expectedValue, TimeSpan.FromTicks(100).Ticks),

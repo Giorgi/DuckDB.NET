@@ -55,7 +55,7 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             writers[1].WriteValue(pair.Value, rowIndex);
         });
 
-        var data = Connection.Query<(int, string)>($"SELECT * FROM demo2(30::SmallInt, 'DuckDB');").ToList();
+        var data = Connection.Query<(int, string)>("SELECT * FROM demo2(30::SmallInt, 'DuckDB');").ToList();
 
         data.Select(tuple => tuple.Item1).Should().BeEquivalentTo(Enumerable.Range(30, count));
         data.Select(tuple => tuple.Item2).Should().BeEquivalentTo(Enumerable.Range(30, count).Select(i => $"DuckDB{i}"));
@@ -84,7 +84,7 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             writers[0].WriteValue((DateTime)item, rowIndex);
         });
 
-        var data = Connection.Query<DateTime>($"SELECT * FROM demo3('2024-11-06'::TIMESTAMP, 10, 2.5 );").ToList();
+        var data = Connection.Query<DateTime>("SELECT * FROM demo3('2024-11-06'::TIMESTAMP, 10, 2.5 );").ToList();
 
         var dateTimes = Enumerable.Range(0, count).Select(i => startDate.AddDays(i).AddMinutes(minutesParam).AddSeconds(secondsParam));
         data.Should().BeEquivalentTo(dateTimes);
@@ -145,7 +145,7 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             writers[0].WriteValue((int)item, rowIndex);
         });
 
-        var data = Connection.Query<int>($"SELECT * FROM demo5(1::TINYINT, 2::USMALLINT, 3::UINTEGER, 4::UBIGINT, 5.6);").ToList();
+        var data = Connection.Query<int>("SELECT * FROM demo5(1::TINYINT, 2::USMALLINT, 3::UINTEGER, 4::UBIGINT, 5.6);").ToList();
 
         data.Should().BeEquivalentTo(Enumerable.Empty<int>());
     }
@@ -177,25 +177,19 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void RegisterTableFunctionWithErrors()
     {
-        Connection.RegisterTableFunction<string>("bind_err", parameters =>
-        {
-            throw new Exception("bind_err_msg");
-        }, (item, writer, rowIndex) =>
+        Connection.RegisterTableFunction<string>("bind_err", _ => throw new Exception("bind_err_msg"), (_, _, _) =>
         {
         });
 
         Connection.Invoking(con=>con.Query<int>("SELECT * FROM bind_err('')")). Should().Throw<DuckDBException>().WithMessage("*bind_err_msg*");
 
-        Connection.RegisterTableFunction<string>("map_err", parameters =>
+        Connection.RegisterTableFunction<string>("map_err", _ =>
         {
             return new TableFunction(
                 new[] { new ColumnInfo("t1", typeof(string)) },
                 new[] { "a" }
             );
-        }, (item, writer, rowIndex) =>
-        {
-            throw new NotSupportedException("map_err_msg");
-        });
+        }, (_, _, _) => throw new NotSupportedException("map_err_msg"));
 
         Connection.Invoking(con => con.Query<int>("SELECT * FROM map_err('')")).Should().Throw<DuckDBException>().WithMessage("*map_err_msg*");
     }
@@ -216,7 +210,7 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             writers[0].WriteValue((int)item, rowIndex);
         });
 
-        var data = Connection.Query<int>($"SELECT * FROM nullParam(NULL::INTEGER);").ToList();
+        var data = Connection.Query<int>("SELECT * FROM nullParam(NULL::INTEGER);").ToList();
 
         data.Should().BeEquivalentTo(Enumerable.Empty<int>());
     }

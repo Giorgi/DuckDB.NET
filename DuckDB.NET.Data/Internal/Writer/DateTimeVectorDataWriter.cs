@@ -13,24 +13,7 @@ internal sealed unsafe class DateTimeVectorDataWriter(IntPtr vector, void* vecto
             return AppendValueInternal(NativeMethods.DateTimeHelpers.DuckDBToDate((DuckDBDateOnly)value.Date), rowIndex);
         }
 
-        var timestamp = NativeMethods.DateTimeHelpers.DuckDBToTimestamp(DuckDBTimestamp.FromDateTime(value));
-
-        if (ColumnType == DuckDBType.TimestampNs)
-        {
-            timestamp.Micros *= 1000;
-
-            timestamp.Micros += value.Nanoseconds();
-        }
-
-        if (ColumnType == DuckDBType.TimestampMs)
-        {
-            timestamp.Micros /= 1000;
-        }
-
-        if (ColumnType == DuckDBType.TimestampS)
-        {
-            timestamp.Micros /= 1000000;
-        }
+        var timestamp = value.ToTimestampStruct(ColumnType);
 
         return AppendValueInternal(timestamp, rowIndex);
     }
