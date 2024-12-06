@@ -56,6 +56,12 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         timeOnly.Minute.Should().Be((byte)minute);
         timeOnly.Second.Should().Be((byte)second);
         timeOnly.Ticks.Should().Be(expectedValue.Ticks);
+
+        Command.Parameters.Clear();
+        Command.Parameters.Add(new DuckDBParameter(expectedValue));
+
+        var time = (TimeOnly)Command.ExecuteScalar();
+        time.Should().Be(TimeOnly.FromTimeSpan(expectedValue.TimeOfDay));
     }
 
     [Theory]

@@ -68,7 +68,7 @@ internal static class ClrToDuckDBConverter
             }
             catch (Exception)
             {
-                throw new ArgumentOutOfRangeException($"Cannot bind parameter type {item.GetType().FullName} to column of type {duckDBType}");
+                throw new ArgumentOutOfRangeException($"Cannot bind parameter '{item}' type {item.GetType().FullName} to column of type {duckDBType}");
             }
         }
     }
