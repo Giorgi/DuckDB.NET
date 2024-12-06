@@ -39,7 +39,10 @@ internal static class ClrToDuckDBConverter
             (DuckDBType.Varchar, string value) => StringToDuckDBValue(value),
             (DuckDBType.Uuid, Guid value) => GuidToDuckDBValue(value),
 
-            (DuckDBType.Timestamp, DateTime value) => NativeMethods.Value.DuckDBCreateTimestamp(NativeMethods.DateTimeHelpers.DuckDBToTimestamp(DuckDBTimestamp.FromDateTime(value))),
+            (DuckDBType.Timestamp, DateTime value) => DateTimeToTimestamp(DuckDBType.Timestamp, value),
+            (DuckDBType.TimestampS, DateTime value) => DateTimeToTimestamp(DuckDBType.TimestampS, value, divisor: 1000000),
+            (DuckDBType.TimestampMs, DateTime value) => DateTimeToTimestamp(DuckDBType.TimestampMs, value, divisor: 1000),
+            (DuckDBType.TimestampNs, DateTime value) => DateTimeToTimestamp(DuckDBType.TimestampNs, value, factor: 1000, extra: value.Nanoseconds()),
             (DuckDBType.Interval, TimeSpan value) => NativeMethods.Value.DuckDBCreateInterval(value),
             (DuckDBType.Date, DateTime value) => NativeMethods.Value.DuckDBCreateDate(NativeMethods.DateTimeHelpers.DuckDBToDate((DuckDBDateOnly)value)),
             (DuckDBType.Date, DuckDBDateOnly value) => NativeMethods.Value.DuckDBCreateDate(NativeMethods.DateTimeHelpers.DuckDBToDate(value)),
@@ -49,7 +52,8 @@ internal static class ClrToDuckDBConverter
             (DuckDBType.Date, DateOnly value) => NativeMethods.Value.DuckDBCreateDate(NativeMethods.DateTimeHelpers.DuckDBToDate(value)),
             (DuckDBType.Time, TimeOnly value) => NativeMethods.Value.DuckDBCreateTime(NativeMethods.DateTimeHelpers.DuckDBToTime(value)),
 #endif
-            (DuckDBType.TimeTz, DateTimeOffset value) => DateTimeOffsetToDuckDBValue(value),
+            (DuckDBType.TimeTz, DateTimeOffset value) => DateTimeOffsetToTimeTzDuckDBValue(value),
+            (DuckDBType.TimestampTz, DateTimeOffset value) => NativeMethods.Value.DuckDBCreateTimestamp(NativeMethods.DateTimeHelpers.DuckDBToTimestamp(DuckDBTimestamp.FromDateTime(value.DateTime))),
             (DuckDBType.Blob, byte[] value) => NativeMethods.Value.DuckDBCreateBlob(value, value.Length),
             (DuckDBType.List, ICollection value) => CreateCollectionValue(logicalType, value, true),
             (DuckDBType.Array, ICollection value) => CreateCollectionValue(logicalType, value, false),
@@ -66,6 +70,21 @@ internal static class ClrToDuckDBConverter
             {
                 throw new ArgumentOutOfRangeException($"Cannot bind parameter type {item.GetType().FullName} to column of type {duckDBType}");
             }
+        }
+
+        DuckDBValue DateTimeToTimestamp(DuckDBType type, DateTime value, int factor = 1, int divisor = 1, int extra = 0)
+        {
+            var timestamp = NativeMethods.DateTimeHelpers.DuckDBToTimestamp(DuckDBTimestamp.FromDateTime(value));
+
+            timestamp.Micros = timestamp.Micros * factor / divisor;
+
+            return type switch
+            {
+                DuckDBType.Timestamp => NativeMethods.Value.DuckDBCreateTimestamp(timestamp),
+                DuckDBType.TimestampS => NativeMethods.Value.DuckDBCreateTimestampS(timestamp),
+                DuckDBType.TimestampMs => NativeMethods.Value.DuckDBCreateTimestampMs(timestamp),
+                DuckDBType.TimestampNs => NativeMethods.Value.DuckDBCreateTimestampNs(timestamp),
+            };
         }
     }
 
@@ -108,7 +127,7 @@ internal static class ClrToDuckDBConverter
         return NativeMethods.Value.DuckDBCreateVarchar(handle);
     }
 
-    private static DuckDBValue DateTimeOffsetToDuckDBValue(DateTimeOffset val)
+    private static DuckDBValue DateTimeOffsetToTimeTzDuckDBValue(DateTimeOffset val)
     {
         var duckDBToTime = NativeMethods.DateTimeHelpers.DuckDBToTime((DuckDBTimeOnly)val.DateTime);
         var duckDBCreateTimeTz = NativeMethods.DateTimeHelpers.DuckDBCreateTimeTz(duckDBToTime.Micros, (int)val.Offset.TotalSeconds);

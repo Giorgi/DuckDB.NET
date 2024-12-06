@@ -147,9 +147,14 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
             DuckDBType.UnsignedHugeInt => Cast(NativeMethods.Value.DuckDBGetUHugeInt(this).ToBigInteger()),
             
             DuckDBType.Varchar => Cast(NativeMethods.Value.DuckDBGetVarchar(this)),
-            
-            //DuckDBType.Date => expr,
-            //DuckDBType.Time => expr,
+
+#if NET6_0_OR_GREATER
+            DuckDBType.Date => Cast((DateOnly)NativeMethods.DateTimeHelpers.DuckDBFromDate(NativeMethods.Value.DuckDBGetDate(this))),
+            DuckDBType.Time => Cast((TimeOnly)NativeMethods.DateTimeHelpers.DuckDBFromTime(NativeMethods.Value.DuckDBGetTime(this))),
+#else
+            DuckDBType.Date => Cast(NativeMethods.DateTimeHelpers.DuckDBFromDate(NativeMethods.Value.DuckDBGetDate(this)).ToDateTime()),
+            DuckDBType.Time => Cast(NativeMethods.DateTimeHelpers.DuckDBFromTime(NativeMethods.Value.DuckDBGetTime(this)).ToDateTime()),
+#endif
             //DuckDBType.TimeTz => expr,
             DuckDBType.Interval => Cast((TimeSpan)NativeMethods.Value.DuckDBGetInterval(this)),
             DuckDBType.Timestamp => Cast(NativeMethods.DateTimeHelpers.DuckDBFromTimestamp(NativeMethods.Value.DuckDBGetTimestamp(this)).ToDateTime()),

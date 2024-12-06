@@ -65,6 +65,18 @@ public partial class NativeMethods
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_timestamp")]
         public static extern DuckDBValue DuckDBCreateTimestamp(DuckDBTimestampStruct value);
 
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_timestamp_tz")]
+        public static extern DuckDBValue DuckDBCreateTimestampTz(DuckDBTimestampStruct value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_timestamp_s")]
+        public static extern DuckDBValue DuckDBCreateTimestampS(DuckDBTimestampStruct value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_timestamp_ms")]
+        public static extern DuckDBValue DuckDBCreateTimestampMs(DuckDBTimestampStruct value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_timestamp_ns")]
+        public static extern DuckDBValue DuckDBCreateTimestampNs(DuckDBTimestampStruct value);
+
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_interval")]
         public static extern DuckDBValue DuckDBCreateInterval(DuckDBInterval value);
 

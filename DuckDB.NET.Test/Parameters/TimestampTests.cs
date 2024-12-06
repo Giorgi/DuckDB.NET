@@ -1,6 +1,7 @@
-using System;
 using DuckDB.NET.Data;
+using DuckDB.NET.Native;
 using FluentAssertions;
+using System;
 using Xunit;
 
 namespace DuckDB.NET.Test.Parameters;
@@ -79,9 +80,28 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     {
         var expectedValue = new DateTime(year, mon, day, hour, minute, second).AddTicks(microsecond * 10);
 
-        Command.CommandText = "CREATE TABLE TimestampTestTable (a INTEGER, b TIMESTAMP);";
-        Command.ExecuteNonQuery();
+        TestTimestampInsert("TIMESTAMP", DuckDBType.Timestamp, expectedValue);
 
+        TestTimestampInsert("TIMESTAMP_S", DuckDBType.TimestampS, expectedValue);
+
+        TestTimestampInsert("TIMESTAMP_MS", DuckDBType.TimestampMs, expectedValue);
+
+        TestTimestampInsert("TIMESTAMP_NS", DuckDBType.TimestampNs, expectedValue);
+    }
+
+    private void TestTimestampInsert(string timestampType, DuckDBType duckDBType, DateTime expectedValue)
+    {
+        expectedValue = duckDBType switch
+        {
+            DuckDBType.TimestampS => Trim(expectedValue, TimeSpan.TicksPerSecond),
+            DuckDBType.TimestampMs => Trim(expectedValue, TimeSpan.TicksPerMillisecond),
+            DuckDBType.TimestampNs => Trim(expectedValue, TimeSpan.FromTicks(100).Ticks),
+            _ => expectedValue
+        };
+
+        Command.CommandText = $"CREATE OR Replace TABLE TimestampTestTable (a INTEGER, b {timestampType});";
+        Command.ExecuteNonQuery();
+        
         Command.CommandText = "INSERT INTO TimestampTestTable (a, b) VALUES (42, ?);";
         Command.Parameters.Add(new DuckDBParameter(expectedValue));
         Command.ExecuteNonQuery();
@@ -94,32 +114,37 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
         reader.GetFieldType(1).Should().Be(typeof(DateTime));
 
-        var dateTime = reader.GetDateTime(1);
+        var databaseValue = reader.GetDateTime(1);
 
-        dateTime.Year.Should().Be(year);
-        dateTime.Month.Should().Be(mon);
-        dateTime.Day.Should().Be(day);
-        dateTime.Hour.Should().Be(hour);
-        dateTime.Minute.Should().Be(minute);
-        dateTime.Second.Should().Be(second);
-        dateTime.Millisecond.Should().Be(microsecond / 1000);
+        databaseValue.Year.Should().Be(expectedValue.Year);
+        databaseValue.Month.Should().Be(expectedValue.Month);
+        databaseValue.Day.Should().Be(expectedValue.Day);
+        databaseValue.Hour.Should().Be(expectedValue.Hour);
+        databaseValue.Minute.Should().Be(expectedValue.Minute);
+        databaseValue.Second.Should().Be(expectedValue.Second);
 
-        dateTime.TimeOfDay.Should().Be(expectedValue.TimeOfDay);
+        databaseValue.Millisecond.Should().Be(expectedValue.Millisecond);
+        databaseValue.Microsecond.Should().Be(expectedValue.Microsecond);
+        databaseValue.Nanosecond.Should().Be(expectedValue.Nanosecond);
+
+        databaseValue.TimeOfDay.Should().Be(expectedValue.TimeOfDay);
 
         var dateTimeNullable = reader.GetFieldValue<DateTime?>(1);
-        dateTime = dateTimeNullable.Value;
+        databaseValue = dateTimeNullable.Value;
 
-        dateTime.Year.Should().Be(year);
-        dateTime.Month.Should().Be(mon);
-        dateTime.Day.Should().Be(day);
-        dateTime.Hour.Should().Be(hour);
-        dateTime.Minute.Should().Be(minute);
-        dateTime.Second.Should().Be(second);
-        dateTime.Millisecond.Should().Be(microsecond / 1000);
+        databaseValue.Year.Should().Be(expectedValue.Year);
+        databaseValue.Month.Should().Be(expectedValue.Month);
+        databaseValue.Day.Should().Be(expectedValue.Day);
+        databaseValue.Hour.Should().Be(expectedValue.Hour);
+        databaseValue.Minute.Should().Be(expectedValue.Minute);
+        databaseValue.Second.Should().Be(expectedValue.Second);
 
-        dateTime.TimeOfDay.Should().Be(expectedValue.TimeOfDay);
+        databaseValue.Millisecond.Should().Be(expectedValue.Millisecond);
+        databaseValue.Microsecond.Should().Be(expectedValue.Microsecond);
+        databaseValue.Nanosecond.Should().Be(expectedValue.Nanosecond);
 
-        Command.CommandText = "DROP TABLE TimestampTestTable;";
-        Command.ExecuteNonQuery();
+        databaseValue.TimeOfDay.Should().Be(expectedValue.TimeOfDay);
     }
+
+    public static DateTime Trim(DateTime date, long ticks) => new(date.Ticks - (date.Ticks % ticks), date.Kind);
 }
