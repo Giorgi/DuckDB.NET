@@ -214,4 +214,31 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
         data.Should().BeEquivalentTo(Enumerable.Empty<int>());
     }
+
+    [Fact]
+    public void RegisterFunctionWithDateOnlyTimeOnlyParameters()
+    {
+        var dateOnly = new DateOnly(2024, 11, 6);
+        var timeOnly = new TimeOnly(10, 30, 24);
+
+        Connection.RegisterTableFunction<DateOnly, TimeOnly>("demo7", (parameters) =>
+        {
+            var date = parameters[0].GetValue<DateOnly>();
+            var time = parameters[1].GetValue<TimeOnly>();
+
+            var dateTime = date.ToDateTime(time);
+
+            return new TableFunction(new List<ColumnInfo>()
+            {
+                new ColumnInfo("foo", typeof(DateTime)),
+            }, new[] { dateTime });
+        }, (item, writers, rowIndex) =>
+        {
+            writers[0].WriteValue((DateTime)item, rowIndex);
+        });
+
+        var data = Connection.Query<DateTime>("SELECT * FROM demo7('2024-11-06'::DATE, '10:30:24'::TIME);").ToList();
+
+        data.Should().BeEquivalentTo([new DateTime(2024, 11, 6, 10, 30, 24)]);
+    }
 }
