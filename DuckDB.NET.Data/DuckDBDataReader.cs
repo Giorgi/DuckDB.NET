@@ -64,48 +64,45 @@ public class DuckDBDataReader : DbDataReader
 
     private bool InitChunkData()
     {
-        unsafe
+        foreach (var reader in vectorReaders)
         {
-            foreach (var reader in vectorReaders)
+            reader.Dispose();
+        }
+
+        currentChunk?.Dispose();
+        currentChunk = streamingResult ? NativeMethods.StreamingResult.DuckDBStreamFetchChunk(currentResult) : NativeMethods.Types.DuckDBResultGetChunk(currentResult, currentChunkIndex);
+
+        rowsReadFromCurrentChunk = 0;
+
+        currentChunkRowCount = NativeMethods.DataChunks.DuckDBDataChunkGetSize(currentChunk);
+
+        if (vectorReaders.Length != fieldCount)
+        {
+            vectorReaders = new VectorDataReaderBase[fieldCount];
+        }
+
+        for (int index = 0; index < fieldCount; index++)
+        {
+            var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(currentChunk, index);
+
+            using var logicalType = NativeMethods.Query.DuckDBColumnLogicalType(ref currentResult, index);
+
+            var columnName = vectorReaders[index]?.ColumnName ?? NativeMethods.Query.DuckDBColumnName(ref currentResult, index).ToManagedString(false);
+            vectorReaders[index] = VectorDataReaderFactory.CreateReader(vector, logicalType, columnName);
+        }
+
+        if (columnMapping.Count == 0)
+        {
+            for (var i = 0; i < vectorReaders.Length; i++)
             {
-                reader.Dispose();
-            }
-
-            currentChunk?.Dispose();
-            currentChunk = streamingResult ? NativeMethods.StreamingResult.DuckDBStreamFetchChunk(currentResult) : NativeMethods.Types.DuckDBResultGetChunk(currentResult, currentChunkIndex);
-
-            rowsReadFromCurrentChunk = 0;
-
-            currentChunkRowCount = NativeMethods.DataChunks.DuckDBDataChunkGetSize(currentChunk);
-
-            if (vectorReaders.Length != fieldCount)
-            {
-                vectorReaders = new VectorDataReaderBase[fieldCount];
-            }
-
-            for (int index = 0; index < fieldCount; index++)
-            {
-                var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(currentChunk, index);
-
-                using var logicalType = NativeMethods.Query.DuckDBColumnLogicalType(ref currentResult, index);
-
-                vectorReaders[index] = VectorDataReaderFactory.CreateReader(vector, logicalType, vectorReaders[index]?.ColumnName ??
-                                                                            NativeMethods.Query.DuckDBColumnName(ref currentResult, index).ToManagedString(false));
-            }
-
-            if (columnMapping.Count == 0)
-            {
-                for (var i = 0; i < vectorReaders.Length; i++)
+                if (!columnMapping.ContainsKey(vectorReaders[i].ColumnName))
                 {
-                    if (!columnMapping.ContainsKey(vectorReaders[i].ColumnName))
-                    {
-                        columnMapping.Add(vectorReaders[i].ColumnName, i);
-                    }
+                    columnMapping.Add(vectorReaders[i].ColumnName, i);
                 }
             }
-
-            return currentChunkRowCount > 0;
         }
+
+        return currentChunkRowCount > 0;
     }
 
     public override bool GetBoolean(int ordinal)
