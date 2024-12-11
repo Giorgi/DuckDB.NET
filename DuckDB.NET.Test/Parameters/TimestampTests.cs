@@ -94,7 +94,7 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     {
         expectedValue = duckDBType switch
         {
-            DuckDBType.Timestamp => Trim(expectedValue, TimeSpan.TicksPerMicrosecond),
+            DuckDBType.Timestamp or DuckDBType.TimestampTz => Trim(expectedValue, TimeSpan.TicksPerMicrosecond),
             DuckDBType.TimestampS => Trim(expectedValue, TimeSpan.TicksPerSecond),
             DuckDBType.TimestampMs => Trim(expectedValue, TimeSpan.TicksPerMillisecond),
             DuckDBType.TimestampNs => Trim(expectedValue, TimeSpan.FromTicks(100).Ticks),
@@ -146,6 +146,19 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         databaseValue.Nanosecond.Should().Be(expectedValue.Nanosecond);
 
         databaseValue.TimeOfDay.Should().Be(expectedValue.TimeOfDay);
+
+        var dateTimeOffset = reader.GetFieldValue<DateTimeOffset>(1);
+
+        dateTimeOffset.Year.Should().Be(expectedValue.Year);
+        dateTimeOffset.Month.Should().Be(expectedValue.Month);
+        dateTimeOffset.Day.Should().Be(expectedValue.Day);
+        dateTimeOffset.Hour.Should().Be(expectedValue.Hour);
+        dateTimeOffset.Minute.Should().Be(expectedValue.Minute);
+        dateTimeOffset.Second.Should().Be(expectedValue.Second);
+
+        dateTimeOffset.Millisecond.Should().Be(expectedValue.Millisecond);
+        dateTimeOffset.Microsecond.Should().Be(expectedValue.Microsecond);
+        dateTimeOffset.Nanosecond.Should().Be(expectedValue.Nanosecond);
     }
 
     public static DateTime Trim(DateTime date, long ticks) => new(date.Ticks - (date.Ticks % ticks), date.Kind);

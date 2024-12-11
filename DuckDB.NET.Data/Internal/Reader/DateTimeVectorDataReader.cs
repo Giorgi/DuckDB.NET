@@ -98,6 +98,13 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
             return (T)(object)dateTime;
         }
 
+        if (targetType == DateTimeOffsetType || targetType == DateTimeOffsetNullableType)
+        {
+            var dateTime = timestamp.ToDateTime().AddTicks(additionalTicks);
+            var dateTimeOffset = new DateTimeOffset(dateTime, TimeSpan.Zero);
+            return (T)(object)dateTimeOffset;
+        }
+
         return (T)(object)timestamp;
     }
 
@@ -177,6 +184,12 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
             var dateTime = timestamp.ToDateTime().AddTicks(additionalTicks);
 
             return dateTime;
+        }
+
+        if (targetType == DateTimeOffsetType)
+        {
+            var dateTime = timestamp.ToDateTime().AddTicks(additionalTicks);
+            return new DateTimeOffset(dateTime, TimeSpan.Zero);
         }
 
         return timestamp;
