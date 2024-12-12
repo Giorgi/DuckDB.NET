@@ -20,10 +20,21 @@ internal sealed unsafe class DateTimeVectorDataWriter(IntPtr vector, void* vecto
 
     internal override bool AppendDateTimeOffset(DateTimeOffset value, ulong rowIndex)
     {
-        var time = NativeMethods.DateTimeHelpers.DuckDBToTime((DuckDBTimeOnly)value.DateTime);
-        var timeTz = NativeMethods.DateTimeHelpers.DuckDBCreateTimeTz(time.Micros, (int)value.Offset.TotalSeconds);
+        if (ColumnType == DuckDBType.TimeTz)
+        {
+            var timeTz = value.ToTimeTzStruct();
 
-        return AppendValueInternal(timeTz, rowIndex);
+            return AppendValueInternal(timeTz, rowIndex);
+        }
+
+        if (ColumnType == DuckDBType.TimestampTz)
+        {
+            var timestamp = value.ToTimestampStruct();
+
+            return AppendValueInternal(timestamp, rowIndex);
+        }
+
+        return base.AppendDateTimeOffset(value, rowIndex);
     }
 
 #if NET6_0_OR_GREATER

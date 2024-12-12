@@ -18,6 +18,21 @@ internal static class DateTimeExtensions
 #endif
     }
 
+    public static DuckDBTimeTzStruct ToTimeTzStruct(this DateTimeOffset value)
+    {
+        var time = NativeMethods.DateTimeHelpers.DuckDBToTime((DuckDBTimeOnly)value.DateTime);
+        var timeTz = NativeMethods.DateTimeHelpers.DuckDBCreateTimeTz(time.Micros, (int)value.Offset.TotalSeconds);
+
+        return timeTz;
+    }
+
+    public static DuckDBTimestampStruct ToTimestampStruct(this DateTimeOffset value)
+    {
+        var timestamp = NativeMethods.DateTimeHelpers.DuckDBToTimestamp(DuckDBTimestamp.FromDateTime(value.UtcDateTime));
+
+        return timestamp;
+    }
+
     public static DuckDBTimestampStruct ToTimestampStruct(this DateTime value, DuckDBType duckDBType)
     {
         var timestamp = NativeMethods.DateTimeHelpers.DuckDBToTimestamp(DuckDBTimestamp.FromDateTime(value));

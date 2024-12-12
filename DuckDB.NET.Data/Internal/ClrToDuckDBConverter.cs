@@ -44,7 +44,7 @@ internal static class ClrToDuckDBConverter
             (DuckDBType.TimestampMs, DateTime value) => NativeMethods.Value.DuckDBCreateTimestampMs(value.ToTimestampStruct(duckDBType)),
             (DuckDBType.TimestampNs, DateTime value) => NativeMethods.Value.DuckDBCreateTimestampNs(value.ToTimestampStruct(duckDBType)),
             (DuckDBType.TimestampTz, DateTime value) => NativeMethods.Value.DuckDBCreateTimestampTz(value.ToTimestampStruct(duckDBType)),
-            (DuckDBType.TimestampTz, DateTimeOffset value) => NativeMethods.Value.DuckDBCreateTimestampTz(value.UtcDateTime.ToTimestampStruct(duckDBType)),
+            (DuckDBType.TimestampTz, DateTimeOffset value) => NativeMethods.Value.DuckDBCreateTimestampTz(value.ToTimestampStruct()),
             (DuckDBType.Interval, TimeSpan value) => NativeMethods.Value.DuckDBCreateInterval(value),
             (DuckDBType.Date, DateTime value) => NativeMethods.Value.DuckDBCreateDate(NativeMethods.DateTimeHelpers.DuckDBToDate((DuckDBDateOnly)value)),
             (DuckDBType.Date, DuckDBDateOnly value) => NativeMethods.Value.DuckDBCreateDate(NativeMethods.DateTimeHelpers.DuckDBToDate(value)),
@@ -54,7 +54,7 @@ internal static class ClrToDuckDBConverter
             (DuckDBType.Date, DateOnly value) => NativeMethods.Value.DuckDBCreateDate(NativeMethods.DateTimeHelpers.DuckDBToDate(value)),
             (DuckDBType.Time, TimeOnly value) => NativeMethods.Value.DuckDBCreateTime(NativeMethods.DateTimeHelpers.DuckDBToTime(value)),
 #endif
-            (DuckDBType.TimeTz, DateTimeOffset value) => DateTimeOffsetToTimeTzDuckDBValue(value),
+            (DuckDBType.TimeTz, DateTimeOffset value) => NativeMethods.Value.DuckDBCreateTimeTz(value.ToTimeTzStruct()),
             (DuckDBType.Blob, byte[] value) => NativeMethods.Value.DuckDBCreateBlob(value, value.Length),
             (DuckDBType.List, ICollection value) => CreateCollectionValue(logicalType, value, true),
             (DuckDBType.Array, ICollection value) => CreateCollectionValue(logicalType, value, false),
@@ -111,12 +111,5 @@ internal static class ClrToDuckDBConverter
     {
         using var handle = value.ToString(CultureInfo.InvariantCulture).ToUnmanagedString();
         return NativeMethods.Value.DuckDBCreateVarchar(handle);
-    }
-
-    private static DuckDBValue DateTimeOffsetToTimeTzDuckDBValue(DateTimeOffset val)
-    {
-        var duckDBToTime = NativeMethods.DateTimeHelpers.DuckDBToTime((DuckDBTimeOnly)val.DateTime);
-        var duckDBCreateTimeTz = NativeMethods.DateTimeHelpers.DuckDBCreateTimeTz(duckDBToTime.Micros, (int)val.Offset.TotalSeconds);
-        return NativeMethods.Value.DuckDBCreateTimeTz(duckDBCreateTimeTz);
     }
 }
