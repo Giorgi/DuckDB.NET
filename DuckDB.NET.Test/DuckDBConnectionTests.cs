@@ -536,4 +536,17 @@ public class DuckDBConnectionTests
             handlerCalled = true;
         }
     }
+
+    [Fact]
+    public void ConnectionSetsDuckDBApiConfigOption()
+    {
+        using (var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT current_setting('duckdb_api');";
+            var value = command.ExecuteScalar();
+            value.Should().Be("DuckDB.NET");
+        }
+    }
 }
