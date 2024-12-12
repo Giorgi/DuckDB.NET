@@ -19,6 +19,7 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
     public const string InMemorySharedConnectionString = "DataSource=:memory:?cache=shared";
 
     private const string DataSourceKey = "DataSource";
+    private const string DuckDBApiConfigKey = "duckdb_api";
 
     static DuckDBConnectionStringBuilder()
     {
@@ -37,6 +38,11 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
         {
             ConnectionString = connectionString
         };
+
+        if (!builder.ContainsKey(DuckDBApiConfigKey))
+        {
+            builder[DuckDBApiConfigKey] = "DuckDB.NET";
+        }
 
         var dataSource = builder.DataSource;
 

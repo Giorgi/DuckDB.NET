@@ -14,8 +14,6 @@ public class DuckDBParameter : DbParameter
 
     public override DbType DbType { get; set; }
 
-    public DuckDBDbType DuckDBType { get; set; }
-
 #if NET6_0_OR_GREATER
     [AllowNull]
 #endif
