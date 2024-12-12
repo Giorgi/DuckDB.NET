@@ -244,7 +244,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     [Fact]
     public void TemporalValues()
     {
-        Command.CommandText = "CREATE TABLE managedAppenderTemporal(a Date, b TimeStamp, c TIMESTAMP_NS, d TIMESTAMP_MS, e TIMESTAMP_S, f TIMESTAMPTZ, g TIMETZ, h Time);";
+        Command.CommandText = "CREATE TABLE managedAppenderTemporal(a Date, b TimeStamp, c TIMESTAMP_NS, d TIMESTAMP_MS, e TIMESTAMP_S, f TIMESTAMPTZ, g TIMETZ, h Time, i TIMESTAMPTZ);";
         Command.ExecuteNonQuery();
 
         var dates = Enumerable.Range(0, 20).Select(i => new DateTime(1900, 1, 1).AddDays(Random.Shared.Next(1, 50000))
@@ -260,11 +260,12 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
                                 .AppendValue(value).AppendValue(value).AppendValue(value)
                                 .AppendValue(value.ToDateTimeOffset(TimeSpan.FromHours(1)))
                                 .AppendValue((TimeOnly?)TimeOnly.FromDateTime(value))
+                                .AppendValue(new DateTimeOffset(value, TimeSpan.Zero))
                         .EndRow();
             }
         }
 
-        var result = Connection.Query<(DateOnly, DateTime, DateTime nanos, DateTime, DateTime, DateTime, DateTimeOffset, TimeOnly)>("SELECT a, b, c, d, e, f, g, h FROM managedAppenderTemporal").ToList();
+        var result = Connection.Query<(DateOnly, DateTime, DateTime nanos, DateTime, DateTime, DateTime, DateTimeOffset, TimeOnly, DateTimeOffset)>("SELECT a, b, c, d, e, f, g, h, i FROM managedAppenderTemporal").ToList();
 
         result.Select(tuple => tuple.Item1).Should().BeEquivalentTo(dates.Select(DateOnly.FromDateTime));
         result.Select(tuple => tuple.Item2).Should().BeEquivalentTo(dates);
@@ -274,6 +275,16 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         result.Select(tuple => tuple.Item6).Should().BeEquivalentTo(dates);
         result.Select(tuple => tuple.Item7).Should().BeEquivalentTo(dates.Select(time => time.ToDateTimeOffset(TimeSpan.FromHours(1))));
         result.Select(tuple => tuple.Item8).Should().BeEquivalentTo(dates.Select(TimeOnly.FromDateTime));
+
+        Command.CommandText = "Select i from managedAppenderTemporal";
+        var reader = Command.ExecuteReader();
+
+        int index = -1;
+        while (reader.Read())
+        {
+            index++;
+            reader.GetFieldValue<DateTimeOffset>(0).Should().Be(new DateTimeOffset(dates[index], TimeSpan.Zero));
+        }
     }
 
     [Fact]
