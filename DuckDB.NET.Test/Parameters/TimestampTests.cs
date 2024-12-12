@@ -79,7 +79,7 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(2022, 04, 05, 18, 15, 17, 125_700, 0)]
     public void InsertAndQueryTest(int year, int mon, int day, byte hour, byte minute, byte second, int microsecond, int nanosecond)
     {
-        var expectedValue = new DateTime(year, mon, day, hour, minute, second).AddTicks(microsecond * 10).AddNanoseconds(nanosecond);
+        var expectedValue = new DateTime(year, mon, day, hour, minute, second, DateTimeKind.Utc).AddTicks(microsecond * 10).AddNanoseconds(nanosecond);
 
         TestTimestampInsert("TIMESTAMP", DuckDBType.Timestamp, expectedValue);
 
@@ -105,7 +105,7 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
         Command.CommandText = $"CREATE OR Replace TABLE TimestampTestTable (a INTEGER, b {timestampType});";
         Command.ExecuteNonQuery();
-        
+
         Command.CommandText = "INSERT INTO TimestampTestTable (a, b) VALUES (42, ?);";
         Command.Parameters.Add(new DuckDBParameter(expectedValue));
         Command.ExecuteNonQuery();
@@ -161,6 +161,35 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         dateTimeOffset.Millisecond.Should().Be(expectedValue.Millisecond);
         dateTimeOffset.Microsecond.Should().Be(expectedValue.Microsecond);
         dateTimeOffset.Nanosecond.Should().Be(expectedValue.Nanosecond);
+
+        if (duckDBType == DuckDBType.TimestampTz)
+        {
+            Command.CommandText = "Truncate table TimestampTestTable";
+            Command.ExecuteNonQuery();
+
+            Command.CommandText = "INSERT INTO TimestampTestTable (a, b) VALUES (42, ?);";
+            Command.Parameters.Add(new DuckDBParameter(new DateTimeOffset(expectedValue)));
+            Command.ExecuteNonQuery();
+
+            Command.Parameters.Clear();
+            Command.CommandText = "SELECT * FROM TimestampTestTable LIMIT 1;";
+
+            reader = Command.ExecuteReader();
+            reader.Read();
+
+            dateTimeOffset = reader.GetFieldValue<DateTimeOffset>(1);
+
+            dateTimeOffset.Year.Should().Be(expectedValue.Year);
+            dateTimeOffset.Month.Should().Be(expectedValue.Month);
+            dateTimeOffset.Day.Should().Be(expectedValue.Day);
+            dateTimeOffset.Hour.Should().Be(expectedValue.Hour);
+            dateTimeOffset.Minute.Should().Be(expectedValue.Minute);
+            dateTimeOffset.Second.Should().Be(expectedValue.Second);
+
+            dateTimeOffset.Millisecond.Should().Be(expectedValue.Millisecond);
+            dateTimeOffset.Microsecond.Should().Be(expectedValue.Microsecond);
+            dateTimeOffset.Nanosecond.Should().Be(expectedValue.Nanosecond);
+        }
     }
 
     public static DateTime Trim(DateTime date, long ticks) => new(date.Ticks - (date.Ticks % ticks), date.Kind);
