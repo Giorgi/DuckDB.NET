@@ -88,6 +88,8 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         TestTimestampInsert("TIMESTAMP_MS", DuckDBType.TimestampMs, expectedValue);
 
         TestTimestampInsert("TIMESTAMP_NS", DuckDBType.TimestampNs, expectedValue);
+
+        TestTimestampInsert("TIMESTAMPTZ", DuckDBType.TimestampTz, expectedValue);
     }
 
     private void TestTimestampInsert(string timestampType, DuckDBType duckDBType, DateTime expectedValue)
