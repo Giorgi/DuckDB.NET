@@ -1,7 +1,7 @@
-﻿using DuckDB.NET.Data.Extensions;
-using DuckDB.NET.Data.Internal;
-using DuckDB.NET.Data.Internal.Writer;
-using DuckDB.NET.Data.Writer;
+﻿using DuckDB.NET.Data.Common;
+using DuckDB.NET.Data.Connection;
+using DuckDB.NET.Data.DataChunk.Writer;
+using DuckDB.NET.Data.Extensions;
 using DuckDB.NET.Native;
 using System;
 using System.Collections;
@@ -78,7 +78,7 @@ partial class DuckDBConnection
 
         foreach (var type in parameterTypes)
         {
-            using var logicalType = DuckDBTypeMap.GetLogicalType(type);
+            using var logicalType = type.GetLogicalType();
             NativeMethods.TableFunction.DuckDBTableFunctionAddParameter(function, logicalType);
         }
 
@@ -124,7 +124,7 @@ partial class DuckDBConnection
 
             foreach (var columnInfo in tableFunctionData.Columns)
             {
-                using var logicalType = DuckDBTypeMap.GetLogicalType(columnInfo.Type);
+                using var logicalType = columnInfo.Type.GetLogicalType();
                 NativeMethods.TableFunction.DuckDBBindAddResultColumn(info, columnInfo.Name.ToUnmanagedString(), logicalType);
             }
 
@@ -175,7 +175,7 @@ partial class DuckDBConnection
                 var column = tableFunctionBindData.Columns[columnIndex];
                 var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(dataChunk, columnIndex);
 
-                using var logicalType = DuckDBTypeMap.GetLogicalType(column.Type);
+                using var logicalType = column.Type.GetLogicalType();
                 writers[columnIndex] = VectorDataWriterFactory.CreateWriter(vector, logicalType);
             }
 

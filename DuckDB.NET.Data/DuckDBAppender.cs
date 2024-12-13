@@ -1,5 +1,5 @@
-﻿using DuckDB.NET.Data.Internal;
-using DuckDB.NET.Data.Internal.Writer;
+﻿using DuckDB.NET.Data.Common;
+using DuckDB.NET.Data.DataChunk.Writer;
 using DuckDB.NET.Native;
 using System;
 using System.Diagnostics;

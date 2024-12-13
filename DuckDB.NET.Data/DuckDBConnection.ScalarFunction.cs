@@ -1,9 +1,7 @@
-﻿using DuckDB.NET.Data.Extensions;
-using DuckDB.NET.Data.Internal;
-using DuckDB.NET.Data.Internal.Reader;
-using DuckDB.NET.Data.Internal.Writer;
-using DuckDB.NET.Data.Reader;
-using DuckDB.NET.Data.Writer;
+﻿using DuckDB.NET.Data.Connection;
+using DuckDB.NET.Data.DataChunk.Reader;
+using DuckDB.NET.Data.DataChunk.Writer;
+using DuckDB.NET.Data.Extensions;
 using DuckDB.NET.Native;
 using System;
 using System.Collections.Generic;
@@ -19,40 +17,40 @@ partial class DuckDBConnection
     [Experimental("DuckDBNET001")]
     public void RegisterScalarFunction<TResult>(string name, Action<IReadOnlyList<IDuckDBDataReader>, IDuckDBDataWriter, ulong> action, bool isPureFunction = false)
     {
-        RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), varargs: false, !isPureFunction);
+        RegisterScalarMethod(name, action, TypeExtensions.GetLogicalType<TResult>(), varargs: false, !isPureFunction);
     }
 
     [Experimental("DuckDBNET001")]
     public void RegisterScalarFunction<T, TResult>(string name, Action<IReadOnlyList<IDuckDBDataReader>, IDuckDBDataWriter, ulong> action, bool isPureFunction = true, bool @params = false)
     {
-        RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), @params, !isPureFunction, DuckDBTypeMap.GetLogicalType<T>());
+        RegisterScalarMethod(name, action, TypeExtensions.GetLogicalType<TResult>(), @params, !isPureFunction, TypeExtensions.GetLogicalType<T>());
     }
 
     [Experimental("DuckDBNET001")]
     public void RegisterScalarFunction<T1, T2, TResult>(string name, Action<IReadOnlyList<IDuckDBDataReader>, IDuckDBDataWriter, ulong> action, bool isPureFunction = true)
     {
-        RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), varargs: false, !isPureFunction,
-                              DuckDBTypeMap.GetLogicalType<T1>(), 
-                              DuckDBTypeMap.GetLogicalType<T2>());
+        RegisterScalarMethod(name, action, TypeExtensions.GetLogicalType<TResult>(), varargs: false, !isPureFunction,
+                              TypeExtensions.GetLogicalType<T1>(), 
+                              TypeExtensions.GetLogicalType<T2>());
     }
 
     [Experimental("DuckDBNET001")]
     public void RegisterScalarFunction<T1, T2, T3, TResult>(string name, Action<IReadOnlyList<IDuckDBDataReader>, IDuckDBDataWriter, ulong> action, bool isPureFunction = true)
     {
-        RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), varargs: false, !isPureFunction,
-                              DuckDBTypeMap.GetLogicalType<T1>(),
-                              DuckDBTypeMap.GetLogicalType<T2>(),
-                              DuckDBTypeMap.GetLogicalType<T3>());
+        RegisterScalarMethod(name, action, TypeExtensions.GetLogicalType<TResult>(), varargs: false, !isPureFunction,
+                              TypeExtensions.GetLogicalType<T1>(),
+                              TypeExtensions.GetLogicalType<T2>(),
+                              TypeExtensions.GetLogicalType<T3>());
     }
 
     [Experimental("DuckDBNET001")]
     public void RegisterScalarFunction<T1, T2, T3, T4, TResult>(string name, Action<IReadOnlyList<IDuckDBDataReader>, IDuckDBDataWriter, ulong> action, bool isPureFunction = true)
     {
-        RegisterScalarMethod(name, action, DuckDBTypeMap.GetLogicalType<TResult>(), varargs: false, !isPureFunction,
-                              DuckDBTypeMap.GetLogicalType<T1>(),
-                              DuckDBTypeMap.GetLogicalType<T2>(),
-                              DuckDBTypeMap.GetLogicalType<T3>(),
-                              DuckDBTypeMap.GetLogicalType<T4>());
+        RegisterScalarMethod(name, action, TypeExtensions.GetLogicalType<TResult>(), varargs: false, !isPureFunction,
+                              TypeExtensions.GetLogicalType<T1>(),
+                              TypeExtensions.GetLogicalType<T2>(),
+                              TypeExtensions.GetLogicalType<T3>(),
+                              TypeExtensions.GetLogicalType<T4>());
     }
 
     [Experimental("DuckDBNET001")]

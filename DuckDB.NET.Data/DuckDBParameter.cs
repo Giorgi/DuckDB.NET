@@ -1,8 +1,8 @@
+using DuckDB.NET.Data.PreparedStatement;
 using System.ComponentModel;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
-using DuckDB.NET.Data.Internal;
 
 namespace DuckDB.NET.Data;
 

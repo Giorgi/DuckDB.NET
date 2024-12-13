@@ -1,4 +1,4 @@
-﻿using DuckDB.NET.Data.Internal.Writer;
+﻿using DuckDB.NET.Data.DataChunk.Writer;
 using DuckDB.NET.Native;
 using System;
 using System.Collections.Generic;

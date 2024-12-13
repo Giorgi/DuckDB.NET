@@ -1,1 +1,0 @@
-namespace DuckDB.NET.Data;
