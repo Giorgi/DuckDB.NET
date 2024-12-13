@@ -41,7 +41,7 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
 
         if (!builder.ContainsKey(DuckDBApiConfigKey))
         {
-            builder[DuckDBApiConfigKey] = "DuckDB.NET";
+            builder[DuckDBApiConfigKey] = "DuckDB.NET/1.1.1";
         }
 
         var dataSource = builder.DataSource;

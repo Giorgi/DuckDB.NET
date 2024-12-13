@@ -545,8 +545,8 @@ public class DuckDBConnectionTests
             connection.Open();
             using var command = connection.CreateCommand();
             command.CommandText = "SELECT current_setting('duckdb_api');";
-            var value = command.ExecuteScalar();
-            value.Should().Be("DuckDB.NET");
+            var value = (string)command.ExecuteScalar();
+            value.Should().StartWith("DuckDB.NET");
         }
     }
 }
