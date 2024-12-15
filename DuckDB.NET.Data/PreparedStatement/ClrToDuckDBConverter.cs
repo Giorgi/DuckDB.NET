@@ -58,7 +58,7 @@ internal static class ClrToDuckDBConverter
             (DuckDBType.Blob, byte[] value) => NativeMethods.Value.DuckDBCreateBlob(value, value.Length),
             (DuckDBType.List, ICollection value) => CreateCollectionValue(logicalType, value, true),
             (DuckDBType.Array, ICollection value) => CreateCollectionValue(logicalType, value, false),
-            _ => throw new InvalidOperationException($"Cannot bind parameter type {item.GetType().FullName} to column of type {duckDBType}")
+            _ => throw new InvalidOperationException($"Cannot bind parameter type {item!.GetType().FullName} to column of type {duckDBType}")
         };
 
         T ConvertTo<T>()
@@ -69,7 +69,7 @@ internal static class ClrToDuckDBConverter
             }
             catch (Exception)
             {
-                throw new ArgumentOutOfRangeException($"Cannot bind parameter '{item}' type {item.GetType().FullName} to column of type {duckDBType}");
+                throw new ArgumentOutOfRangeException($"Cannot bind parameter '{item}' type {item!.GetType().FullName} to column of type {duckDBType}");
             }
         }
     }

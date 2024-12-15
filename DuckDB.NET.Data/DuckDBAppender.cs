@@ -39,7 +39,7 @@ public class DuckDBAppender : IDisposable
         dataChunk = NativeMethods.DataChunks.DuckDBCreateDataChunk(logicalTypeHandles, columnCount);
     }
 
-    public DuckDBAppenderRow CreateRow()
+    public IDuckDBAppenderRow CreateRow()
     {
         if (closed)
         {
