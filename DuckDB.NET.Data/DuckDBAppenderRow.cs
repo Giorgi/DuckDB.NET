@@ -116,7 +116,7 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
 
     #endregion
 
-    public DuckDBAppenderRow AppendDefault()
+    public IDuckDBAppenderRow AppendDefault()
     {
         CheckColumnAccess();
 
@@ -197,4 +197,5 @@ public interface IDuckDBAppenderRow
     IDuckDBAppenderRow AppendValue(DateTimeOffset? value);
     IDuckDBAppenderRow AppendValue(TimeSpan? value);
     IDuckDBAppenderRow AppendValue<T>(IEnumerable<T>? value);
+    IDuckDBAppenderRow AppendDefault();
 }
