@@ -611,6 +611,30 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         sum.Should().Be(400);
     }
 
+    [Fact]
+    public void AppendDefault()
+    {
+        Command.CommandText = "CREATE OR REPLACE TABLE tbl (i INT DEFAULT 4, j INT, k INT DEFAULT 30)";
+        Command.ExecuteNonQuery();
+
+        using (var appender = Connection.CreateAppender("tbl"))
+        {
+            appender.CreateRow().AppendValue((int?)2).AppendValue(2).AppendDefault().EndRow();
+            appender.CreateRow().AppendDefault().AppendValue(2).AppendDefault().EndRow();
+        }
+
+        Command.CommandText = "Select * from tbl";
+        var reader = Command.ExecuteReader();
+        reader.Read();
+
+        var i = reader.GetInt32(0);
+        var k = reader.GetInt32(2);
+        reader.Read();
+
+        i = reader.GetInt32(0);
+        k = reader.GetInt32(2);
+    }
+
     private static string GetCreateEnumTypeSql(string enumName, string enumValueNamePrefix, int count)
     {
         var stringBuilder = new StringBuilder();

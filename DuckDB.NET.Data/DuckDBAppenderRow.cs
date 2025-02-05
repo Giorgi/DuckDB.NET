@@ -12,12 +12,17 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
     private readonly string qualifiedTableName;
     private readonly VectorDataWriterBase[] vectorWriters;
     private readonly ulong rowIndex;
+    private readonly DuckDBDataChunk dataChunk;
+    private readonly Native.DuckDBAppender nativeAppender;
 
-    internal DuckDBAppenderRow(string qualifiedTableName, VectorDataWriterBase[] vectorWriters, ulong rowIndex)
+    internal DuckDBAppenderRow(string qualifiedTableName, VectorDataWriterBase[] vectorWriters,
+                               ulong rowIndex, DuckDBDataChunk dataChunk, Native.DuckDBAppender nativeAppender)
     {
         this.qualifiedTableName = qualifiedTableName;
         this.vectorWriters = vectorWriters;
         this.rowIndex = rowIndex;
+        this.dataChunk = dataChunk;
+        this.nativeAppender = nativeAppender;
     }
 
     public void EndRow()
@@ -110,6 +115,21 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
     public IDuckDBAppenderRow AppendValue<T>(IEnumerable<T>? value) => AppendValueInternal(value);
 
     #endregion
+
+    public DuckDBAppenderRow AppendDefault()
+    {
+        CheckColumnAccess();
+
+        var state = NativeMethods.Appender.DuckDBAppendDefaultToChunk(nativeAppender, dataChunk, rowIndex, columnIndex);
+
+        if (state == DuckDBState.Error)
+        {
+            DuckDBAppender.ThrowLastError(nativeAppender);
+        }
+
+        columnIndex++;
+        return this;
+    }
 
     private DuckDBAppenderRow AppendValueInternal<T>(T? value)
     {

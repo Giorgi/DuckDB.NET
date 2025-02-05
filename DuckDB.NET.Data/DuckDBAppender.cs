@@ -56,7 +56,7 @@ public class DuckDBAppender : IDisposable
         }
 
         rowCount++;
-        return new DuckDBAppenderRow(qualifiedTableName, vectorWriters, rowCount - 1);
+        return new DuckDBAppenderRow(qualifiedTableName, vectorWriters, rowCount - 1, dataChunk, nativeAppender);
     }
 
     public void Close()
