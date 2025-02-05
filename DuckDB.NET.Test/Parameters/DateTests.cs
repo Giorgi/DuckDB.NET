@@ -35,7 +35,7 @@ public class DateTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     {
         var expectedValue = new DateTime(year, mon, day);
         
-        Command.CommandText = "SELECT ?;";
+        Command.CommandText = "SELECT ?::DATE;";
         Command.Parameters.Add(new DuckDBParameter((DuckDBDateOnly)expectedValue));
 
         var scalar = Command.ExecuteScalar();
@@ -104,7 +104,7 @@ public class DateTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     {
         var expectedValue = new DateOnly(year, mon, day);
 
-        Command.CommandText = "SELECT ?;";
+        Command.CommandText = "SELECT ?::DATE;";
         Command.Parameters.Add(new DuckDBParameter(expectedValue));
 
         var scalar = Command.ExecuteScalar();

@@ -86,7 +86,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
             foreach (var value in values)
             {
-                Command.CommandText = "Insert Into DecimalValuesTests (key, value) values (1, ?)";
+                Command.CommandText = $"Insert Into DecimalValuesTests (key, value) values (1, ?::decimal({precision}, {scale}))";
                 Command.Parameters.Add(new DuckDBParameter(value));
                 Command.ExecuteNonQuery();
 

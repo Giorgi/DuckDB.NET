@@ -1,4 +1,4 @@
-using DuckDB.NET.Data.ConnectionString;
+using DuckDB.NET.Data.Connection;
 using DuckDB.NET.Native;
 using System;
 using System.Collections.Generic;

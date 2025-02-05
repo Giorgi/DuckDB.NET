@@ -1,4 +1,4 @@
-﻿using DuckDB.NET.Data.Internal.Reader;
+﻿using DuckDB.NET.Data.DataChunk.Reader;
 using DuckDB.NET.Native;
 using System;
 using System.Collections;

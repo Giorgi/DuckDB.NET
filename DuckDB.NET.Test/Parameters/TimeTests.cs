@@ -43,7 +43,7 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         var expectedValue = new DateTime(DateTime.MinValue.Year, DateTime.MinValue.Month, DateTime.MinValue.Day,
             hour, minute, second).AddTicks(microsecond * 10);
 
-        Command.CommandText = "SELECT ?;";
+        Command.CommandText = "SELECT ?::TIME;";
         Command.Parameters.Add(new DuckDBParameter((DuckDBTimeOnly)expectedValue));
 
         var scalar = Command.ExecuteScalar();
@@ -56,6 +56,12 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         timeOnly.Minute.Should().Be((byte)minute);
         timeOnly.Second.Should().Be((byte)second);
         timeOnly.Ticks.Should().Be(expectedValue.Ticks);
+
+        Command.Parameters.Clear();
+        Command.Parameters.Add(new DuckDBParameter(expectedValue));
+
+        var time = (TimeOnly)Command.ExecuteScalar();
+        time.Should().Be(TimeOnly.FromTimeSpan(expectedValue.TimeOfDay));
     }
 
     [Theory]
@@ -160,7 +166,7 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         var timeSpan = new TimeSpan(offsetHours, offsetHours >= 0 ? offsetMinutes : -offsetMinutes, 0);
         dateTimeOffset.Offset.Should().Be(timeSpan);
         
-        Command.CommandText = "SELECT ?";
+        Command.CommandText = "SELECT ?::TIMETZ";
         Command.Parameters.Add(new DuckDBParameter(dateTimeOffset));
 
         using var reader = Command.ExecuteReader();
@@ -181,7 +187,7 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     {
         var expectedValue = new TimeOnly(hour, minute, second,0).Add(TimeSpan.FromMicroseconds(microsecond));
         
-        Command.CommandText = "SELECT ?;";
+        Command.CommandText = "SELECT ?::TIME;";
         Command.Parameters.Add(new DuckDBParameter(expectedValue));
 
         var scalar = Command.ExecuteScalar();

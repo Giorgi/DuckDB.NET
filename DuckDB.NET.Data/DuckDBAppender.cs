@@ -1,5 +1,5 @@
-﻿using DuckDB.NET.Data.Internal;
-using DuckDB.NET.Data.Internal.Writer;
+﻿using DuckDB.NET.Data.Common;
+using DuckDB.NET.Data.DataChunk.Writer;
 using DuckDB.NET.Native;
 using System;
 using System.Diagnostics;
@@ -39,7 +39,7 @@ public class DuckDBAppender : IDisposable
         dataChunk = NativeMethods.DataChunks.DuckDBCreateDataChunk(logicalTypeHandles, columnCount);
     }
 
-    public DuckDBAppenderRow CreateRow()
+    public IDuckDBAppenderRow CreateRow()
     {
         if (closed)
         {

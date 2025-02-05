@@ -1,5 +1,4 @@
-﻿using DuckDB.NET.Data.ConnectionString;
-using DuckDB.NET.Data.Internal;
+﻿using DuckDB.NET.Data.Connection;
 using DuckDB.NET.Native;
 using System;
 using System.ComponentModel;
@@ -154,15 +153,18 @@ public partial class DuckDBConnection : DbConnection
         };
     }
 
-    public DuckDBAppender CreateAppender(string table) => CreateAppender(null, table);
+    public DuckDBAppender CreateAppender(string table) => CreateAppender(null, null, table);
 
-    public DuckDBAppender CreateAppender(string? schema, string table)
+    public DuckDBAppender CreateAppender(string? schema, string table) => CreateAppender(null, schema, table);
+
+    public DuckDBAppender CreateAppender(string? catalog, string? schema, string table)
     {
         EnsureConnectionOpen();
+        using var unmanagedCatalog = catalog.ToUnmanagedString();
         using var unmanagedSchema = schema.ToUnmanagedString();
         using var unmanagedTable = table.ToUnmanagedString();
 
-        var appenderState = NativeMethods.Appender.DuckDBAppenderCreate(NativeConnection, unmanagedSchema, unmanagedTable, out var nativeAppender);
+        var appenderState = NativeMethods.Appender.DuckDBAppenderCreateExt(NativeConnection, unmanagedCatalog, unmanagedSchema, unmanagedTable, out var nativeAppender);
 
         if (!appenderState.IsSuccess())
         {
