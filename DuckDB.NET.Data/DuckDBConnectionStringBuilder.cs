@@ -1,4 +1,4 @@
-using DuckDB.NET.Data.ConnectionString;
+using DuckDB.NET.Data.Connection;
 using DuckDB.NET.Native;
 using System;
 using System.Collections.Generic;
@@ -19,6 +19,9 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
     public const string InMemorySharedConnectionString = "DataSource=:memory:?cache=shared";
 
     private const string DataSourceKey = "DataSource";
+    private const string DuckDBApiConfigKey = "duckdb_api";
+
+    private static readonly string DuckDBApi;
 
     static DuckDBConnectionStringBuilder()
     {
@@ -29,6 +32,12 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
             NativeMethods.Configuration.DuckDBGetConfigFlag(index, out var name, out _);
             ConfigurationOptions.Add(name.ToManagedString(false));
         }
+
+#if CI
+        DuckDBApi = $"DuckDB.NET/{GitVersionInformation.FullSemVer}"; 
+#else
+        DuckDBApi = $"DuckDB.NET";
+#endif
     }
 
     internal static DuckDBConnectionString Parse(string connectionString)
@@ -38,6 +47,10 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
             ConnectionString = connectionString
         };
 
+        if (!builder.ContainsKey(DuckDBApiConfigKey))
+        {
+            builder[DuckDBApiConfigKey] = DuckDBApi;
+        }
         var dataSource = builder.DataSource;
 
         var configurations = new Dictionary<string, string>();

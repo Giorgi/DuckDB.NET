@@ -110,6 +110,8 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
         childValues = values;
     }
 
+    public bool IsNull() => NativeMethods.Value.DuckDBIsNullValue(this);
+
     public T GetValue<T>()
     {
         var logicalType = NativeMethods.Value.DuckDBGetValueType(this);
@@ -141,15 +143,20 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
             DuckDBType.Decimal => Cast(decimal.Parse(NativeMethods.Value.DuckDBGetVarchar(this))),
             DuckDBType.Uuid => Cast(new Guid(NativeMethods.Value.DuckDBGetVarchar(this))),
             
-            //DuckDBType.HugeInt => expr,
-            //DuckDBType.UnsignedHugeInt => expr,
+            DuckDBType.HugeInt => Cast(NativeMethods.Value.DuckDBGetHugeInt(this).ToBigInteger()),
+            DuckDBType.UnsignedHugeInt => Cast(NativeMethods.Value.DuckDBGetUHugeInt(this).ToBigInteger()),
             
             DuckDBType.Varchar => Cast(NativeMethods.Value.DuckDBGetVarchar(this)),
-            
-            //DuckDBType.Date => expr,
-            //DuckDBType.Time => expr,
+
+#if NET6_0_OR_GREATER
+            DuckDBType.Date => Cast((DateOnly)NativeMethods.DateTimeHelpers.DuckDBFromDate(NativeMethods.Value.DuckDBGetDate(this))),
+            DuckDBType.Time => Cast((TimeOnly)NativeMethods.DateTimeHelpers.DuckDBFromTime(NativeMethods.Value.DuckDBGetTime(this))),
+#else
+            DuckDBType.Date => Cast(NativeMethods.DateTimeHelpers.DuckDBFromDate(NativeMethods.Value.DuckDBGetDate(this)).ToDateTime()),
+            DuckDBType.Time => Cast(NativeMethods.DateTimeHelpers.DuckDBFromTime(NativeMethods.Value.DuckDBGetTime(this)).ToDateTime()),
+#endif
             //DuckDBType.TimeTz => expr,
-            //DuckDBType.Interval => expr,
+            DuckDBType.Interval => Cast((TimeSpan)NativeMethods.Value.DuckDBGetInterval(this)),
             DuckDBType.Timestamp => Cast(NativeMethods.DateTimeHelpers.DuckDBFromTimestamp(NativeMethods.Value.DuckDBGetTimestamp(this)).ToDateTime()),
             //DuckDBType.TimestampS => expr,
             //DuckDBType.TimestampMs => expr,
@@ -158,9 +165,6 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
             _ => throw new NotImplementedException($"Cannot read value of type {typeof(T).FullName}")
         };
 
-        T Cast<TSource>(TSource value)
-        {
-            return Unsafe.As<TSource, T>(ref value);
-        }
+        T Cast<TSource>(TSource value) => Unsafe.As<TSource, T>(ref value);
     }
 }

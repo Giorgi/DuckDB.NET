@@ -46,7 +46,6 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
         ListValuesInternal("SmallInt", faker => faker.Random.Short().OrNull(faker));
     }
 
-
     [Fact]
     public void ListValuesInt()
     {
@@ -216,6 +215,87 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
 
         ListValuesInternal("test_enum", faker => faker.Random.CollectionItem([null, "test1", "test2", "test3"]));
         ListValuesInternal("test_enum", faker => faker.Random.CollectionItem<TestEnum?>([null, TestEnum.Test1, TestEnum.Test2, TestEnum.Test3]));
+    }
+
+    [Fact]
+    public void ListStringAndGuid()
+    {
+        Command.CommandText = " CREATE TABLE test01(id uuid primary key, list text[]);";
+        Command.ExecuteNonQuery();
+
+        var textList = new List<string> { "TEST1", "TEST2" };
+        using (var appender = Connection.CreateAppender("test01"))
+        {
+            for (var i = 1; i <= 10000; i++)
+            {
+                var id = Guid.NewGuid();
+
+                appender.CreateRow().AppendValue(id).AppendValue(textList).EndRow();
+            }
+        }
+
+        Command.CommandText = "Select list from test01";
+        using var reader = Command.ExecuteReader();
+
+        while (reader.Read())
+        {
+            var value = reader.GetFieldValue<List<string>>(0);
+            value.Should().BeEquivalentTo(textList);
+        }
+    }
+
+    [Fact]
+    public void ListGuidAndGuid()
+    {
+        Command.CommandText = " CREATE TABLE test02(id uuid primary key, list uuid[]);";
+        Command.ExecuteNonQuery();
+
+        List<Guid> guids = [Guid.NewGuid(), Guid.NewGuid()];
+        using (var appender = Connection.CreateAppender("test02"))
+        {
+            for (var i = 1; i <= 10000; i++)
+            {
+                var id = Guid.NewGuid();
+                
+                appender.CreateRow().AppendValue(id).AppendValue(guids).EndRow();
+            }
+        }
+
+        Command.CommandText = "Select list from test02";
+        using var reader = Command.ExecuteReader();
+
+        while (reader.Read())
+        {
+            var value = reader.GetFieldValue<List<Guid>>(0);
+            value.Should().BeEquivalentTo(guids);
+        }
+    }
+
+    [Fact]
+    public void ListDecimalAndGuid()
+    {
+        Command.CommandText = " CREATE TABLE test03(id uuid primary key, list decimal[]);";
+        Command.ExecuteNonQuery();
+
+        List<decimal> decimalList = [1m, 2m];
+        using (var appender = Connection.CreateAppender("test03"))
+        {
+            for (var i = 1; i <= 10000; i++)
+            {
+                var id = Guid.NewGuid();
+                
+                appender.CreateRow().AppendValue(id).AppendValue(decimalList).EndRow();
+            }
+        }
+
+        Command.CommandText = "Select list from test03";
+        using var reader = Command.ExecuteReader();
+
+        while (reader.Read())
+        {
+            var value = reader.GetFieldValue<List<decimal>>(0);
+            value.Should().BeEquivalentTo(decimalList);
+        }
     }
 
     private void ListValuesInternal<T>(string typeName, Func<Faker, T> generator, int? length = null)

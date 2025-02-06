@@ -20,7 +20,7 @@ public static class ModuleInit
     {
         public bool Equals(DateTimeOffset x, DateTimeOffset y)
         {
-            return x.Offset==y.Offset && x.TimeOfDay==y.TimeOfDay;
+            return x.Offset == y.Offset && x.TimeOfDay == y.TimeOfDay;
         }
 
         public int GetHashCode(DateTimeOffset obj)

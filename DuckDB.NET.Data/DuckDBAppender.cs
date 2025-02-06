@@ -1,5 +1,5 @@
-﻿using DuckDB.NET.Data.Internal;
-using DuckDB.NET.Data.Internal.Writer;
+﻿using DuckDB.NET.Data.Common;
+using DuckDB.NET.Data.DataChunk.Writer;
 using DuckDB.NET.Native;
 using System;
 using System.Diagnostics;
@@ -39,7 +39,7 @@ public class DuckDBAppender : IDisposable
         dataChunk = NativeMethods.DataChunks.DuckDBCreateDataChunk(logicalTypeHandles, columnCount);
     }
 
-    public DuckDBAppenderRow CreateRow()
+    public IDuckDBAppenderRow CreateRow()
     {
         if (closed)
         {
@@ -56,7 +56,7 @@ public class DuckDBAppender : IDisposable
         }
 
         rowCount++;
-        return new DuckDBAppenderRow(qualifiedTableName, vectorWriters, rowCount - 1);
+        return new DuckDBAppenderRow(qualifiedTableName, vectorWriters, rowCount - 1, dataChunk, nativeAppender);
     }
 
     public void Close()
@@ -77,13 +77,13 @@ public class DuckDBAppender : IDisposable
                 writer?.Dispose();
             }
 
+            dataChunk.Dispose();
+
             var state = NativeMethods.Appender.DuckDBAppenderClose(nativeAppender);
             if (!state.IsSuccess())
             {
                 ThrowLastError(nativeAppender);
             }
-
-            dataChunk.Dispose();
         }
         finally
         {
@@ -105,14 +105,8 @@ public class DuckDBAppender : IDisposable
         {
             var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(dataChunk, index);
 
-            if (vectorWriters[index] == null)
-            {
-                vectorWriters[index] = VectorDataWriterFactory.CreateWriter(vector, logicalTypes[index]);
-            }
-            else
-            {
-                vectorWriters[index].InitializerWriter();
-            }
+            vectorWriters[index]?.Dispose();
+            vectorWriters[index] = VectorDataWriterFactory.CreateWriter(vector, logicalTypes[index]);
         }
     }
 

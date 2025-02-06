@@ -244,7 +244,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     [Fact]
     public void TemporalValues()
     {
-        Command.CommandText = "CREATE TABLE managedAppenderTemporal(a Date, b TimeStamp, c TIMESTAMP_NS, d TIMESTAMP_MS, e TIMESTAMP_S, f TIMESTAMPTZ, g TIMETZ, h Time);";
+        Command.CommandText = "CREATE TABLE managedAppenderTemporal(a Date, b TimeStamp, c TIMESTAMP_NS, d TIMESTAMP_MS, e TIMESTAMP_S, f TIMESTAMPTZ, g TIMETZ, h Time, i TIMESTAMPTZ);";
         Command.ExecuteNonQuery();
 
         var dates = Enumerable.Range(0, 20).Select(i => new DateTime(1900, 1, 1).AddDays(Random.Shared.Next(1, 50000))
@@ -260,11 +260,12 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
                                 .AppendValue(value).AppendValue(value).AppendValue(value)
                                 .AppendValue(value.ToDateTimeOffset(TimeSpan.FromHours(1)))
                                 .AppendValue((TimeOnly?)TimeOnly.FromDateTime(value))
+                                .AppendValue(new DateTimeOffset(value, TimeSpan.Zero))
                         .EndRow();
             }
         }
 
-        var result = Connection.Query<(DateOnly, DateTime, DateTime nanos, DateTime, DateTime, DateTime, DateTimeOffset, TimeOnly)>("SELECT a, b, c, d, e, f, g, h FROM managedAppenderTemporal").ToList();
+        var result = Connection.Query<(DateOnly, DateTime, DateTime nanos, DateTime, DateTime, DateTime, DateTimeOffset, TimeOnly, DateTimeOffset)>("SELECT a, b, c, d, e, f, g, h, i FROM managedAppenderTemporal").ToList();
 
         result.Select(tuple => tuple.Item1).Should().BeEquivalentTo(dates.Select(DateOnly.FromDateTime));
         result.Select(tuple => tuple.Item2).Should().BeEquivalentTo(dates);
@@ -274,6 +275,16 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         result.Select(tuple => tuple.Item6).Should().BeEquivalentTo(dates);
         result.Select(tuple => tuple.Item7).Should().BeEquivalentTo(dates.Select(time => time.ToDateTimeOffset(TimeSpan.FromHours(1))));
         result.Select(tuple => tuple.Item8).Should().BeEquivalentTo(dates.Select(TimeOnly.FromDateTime));
+
+        Command.CommandText = "Select i from managedAppenderTemporal";
+        var reader = Command.ExecuteReader();
+
+        int index = -1;
+        while (reader.Read())
+        {
+            index++;
+            reader.GetFieldValue<DateTimeOffset>(0).Should().Be(new DateTimeOffset(dates[index], TimeSpan.Zero));
+        }
     }
 
     [Fact]
@@ -527,7 +538,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
             }
         }
 
-        var list = Connection.Query<(int id, string name, DateTime date)>("SELECT a, b, c FROM managedAppenderTest2").Select(tuple => new { tuple.id, tuple.name, tuple.date}).ToList();
+        var list = Connection.Query<(int id, string name, DateTime date)>("SELECT a, b, c FROM managedAppenderTest2").Select(tuple => new { tuple.id, tuple.name, tuple.date }).ToList();
 
         list.Should().HaveCount(rows);
         list.Should().BeEquivalentTo(categories);
@@ -576,6 +587,52 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
                 valueIdx++;
             }
         }
+    }
+
+    [Fact]
+    public void ManagedAppenderAppendToAttachedDatabase()
+    {
+        Command.CommandText = "ATTACH 'append_to_other.db'";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "CREATE OR REPLACE TABLE append_to_other.tbl(i INTEGER)";
+        Command.ExecuteNonQuery();
+
+        var appender = Connection.CreateAppender("append_to_other", "main", "tbl");
+        {
+            for (int i = 0; i < 200; i++)
+            {
+                appender.CreateRow().AppendValue((int?)2).EndRow();
+            }
+            appender.Close();
+        }
+
+        var sum = Connection.QuerySingle<int>("SELECT sum(i)::BIGINT FROM append_to_other.main.tbl");
+        sum.Should().Be(400);
+    }
+
+    [Fact]
+    public void AppendDefault()
+    {
+        Command.CommandText = "CREATE OR REPLACE TABLE tbl (i INT DEFAULT 4, j INT, k INT DEFAULT 30)";
+        Command.ExecuteNonQuery();
+
+        using (var appender = Connection.CreateAppender("tbl"))
+        {
+            appender.CreateRow().AppendValue((int?)2).AppendValue(2).AppendDefault().EndRow();
+            appender.CreateRow().AppendDefault().AppendValue(2).AppendDefault().EndRow();
+        }
+
+        Command.CommandText = "Select * from tbl";
+        var reader = Command.ExecuteReader();
+        reader.Read();
+
+        var i = reader.GetInt32(0);
+        var k = reader.GetInt32(2);
+        reader.Read();
+
+        i = reader.GetInt32(0);
+        k = reader.GetInt32(2);
     }
 
     private static string GetCreateEnumTypeSql(string enumName, string enumValueNamePrefix, int count)

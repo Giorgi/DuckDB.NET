@@ -1,8 +1,8 @@
+using DuckDB.NET.Data.PreparedStatement;
 using System.ComponentModel;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
-using DuckDB.NET.Data.Internal;
 
 namespace DuckDB.NET.Data;
 
@@ -13,8 +13,6 @@ public class DuckDBParameter : DbParameter
     private object? value;
 
     public override DbType DbType { get; set; }
-
-    public DuckDBDbType DuckDBType { get; set; }
 
 #if NET6_0_OR_GREATER
     [AllowNull]
