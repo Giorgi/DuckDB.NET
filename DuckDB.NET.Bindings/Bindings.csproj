@@ -3,11 +3,13 @@
   <PropertyGroup>
     <Description>DuckDB Bindings for C#.</Description>
     <PackageReleaseNotes>
-	  Added support for creating user-defined table valued functions.
+	  Added support for binding nested List and Array values
 
-Added support for passing LIST parameter types
+Added support for binding List with null values
 
-Updated to DuckDB v1.1.3
+Added support for inserting TIMESTAMP_MS, TIMESTAMP_NS and TIMESTAMP_S
+
+Updated to DuckDB v1.2.0
     </PackageReleaseNotes>
     <RootNamespace>DuckDB.NET.Native</RootNamespace>
     <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx</RuntimeIdentifiers>
