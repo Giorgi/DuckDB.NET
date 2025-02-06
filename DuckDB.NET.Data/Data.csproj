@@ -19,6 +19,10 @@ Updated to DuckDB v1.1.3
     <Description>$(Description) $(NoNativeText)</Description>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(CI)' == 'true'">
+    <DefineConstants>$(DefineConstants);CI</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup Condition="'$(CI)' == 'true'">
     <PackageReference Include="GitVersion.MsBuild" Version="5.11.1" PrivateAssets="all" />
   </ItemGroup>
