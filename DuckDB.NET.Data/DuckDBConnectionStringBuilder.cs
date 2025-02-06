@@ -21,6 +21,8 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
     private const string DataSourceKey = "DataSource";
     private const string DuckDBApiConfigKey = "duckdb_api";
 
+    private static readonly string DuckDBApi;
+
     static DuckDBConnectionStringBuilder()
     {
         var configCount = NativeMethods.Configuration.DuckDBConfigCount();
@@ -30,6 +32,12 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
             NativeMethods.Configuration.DuckDBGetConfigFlag(index, out var name, out _);
             ConfigurationOptions.Add(name.ToManagedString(false));
         }
+
+#if CI
+        DuckDBApi = $"DuckDB.NET/{GitVersionInformation.FullSemVer}"; 
+#else
+        DuckDBApi = $"DuckDB.NET";
+#endif
     }
 
     internal static DuckDBConnectionString Parse(string connectionString)
@@ -41,9 +49,8 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
 
         if (!builder.ContainsKey(DuckDBApiConfigKey))
         {
-            builder[DuckDBApiConfigKey] = "DuckDB.NET/1.1.1";
+            builder[DuckDBApiConfigKey] = DuckDBApi;
         }
-
         var dataSource = builder.DataSource;
 
         var configurations = new Dictionary<string, string>();
