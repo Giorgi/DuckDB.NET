@@ -5,21 +5,16 @@ using System.Text;
 
 namespace DuckDB.NET.Native;
 
-public static class Utils
+public static class PointerExtensions
 {
-    public static bool IsSuccess(this DuckDBState state)
-    {
-        return state == DuckDBState.Success;
-    }
-
     [EditorBrowsable(EditorBrowsableState.Never)]
     public static string ToManagedString(this IntPtr unmanagedString, bool freeWhenCopied = true, int? length = null)
     {
         string result;
 #if NET6_0_OR_GREATER
         result = length.HasValue
-                    ? Marshal.PtrToStringUTF8(unmanagedString, length.Value)
-                    : Marshal.PtrToStringUTF8(unmanagedString) ?? string.Empty;
+            ? Marshal.PtrToStringUTF8(unmanagedString, length.Value)
+            : Marshal.PtrToStringUTF8(unmanagedString) ?? string.Empty;
 #else
         if (unmanagedString == IntPtr.Zero)
         {
@@ -79,24 +74,4 @@ public static class Utils
         return new SafeUnmanagedMemoryHandle(nativeUtf8); 
 #endif
     }
-
-    internal static long GetTicks(int hour, int minute, int second, int microsecond = 0)
-    {
-        long seconds = (hour * 60 * 60) + (minute * 60) + (second);
-        return (seconds * 10_000_000) + (microsecond * 10);
-    }
-
-    internal static int GetMicrosecond(this TimeSpan timeSpan)
-    {
-        var ticks = timeSpan.Ticks - GetTicks(timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds);
-        return (int)(ticks / 10);
-    }
-
-#if NET6_0_OR_GREATER
-    internal static int GetMicrosecond(this TimeOnly timeOnly)
-    {
-        var ticks = timeOnly.Ticks - GetTicks(timeOnly.Hour, timeOnly.Minute, timeOnly.Second);
-        return (int)(ticks / 10);
-    }
-#endif
 }

@@ -1,3 +1,4 @@
+using DuckDB.NET.Native.Extensions;
 using System;
 using System.Runtime.InteropServices;
 
@@ -18,7 +19,7 @@ public readonly struct DuckDBTimeOnly(byte hour, byte min, byte sec, int microse
 
     public int Microsecond { get; } = microsecond;
 
-    public long Ticks => Utils.GetTicks(Hour, Min, Sec, Microsecond);
+    public long Ticks => DateTimeExtensions.GetTicks(Hour, Min, Sec, Microsecond);
 
     public DateTime ToDateTime()
     {

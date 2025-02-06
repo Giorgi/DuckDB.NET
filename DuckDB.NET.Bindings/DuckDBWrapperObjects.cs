@@ -49,7 +49,7 @@ public class DuckDBAppender() : SafeHandleZeroOrMinusOneIsInvalid(true)
 {
     protected override bool ReleaseHandle()
     {
-        return NativeMethods.Appender.DuckDBDestroyAppender(out handle) == DuckDBState.Success;
+        return NativeMethods.Appender.DuckDBDestroyAppender(out handle).IsSuccess();
     }
 }
 
