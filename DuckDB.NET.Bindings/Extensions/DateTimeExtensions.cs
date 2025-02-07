@@ -3,7 +3,7 @@ using System.Text;
 
 namespace DuckDB.NET.Native.Extensions;
 
-public static class DateTimeExtensions
+internal static class DateTimeExtensions
 {
     internal static long GetTicks(int hour, int minute, int second, int microsecond = 0)
     {
