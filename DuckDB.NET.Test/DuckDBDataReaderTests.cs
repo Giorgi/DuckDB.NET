@@ -376,8 +376,10 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         schemaTable.Rows[0]["NumericPrecision"].Should().Be(0);
     }
 
-    [Fact]
-    public async Task CancellingLongRunningQueryThrowsOperationCancelledException()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CancellingLongRunningQueryThrowsOperationCancelledException(bool useStreamingMode)
     {
         Command.CommandText = @"create table cnt as WITH RECURSIVE
                        cnt(x) AS (
@@ -389,7 +391,37 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
         var source = new CancellationTokenSource(1000);
 
+        Command.UseStreamingMode = useStreamingMode;
         await Command.Invoking(async c => await c.ExecuteReaderAsync(source.Token)).Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CancellingLongRunningSyncQuery_ByTokenRegistration_ThrowsOperationCanceledException(bool useStreamingMode)
+    {
+        Command.CommandText = @"create table cnt as WITH RECURSIVE
+                   cnt(x) AS (
+                      SELECT 1
+                      UNION ALL
+                      SELECT x+1 FROM cnt
+                       where x < 300000
+                ) select * from cnt;";
+
+        var source = new CancellationTokenSource(TimeSpan.FromMilliseconds(1000));
+
+        Command.UseStreamingMode = useStreamingMode;
+        Command.Invoking(c =>
+        {
+            source.Token.Register(() => c.Cancel());
+
+            using var reader = c.ExecuteReader();
+            while (reader.Read())
+            {
+                _ = reader.GetInt32(0);
+            }
+
+        }).Should().Throw<OperationCanceledException>();
     }
 
     [Fact]
