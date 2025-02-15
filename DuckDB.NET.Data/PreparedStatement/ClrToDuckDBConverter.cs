@@ -11,7 +11,7 @@ internal static class ClrToDuckDBConverter
 {
     public static DuckDBValue ToDuckDBValue(this object? item, DuckDBLogicalType logicalType, DuckDBType duckDBType)
     {
-        if (item.IsNull())
+        if (item.IsNull() || item == null) //item == null is redundant but net standard can't understand that item isn't null after this point.
         {
             return NativeMethods.Value.DuckDBCreateNullValue();
         }
@@ -20,15 +20,15 @@ internal static class ClrToDuckDBConverter
         {
             (DuckDBType.Boolean, bool value) => NativeMethods.Value.DuckDBCreateBool(value),
 
-            (DuckDBType.TinyInt, _) => NativeMethods.Value.DuckDBCreateInt8(ConvertTo<sbyte>()),
-            (DuckDBType.SmallInt, _) => NativeMethods.Value.DuckDBCreateInt16(ConvertTo<short>()),
-            (DuckDBType.Integer, _) => NativeMethods.Value.DuckDBCreateInt32(ConvertTo<int>()),
-            (DuckDBType.BigInt, _) => NativeMethods.Value.DuckDBCreateInt64(ConvertTo<long>()),
+            (DuckDBType.TinyInt, _) => TryConvertTo<sbyte>(out var result) ? NativeMethods.Value.DuckDBCreateInt8(result) : StringToDuckDBValue(item.ToString()),
+            (DuckDBType.SmallInt, _) => TryConvertTo<short>(out var result) ? NativeMethods.Value.DuckDBCreateInt16(result) : StringToDuckDBValue(item.ToString()),
+            (DuckDBType.Integer, _) => TryConvertTo<int>(out var result) ? NativeMethods.Value.DuckDBCreateInt32(result) : StringToDuckDBValue(item.ToString()),
+            (DuckDBType.BigInt, _) => TryConvertTo<long>(out var result) ? NativeMethods.Value.DuckDBCreateInt64(result) : StringToDuckDBValue(item.ToString()),
 
-            (DuckDBType.UnsignedTinyInt, _) => NativeMethods.Value.DuckDBCreateUInt8(ConvertTo<byte>()),
-            (DuckDBType.UnsignedSmallInt, _) => NativeMethods.Value.DuckDBCreateUInt16(ConvertTo<ushort>()),
-            (DuckDBType.UnsignedInteger, _) => NativeMethods.Value.DuckDBCreateUInt32(ConvertTo<uint>()),
-            (DuckDBType.UnsignedBigInt, _) => NativeMethods.Value.DuckDBCreateUInt64(ConvertTo<ulong>()),
+            (DuckDBType.UnsignedTinyInt, _) => TryConvertTo<byte>(out var result) ? NativeMethods.Value.DuckDBCreateUInt8(result) : StringToDuckDBValue(item.ToString()),
+            (DuckDBType.UnsignedSmallInt, _) => TryConvertTo<ushort>(out var result) ? NativeMethods.Value.DuckDBCreateUInt16(result) : StringToDuckDBValue(item.ToString()),
+            (DuckDBType.UnsignedInteger, _) => TryConvertTo<uint>(out var result) ? NativeMethods.Value.DuckDBCreateUInt32(result) : StringToDuckDBValue(item.ToString()),
+            (DuckDBType.UnsignedBigInt, _) => TryConvertTo<ulong>(out var result) ? NativeMethods.Value.DuckDBCreateUInt64(result) : StringToDuckDBValue(item.ToString()),
 
             (DuckDBType.Float, float value) => NativeMethods.Value.DuckDBCreateFloat(value),
             (DuckDBType.Double, double value) => NativeMethods.Value.DuckDBCreateDouble(value),
@@ -58,18 +58,31 @@ internal static class ClrToDuckDBConverter
             (DuckDBType.Blob, byte[] value) => NativeMethods.Value.DuckDBCreateBlob(value, value.Length),
             (DuckDBType.List, ICollection value) => CreateCollectionValue(logicalType, value, true),
             (DuckDBType.Array, ICollection value) => CreateCollectionValue(logicalType, value, false),
-            _ => throw new InvalidOperationException($"Cannot bind parameter type {item!.GetType().FullName} to column of type {duckDBType}")
+            _ => StringToDuckDBValue(item.ToString())
         };
 
-        T ConvertTo<T>()
+        bool TryConvertTo<T>(out T result) where T : struct
+#if NET8_0_OR_GREATER
+            , IParsable<T>?
+#endif
         {
             try
             {
-                return (T)Convert.ChangeType(item, typeof(T));
+#if NET8_0_OR_GREATER
+            if (T.TryParse(item.ToString(), CultureInfo.InvariantCulture, out result))
+            {
+                return true;
+            }
+            return false;
+#else
+            result = (T)Convert.ChangeType(item, typeof(T));
+            return false;
+#endif
             }
             catch (Exception)
             {
-                throw new ArgumentOutOfRangeException($"Cannot bind parameter '{item}' type {item!.GetType().FullName} to column of type {duckDBType}");
+                result = default;
+                return false;
             }
         }
     }
@@ -101,7 +114,7 @@ internal static class ClrToDuckDBConverter
         return NativeMethods.Value.DuckDBCreateVarchar(handle);
     }
 
-    private static DuckDBValue StringToDuckDBValue(string value)
+    private static DuckDBValue StringToDuckDBValue(string? value)
     {
         using var handle = value.ToUnmanagedString();
         return NativeMethods.Value.DuckDBCreateVarchar(handle);

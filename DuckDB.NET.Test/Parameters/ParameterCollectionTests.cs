@@ -180,7 +180,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
         Command.Parameters.Clear();
         Command.Parameters.Add(new DuckDBParameter(42));
         Command.Parameters.Add(new DuckDBParameter("hello"));
-        Command.Invoking(cmd => cmd.ExecuteNonQuery()).Should().ThrowExactly<InvalidOperationException>();
+        Command.Invoking(cmd => cmd.ExecuteNonQuery()).Should().ThrowExactly<DuckDBException>();
     }
 
     [Theory]
