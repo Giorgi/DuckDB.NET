@@ -62,18 +62,17 @@ internal static class ClrToDuckDBConverter
         };
 
         bool TryConvertTo<T>(out T result) where T : struct
-#if NET8_0_OR_GREATER
-            , IParsable<T>?
-#endif
         {
             try
             {
-#if NET8_0_OR_GREATER
-                return T.TryParse(item.ToString(), CultureInfo.InvariantCulture, out result);
-#else
+                if (item is T parsable)
+                {
+                    result = parsable;
+                    return true;
+                }
+
                 result = (T)Convert.ChangeType(item, typeof(T));
                 return true;
-#endif
             }
             catch (Exception)
             {
