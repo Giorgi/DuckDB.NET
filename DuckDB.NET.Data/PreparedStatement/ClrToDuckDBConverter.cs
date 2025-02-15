@@ -69,14 +69,10 @@ internal static class ClrToDuckDBConverter
             try
             {
 #if NET8_0_OR_GREATER
-            if (T.TryParse(item.ToString(), CultureInfo.InvariantCulture, out result))
-            {
-                return true;
-            }
-            return false;
+                return T.TryParse(item.ToString(), CultureInfo.InvariantCulture, out result);
 #else
-            result = (T)Convert.ChangeType(item, typeof(T));
-            return false;
+                result = (T)Convert.ChangeType(item, typeof(T));
+                return true;
 #endif
             }
             catch (Exception)
