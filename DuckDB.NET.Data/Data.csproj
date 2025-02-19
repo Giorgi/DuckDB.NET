@@ -10,6 +10,8 @@ Added support for binding List with null values
 Added support for inserting TIMESTAMP_MS, TIMESTAMP_NS and TIMESTAMP_S
 
 Updated to DuckDB v1.2.0
+
+Fixed issue with binding statements that use explicit casts.
     </PackageReleaseNotes>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
