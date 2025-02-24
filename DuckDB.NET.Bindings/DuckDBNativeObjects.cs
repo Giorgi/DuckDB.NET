@@ -217,7 +217,7 @@ public struct DuckDBString
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public struct DuckDBQueryProgressType
+public struct DuckDBQueryProgress
 {
     public double Percentage { get; }
     public ulong RowsProcessed { get; }

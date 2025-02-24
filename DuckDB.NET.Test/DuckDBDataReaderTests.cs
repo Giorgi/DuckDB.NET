@@ -398,7 +398,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void CancellingLongRunningSyncQuery_ByTokenRegistration_ThrowsOperationCanceledException(bool useStreamingMode)
+    public void CancellingLongRunningSyncQueryByTokenRegistrationThrowsOperationCanceledException(bool useStreamingMode)
     {
         Command.CommandText = @"create table cnt as WITH RECURSIVE
                    cnt(x) AS (
@@ -408,7 +408,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
                        where x < 300000
                 ) select * from cnt;";
 
-        var source = new CancellationTokenSource(TimeSpan.FromMilliseconds(1000));
+        using var source = new CancellationTokenSource(TimeSpan.FromMilliseconds(1000));
 
         Command.UseStreamingMode = useStreamingMode;
         Command.Invoking(c =>
