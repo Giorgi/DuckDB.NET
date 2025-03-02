@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="DuckDB.NET.Bindings/Bindings.csproj" />
+  <Project Path="DuckDB.NET.Data/Data.csproj" />
+  <Project Path="DuckDB.NET.Samples/Samples.csproj" />
+  <Project Path="DuckDB.NET.Test/Test.csproj" />
+</Solution>
