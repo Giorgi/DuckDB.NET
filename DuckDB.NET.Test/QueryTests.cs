@@ -107,8 +107,8 @@ public class QueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
                 row0Col2Value.Should().Be(4);
                 var row1Col1Value = *((int*)col1Data + 1);
                 row1Col1Value.Should().Be(5);
-                var row2Col2Value = *((int*)col2Data + 1);
-                row2Col2Value.Should().Be(6);
+                var row1Col2Value = *((int*)col2Data + 1);
+                row1Col2Value.Should().Be(6);
             }
         }
     }
