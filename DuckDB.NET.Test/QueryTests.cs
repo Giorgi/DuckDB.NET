@@ -65,4 +65,51 @@ public class QueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             NativeMethods.Query.DuckDBDestroyResult(ref queryResult);
         }
     }
+
+    [Fact]
+    public unsafe void ChunkTest()
+    {
+        var result = NativeMethods.Startup.DuckDBOpen((string)null, out var database);
+        result.Should().Be(DuckDBState.Success);
+
+        result = NativeMethods.Startup.DuckDBConnect(database, out var connection);
+        result.Should().Be(DuckDBState.Success);
+
+        using (database)
+        using (connection)
+        {
+            var tableQuery = "CREATE TABLE integers (i INTEGER, j INTEGER);";
+            result = NativeMethods.Query.DuckDBQuery(connection, tableQuery.ToUnmanagedString(), out _);
+            result.Should().Be(DuckDBState.Success);
+
+            var insertQuery = "INSERT INTO integers VALUES (3, 4), (5, 6);";
+            result = NativeMethods.Query.DuckDBQuery(connection, insertQuery.ToUnmanagedString(), out _);
+            result.Should().Be(DuckDBState.Success);
+
+            var selectQuery = "SELECT * FROM integers;";
+            result = NativeMethods.Query.DuckDBQuery(connection, selectQuery.ToUnmanagedString(), out var queryResult);
+            result.Should().Be(DuckDBState.Success);
+
+            using (var chunk = NativeMethods.Query.DuckDBFetchChunk(queryResult))
+            {
+                var rowCount = NativeMethods.DataChunks.DuckDBDataChunkGetSize(chunk);
+                rowCount.Should().Be(2);
+
+                var col1 = NativeMethods.DataChunks.DuckDBDataChunkGetVector(chunk, 0);
+                var col1Data = NativeMethods.Vectors.DuckDBVectorGetData(col1);
+
+                var col2 = NativeMethods.DataChunks.DuckDBDataChunkGetVector(chunk, 1);
+                var col2Data = NativeMethods.Vectors.DuckDBVectorGetData(col2);
+
+                var row0Col1Value = *(int*)col1Data;
+                row0Col1Value.Should().Be(3);
+                var row0Col2Value = *(int*)col2Data;
+                row0Col2Value.Should().Be(4);
+                var row1Col1Value = *((int*)col1Data + 1);
+                row1Col1Value.Should().Be(5);
+                var row1Col2Value = *((int*)col2Data + 1);
+                row1Col2Value.Should().Be(6);
+            }
+        }
+    }
 }
