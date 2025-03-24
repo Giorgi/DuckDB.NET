@@ -18,7 +18,7 @@ public partial class NativeMethods
         public static extern void DuckDBDestroyResult([In, Out] ref DuckDBResult result);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_fetch_chunk")]
-        public static extern DuckDBDataChunk DuckDBFetchChunk([In, Out] ref DuckDBResult result);
+        public static extern DuckDBDataChunk DuckDBFetchChunk([In, Out] DuckDBResult result);
         
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_column_name")]
         public static extern IntPtr DuckDBColumnName([In, Out] ref DuckDBResult result, long col);
