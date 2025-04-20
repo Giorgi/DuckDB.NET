@@ -33,13 +33,14 @@ public class DuckDBDataReader : DbDataReader
 
     internal DuckDBDataReader(DuckDBCommand command, IEnumerable<PreparedStatement.PreparedStatement> statements, CommandBehavior behavior)
     {
-        command.DataReader = this;
-
         this.command = command;
         this.behavior = behavior;
         statementEnumerator = statements.GetEnumerator();
 
         InitNextReader();
+
+        // Do not modify the command's state if an exception was thrown in InitNextReader().
+        command.DataReader = this;
     }
 
     private bool InitNextReader()
@@ -49,20 +50,28 @@ public class DuckDBDataReader : DbDataReader
             currentResult?.Dispose();
             currentResult = null;  // Prevent double disposal.
 
-            var current = statementEnumerator.Current.Execute();
-            currentResult = current;
-
-            if (NativeMethods.Query.DuckDBResultReturnType(current) == DuckDBResultType.QueryResult)
+            try
             {
-                currentChunkIndex = 0;
+                var current = statementEnumerator.Current.Execute();
+                currentResult = current;
 
-                columnMapping = [];
-                fieldCount = (int)NativeMethods.Query.DuckDBColumnCount(ref current);
-                streamingResult = NativeMethods.Types.DuckDBResultIsStreaming(current) > 0;
+                if (NativeMethods.Query.DuckDBResultReturnType(current) == DuckDBResultType.QueryResult)
+                {
+                    currentChunkIndex = 0;
 
-                hasRows = InitChunkData();
+                    columnMapping = [];
+                    fieldCount = (int)NativeMethods.Query.DuckDBColumnCount(ref current);
+                    streamingResult = NativeMethods.Types.DuckDBResultIsStreaming(current) > 0;
 
-                return true;
+                    hasRows = InitChunkData();
+
+                    return true;
+                }
+            }
+            catch
+            {
+                Dispose();
+                throw;
             }
         }
 
@@ -349,6 +358,8 @@ public class DuckDBDataReader : DbDataReader
     {
         if (closed) return;
 
+        command.DataReader = null;
+
         foreach (var reader in vectorReaders)
         {
             reader.Dispose();
@@ -359,15 +370,26 @@ public class DuckDBDataReader : DbDataReader
 
         currentChunk?.Dispose();
 
+        try
+        {
+            // Try to consume the enumerator to ensure that all statements are prepared.
+            while (statementEnumerator.MoveNext())
+            {
+            }
+        }
+        catch
+        {
+            // Dispose() must not throw exceptions.
+        }
+
+        statementEnumerator.Dispose();
+
+        closed = true;
+
         if (behavior == CommandBehavior.CloseConnection)
         {
             command.CloseConnection();
         }
-
-        closed = true;
-        statementEnumerator.Dispose();
-
-        command.DataReader = null;
     }
 
     private void CheckRowRead()
