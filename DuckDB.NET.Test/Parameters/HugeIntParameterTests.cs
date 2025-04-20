@@ -17,7 +17,7 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         var scalar = Command.ExecuteScalar();
         scalar.Should().Be(new BigInteger(125));
 
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
         reader.Read();
         var receivedValue = reader.GetFieldValue<BigInteger>(0);
         receivedValue.Should().Be(125);
@@ -46,7 +46,7 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
         Command.CommandText = "SELECT * from HugeIntTests;";
 
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
         reader.Read();
 
         var receivedValue = reader.GetFieldValue<BigInteger>(1);
@@ -62,7 +62,7 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         var scalar = Command.ExecuteScalar();
         scalar.Should().Be(DuckDBHugeInt.HugeIntMinValue);
 
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
         reader.Read();
         var receivedValue = reader.GetFieldValue<BigInteger>(0);
         receivedValue.Should().Be(DuckDBHugeInt.HugeIntMinValue);
@@ -82,7 +82,7 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
         Command.CommandText = "SELECT * from NegativeHugeIntTests;";
 
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
         reader.Read();
 
         var receivedValue = reader.GetFieldValue<BigInteger>(1);

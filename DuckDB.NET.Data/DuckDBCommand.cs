@@ -1,9 +1,11 @@
 ﻿using DuckDB.NET.Native;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Data;
@@ -12,6 +14,8 @@ public class DuckDBCommand : DbCommand
 {
     private DuckDBConnection? connection;
     private readonly DuckDBParameterCollection parameters = new();
+    private bool prepared;
+    private readonly List<PreparedStatement.PreparedStatement> preparedStatements = new();
 
     protected override DbTransaction? DbTransaction { get; set; }
     protected override DbParameterCollection DbParameterCollection => parameters;
@@ -32,6 +36,8 @@ public class DuckDBCommand : DbCommand
     /// </remarks>
     public bool UseStreamingMode { get; set; } = false;
 
+    internal DuckDBDataReader? DataReader { get; set; }
+
     private string commandText = string.Empty;
 
 #if NET6_0_OR_GREATER
@@ -43,7 +49,13 @@ public class DuckDBCommand : DbCommand
         get => commandText;
         set
         {
-            // TODO: We shouldn't be able to change the CommandText when the command is in execution (requires CommandState implementation)
+            if (DataReader != null)
+                throw new InvalidOperationException();
+
+            if (commandText == value)
+                return;
+
+            DisposePreparedStatements();
             commandText = value ?? string.Empty;
         }
     }
@@ -80,14 +92,13 @@ public class DuckDBCommand : DbCommand
     {
         EnsureConnectionOpen();
 
-        var results = PreparedStatement.PreparedStatement.PrepareMultiple(connection!.NativeConnection, CommandText, parameters, UseStreamingMode);
-
         var count = 0;
 
-        foreach (var result in results)
+        foreach (var statement in GetStatements())
         {
-            var current = result;
+            var current = statement.Execute();
             count += (int)NativeMethods.Query.DuckDBRowsChanged(ref current);
+            current.Dispose();
         }
 
         return count;
@@ -111,15 +122,23 @@ public class DuckDBCommand : DbCommand
         return (DuckDBDataReader)base.ExecuteReader(behavior);
     }
 
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            DataReader?.Dispose();
+        }
+
+        DisposePreparedStatements();
+
+        base.Dispose(disposing);
+    }
+
     protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
     {
         EnsureConnectionOpen();
 
-        var results = PreparedStatement.PreparedStatement.PrepareMultiple(connection!.NativeConnection, CommandText, parameters, UseStreamingMode);
-
-        var reader = new DuckDBDataReader(this, results, behavior);
-
-        return reader;
+        return new DuckDBDataReader(this, GetStatements(), behavior);
     }
 
     public override void Prepare() { }
@@ -128,11 +147,72 @@ public class DuckDBCommand : DbCommand
 
     internal void CloseConnection() => Connection!.Close();
 
+    private void DisposePreparedStatements()
+    {
+        foreach (var statement in preparedStatements)
+        {
+            statement.Dispose();
+        }
+
+        preparedStatements.Clear();
+        prepared = false;
+    }
+
     private void EnsureConnectionOpen([CallerMemberName] string operation = "")
     {
         if (Connection is null || Connection.State != ConnectionState.Open)
         {
             throw new InvalidOperationException($"{operation} requires an open connection");
         }
+    }
+
+    private IEnumerable<PreparedStatement.PreparedStatement> GetStatements()
+    {
+        foreach (var statement in prepared
+                     ? preparedStatements
+                     : PrepareAndEnumerateStatements())
+        {
+            statement.BindParameters(Parameters);
+            statement.UseStreamingMode = UseStreamingMode;
+            yield return statement;
+        }
+    }
+
+    private IEnumerable<PreparedStatement.PreparedStatement> PrepareAndEnumerateStatements()
+    {
+        DisposePreparedStatements();
+
+        using var unmanagedQuery = CommandText.ToUnmanagedString();
+
+        var statementCount = NativeMethods.ExtractStatements.DuckDBExtractStatements(connection!.NativeConnection, unmanagedQuery, out var extractedStatements);
+
+        using (extractedStatements)
+        {
+            if (statementCount <= 0)
+            {
+                var error = NativeMethods.ExtractStatements.DuckDBExtractStatementsError(extractedStatements);
+                throw new DuckDBException(error.ToManagedString(false));
+            }
+
+            for (int index = 0; index < statementCount; index++)
+            {
+                var status = NativeMethods.ExtractStatements.DuckDBPrepareExtractedStatement(connection!.NativeConnection, extractedStatements, index, out var unmanagedStatement);
+
+                if (status.IsSuccess())
+                {
+                    var statement = new PreparedStatement.PreparedStatement(unmanagedStatement);
+                    preparedStatements.Add(statement);
+                    yield return statement;
+                }
+                else
+                {
+                    var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(unmanagedStatement).ToManagedString(false);
+
+                    throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage);
+                }
+            }
+        }
+
+        prepared = true;
     }
 }

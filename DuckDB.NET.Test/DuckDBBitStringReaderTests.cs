@@ -11,7 +11,7 @@ public class DuckDBBitStringReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     public void ReadBitString()
     {
         Command.CommandText = "SELECT bitstring('0101011', 12)";
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
         reader.Read();
 
         reader.GetFieldType(0).Should().Be(typeof(string));
@@ -27,7 +27,7 @@ public class DuckDBBitStringReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     public void ReadBitStringAsBitArray()
     {
         Command.CommandText = "SELECT bitstring('0101011', 12)";
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
         reader.Read();
 
         var expected = new BitArray(new bool[] { false, false, false, false, false, false, true, false, true, false, true, true });

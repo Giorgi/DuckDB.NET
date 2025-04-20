@@ -34,7 +34,7 @@ public class DateTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     public void BindWithCastTest(int year, int mon, int day)
     {
         var expectedValue = new DateTime(year, mon, day);
-        
+
         Command.CommandText = "SELECT ?::DATE;";
         Command.Parameters.Add(new DuckDBParameter((DuckDBDateOnly)expectedValue));
 
@@ -61,36 +61,39 @@ public class DateTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Command.CommandText = "INSERT INTO DateOnlyTestTable (a, b) VALUES (42, ?);";
         Command.Parameters.Add(new DuckDBParameter(new DuckDBDateOnly (year,mon,day)));
         Command.ExecuteNonQuery();
-        
+
         Command.Parameters.Clear();
         Command.CommandText = "SELECT * FROM DateOnlyTestTable LIMIT 1;";
 
-        var reader = Command.ExecuteReader();
-        reader.Read();
+        using (var reader = Command.ExecuteReader())
+        {
+            reader.Read();
 
-        reader.GetFieldType(1).Should().Be(typeof(DateOnly));
+            reader.GetFieldType(1).Should().Be(typeof(DateOnly));
 
-        var dateOnly = reader.GetFieldValue<DuckDBDateOnly>(1);
+            var dateOnly = reader.GetFieldValue<DuckDBDateOnly>(1);
 
-        dateOnly.Year.Should().Be(year);
-        dateOnly.Month.Should().Be(mon);
-        dateOnly.Day.Should().Be(day);
+            dateOnly.Year.Should().Be(year);
+            dateOnly.Month.Should().Be(mon);
+            dateOnly.Day.Should().Be(day);
 
-        var dateTime = dateOnly.ToDateTime();
-        dateTime.Year.Should().Be(year);
-        dateTime.Month.Should().Be(mon);
-        dateTime.Day.Should().Be(day);
-        dateTime.Hour.Should().Be(0);
-        dateTime.Minute.Should().Be(0);
-        dateTime.Second.Should().Be(0);
+            var dateTime = dateOnly.ToDateTime();
+            dateTime.Year.Should().Be(year);
+            dateTime.Month.Should().Be(mon);
+            dateTime.Day.Should().Be(day);
+            dateTime.Hour.Should().Be(0);
+            dateTime.Minute.Should().Be(0);
+            dateTime.Second.Should().Be(0);
 
-        reader.GetFieldValue<DateOnly>(1).Should().Be(new DateOnly(year, mon, day));
+            reader.GetFieldValue<DateOnly>(1).Should().Be(new DateOnly(year, mon, day));
 
-        var convertedValue = (DateTime) dateOnly;
-        convertedValue.Should().Be(dateTime);
+            var convertedValue = (DateTime)dateOnly;
+            convertedValue.Should().Be(dateTime);
 
-        reader.GetFieldValue<DuckDBDateOnly?>(2).Should().BeNull();
-        reader.Invoking(dataReader => dataReader.GetFieldValue<DuckDBDateOnly>(2)).Should().Throw<InvalidCastException>().Where(ex => ex.Message.Contains("nullableDateColumn"));
+            reader.GetFieldValue<DuckDBDateOnly?>(2).Should().BeNull();
+            reader.Invoking(dataReader => dataReader.GetFieldValue<DuckDBDateOnly>(2)).Should()
+                .Throw<InvalidCastException>().Where(ex => ex.Message.Contains("nullableDateColumn"));
+        }
 
         Command.CommandText = "DROP TABLE DateOnlyTestTable;";
         Command.ExecuteNonQuery();

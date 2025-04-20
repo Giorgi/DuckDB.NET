@@ -29,17 +29,19 @@ public class ListParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
         Command.CommandText = "SELECT * FROM ParameterListTest;";
 
-        using var reader = Command.ExecuteReader();
-        reader.Read();
+        using (var reader = Command.ExecuteReader())
+        {
+            reader.Read();
 
-        var value = reader.GetFieldValue<List<T>>(0);
-        value.Should().BeEquivalentTo(list);
+            var value = reader.GetFieldValue<List<T>>(0);
+            value.Should().BeEquivalentTo(list);
 
-        var arrayValue = reader.GetFieldValue<List<T>>(1);
-        arrayValue.Should().BeEquivalentTo(list.Take(10));
+            var arrayValue = reader.GetFieldValue<List<T>>(1);
+            arrayValue.Should().BeEquivalentTo(list.Take(10));
 
-        var nestedListValue = reader.GetFieldValue<List<List<T>>>(2);
-        nestedListValue.Should().BeEquivalentTo(nestedList);
+            var nestedListValue = reader.GetFieldValue<List<List<T>>>(2);
+            nestedListValue.Should().BeEquivalentTo(nestedList);
+        }
 
         Command.CommandText = "DROP TABLE ParameterListTest";
         Command.ExecuteNonQuery();

@@ -19,7 +19,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
         var scalar = Command.ExecuteScalar();
         scalar.Should().Be(expectedValue);
 
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
         reader.Read();
         var value = getValue(reader);
 

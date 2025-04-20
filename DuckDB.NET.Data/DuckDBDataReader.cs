@@ -14,7 +14,7 @@ public class DuckDBDataReader : DbDataReader
     private readonly DuckDBCommand command;
     private readonly CommandBehavior behavior;
 
-    private DuckDBResult currentResult;
+    private DuckDBResult? currentResult;
     private DuckDBDataChunk? currentChunk;
 
     private int fieldCount;
@@ -27,31 +27,38 @@ public class DuckDBDataReader : DbDataReader
     private bool streamingResult;
     private long currentChunkIndex;
 
-    private readonly IEnumerator<DuckDBResult> resultEnumerator;
+    private readonly IEnumerator<PreparedStatement.PreparedStatement> statementEnumerator;
     private VectorDataReaderBase[] vectorReaders = [];
     private Dictionary<string, int> columnMapping = [];
 
-    internal DuckDBDataReader(DuckDBCommand command, IEnumerable<DuckDBResult> queryResults, CommandBehavior behavior)
+    internal DuckDBDataReader(DuckDBCommand command, IEnumerable<PreparedStatement.PreparedStatement> statements, CommandBehavior behavior)
     {
+        command.DataReader = this;
+
         this.command = command;
         this.behavior = behavior;
-        resultEnumerator = queryResults.GetEnumerator();
+        statementEnumerator = statements.GetEnumerator();
 
         InitNextReader();
     }
 
     private bool InitNextReader()
     {
-        while (resultEnumerator.MoveNext())
+        while (statementEnumerator.MoveNext())
         {
-            if (NativeMethods.Query.DuckDBResultReturnType(resultEnumerator.Current) == DuckDBResultType.QueryResult)
+            currentResult?.Dispose();
+            currentResult = null;  // Prevent double disposal.
+
+            var current = statementEnumerator.Current.Execute();
+            currentResult = current;
+
+            if (NativeMethods.Query.DuckDBResultReturnType(current) == DuckDBResultType.QueryResult)
             {
                 currentChunkIndex = 0;
-                currentResult = resultEnumerator.Current;
 
                 columnMapping = [];
-                fieldCount = (int)NativeMethods.Query.DuckDBColumnCount(ref currentResult);
-                streamingResult = NativeMethods.Types.DuckDBResultIsStreaming(currentResult) > 0;
+                fieldCount = (int)NativeMethods.Query.DuckDBColumnCount(ref current);
+                streamingResult = NativeMethods.Types.DuckDBResultIsStreaming(current) > 0;
 
                 hasRows = InitChunkData();
 
@@ -69,8 +76,10 @@ public class DuckDBDataReader : DbDataReader
             reader.Dispose();
         }
 
+        var current = currentResult!.Value;
+
         currentChunk?.Dispose();
-        currentChunk = streamingResult ? NativeMethods.StreamingResult.DuckDBStreamFetchChunk(currentResult) : NativeMethods.Types.DuckDBResultGetChunk(currentResult, currentChunkIndex);
+        currentChunk = streamingResult ? NativeMethods.StreamingResult.DuckDBStreamFetchChunk(current) : NativeMethods.Types.DuckDBResultGetChunk(current, currentChunkIndex);
 
         rowsReadFromCurrentChunk = 0;
 
@@ -85,9 +94,9 @@ public class DuckDBDataReader : DbDataReader
         {
             var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(currentChunk, index);
 
-            using var logicalType = NativeMethods.Query.DuckDBColumnLogicalType(ref currentResult, index);
+            using var logicalType = NativeMethods.Query.DuckDBColumnLogicalType(ref current, index);
 
-            var columnName = vectorReaders[index]?.ColumnName ?? NativeMethods.Query.DuckDBColumnName(ref currentResult, index).ToManagedString(false);
+            var columnName = vectorReaders[index]?.ColumnName ?? NativeMethods.Query.DuckDBColumnName(ref current, index).ToManagedString(false);
             vectorReaders[index] = VectorDataReaderFactory.CreateReader(vector, logicalType, columnName);
         }
 
@@ -345,6 +354,9 @@ public class DuckDBDataReader : DbDataReader
             reader.Dispose();
         }
 
+        currentResult?.Dispose();
+        currentResult = null;  // Prevent double disposal.
+
         currentChunk?.Dispose();
 
         if (behavior == CommandBehavior.CloseConnection)
@@ -353,7 +365,9 @@ public class DuckDBDataReader : DbDataReader
         }
 
         closed = true;
-        resultEnumerator.Dispose();
+        statementEnumerator.Dispose();
+
+        command.DataReader = null;
     }
 
     private void CheckRowRead()

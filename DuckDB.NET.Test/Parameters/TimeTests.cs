@@ -86,32 +86,34 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Command.Parameters.Clear();
         Command.CommandText = "SELECT * FROM TimeOnlyTestTable LIMIT 1;";
 
-        var reader = Command.ExecuteReader();
-        reader.Read();
+        using (var reader = Command.ExecuteReader())
+        {
+            reader.Read();
 
-        reader.GetFieldType(1).Should().Be(typeof(TimeOnly));
+            reader.GetFieldType(1).Should().Be(typeof(TimeOnly));
 
-        var duckDBTimeOnly = reader.GetFieldValue<DuckDBTimeOnly>(1);
+            var duckDBTimeOnly = reader.GetFieldValue<DuckDBTimeOnly>(1);
 
-        duckDBTimeOnly.Hour.Should().Be(hour);
-        duckDBTimeOnly.Min.Should().Be(minute);
-        duckDBTimeOnly.Sec.Should().Be(second);
-        duckDBTimeOnly.Microsecond.Should().Be(microsecond);
+            duckDBTimeOnly.Hour.Should().Be(hour);
+            duckDBTimeOnly.Min.Should().Be(minute);
+            duckDBTimeOnly.Sec.Should().Be(second);
+            duckDBTimeOnly.Microsecond.Should().Be(microsecond);
 
-        var dateTime = duckDBTimeOnly.ToDateTime();
-        dateTime.Year.Should().Be(DateTime.MinValue.Year);
-        dateTime.Month.Should().Be(DateTime.MinValue.Month);
-        dateTime.Day.Should().Be(DateTime.MinValue.Day);
-        dateTime.Hour.Should().Be(hour);
-        dateTime.Minute.Should().Be(minute);
-        dateTime.Second.Should().Be(second);
-        dateTime.Millisecond.Should().Be(microsecond / 1000);
+            var dateTime = duckDBTimeOnly.ToDateTime();
+            dateTime.Year.Should().Be(DateTime.MinValue.Year);
+            dateTime.Month.Should().Be(DateTime.MinValue.Month);
+            dateTime.Day.Should().Be(DateTime.MinValue.Day);
+            dateTime.Hour.Should().Be(hour);
+            dateTime.Minute.Should().Be(minute);
+            dateTime.Second.Should().Be(second);
+            dateTime.Millisecond.Should().Be(microsecond / 1000);
 
-        var convertedValue = (DateTime)duckDBTimeOnly;
-        convertedValue.Should().Be(dateTime);
+            var convertedValue = (DateTime)duckDBTimeOnly;
+            convertedValue.Should().Be(dateTime);
 
-        var timeOnly = reader.GetFieldValue<TimeOnly>(1);
-        timeOnly.Should().Be(new TimeOnly(hour, minute, second).Add(TimeSpan.FromTicks(microsecond * 10)));
+            var timeOnly = reader.GetFieldValue<TimeOnly>(1);
+            timeOnly.Should().Be(new TimeOnly(hour, minute, second).Add(TimeSpan.FromTicks(microsecond * 10)));
+        }
 
         Command.CommandText = "DROP TABLE TimeOnlyTestTable;";
         Command.ExecuteNonQuery();
@@ -153,10 +155,11 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     {
         Command.CommandText = $"SELECT TIMETZ '{hour}:{minute}:{second}.{microsecond:000000}{offsetHours:00+##;00-##;}:{offsetMinutes:00}';";
 
-        using var dataReader = Command.ExecuteReader();
+        var dataReader = Command.ExecuteReader();
         dataReader.Read();
 
         var dateTimeOffset = dataReader.GetFieldValue<DateTimeOffset>(0);
+        dataReader.Dispose();
 
         dateTimeOffset.Hour.Should().Be((byte)hour);
         dateTimeOffset.Minute.Should().Be((byte)minute);
@@ -165,7 +168,7 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
         var timeSpan = new TimeSpan(offsetHours, offsetHours >= 0 ? offsetMinutes : -offsetMinutes, 0);
         dateTimeOffset.Offset.Should().Be(timeSpan);
-        
+
         Command.CommandText = "SELECT ?::TIMETZ";
         Command.Parameters.Add(new DuckDBParameter(dateTimeOffset));
 
@@ -186,7 +189,7 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     public void BindTimeOnly(int hour, int minute, int second, int microsecond)
     {
         var expectedValue = new TimeOnly(hour, minute, second,0).Add(TimeSpan.FromMicroseconds(microsecond));
-        
+
         Command.CommandText = "SELECT ?::TIME;";
         Command.Parameters.Add(new DuckDBParameter(expectedValue));
 

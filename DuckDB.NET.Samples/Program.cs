@@ -73,8 +73,10 @@ namespace DuckDB.NET.Samples
             var executeScalar = command.ExecuteScalar();
 
             command.CommandText = "SELECT foo, bar FROM integers";
-            var reader = command.ExecuteReader();
-            PrintQueryResults(reader);
+            using (var reader = command.ExecuteReader())
+            {
+                PrintQueryResults(reader);
+            }
 
             var results = duckDBConnection.Query<FooBar>("SELECT foo, bar FROM integers");
 
@@ -144,7 +146,7 @@ namespace DuckDB.NET.Samples
             }
 
             Console.WriteLine();
-            
+
             while (queryResult.Read())
             {
                 for (int ordinal = 0; ordinal < queryResult.FieldCount; ordinal++)

@@ -15,50 +15,54 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Command.CommandText = "SELECT 'ABCD'::BLOB;";
         Command.ExecuteNonQuery();
 
-        var reader = Command.ExecuteReader();
-        reader.Read();
-
-        using (var stream = reader.GetStream(0))
+        using (var reader = Command.ExecuteReader())
         {
-            stream.Length.Should().Be(4);
-            stream.CanWrite.Should().Be(false);
+            reader.Read();
 
-            using (var streamReader = new StreamReader(stream, leaveOpen: true))
+            using (var stream = reader.GetStream(0))
             {
-                var text = streamReader.ReadToEnd();
-                text.Should().Be("ABCD");
+                stream.Length.Should().Be(4);
+                stream.CanWrite.Should().Be(false);
+
+                using (var streamReader = new StreamReader(stream, leaveOpen: true))
+                {
+                    var text = streamReader.ReadToEnd();
+                    text.Should().Be("ABCD");
+                }
             }
-        }
 
-        using (var streamItem = (Stream)reader.GetValue(0))
-        {
-            using (var streamReader = new StreamReader(streamItem, leaveOpen: true))
+            using (var streamItem = (Stream)reader.GetValue(0))
             {
-                var text = streamReader.ReadToEnd();
-                text.Should().Be("ABCD");
+                using (var streamReader = new StreamReader(streamItem, leaveOpen: true))
+                {
+                    var text = streamReader.ReadToEnd();
+                    text.Should().Be("ABCD");
+                }
             }
         }
 
         Command.CommandText = "SELECT 'AB\\x0aCD'::BLOB";
         Command.ExecuteNonQuery();
 
-        reader = Command.ExecuteReader();
-        reader.Read();
-
-        using (var stream = reader.GetStream(0))
+        using (var reader = Command.ExecuteReader())
         {
-            stream.Length.Should().Be(5);
-            using (var streamReader = new StreamReader(stream, leaveOpen: true))
+            reader.Read();
+
+            using (var stream = reader.GetStream(0))
             {
-                var text = streamReader.ReadLine();
-                text.Should().Be("AB");
+                stream.Length.Should().Be(5);
+                using (var streamReader = new StreamReader(stream, leaveOpen: true))
+                {
+                    var text = streamReader.ReadLine();
+                    text.Should().Be("AB");
 
-                text = streamReader.ReadLine();
-                text.Should().Be("CD");
+                    text = streamReader.ReadLine();
+                    text.Should().Be("CD");
+                }
             }
-        }
 
-        reader.GetFieldType(0).Should().Be(typeof(Stream));
+            reader.GetFieldType(0).Should().Be(typeof(Stream));
+        }
     }
 
     [Fact]
@@ -68,7 +72,7 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Command.CommandText = $"SELECT '{blobValue}'::BLOB;";
         Command.ExecuteNonQuery();
 
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
         reader.Read();
 
         using var stream = reader.GetStream(0);
@@ -113,7 +117,7 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         var command = Connection.CreateCommand();
         command.CommandText = "SELECT * from BlobTests;";
 
-        var reader = command.ExecuteReader();
+        using var reader = command.ExecuteReader();
         reader.Read();
 
         using (var stream = reader.GetStream(1))

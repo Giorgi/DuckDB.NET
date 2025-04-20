@@ -24,7 +24,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
             var scalar = Command.ExecuteScalar();
             scalar.Should().Be(value);
 
-            var reader = Command.ExecuteReader();
+            using var reader = Command.ExecuteReader();
             reader.Read();
             var receivedValue = reader.GetDecimal(0);
             receivedValue.Should().Be(value);
@@ -41,7 +41,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
             var scalar = Command.ExecuteScalar();
             scalar.Should().Be(value);
 
-            var reader = Command.ExecuteReader();
+            using var reader = Command.ExecuteReader();
             reader.Read();
             var receivedValue = reader.GetDecimal(0);
             receivedValue.Should().Be(value);
@@ -96,13 +96,15 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
                 var scalar = Command.ExecuteScalar();
                 scalar.Should().Be(value);
 
-                var reader = Command.ExecuteReader();
-                reader.Read();
+                using (var reader = Command.ExecuteReader())
+                {
+                    reader.Read();
 
-                var receivedValue = reader.GetDecimal(0);
-                receivedValue.Should().Be(value);
+                    var receivedValue = reader.GetDecimal(0);
+                    receivedValue.Should().Be(value);
 
-                reader.GetFieldType(0).Should().Be(typeof(decimal));
+                    reader.GetFieldType(0).Should().Be(typeof(decimal));
+                }
 
                 Command.CommandText = "Delete from DecimalValuesTests";
                 Command.ExecuteNonQuery();
@@ -138,13 +140,15 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
                 var scalar = Command.ExecuteScalar();
                 scalar.Should().Be(value);
 
-                var reader = Command.ExecuteReader();
-                reader.Read();
+                using (var reader = Command.ExecuteReader())
+                {
+                    reader.Read();
 
-                var receivedValue = reader.GetDecimal(0);
-                receivedValue.Should().Be(value);
+                    var receivedValue = reader.GetDecimal(0);
+                    receivedValue.Should().Be(value);
 
-                reader.GetFieldType(0).Should().Be(typeof(decimal));
+                    reader.GetFieldType(0).Should().Be(typeof(decimal));
+                }
 
                 Command.CommandText = "Delete from DecimalValuesTests";
                 Command.ExecuteNonQuery();

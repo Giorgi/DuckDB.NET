@@ -21,7 +21,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
         Command.CommandText = "select * from GetOrdinalTests";
         Command.UseStreamingMode = true;
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
 
         reader.GetOrdinal("key").Should().Be(0);
         reader.GetOrdinal("value").Should().Be(1);
@@ -37,7 +37,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
         Command.CommandText = "select value, key, value from GetOrdinalTests";
         Command.UseStreamingMode = true;
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
 
         reader.GetOrdinal("key").Should().Be(1);
         reader.GetOrdinal("value").Should().Be(0);
@@ -52,7 +52,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         Command.ExecuteNonQuery();
 
         Command.CommandText = "select * from CloseConnectionTests";
-        var reader = Command.ExecuteReader(CommandBehavior.CloseConnection);
+        using var reader = Command.ExecuteReader(CommandBehavior.CloseConnection);
         reader.Close();
 
         reader.IsClosed.Should().BeTrue();
@@ -63,7 +63,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     public void ReadValueBeforeReadThrowsException()
     {
         Command.CommandText = "select 24";
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
 
         reader.Invoking(r => r.IsDBNull(0)).Should().Throw<InvalidOperationException>();
         reader.Invoking(r => r.GetValue(0)).Should().Throw<InvalidOperationException>();
@@ -86,7 +86,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         Command.ExecuteNonQuery();
 
         Command.CommandText = "select * from IndexerValuesTests";
-        var reader = Command.ExecuteReader(CommandBehavior.CloseConnection);
+        using var reader = Command.ExecuteReader(CommandBehavior.CloseConnection);
 
         reader.Read();
 
@@ -138,46 +138,51 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     public void ReadIntervalValues()
     {
         Command.CommandText = "SELECT INTERVAL 1 YEAR;";
+        using (var reader = Command.ExecuteReader())
+        {
+            reader.Read();
+            reader.GetFieldType(0).Should().Be(typeof(TimeSpan));
+            reader.GetDataTypeName(0).Should().Be(DuckDBType.Interval.ToString());
 
-        var reader = Command.ExecuteReader();
-        reader.Read();
-        reader.GetFieldType(0).Should().Be(typeof(TimeSpan));
-        reader.GetDataTypeName(0).Should().Be(DuckDBType.Interval.ToString());
+            var interval = reader.GetFieldValue<DuckDBInterval>(0);
+            reader.Invoking(r => r.GetValue(0)).Should().Throw<ArgumentOutOfRangeException>();
 
-        var interval = reader.GetFieldValue<DuckDBInterval>(0);
-        reader.Invoking(r => r.GetValue(0)).Should().Throw<ArgumentOutOfRangeException>();
-
-        interval.Months.Should().Be(12);
+            interval.Months.Should().Be(12);
+        }
 
         Command.CommandText = "SELECT INTERVAL '28' DAYS;";
-        reader = Command.ExecuteReader();
-        reader.Read();
+        using (var reader = Command.ExecuteReader())
+        {
+            reader.Read();
 
-        interval = reader.GetFieldValue<DuckDBInterval>(0);
-        var value = (TimeSpan)reader.GetValue(0);
+            var interval = reader.GetFieldValue<DuckDBInterval>(0);
+            var value = (TimeSpan)reader.GetValue(0);
 
-        var timeSpan = reader.GetFieldValue<TimeSpan>(0);
-        timeSpan.Days.Should().Be(28);
+            var timeSpan = reader.GetFieldValue<TimeSpan>(0);
+            timeSpan.Days.Should().Be(28);
 
-        interval.Days.Should().Be(28);
-        value.Days.Should().Be(28);
+            interval.Days.Should().Be(28);
+            value.Days.Should().Be(28);
+        }
 
         Command.CommandText = "SELECT INTERVAL 30 SECONDS;";
-        reader = Command.ExecuteReader();
-        reader.Read();
+        using (var reader = Command.ExecuteReader())
+        {
+            reader.Read();
 
-        interval = reader.GetFieldValue<DuckDBInterval>(0);
-        timeSpan = (TimeSpan)reader.GetValue(0);
+            var interval = reader.GetFieldValue<DuckDBInterval>(0);
+            var timeSpan = (TimeSpan)reader.GetValue(0);
 
-        interval.Micros.Should().Be(30_000_000);
-        timeSpan.Should().Be(TimeSpan.FromSeconds(30));
+            interval.Micros.Should().Be(30_000_000);
+            timeSpan.Should().Be(TimeSpan.FromSeconds(30));
+        }
     }
 
     [Fact]
     public void LoadDataTable()
     {
         Command.CommandText = "select 1 as num, 'text' as str, TIMESTAMP '1992-09-20 20:38:40' as tme";
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
         var dt = new DataTable();
         dt.Load(reader);
         dt.Rows.Count.Should().Be(1);
@@ -308,7 +313,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         Command.ExecuteNonQuery();
 
         Command.CommandText = "PIVOT Cities ON Year USING SUM(Population);";
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
 
         reader.Read();
         reader.HasRows.Should().BeTrue();
@@ -327,7 +332,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
                                     SELECT 2 AS i, 3 AS j 
                                     RETURNING *, i * j AS i_times_j;";
 
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
 
         reader.Read();
         reader.HasRows.Should().BeTrue();
@@ -339,7 +344,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     public void ReadNonQueryAsResult()
     {
         Command.CommandText = "CREATE TABLE IndexerValuesTests (key INTEGER, value decimal, State Boolean, ErrorCode Integer, mean Float, stdev double)";
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
         reader.HasRows.Should().BeFalse();
 
         reader.Invoking(r => r.Close()).Should().NotThrow();
@@ -429,7 +434,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     {
         Command.CommandText = "SELECT (-1234)::VARINT";
 
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
         reader.Read();
         var value = (BigInteger)reader.GetValue(0);
     }

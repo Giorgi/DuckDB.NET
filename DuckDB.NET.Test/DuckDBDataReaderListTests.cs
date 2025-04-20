@@ -111,24 +111,24 @@ public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     public void ReadMultipleListOfDecimals()
     {
         Command.CommandText = "Select * from ( SELECT [1.1, 2.3456, NULL] Union Select [73.56725, 264387.632673487236]) order by 1";
-        var reader = Command.ExecuteReader();
+        using (var reader = Command.ExecuteReader())
+        {
+            reader.Read();
+            var list = reader.GetFieldValue<List<decimal?>>(0);
+            list.Should().BeEquivalentTo(new List<decimal?> { 1.1m, 2.3456m, null });
 
-        reader.Read();
-        var list = reader.GetFieldValue<List<decimal?>>(0);
-        list.Should().BeEquivalentTo(new List<decimal?> { 1.1m, 2.3456m, null });
-
-        reader.Read();
-        var value = reader.GetValue(0);
-        value.Should().BeEquivalentTo(new List<decimal?> { 73.56725m, 264387.632673487236m });
-        reader.Dispose();
+            reader.Read();
+            var value = reader.GetValue(0);
+            value.Should().BeEquivalentTo(new List<decimal?> { 73.56725m, 264387.632673487236m });
+        }
 
         Command.CommandText = "SELECT [1.1, 2.34] ";
-        reader = Command.ExecuteReader();
-
-        reader.Read();
-        list = reader.GetFieldValue<List<decimal?>>(0);
-        list.Should().BeEquivalentTo(new List<decimal?> { 1.1m, 2.34m });
-        reader.Dispose();
+        using (var reader = Command.ExecuteReader())
+        {
+            reader.Read();
+            var list = reader.GetFieldValue<List<decimal?>>(0);
+            list.Should().BeEquivalentTo(new List<decimal?> { 1.1m, 2.34m });
+        }
     }
 
     [Fact]

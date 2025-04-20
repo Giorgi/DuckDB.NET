@@ -277,7 +277,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         result.Select(tuple => tuple.Item8).Should().BeEquivalentTo(dates.Select(TimeOnly.FromDateTime));
 
         Command.CommandText = "Select i from managedAppenderTemporal";
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
 
         int index = -1;
         while (reader.Read())
@@ -624,7 +624,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         }
 
         Command.CommandText = "Select * from tbl";
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
         reader.Read();
 
         var i = reader.GetInt32(0);
