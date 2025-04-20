@@ -49,7 +49,7 @@ public class DuckDBCommand : DbCommand
         set
         {
             if (DataReader != null)
-                throw new InvalidOperationException();
+                throw new InvalidOperationException("no open reader must exist");
 
             if (commandText == value)
                 return;
@@ -135,6 +135,9 @@ public class DuckDBCommand : DbCommand
 
     protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
     {
+        if (DataReader != null)
+            throw new InvalidOperationException("no open reader must exist");
+
         EnsureConnectionOpen();
 
         var closeConnection = behavior.HasFlag(CommandBehavior.CloseConnection);
