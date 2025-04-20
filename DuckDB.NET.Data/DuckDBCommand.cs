@@ -5,7 +5,6 @@ using System.ComponentModel;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Data;
@@ -138,7 +137,9 @@ public class DuckDBCommand : DbCommand
     {
         EnsureConnectionOpen();
 
-        return new DuckDBDataReader(this, GetStatements(), behavior);
+        var closeConnection = behavior.HasFlag(CommandBehavior.CloseConnection);
+
+        return new DuckDBDataReader(this, GetStatements(), closeConnection);
     }
 
     public override void Prepare() { }

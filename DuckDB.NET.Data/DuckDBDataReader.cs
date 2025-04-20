@@ -12,7 +12,7 @@ namespace DuckDB.NET.Data;
 public class DuckDBDataReader : DbDataReader
 {
     private readonly DuckDBCommand command;
-    private readonly CommandBehavior behavior;
+    private readonly bool closeConnection;
 
     private DuckDBResult? currentResult;
     private DuckDBDataChunk? currentChunk;
@@ -31,10 +31,10 @@ public class DuckDBDataReader : DbDataReader
     private VectorDataReaderBase[] vectorReaders = [];
     private Dictionary<string, int> columnMapping = [];
 
-    internal DuckDBDataReader(DuckDBCommand command, IEnumerable<PreparedStatement.PreparedStatement> statements, CommandBehavior behavior)
+    internal DuckDBDataReader(DuckDBCommand command, IEnumerable<PreparedStatement.PreparedStatement> statements, bool closeConnection)
     {
         this.command = command;
-        this.behavior = behavior;
+        this.closeConnection = closeConnection;
         statementEnumerator = statements.GetEnumerator();
 
         InitNextReader();
@@ -309,7 +309,7 @@ public class DuckDBDataReader : DbDataReader
 
     public override IEnumerator GetEnumerator()
     {
-        return new DbEnumerator(this, behavior == CommandBehavior.CloseConnection);
+        return new DbEnumerator(this, closeConnection);
     }
 
     public override DataTable GetSchemaTable()
@@ -386,7 +386,7 @@ public class DuckDBDataReader : DbDataReader
 
         closed = true;
 
-        if (behavior == CommandBehavior.CloseConnection)
+        if (closeConnection)
         {
             command.CloseConnection();
         }
