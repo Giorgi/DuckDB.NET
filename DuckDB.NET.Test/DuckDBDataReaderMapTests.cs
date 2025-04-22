@@ -127,6 +127,20 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
         reader.Invoking(r => r.GetFieldValue<List<KeyValuePair<string, int>>>(0)).Should().Throw<InvalidOperationException>();
     }
 
+    [Fact]
+    public void GetEmptyMapType()
+    {
+        Command.CommandText = "CREATE TABLE tbl (col MAP(INTEGER, DOUBLE));";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "SELECT * FROM tbl";
+
+        using var reader = Command.ExecuteReader();
+        var type = reader.GetFieldType(0);
+
+        type.Should().Be(typeof(Dictionary<int, double>));
+    }
+
     class ListEqualityClass : IEqualityComparer<List<string>>
     {
         public bool Equals(List<string> x, List<string> y)

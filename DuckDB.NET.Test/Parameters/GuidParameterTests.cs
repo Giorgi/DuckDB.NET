@@ -33,7 +33,7 @@ public class GuidParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void ReadGuidNullable()
     {
-        Command.CommandText = $"SELECT ?::uuid;";
+        Command.CommandText = "SELECT ?::uuid;";
         Command.Parameters.Add(new DuckDBParameter(DbType.Guid, null));
 
         var reader = Command.ExecuteReader();
@@ -48,16 +48,16 @@ public class GuidParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void InsertGuidSelect()
     {
-        Command.CommandText = $"CREATE TABLE uuid_test (a uuid);";
+        Command.CommandText = "CREATE TABLE uuid_test (a uuid);";
         Command.ExecuteNonQuery();
 
         var value = Guid.NewGuid();
 
-        Command.CommandText = $"INSERT INTO uuid_test (a) VALUES (?);";
+        Command.CommandText = "INSERT INTO uuid_test (a) VALUES (?);";
         Command.Parameters.Add(new DuckDBParameter(value));
         Command.ExecuteNonQuery();
 
-        Command.CommandText = $"SELECT * FROM uuid_test;";
+        Command.CommandText = "SELECT * FROM uuid_test;";
         var reader = Command.ExecuteReader();
         reader.Read();
 

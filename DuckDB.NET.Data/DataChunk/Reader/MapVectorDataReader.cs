@@ -11,11 +11,11 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
     private readonly VectorDataReaderBase keyReader;
     private readonly VectorDataReaderBase valueReader;
 
-    internal unsafe MapVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
+    internal unsafe MapVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, DuckDBLogicalType logicalColumnType, string columnName) 
+                    : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
-        using var logicalType = NativeMethods.Vectors.DuckDBVectorGetColumnType(vector);
-        using var keyTypeLogical = NativeMethods.LogicalType.DuckDBMapTypeKeyType(logicalType);
-        using var valueTypeLogical = NativeMethods.LogicalType.DuckDBMapTypeValueType(logicalType);
+        using var keyTypeLogical = NativeMethods.LogicalType.DuckDBMapTypeKeyType(logicalColumnType);
+        using var valueTypeLogical = NativeMethods.LogicalType.DuckDBMapTypeValueType(logicalColumnType);
 
         var childVector = NativeMethods.Vectors.DuckDBListVectorGetChild(vector);
 

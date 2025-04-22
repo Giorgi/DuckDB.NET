@@ -13,14 +13,14 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
 
     public bool IsList => DuckDBType == DuckDBType.List;
 
-    internal unsafe ListVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
+    internal unsafe ListVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, DuckDBLogicalType logicalColumnType, string columnName) 
+                    : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
-        using var logicalType = NativeMethods.Vectors.DuckDBVectorGetColumnType(vector);
-        using var childType = IsList ? NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType) : NativeMethods.LogicalType.DuckDBArrayTypeChildType(logicalType);
+        using var childType = IsList ? NativeMethods.LogicalType.DuckDBListTypeChildType(logicalColumnType) : NativeMethods.LogicalType.DuckDBArrayTypeChildType(logicalColumnType);
 
         var childVector = IsList ? NativeMethods.Vectors.DuckDBListVectorGetChild(vector) : NativeMethods.Vectors.DuckDBArrayVectorGetChild(vector);
 
-        arraySize = IsList ? 0 : (ulong)NativeMethods.LogicalType.DuckDBArrayVectorGetSize(logicalType);
+        arraySize = IsList ? 0 : (ulong)NativeMethods.LogicalType.DuckDBArrayVectorGetSize(logicalColumnType);
         listDataReader = VectorDataReaderFactory.CreateReader(childVector, childType, columnName);
     }
 
@@ -63,14 +63,14 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
         //Special case for specific types to avoid boxing
         return list switch
         {
-            List<int> theList => BuildList<int>(theList),
-            List<int?> theList => BuildList<int?>(theList),
-            List<float> theList => BuildList<float>(theList),
-            List<float?> theList => BuildList<float?>(theList),
-            List<double> theList => BuildList<double>(theList),
-            List<double?> theList => BuildList<double?>(theList),
-            List<decimal> theList => BuildList<decimal>(theList),
-            List<decimal?> theList => BuildList<decimal?>(theList),
+            List<int> theList => BuildList(theList),
+            List<int?> theList => BuildList(theList),
+            List<float> theList => BuildList(theList),
+            List<float?> theList => BuildList(theList),
+            List<double> theList => BuildList(theList),
+            List<double?> theList => BuildList(theList),
+            List<decimal> theList => BuildList(theList),
+            List<decimal?> theList => BuildList(theList),
             _ => BuildListCommon(list, nullableType ?? listType)
         };
 
