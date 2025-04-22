@@ -1,10 +1,11 @@
-﻿using System;
+﻿using DuckDB.NET.Native;
+using System;
 using System.Diagnostics.CodeAnalysis;
-using DuckDB.NET.Native;
+
+#if NET8_0_OR_GREATER
 
 namespace DuckDB.NET.Data.DataChunk.Reader;
 
-#if NET8_0_OR_GREATER
 [Experimental("DuckDBNET001")]
 public interface IDuckDBDataReader
 {

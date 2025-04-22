@@ -1,8 +1,8 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 
+#if NET8_0_OR_GREATER
 namespace DuckDB.NET.Data.DataChunk.Writer;
 
-#if NET8_0_OR_GREATER
 [Experimental("DuckDBNET001")]
 public interface IDuckDBDataWriter
 {
