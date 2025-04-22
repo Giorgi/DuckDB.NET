@@ -24,7 +24,7 @@
     <PackageTags>DuckDB;ADO.NET;Database;Olap;Embedded</PackageTags>
     <PackageIcon>Logo.jpg</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
 
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(Configuration)'=='Release'">True</ContinuousIntegrationBuild>
