@@ -5,10 +5,10 @@ using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.DataChunk.Writer;
 
-internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, DuckDBType columnType)
+internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, DuckDBType columnType) : IDisposable
 #if NET8_0_OR_GREATER
 #pragma warning disable DuckDBNET001
-    : IDuckDBDataWriter
+    , IDuckDBDataWriter
 #pragma warning restore DuckDBNET001
 #endif
 {
@@ -44,12 +44,12 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
             short val => AppendNumeric(val, rowIndex),
             int val => AppendNumeric(val, rowIndex),
             long val => AppendNumeric(val, rowIndex),
-            
+
             byte val => AppendNumeric(val, rowIndex),
             ushort val => AppendNumeric(val, rowIndex),
             uint val => AppendNumeric(val, rowIndex),
             ulong val => AppendNumeric(val, rowIndex),
-            
+
             float val => AppendNumeric(val, rowIndex),
             double val => AppendNumeric(val, rowIndex),
 
@@ -127,6 +127,6 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
 
     public virtual void Dispose()
     {
-        
+
     }
 }
