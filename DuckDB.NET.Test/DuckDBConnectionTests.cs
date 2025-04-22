@@ -157,7 +157,7 @@ public class DuckDBConnectionTests
             Console.WriteLine($"{insertions:0} Insertions for {cs}");
         }
 
-        insertionCountPostRun.Should().Be(totalInsertions, $"Insertions don't add up?");
+        insertionCountPostRun.Should().Be(totalInsertions, "Insertions don't add up?");
 
         //dispose here to make sure there isn't a connection still attached
         files.Dispose();

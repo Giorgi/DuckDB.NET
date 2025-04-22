@@ -239,6 +239,20 @@ public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBas
         }
     }
 
+    [Fact]
+    public void GetEmptyListType()
+    {
+        Command.CommandText = "CREATE TABLE embeddings(embedding FLOAT[20]);";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "SELECT embedding FROM embeddings";
+
+        using var reader = Command.ExecuteReader();
+        var type = reader.GetFieldType(0);
+
+        type.Should().Be(typeof(List<float>));
+    }
+
     class Person
     {
         public List<int> Ids { get; set; }
