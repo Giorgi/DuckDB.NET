@@ -6,7 +6,7 @@ namespace DuckDB.NET.Data.DataChunk.Writer;
 [Experimental("DuckDBNET001")]
 public interface IDuckDBDataWriter
 {
-    unsafe void WriteNull(ulong rowIndex);
-    unsafe void WriteValue<T>(T value, ulong rowIndex);
+    void WriteNull(ulong rowIndex);
+    void WriteValue<T>(T value, ulong rowIndex);
 }
 #endif

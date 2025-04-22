@@ -37,35 +37,35 @@ public partial class NativeMethods
         #region TableFunctionBind
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_get_extra_info")]
-        public static extern unsafe IntPtr DuckDBBindGetExtraInfo(IntPtr info);
+        public static extern IntPtr DuckDBBindGetExtraInfo(IntPtr info);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_add_result_column")]
-        public static extern unsafe void DuckDBBindAddResultColumn(IntPtr info, SafeUnmanagedMemoryHandle name, DuckDBLogicalType type);
+        public static extern void DuckDBBindAddResultColumn(IntPtr info, SafeUnmanagedMemoryHandle name, DuckDBLogicalType type);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_get_parameter_count")]
-        public static extern unsafe ulong DuckDBBindGetParameterCount(IntPtr info);
+        public static extern ulong DuckDBBindGetParameterCount(IntPtr info);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_get_parameter")]
-        public static extern unsafe DuckDBValue DuckDBBindGetParameter(IntPtr info, ulong index);
+        public static extern DuckDBValue DuckDBBindGetParameter(IntPtr info, ulong index);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_set_bind_data")]
         public static extern unsafe void DuckDBBindSetBindData(IntPtr info, IntPtr bindData, delegate* unmanaged[Cdecl]<IntPtr, void> destroy);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_bind_set_error")]
-        public static extern unsafe void DuckDBBindSetError(IntPtr info, SafeUnmanagedMemoryHandle error);
+        public static extern void DuckDBBindSetError(IntPtr info, SafeUnmanagedMemoryHandle error);
 
         #endregion
 
         #region TableFunction
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_function_get_extra_info")]
-        public static extern unsafe IntPtr DuckDBFunctionGetExtraInfo(IntPtr info);
+        public static extern IntPtr DuckDBFunctionGetExtraInfo(IntPtr info);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_function_get_bind_data")]
-        public static extern unsafe IntPtr DuckDBFunctionGetBindData(IntPtr info);
+        public static extern IntPtr DuckDBFunctionGetBindData(IntPtr info);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_function_set_error")]
-        public static extern unsafe void DuckDBFunctionSetError(IntPtr info, SafeUnmanagedMemoryHandle error);
+        public static extern void DuckDBFunctionSetError(IntPtr info, SafeUnmanagedMemoryHandle error);
 
         #endregion
     }
