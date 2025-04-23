@@ -39,7 +39,7 @@ public class DuckDBDataReader : DbDataReader
 
         InitNextReader();
 
-        // Do not modify the command's state if an exception was thrown in InitNextReader().
+        // Do not modify the command's state when InitNextReader() throws an exception.
         command.DataReader = this;
     }
 
@@ -375,6 +375,7 @@ public class DuckDBDataReader : DbDataReader
             // Try to consume the enumerator to ensure that all statements are prepared.
             while (statementEnumerator.MoveNext())
             {
+                // No-op.
             }
         }
         catch

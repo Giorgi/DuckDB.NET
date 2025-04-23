@@ -155,11 +155,13 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     {
         Command.CommandText = $"SELECT TIMETZ '{hour}:{minute}:{second}.{microsecond:000000}{offsetHours:00+##;00-##;}:{offsetMinutes:00}';";
 
-        var dataReader = Command.ExecuteReader();
-        dataReader.Read();
+        DateTimeOffset dateTimeOffset;
+        using (var dataReader = Command.ExecuteReader())
+        {
+            dataReader.Read();
 
-        var dateTimeOffset = dataReader.GetFieldValue<DateTimeOffset>(0);
-        dataReader.Dispose();
+            dateTimeOffset = dataReader.GetFieldValue<DateTimeOffset>(0);
+        }
 
         dateTimeOffset.Hour.Should().Be((byte)hour);
         dateTimeOffset.Minute.Should().Be((byte)minute);
