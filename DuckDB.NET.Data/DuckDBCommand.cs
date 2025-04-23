@@ -49,7 +49,7 @@ public class DuckDBCommand : DbCommand
         set
         {
             if (DataReader != null)
-                throw new InvalidOperationException("channot change CommandText while a reader is open");
+                throw new InvalidOperationException("cannot change CommandText while a reader is open");
 
             if (commandText == value)
                 return;
