@@ -20,6 +20,12 @@ partial class DuckDBConnection
 {
 #if NET8_0_OR_GREATER
     [Experimental("DuckDBNET001")]
+    public void RegisterTableFunction(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
+    {
+        RegisterTableFunctionInternal(name, resultCallback, mapperCallback);
+    }
+
+    [Experimental("DuckDBNET001")]
     public void RegisterTableFunction<T>(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
     {
         RegisterTableFunctionInternal(name, resultCallback, mapperCallback, typeof(T));
