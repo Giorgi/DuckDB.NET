@@ -16,7 +16,7 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void RegisterTableFunctionWithNoParameters()
     {
-        Connection.RegisterTableFunction("answer", (_) =>
+        Connection.RegisterTableFunction("answer", () =>
         {
             return new TableFunction(new List<ColumnInfo>()
             {
