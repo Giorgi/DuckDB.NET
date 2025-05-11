@@ -15,10 +15,20 @@ partial class DuckDBConnection
 {
 #if NET8_0_OR_GREATER
     [Experimental("DuckDBNET001")]
+    public void RegisterScalarFunction<TResult>(string name, Action<IDuckDBDataWriter, ulong> action, bool isPureFunction = false)
+    {
+        RegisterScalarMethod(name, (_, w, index) => action(w, index), TypeExtensions.GetLogicalType<TResult>(), varargs: false, !isPureFunction);
+    }
+
+    [Obsolete("Prefer using RegisterScalarFunction<TResult>(string name, Action<IDuckDBDataWriter, ulong> action, bool isPureFunction = false)")]
+    [Experimental("DuckDBNET001")]
+#pragma warning disable DuckDBNET001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
     public void RegisterScalarFunction<TResult>(string name, Action<IReadOnlyList<IDuckDBDataReader>, IDuckDBDataWriter, ulong> action, bool isPureFunction = false)
     {
+
         RegisterScalarMethod(name, action, TypeExtensions.GetLogicalType<TResult>(), varargs: false, !isPureFunction);
     }
+#pragma warning restore DuckDBNET001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
     [Experimental("DuckDBNET001")]
     public void RegisterScalarFunction<T, TResult>(string name, Action<IReadOnlyList<IDuckDBDataReader>, IDuckDBDataWriter, ulong> action, bool isPureFunction = true, bool @params = false)
