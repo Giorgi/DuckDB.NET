@@ -61,32 +61,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-#pragma warning disable CA1041 // Provide ObsoleteAttribute message
-    [Obsolete]
-#pragma warning restore CA1041 // Provide ObsoleteAttribute message
-    public void RegisterScalarFunctionWithoutParametersObsolete()
-    {
-        var values = new List<long>();
-        Connection.RegisterScalarFunction<long>("my_random_obsolete", (_, writer, rowCount) =>
-        {
-            for (ulong index = 0; index < rowCount; index++)
-            {
-                var value = Random.Shared.NextInt64();
-
-                writer.WriteValue(value, index);
-
-                values.Add(value);
-            }
-        });
-
-        Command.CommandText = "CREATE TABLE big_table_2 AS SELECT (greatest(random(), 0.1) * 10000)::BIGINT i FROM range(100) t(i);";
-        Command.ExecuteNonQuery();
-
-        var longs = Connection.Query<long>("SELECT my_random_obsolete() FROM big_table_2").ToList();
-        longs.Should().BeEquivalentTo(values);
-    }
-
-    [Fact]
     public void RegisterScalarFunctionWithoutParameters()
     {
         var values = new List<long>();
@@ -102,10 +76,10 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             }
         });
 
-        Command.CommandText = "CREATE TABLE big_table_2_1 AS SELECT (greatest(random(), 0.1) * 10000)::BIGINT i FROM range(100) t(i);";
+        Command.CommandText = "CREATE TABLE big_table_2 AS SELECT (greatest(random(), 0.1) * 10000)::BIGINT i FROM range(100) t(i);";
         Command.ExecuteNonQuery();
 
-        var longs = Connection.Query<long>("SELECT my_random() FROM big_table_2_1").ToList();
+        var longs = Connection.Query<long>("SELECT my_random() FROM big_table_2").ToList();
         longs.Should().BeEquivalentTo(values);
     }
 
