@@ -64,7 +64,7 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     public void RegisterScalarFunctionWithoutParameters()
     {
         var values = new List<long>();
-        Connection.RegisterScalarFunction<long>("my_random", (_, writer, rowCount) =>
+        Connection.RegisterScalarFunction<long>("my_random", (writer, rowCount) =>
         {
             for (ulong index = 0; index < rowCount; index++)
             {
