@@ -20,6 +20,6 @@ public partial class NativeMethods
         public static extern DuckDBState DuckDBSetConfig(DuckDBConfig config, [MarshalAs(UnmanagedType.LPStr)] string name, [MarshalAs(UnmanagedType.LPStr)] string option);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_config")]
-        public static extern void DuckDBDestroyConfig(out IntPtr config);
+        public static extern void DuckDBDestroyConfig(ref IntPtr config);
     }
 }

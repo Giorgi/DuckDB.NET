@@ -9,7 +9,7 @@ public partial class NativeMethods
     public static class Value
     {
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_value")]
-        public static extern void DuckDBDestroyValue(out IntPtr config);
+        public static extern void DuckDBDestroyValue(ref IntPtr config);
         
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_varchar")]
         public static extern DuckDBValue DuckDBCreateVarchar(SafeUnmanagedMemoryHandle value);

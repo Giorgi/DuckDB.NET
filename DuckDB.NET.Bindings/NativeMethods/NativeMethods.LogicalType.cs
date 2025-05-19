@@ -57,7 +57,7 @@ public partial class NativeMethods
         public static extern DuckDBLogicalType DuckDBStructTypeChildType(DuckDBLogicalType type, long index);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_logical_type")]
-        public static extern void DuckDBDestroyLogicalType(out IntPtr type);
+        public static extern void DuckDBDestroyLogicalType(ref IntPtr type);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_array_type_array_size")]
         public static extern long DuckDBArrayVectorGetSize(DuckDBLogicalType logicalType);

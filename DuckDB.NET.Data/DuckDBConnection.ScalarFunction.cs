@@ -95,7 +95,7 @@ partial class DuckDBConnection
 
         var state = NativeMethods.ScalarFunction.DuckDBRegisterScalarFunction(NativeConnection, function);
 
-        NativeMethods.ScalarFunction.DuckDBDestroyScalarFunction(out function);
+        NativeMethods.ScalarFunction.DuckDBDestroyScalarFunction(ref function);
 
         if (!state.IsSuccess())
         {

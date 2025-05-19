@@ -102,7 +102,7 @@ partial class DuckDBConnection
             throw new InvalidOperationException($"Error registering user defined table function: {name}");
         }
 
-        NativeMethods.TableFunction.DuckDBDestroyTableFunction(out function);
+        NativeMethods.TableFunction.DuckDBDestroyTableFunction(ref function);
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]

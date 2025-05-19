@@ -21,6 +21,6 @@ public partial class NativeMethods
         public static extern IntPtr DuckDBExtractStatementsError(DuckDBExtractedStatements extractedStatements);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_extracted")]
-        public static extern void DuckDBDestroyExtracted(out IntPtr extractedStatements);
+        public static extern void DuckDBDestroyExtracted(ref IntPtr extractedStatements);
     }
 }

@@ -16,7 +16,7 @@ public partial class NativeMethods
         public static extern DuckDBState DuckDBPrepare(DuckDBNativeConnection connection, SafeUnmanagedMemoryHandle query, out DuckDBPreparedStatement preparedStatement);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_prepare")]
-        public static extern void DuckDBDestroyPrepare(out IntPtr preparedStatement);
+        public static extern void DuckDBDestroyPrepare(ref IntPtr preparedStatement);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_prepare_error")]
         public static extern IntPtr DuckDBPrepareError(DuckDBPreparedStatement preparedStatement);

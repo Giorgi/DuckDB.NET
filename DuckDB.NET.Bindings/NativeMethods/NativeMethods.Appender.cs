@@ -36,7 +36,7 @@ public partial class NativeMethods
         public static extern DuckDBState DuckDBAppenderClose(DuckDBAppender appender);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_appender_destroy")]
-        public static extern DuckDBState DuckDBDestroyAppender(out IntPtr appender);
+        public static extern DuckDBState DuckDBDestroyAppender(ref IntPtr appender);
 
 #if NET5_0_OR_GREATER
         [SuppressGCTransition]

@@ -11,7 +11,7 @@ public partial class NativeMethods
         public static extern IntPtr DuckDBCreateScalarFunction();
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_scalar_function")]
-        public static extern void DuckDBDestroyScalarFunction(out IntPtr scalarFunction);
+        public static extern void DuckDBDestroyScalarFunction(ref IntPtr scalarFunction);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_scalar_function_set_name")]
         public static extern void DuckDBScalarFunctionSetName(IntPtr scalarFunction, SafeUnmanagedMemoryHandle name);

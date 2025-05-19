@@ -11,7 +11,7 @@ public partial class NativeMethods
         public static extern IntPtr DuckDBCreateTableFunction();
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_table_function")]
-        public static extern void DuckDBDestroyTableFunction(out IntPtr tableFunction);
+        public static extern void DuckDBDestroyTableFunction(ref IntPtr tableFunction);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_table_function_set_name")]
         public static extern void DuckDBTableFunctionSetName(IntPtr tableFunction, SafeUnmanagedMemoryHandle name);

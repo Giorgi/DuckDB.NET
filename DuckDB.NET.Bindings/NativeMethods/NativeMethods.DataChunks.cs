@@ -12,7 +12,7 @@ public partial class NativeMethods
         public static extern DuckDBDataChunk DuckDBCreateDataChunk(IntPtr[] types, ulong count);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_data_chunk")]
-        public static extern void DuckDBDestroyDataChunk(out IntPtr chunk);
+        public static extern void DuckDBDestroyDataChunk(ref IntPtr chunk);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_data_chunk_reset")]
         public static extern void DuckDBDataChunkReset(DuckDBDataChunk chunk);
