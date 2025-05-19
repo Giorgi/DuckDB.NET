@@ -92,6 +92,83 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         TestTimestampInsert("TIMESTAMPTZ", DuckDBType.TimestampTz, expectedValue);
     }
 
+    [Theory]
+    [InlineData(1992, 09, 20, 12, 15, 17, 350_000, 0)]
+    [InlineData(2022, 04, 05, 18, 15, 17, 125_000, 0)]
+    public void InsertByNameSelectTest(int year, int mon, int day, byte hour, byte minute, byte second, int microsecond, int nanosecond)
+    {
+        var expectedValue = new DateTime(year, mon, day, hour, minute, second, DateTimeKind.Utc).AddTicks(microsecond * 10).AddNanoseconds(nanosecond);
+
+        TestTimestampInsertByNameSelect("TIMESTAMP", DuckDBType.Timestamp, expectedValue);
+        TestTimestampInsertByNameSelect("TIMESTAMPTZ", DuckDBType.TimestampTz, expectedValue);
+    }
+
+    private void TestTimestampInsertByNameSelect(string timestampType, DuckDBType duckDBType, DateTime expectedValue)
+    {
+        expectedValue = duckDBType switch
+        {
+            DuckDBType.Timestamp or DuckDBType.TimestampTz => Trim(expectedValue, TimeSpan.TicksPerMicrosecond),
+            DuckDBType.TimestampS => Trim(expectedValue, TimeSpan.TicksPerSecond),
+            DuckDBType.TimestampMs => Trim(expectedValue, TimeSpan.TicksPerMillisecond),
+            DuckDBType.TimestampNs => Trim(expectedValue, TimeSpan.FromTicks(100).Ticks),
+            _ => expectedValue
+        };
+
+        Command.CommandText = $"CREATE OR Replace TABLE TimestampTestTable (a INTEGER, b {timestampType});";
+        Command.ExecuteNonQuery();
+
+        // Using "by name select" syntax which was causing the issue
+        Command.CommandText = "INSERT INTO TimestampTestTable by name select a: 42, b: ?;";
+        Command.Parameters.Add(new DuckDBParameter(expectedValue));
+        Command.ExecuteNonQuery();
+
+        Command.Parameters.Clear();
+        Command.CommandText = "SELECT * FROM TimestampTestTable LIMIT 1;";
+
+        var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetFieldType(1).Should().Be(typeof(DateTime));
+        var databaseValue = reader.GetDateTime(1);
+
+        databaseValue.Year.Should().Be(expectedValue.Year);
+        databaseValue.Month.Should().Be(expectedValue.Month);
+        databaseValue.Day.Should().Be(expectedValue.Day);
+        databaseValue.Hour.Should().Be(expectedValue.Hour);
+        databaseValue.Minute.Should().Be(expectedValue.Minute);
+        databaseValue.Second.Should().Be(expectedValue.Second);
+        databaseValue.Millisecond.Should().Be(expectedValue.Millisecond);
+        databaseValue.Microsecond.Should().Be(expectedValue.Microsecond);
+        
+        // Add DateTimeOffset test for TimestampTz
+        if (duckDBType == DuckDBType.TimestampTz)
+        {
+            Command.CommandText = "Truncate table TimestampTestTable";
+            Command.ExecuteNonQuery();
+
+            // Using "by name select" syntax with DateTimeOffset
+            Command.CommandText = "INSERT INTO TimestampTestTable by name select a: 42, b: ?;";
+            Command.Parameters.Add(new DuckDBParameter(new DateTimeOffset(expectedValue)));
+            Command.ExecuteNonQuery();
+
+            Command.Parameters.Clear();
+            Command.CommandText = "SELECT * FROM TimestampTestTable LIMIT 1;";
+
+            reader = Command.ExecuteReader();
+            reader.Read();
+
+            var dateTimeOffset = reader.GetFieldValue<DateTimeOffset>(1);
+            dateTimeOffset.Year.Should().Be(expectedValue.Year);
+            dateTimeOffset.Month.Should().Be(expectedValue.Month);
+            dateTimeOffset.Day.Should().Be(expectedValue.Day);
+            dateTimeOffset.Hour.Should().Be(expectedValue.Hour);
+            dateTimeOffset.Minute.Should().Be(expectedValue.Minute);
+            dateTimeOffset.Second.Should().Be(expectedValue.Second);
+            dateTimeOffset.Millisecond.Should().Be(expectedValue.Millisecond);
+            dateTimeOffset.Microsecond.Should().Be(expectedValue.Microsecond);
+        }
+    }
+
     private void TestTimestampInsert(string timestampType, DuckDBType duckDBType, DateTime expectedValue)
     {
         expectedValue = duckDBType switch
