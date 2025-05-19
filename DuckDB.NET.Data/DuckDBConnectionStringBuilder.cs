@@ -34,7 +34,7 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
         }
 
 #if CI
-        DuckDBApi = $"DuckDB.NET/{GitVersionInformation.FullSemVer}"; 
+        DuckDBApi = $"DuckDB.NET/0.0.0"; // Using a placeholder version since GitVersionInformation is not available
 #else
         DuckDBApi = $"DuckDB.NET";
 #endif
