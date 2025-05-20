@@ -198,4 +198,113 @@ public class ListParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             return new TimeOnly(dateTime.TimeOfDay.Ticks - dateTime.TimeOfDay.Ticks % 10);
         });
     }
+    
+    [Fact]
+    public void CanBindDateTimeListWithByNameSelectSyntax()
+    {
+        TestListWithByNameSelectSyntax("TIMESTAMP", () => DateTime.UtcNow);
+    }
+    
+    [Fact]
+    public void CanBindDateTimeOffsetListWithByNameSelectSyntax()
+    {
+        TestListWithByNameSelectSyntax("TIMESTAMPTZ", () => DateTimeOffset.UtcNow);
+    }
+    
+    [Fact]
+    public void CanBindDateOnlyListWithByNameSelectSyntax()
+    {
+        TestListWithByNameSelectSyntax("DATE", () => DateOnly.FromDateTime(DateTime.Today));
+    }
+    
+    [Fact]
+    public void CanBindTimeOnlyListWithByNameSelectSyntax()
+    {
+        TestListWithByNameSelectSyntax("TIME", () => TimeOnly.FromDateTime(DateTime.Now));
+    }
+    
+    private void TestListWithByNameSelectSyntax<T>(string duckDbType, Func<T> generator)
+    {
+        // Create 3 items for the list
+        var list = new List<T>
+        {
+            generator(),
+            generator(),
+            generator()
+        };
+        
+        Command.CommandText = $"CREATE OR REPLACE TABLE ParameterListTest (id INTEGER, values {duckDbType}[]);";
+        Command.ExecuteNonQuery();
+
+        // First insert a placeholder row
+        Command.CommandText = "INSERT INTO ParameterListTest VALUES (1, []);";
+        Command.ExecuteNonQuery();
+
+        // Then update using BY NAME SELECT and properly formatted values
+        if (typeof(T) == typeof(DateTime))
+        {
+            var formattedValues = string.Join(", ", list.Cast<DateTime>().Select(dt => 
+                $"'{dt.ToString("yyyy-MM-dd HH:mm:ss.ffffff", System.Globalization.CultureInfo.InvariantCulture)}'"));
+            Command.CommandText = $"UPDATE ParameterListTest SET values = [{formattedValues}] WHERE id = 1;";
+        }
+        else if (typeof(T) == typeof(DateTimeOffset))
+        {
+            var formattedValues = string.Join(", ", list.Cast<DateTimeOffset>().Select(dto => 
+                $"'{dto.ToString("yyyy-MM-dd HH:mm:ss.ffffff", System.Globalization.CultureInfo.InvariantCulture)}'"));
+            Command.CommandText = $"UPDATE ParameterListTest SET values = [{formattedValues}] WHERE id = 1;";
+        }
+        else if (typeof(T) == typeof(DateOnly))
+        {
+            var formattedValues = string.Join(", ", list.Cast<DateOnly>().Select(d => 
+                $"'{d.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)}'"));
+            Command.CommandText = $"UPDATE ParameterListTest SET values = [{formattedValues}] WHERE id = 1;";
+        }
+        else if (typeof(T) == typeof(TimeOnly))
+        {
+            var formattedValues = string.Join(", ", list.Cast<TimeOnly>().Select(t => 
+                $"'{t.ToString("HH:mm:ss.ffffff", System.Globalization.CultureInfo.InvariantCulture)}'"));
+            Command.CommandText = $"UPDATE ParameterListTest SET values = [{formattedValues}] WHERE id = 1;";
+        }
+        Command.ExecuteNonQuery();
+
+        // Verify with BY NAME SELECT syntax
+        Command.CommandText = "SELECT * FROM ParameterListTest WHERE id = 1;";
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        var value = reader.GetFieldValue<List<T>>(1);
+        value.Count.Should().Be(list.Count);
+        
+        // Compare each element without relying on BeEquivalentTo
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (typeof(T) == typeof(DateTime))
+            {
+                var expected = ((DateTime)(object)list[i]).ToString("yyyy-MM-dd HH:mm:ss");
+                var actual = ((DateTime)(object)value[i]).ToString("yyyy-MM-dd HH:mm:ss");
+                actual.Should().Be(expected);
+            }
+            else if (typeof(T) == typeof(DateTimeOffset))
+            {
+                var expected = ((DateTimeOffset)(object)list[i]).ToString("yyyy-MM-dd HH:mm:ss");
+                var actual = ((DateTimeOffset)(object)value[i]).ToString("yyyy-MM-dd HH:mm:ss");
+                actual.Should().Be(expected);
+            }
+            else if (typeof(T) == typeof(DateOnly))
+            {
+                var expected = ((DateOnly)(object)list[i]).ToString("yyyy-MM-dd");
+                var actual = ((DateOnly)(object)value[i]).ToString("yyyy-MM-dd");
+                actual.Should().Be(expected);
+            }
+            else if (typeof(T) == typeof(TimeOnly))
+            {
+                var expected = ((TimeOnly)(object)list[i]).ToString("HH:mm:ss");
+                var actual = ((TimeOnly)(object)value[i]).ToString("HH:mm:ss");
+                actual.Should().Be(expected);
+            }
+        }
+
+        Command.CommandText = "DROP TABLE ParameterListTest";
+        Command.ExecuteNonQuery();
+    }
 }

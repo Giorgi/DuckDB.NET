@@ -102,6 +102,67 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         TestTimestampInsertByNameSelect("TIMESTAMP", DuckDBType.Timestamp, expectedValue);
         TestTimestampInsertByNameSelect("TIMESTAMPTZ", DuckDBType.TimestampTz, expectedValue);
     }
+    
+    [Theory]
+    [InlineData(1992, 09, 20)]
+    [InlineData(2022, 05, 04)]
+    [InlineData(2022, 04, 05)]
+    public void DateOnlyByNameSelectTest(int year, int mon, int day)
+    {
+        var expectedValue = new DateOnly(year, mon, day);
+        
+        Command.CommandText = "CREATE OR Replace TABLE DateOnlyTestTable (a INTEGER, b DATE);";
+        Command.ExecuteNonQuery();
+
+        // Using "by name select" syntax
+        Command.CommandText = "INSERT INTO DateOnlyTestTable by name select a: 42, b: ?;";
+        Command.Parameters.Add(new DuckDBParameter(expectedValue));
+        Command.ExecuteNonQuery();
+
+        Command.Parameters.Clear();
+        Command.CommandText = "SELECT * FROM DateOnlyTestTable LIMIT 1;";
+
+        var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetFieldType(1).Should().Be(typeof(DateOnly));
+        var databaseValue = reader.GetFieldValue<DateOnly>(1);
+
+        databaseValue.Year.Should().Be(expectedValue.Year);
+        databaseValue.Month.Should().Be(expectedValue.Month);
+        databaseValue.Day.Should().Be(expectedValue.Day);
+    }
+    
+    [Theory]
+    [InlineData(12, 15, 17, 350_000)]
+    [InlineData(18, 15, 17, 125_000)]
+    public void TimeOnlyByNameSelectTest(int hour, int minute, int second, int microsecond)
+    {
+        var expectedValue = new TimeOnly(hour, minute, second).Add(TimeSpan.FromTicks(microsecond * 10));
+        
+        Command.CommandText = "CREATE OR Replace TABLE TimeOnlyTestTable (a INTEGER, b TIME);";
+        Command.ExecuteNonQuery();
+
+        // Using "by name select" syntax
+        Command.CommandText = "INSERT INTO TimeOnlyTestTable by name select a: 42, b: ?;";
+        Command.Parameters.Add(new DuckDBParameter(expectedValue));
+        Command.ExecuteNonQuery();
+
+        Command.Parameters.Clear();
+        Command.CommandText = "SELECT * FROM TimeOnlyTestTable LIMIT 1;";
+
+        var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetFieldType(1).Should().Be(typeof(TimeOnly));
+        var databaseValue = reader.GetFieldValue<TimeOnly>(1);
+
+        databaseValue.Hour.Should().Be(expectedValue.Hour);
+        databaseValue.Minute.Should().Be(expectedValue.Minute);
+        databaseValue.Second.Should().Be(expectedValue.Second);
+        databaseValue.Millisecond.Should().Be(expectedValue.Millisecond);
+        databaseValue.Microsecond.Should().Be(expectedValue.Microsecond);
+    }
 
     private void TestTimestampInsertByNameSelect(string timestampType, DuckDBType duckDBType, DateTime expectedValue)
     {

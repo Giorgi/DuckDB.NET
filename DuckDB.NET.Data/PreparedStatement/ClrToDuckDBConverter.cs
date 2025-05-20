@@ -54,6 +54,8 @@ internal static class ClrToDuckDBConverter
 #if NET6_0_OR_GREATER
             (DuckDBType.Date, DateOnly value) => NativeMethods.Value.DuckDBCreateDate(NativeMethods.DateTimeHelpers.DuckDBToDate(value)),
             (DuckDBType.Time, TimeOnly value) => NativeMethods.Value.DuckDBCreateTime(NativeMethods.DateTimeHelpers.DuckDBToTime(value)),
+            (_, DateOnly value) => StringToDuckDBValue(value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
+            (_, TimeOnly value) => StringToDuckDBValue(value.ToString("HH:mm:ss.ffffff", CultureInfo.InvariantCulture)),
 #endif
             (DuckDBType.Blob, byte[] value) => NativeMethods.Value.DuckDBCreateBlob(value, value.Length),
             (DuckDBType.List, ICollection value) => CreateCollectionValue(logicalType, value, true),
