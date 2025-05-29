@@ -7,6 +7,9 @@ internal static class GuidConverter
 {
     private const int GuidSize = 16;
 
+    // First 4 bytes (little-endian), Next 4 bytes (little-endian), Last 8 bytes (big-endian)
+    private static readonly int[] GuidByteOrder = [6, 7, 4, 5, 0, 1, 2, 3, 15, 14, 13, 12, 11, 10, 9, 8];
+
     public static unsafe Guid ConvertToGuid(this DuckDBHugeInt input)
     {
         Span<byte> bytes = stackalloc byte[32];
@@ -29,28 +32,10 @@ internal static class GuidConverter
 #endif
 
         // Reconstruct the Guid bytes (reverse the original byte reordering)
-
-        // First 4 bytes (little-endian)
-        bytes[6] = bytes[GuidSize + 0];
-        bytes[7] = bytes[GuidSize + 1];
-        bytes[4] = bytes[GuidSize + 2];
-        bytes[5] = bytes[GuidSize + 3];
-
-        // Next 4 bytes (little-endian)
-        bytes[0] = bytes[GuidSize + 4];
-        bytes[1] = bytes[GuidSize + 5];
-        bytes[2] = bytes[GuidSize + 6];
-        bytes[3] = bytes[GuidSize + 7];
-
-        // Last 8 bytes (big-endian)
-        bytes[15] = bytes[GuidSize + 8];
-        bytes[14] = bytes[GuidSize + 9];
-        bytes[13] = bytes[GuidSize + 10];
-        bytes[12] = bytes[GuidSize + 11];
-        bytes[11] = bytes[GuidSize + 12];
-        bytes[10] = bytes[GuidSize + 13];
-        bytes[9] = bytes[GuidSize + 14];
-        bytes[8] = bytes[GuidSize + 15];
+        for (int i = 0; i < GuidSize; i++)
+        {
+            bytes[GuidByteOrder[i]] = bytes[i + GuidSize];
+        }
 
         // Create Guid from the first 16 bytes
 #if NET6_0_OR_GREATER
@@ -72,24 +57,12 @@ internal static class GuidConverter
         var byteArray = guid.ToByteArray();
         byteArray.AsSpan().CopyTo(bytes);
 #endif
-        bytes[GuidSize + 0] = bytes[6]; // First 4 bytes (little-endian)
-        bytes[GuidSize + 1] = bytes[7];
-        bytes[GuidSize + 2] = bytes[4];
-        bytes[GuidSize + 3] = bytes[5];
 
-        bytes[GuidSize + 4] = bytes[0]; // Next 4 bytes (little-endian)
-        bytes[GuidSize + 5] = bytes[1];
-        bytes[GuidSize + 6] = bytes[2];
-        bytes[GuidSize + 7] = bytes[3];
-
-        bytes[GuidSize + 8] = bytes[15]; // Big endian 
-        bytes[GuidSize + 9] = bytes[14];
-        bytes[GuidSize + 10] = bytes[13];
-        bytes[GuidSize + 11] = bytes[12];
-        bytes[GuidSize + 12] = bytes[11];
-        bytes[GuidSize + 13] = bytes[10];
-        bytes[GuidSize + 14] = bytes[9];
-        bytes[GuidSize + 15] = bytes[8];
+        // Reconstruct the Guid bytes (reverse the original byte reordering)
+        for (int i = 0; i < GuidSize; i++)
+        {
+            bytes[i + GuidSize] = bytes[GuidByteOrder[i]];
+        }
 
 #if NET6_0_OR_GREATER
         // Upper 64 bits (bytes 0-7)
