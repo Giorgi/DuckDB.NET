@@ -32,7 +32,7 @@ internal static class GuidConverter
 #endif
 
         // Reconstruct the Guid bytes (reverse the original byte reordering)
-        for (int i = 0; i < GuidSize; i++)
+        for (var i = 0; i < GuidSize; i++)
         {
             bytes[GuidByteOrder[i]] = bytes[i + GuidSize];
         }
@@ -59,22 +59,22 @@ internal static class GuidConverter
 #endif
 
         // Reconstruct the Guid bytes (reverse the original byte reordering)
-        for (int i = 0; i < GuidSize; i++)
+        for (var i = 0; i < GuidSize; i++)
         {
             bytes[i + GuidSize] = bytes[GuidByteOrder[i]];
         }
 
 #if NET6_0_OR_GREATER
         // Upper 64 bits (bytes 0-7)
-        long upper = BitConverter.ToInt64(bytes[GuidSize..]);
+        var upper = BitConverter.ToInt64(bytes[GuidSize..]);
 
         // Lower 64 bits (bytes 8-15)
-        ulong lower = BitConverter.ToUInt64(bytes[(GuidSize + 8)..]);
+        var lower = BitConverter.ToUInt64(bytes[(GuidSize + 8)..]);
 #else
         var array = bytes.ToArray();
 
-        long upper = BitConverter.ToInt64(array, GuidSize);
-        ulong lower = BitConverter.ToUInt64(array, GuidSize + 8);
+        var upper = BitConverter.ToInt64(array, GuidSize);
+        var lower = BitConverter.ToUInt64(array, GuidSize + 8);
 #endif
 
         // Flip the first bit to make `order by uuid` same as `order by uuid::varchar`
