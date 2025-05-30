@@ -4,8 +4,10 @@ using FluentAssertions;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Linq;
 using System.Numerics;
+using System.Threading;
 using Xunit;
 
 namespace DuckDB.NET.Test;
@@ -135,6 +137,43 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
         var bytes = guid.ToByteArray(false).Append((byte)4);
         data.Should().BeEquivalentTo(bytes);
+    }
+
+    [Fact]
+    public void RegisterTableFunctionWithDecimalCultureInvariantParameters()
+    {
+        var guid = Guid.NewGuid();
+        var currentCulture = Thread.CurrentThread.CurrentCulture;
+
+        try
+        {
+            // Set the current culture to Georgian (ka-GE), which uses a comma as the decimal point separator
+            Thread.CurrentThread.CurrentCulture = CultureInfo.GetCultureInfo("ka-GE");
+
+            // Verify that the decimal separator for numbers in this culture is indeed a comma
+            Thread.CurrentThread.CurrentCulture.NumberFormat.NumberDecimalSeparator.Should().Be(",");
+
+            Connection.RegisterTableFunction<decimal>("demo_decimal", (parameters) =>
+            {
+                var param1 = parameters[0].GetValue<decimal>();
+               
+                return new TableFunction(new List<ColumnInfo>()
+                {
+                    new ColumnInfo("foo", typeof(decimal)),
+                }, new[] { param1 });
+            }, (item, writers, rowIndex) =>
+            {
+                writers[0].WriteValue((decimal)item, rowIndex);
+            });
+
+            var data = Connection.Query<decimal>($"SELECT * FROM demo_decimal(10.2::DECIMAL(18, 3));").ToList();
+
+            data.Should().BeEquivalentTo([10.2m]);
+        } 
+        finally
+        {
+            Thread.CurrentThread.CurrentCulture = currentCulture;
+        }
     }
 
     [Fact]
