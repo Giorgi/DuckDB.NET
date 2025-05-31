@@ -57,7 +57,7 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
 
         foreach (KeyValuePair<string, object> pair in builder)
         {
-            if (DuckDBConnectionStringBuilder.DataSourceKeys.Contains(pair.Key))
+            if (DataSourceKeys.Contains(pair.Key))
             {
                 continue;
             }
@@ -72,7 +72,7 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
 
         var inMemory = dataSource.Equals(InMemoryDataSource, StringComparison.OrdinalIgnoreCase);
 
-        var isShared = dataSource.Equals(DuckDBConnectionStringBuilder.InMemorySharedDataSource, StringComparison.OrdinalIgnoreCase);
+        var isShared = dataSource.Equals(InMemorySharedDataSource, StringComparison.OrdinalIgnoreCase);
         if (isShared)
         {
             inMemory = true;
