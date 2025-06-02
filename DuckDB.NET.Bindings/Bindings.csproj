@@ -3,11 +3,6 @@
   <PropertyGroup>
     <Description>DuckDB Bindings for C#.</Description>
     <PackageReleaseNotes>
-	  Added support for binding nested List and Array values
-
-Added support for binding List with null values
-
-Added support for inserting TIMESTAMP_MS, TIMESTAMP_NS and TIMESTAMP_S
 
 Updated to DuckDB v1.3.0
     </PackageReleaseNotes>
