@@ -39,7 +39,7 @@ using (var duckDBConnection = new DuckDBConnection("Data Source=file.db"))
   var executeScalar = command.ExecuteScalar();
 
   command.CommandText = "SELECT foo, bar FROM integers";
-  var reader = command.ExecuteReader();
+  using var reader = command.ExecuteReader();
 
   PrintQueryResults(reader);
 }

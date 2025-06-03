@@ -113,54 +113,56 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Command.Parameters.Clear();
         Command.CommandText = "SELECT * FROM TimestampTestTable LIMIT 1;";
 
-        var reader = Command.ExecuteReader();
-        reader.Read();
+        using (var reader = Command.ExecuteReader())
+        {
+            reader.Read();
 
-        reader.GetFieldType(1).Should().Be(typeof(DateTime));
+            reader.GetFieldType(1).Should().Be(typeof(DateTime));
 
-        var databaseValue = reader.GetDateTime(1);
+            var databaseValue = reader.GetDateTime(1);
 
-        databaseValue.Year.Should().Be(expectedValue.Year);
-        databaseValue.Month.Should().Be(expectedValue.Month);
-        databaseValue.Day.Should().Be(expectedValue.Day);
-        databaseValue.Hour.Should().Be(expectedValue.Hour);
-        databaseValue.Minute.Should().Be(expectedValue.Minute);
-        databaseValue.Second.Should().Be(expectedValue.Second);
+            databaseValue.Year.Should().Be(expectedValue.Year);
+            databaseValue.Month.Should().Be(expectedValue.Month);
+            databaseValue.Day.Should().Be(expectedValue.Day);
+            databaseValue.Hour.Should().Be(expectedValue.Hour);
+            databaseValue.Minute.Should().Be(expectedValue.Minute);
+            databaseValue.Second.Should().Be(expectedValue.Second);
 
-        databaseValue.Millisecond.Should().Be(expectedValue.Millisecond);
-        databaseValue.Microsecond.Should().Be(expectedValue.Microsecond);
-        databaseValue.Nanosecond.Should().Be(expectedValue.Nanosecond);
+            databaseValue.Millisecond.Should().Be(expectedValue.Millisecond);
+            databaseValue.Microsecond.Should().Be(expectedValue.Microsecond);
+            databaseValue.Nanosecond.Should().Be(expectedValue.Nanosecond);
 
-        databaseValue.TimeOfDay.Should().Be(expectedValue.TimeOfDay);
+            databaseValue.TimeOfDay.Should().Be(expectedValue.TimeOfDay);
 
-        var dateTimeNullable = reader.GetFieldValue<DateTime?>(1);
-        databaseValue = dateTimeNullable.Value;
+            var dateTimeNullable = reader.GetFieldValue<DateTime?>(1);
+            databaseValue = dateTimeNullable.Value;
 
-        databaseValue.Year.Should().Be(expectedValue.Year);
-        databaseValue.Month.Should().Be(expectedValue.Month);
-        databaseValue.Day.Should().Be(expectedValue.Day);
-        databaseValue.Hour.Should().Be(expectedValue.Hour);
-        databaseValue.Minute.Should().Be(expectedValue.Minute);
-        databaseValue.Second.Should().Be(expectedValue.Second);
+            databaseValue.Year.Should().Be(expectedValue.Year);
+            databaseValue.Month.Should().Be(expectedValue.Month);
+            databaseValue.Day.Should().Be(expectedValue.Day);
+            databaseValue.Hour.Should().Be(expectedValue.Hour);
+            databaseValue.Minute.Should().Be(expectedValue.Minute);
+            databaseValue.Second.Should().Be(expectedValue.Second);
 
-        databaseValue.Millisecond.Should().Be(expectedValue.Millisecond);
-        databaseValue.Microsecond.Should().Be(expectedValue.Microsecond);
-        databaseValue.Nanosecond.Should().Be(expectedValue.Nanosecond);
+            databaseValue.Millisecond.Should().Be(expectedValue.Millisecond);
+            databaseValue.Microsecond.Should().Be(expectedValue.Microsecond);
+            databaseValue.Nanosecond.Should().Be(expectedValue.Nanosecond);
 
-        databaseValue.TimeOfDay.Should().Be(expectedValue.TimeOfDay);
+            databaseValue.TimeOfDay.Should().Be(expectedValue.TimeOfDay);
 
-        var dateTimeOffset = reader.GetFieldValue<DateTimeOffset>(1);
+            var dateTimeOffset = reader.GetFieldValue<DateTimeOffset>(1);
 
-        dateTimeOffset.Year.Should().Be(expectedValue.Year);
-        dateTimeOffset.Month.Should().Be(expectedValue.Month);
-        dateTimeOffset.Day.Should().Be(expectedValue.Day);
-        dateTimeOffset.Hour.Should().Be(expectedValue.Hour);
-        dateTimeOffset.Minute.Should().Be(expectedValue.Minute);
-        dateTimeOffset.Second.Should().Be(expectedValue.Second);
+            dateTimeOffset.Year.Should().Be(expectedValue.Year);
+            dateTimeOffset.Month.Should().Be(expectedValue.Month);
+            dateTimeOffset.Day.Should().Be(expectedValue.Day);
+            dateTimeOffset.Hour.Should().Be(expectedValue.Hour);
+            dateTimeOffset.Minute.Should().Be(expectedValue.Minute);
+            dateTimeOffset.Second.Should().Be(expectedValue.Second);
 
-        dateTimeOffset.Millisecond.Should().Be(expectedValue.Millisecond);
-        dateTimeOffset.Microsecond.Should().Be(expectedValue.Microsecond);
-        dateTimeOffset.Nanosecond.Should().Be(expectedValue.Nanosecond);
+            dateTimeOffset.Millisecond.Should().Be(expectedValue.Millisecond);
+            dateTimeOffset.Microsecond.Should().Be(expectedValue.Microsecond);
+            dateTimeOffset.Nanosecond.Should().Be(expectedValue.Nanosecond);
+        }
 
         if (duckDBType == DuckDBType.TimestampTz)
         {
@@ -174,10 +176,10 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             Command.Parameters.Clear();
             Command.CommandText = "SELECT * FROM TimestampTestTable LIMIT 1;";
 
-            reader = Command.ExecuteReader();
+            using var reader = Command.ExecuteReader();
             reader.Read();
 
-            dateTimeOffset = reader.GetFieldValue<DateTimeOffset>(1);
+            var dateTimeOffset = reader.GetFieldValue<DateTimeOffset>(1);
 
             dateTimeOffset.Year.Should().Be(expectedValue.Year);
             dateTimeOffset.Month.Should().Be(expectedValue.Month);

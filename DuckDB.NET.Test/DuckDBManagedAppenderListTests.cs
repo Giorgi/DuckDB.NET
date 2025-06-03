@@ -51,7 +51,7 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     {
         ListValuesInternal("Integer", faker => faker.Random.Int());
     }
-    
+
     [Fact]
     public void ListValuesIntNullable()
     {
@@ -256,7 +256,7 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
             for (var i = 1; i <= 10000; i++)
             {
                 var id = Guid.NewGuid();
-                
+
                 appender.CreateRow().AppendValue(id).AppendValue(guids).EndRow();
             }
         }
@@ -283,7 +283,7 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
             for (var i = 1; i <= 10000; i++)
             {
                 var id = Guid.NewGuid();
-                
+
                 appender.CreateRow().AppendValue(id).AppendValue(decimalList).EndRow();
             }
         }
@@ -332,7 +332,7 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
         }
 
         Command.CommandText = $"SELECT * FROM {table} order by 1";
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
 
         var index = 0;
         while (reader.Read())

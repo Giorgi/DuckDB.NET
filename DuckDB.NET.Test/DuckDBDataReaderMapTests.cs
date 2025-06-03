@@ -12,7 +12,7 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     public void ReadMap()
     {
         Command.CommandText = "SELECT MAP { 'key1': 1, 'key2': 5, 'key3': 7 }";
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
         reader.GetFieldType(0).Should().Be(typeof(Dictionary<string, int>));
 
         reader.Read();
@@ -28,7 +28,7 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     public void ReadMapTwoRows()
     {
         Command.CommandText = "Select * from (SELECT MAP { 'key1': 1, 'key2': 5, 'key3': 7 } Union SELECT MAP { 'key2': 15, 'key24': 7 }) order by 1";
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
 
         reader.Read();
         var value = reader.GetValue(0);
@@ -50,7 +50,7 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     public void ReadMapStronglyTyped()
     {
         Command.CommandText = "SELECT MAP { 'key1': 1, 'key2': 5, 'key3': 7 }";
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
 
         reader.Read();
         var value = reader.GetFieldValue<Dictionary<string, int>>(0);
@@ -63,7 +63,7 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     public void ReadMapWithNullInNullableDictionary()
     {
         Command.CommandText = "SELECT MAP { 'key1': 1, 'key2': NULL, 'key3': 7 }";
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
 
         reader.Read();
         var value = reader.GetFieldValue<Dictionary<string, int?>>(0);
@@ -76,7 +76,7 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     public void ReadMapWithNullInReferenceTypeDictionary()
     {
         Command.CommandText = "SELECT MAP { 'key1': 'abc', 'key2': NULL, 'key3': 'ghi' }";
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
 
         reader.Read();
         var value = reader.GetFieldValue<Dictionary<string, string>>(0);
@@ -89,7 +89,7 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     public void ReadMapWithNullInNotNullableDictionaryThrowsException()
     {
         Command.CommandText = "SELECT MAP { 'key1': 1, 'key2': NULL, 'key3': 7 }";
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
 
         reader.Read();
         reader.Invoking(r => r.GetFieldValue<Dictionary<string, int>>(0)).Should().Throw<InvalidCastException>();
@@ -99,7 +99,7 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     public void ReadMapOfList()
     {
         Command.CommandText = "SELECT MAP { ['a', 'b']: [1.1, 2.2], ['c', 'd']: [3.3, 4.4] };";
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
 
         reader.Read();
 
@@ -121,7 +121,7 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     public void ReadMapWrongTypeThrowsException()
     {
         Command.CommandText = "SELECT MAP { ['a', 'b']: [1.1, 2.2], ['c', 'd']: [3.3, 4.4] };";
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
 
         reader.Read();
         reader.Invoking(r => r.GetFieldValue<List<KeyValuePair<string, int>>>(0)).Should().Throw<InvalidOperationException>();
