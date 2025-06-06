@@ -4,6 +4,7 @@ using DuckDB.NET.Native;
 using DuckDB.NET.Test.Helpers;
 using System;
 using System.Data.Common;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using static DuckDB.NET.Native.NativeMethods;
@@ -25,6 +26,8 @@ namespace DuckDB.NET.Samples
             AdoNetSamples();
 
             LowLevelBindingsSample();
+
+            BulkDataLoad();
         }
 
         private static void DapperSample()
@@ -133,6 +136,56 @@ namespace DuckDB.NET.Samples
                     Query.DuckDBDestroyResult(ref queryResult);
                 }
             }
+        }
+        
+        private static void BulkDataLoad()
+        {
+            Stopwatch stopwatch = Stopwatch.StartNew();
+
+            if (File.Exists("file.db"))
+            {
+                File.Delete("file.db");
+            }
+
+            //using var connection = new DuckDBConnection("DataSource=:memory:");
+            using var connection = new DuckDBConnection("Data Source=file.db");
+            connection.Open();
+
+            using (var duckDbCommand = connection.CreateCommand())
+            {
+                var table = "CREATE TABLE AppenderTest(i INTEGER, f FLOAT, d DOUBLE,c VARCHAR);";
+                duckDbCommand.CommandText = table;
+                duckDbCommand.ExecuteNonQuery();
+            }
+
+            var rows = 100000;
+            using (var appender = connection.CreateAppender("AppenderTest"))
+            {
+                stopwatch.Start();
+                for (var i = 0; i < rows; i++)
+                {
+                    var row = appender.CreateRow();
+                    row
+                        .AppendValue(i)
+                        .AppendValue(Convert.ToSingle(i+2))
+                        .AppendValue(Convert.ToDouble(i+4))
+                        .AppendValue($"varchar {i.ToString()}")
+                        .EndRow();
+                }
+                stopwatch.Stop();
+            }
+
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT count(1) as cnt FROM AppenderTest";
+            using var reader1 = command.ExecuteReader();
+            PrintQueryResults(reader1);
+            command.CommandText = "SELECT * FROM AppenderTest limit 10";
+            using var reader2 = command.ExecuteReader();
+            PrintQueryResults(reader2);
+            Console.WriteLine($"ElapsedMilliseconds {stopwatch.ElapsedMilliseconds}");
+            Console.WriteLine($"connection state before {connection.State}");
+            Console.WriteLine($"connection state after  {connection.State}");
+            
         }
 
         private static void PrintQueryResults(DbDataReader queryResult)
