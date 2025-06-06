@@ -73,7 +73,7 @@ namespace DuckDB.NET.Samples
             var executeScalar = command.ExecuteScalar();
 
             command.CommandText = "SELECT foo, bar FROM integers";
-            var reader = command.ExecuteReader();
+            using var reader = command.ExecuteReader();
             PrintQueryResults(reader);
 
             var results = duckDBConnection.Query<FooBar>("SELECT foo, bar FROM integers");
