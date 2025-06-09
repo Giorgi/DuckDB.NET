@@ -11,8 +11,8 @@ on:
     paths-ignore:
       - '**.md'
       
-  schedule:    
-      - cron: "15 */12 * * *"
+#  schedule:    
+#      - cron: "15 */12 * * *"
 
 concurrency:
   group: ${{ github.ref }}
