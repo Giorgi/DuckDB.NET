@@ -44,10 +44,11 @@ public class DuckDBDataReader : DbDataReader
     {
         while (resultEnumerator.MoveNext())
         {
-            if (NativeMethods.Query.DuckDBResultReturnType(resultEnumerator.Current) == DuckDBResultType.QueryResult)
+            var result = resultEnumerator.Current;
+            if (NativeMethods.Query.DuckDBResultReturnType(result) == DuckDBResultType.QueryResult)
             {
                 currentChunkIndex = 0;
-                currentResult = resultEnumerator.Current;
+                currentResult = result;
 
                 columnMapping = [];
                 fieldCount = (int)NativeMethods.Query.DuckDBColumnCount(ref currentResult);
@@ -57,6 +58,8 @@ public class DuckDBDataReader : DbDataReader
 
                 return true;
             }
+
+            result.Close();
         }
 
         return false;
@@ -346,6 +349,7 @@ public class DuckDBDataReader : DbDataReader
         }
 
         currentChunk?.Dispose();
+        currentResult.Close();
 
         if (behavior == CommandBehavior.CloseConnection)
         {

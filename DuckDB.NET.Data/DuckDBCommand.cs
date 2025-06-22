@@ -88,6 +88,7 @@ public class DuckDBCommand : DbCommand
         {
             var current = result;
             count += (int)NativeMethods.Query.DuckDBRowsChanged(ref current);
+            result.Close();
         }
 
         return count;

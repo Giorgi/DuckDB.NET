@@ -87,7 +87,7 @@ public enum DuckDBType
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public struct DuckDBResult : IDisposable
+public struct DuckDBResult
 {
     [Obsolete]
     private long ColumnCount;
@@ -106,7 +106,7 @@ public struct DuckDBResult : IDisposable
 
     private IntPtr internal_data;
 
-    public void Dispose()
+    public void Close()
     {
         NativeMethods.Query.DuckDBDestroyResult(ref this);
     }

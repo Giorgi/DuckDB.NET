@@ -35,8 +35,7 @@ internal sealed class PreparedStatement : IDisposable
                 if (status.IsSuccess())
                 {
                     using var preparedStatement = new PreparedStatement(statement);
-                    using var result = preparedStatement.Execute(parameters, useStreamingMode);
-                    yield return result;
+                    yield return preparedStatement.Execute(parameters, useStreamingMode);
                 }
                 else
                 {
@@ -60,7 +59,7 @@ internal sealed class PreparedStatement : IDisposable
         {
             var errorMessage = NativeMethods.Query.DuckDBResultError(ref queryResult).ToManagedString(false);
             var errorType = NativeMethods.Query.DuckDBResultErrorType(ref queryResult);
-            queryResult.Dispose();
+            queryResult.Close();
 
             if (string.IsNullOrEmpty(errorMessage))
             {

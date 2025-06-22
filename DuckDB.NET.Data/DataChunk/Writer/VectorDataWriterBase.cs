@@ -106,7 +106,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
 
     internal virtual bool AppendEnum<TEnum>(TEnum value, ulong rowIndex) where TEnum : Enum => ThrowException<TEnum>();
 
-    internal virtual bool AppendCollection(ICollection value, ulong rowIndex) => ThrowException<bool>();
+    internal virtual bool AppendCollection(ICollection value, ulong rowIndex) => ThrowException<ICollection>();
 
     private bool ThrowException<T>()
     {
@@ -119,7 +119,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
         return true;
     }
 
-    internal void InitializerWriter()
+    internal void InitializeWriter()
     {
         validity = default;
         vectorData = NativeMethods.Vectors.DuckDBVectorGetData(Vector);
