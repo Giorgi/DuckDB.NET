@@ -3,9 +3,11 @@
   <PropertyGroup>
     <Description>DuckDB ADO.NET Provider for C#.</Description>
     <PackageReleaseNotes>
-	  Added support for parameterless table-valued functions
+      Fix memory leak in query execution
 
-Updated to DuckDB v1.3.0
+      Added support for parameterless table-valued functions
+
+      Updated to DuckDB v1.3.2
     </PackageReleaseNotes>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
