@@ -25,10 +25,10 @@ internal static class GuidConverter
         BitConverter.TryWriteBytes(bytes[(GuidSize + 8)..], input.Lower);
 #else
         var data = BitConverter.GetBytes(upper);
-        data.CopyTo(bytes);
+        data.CopyTo(bytes.Slice(GuidSize)); // Copy to bytes[16..23]
 
         data = BitConverter.GetBytes(input.Lower);
-        data.CopyTo(bytes.Slice(GuidSize + 8));
+        data.CopyTo(bytes.Slice(GuidSize + 8)); // Copy to bytes[24..31]
 #endif
 
         // Reconstruct the Guid bytes (reverse the original byte reordering)
