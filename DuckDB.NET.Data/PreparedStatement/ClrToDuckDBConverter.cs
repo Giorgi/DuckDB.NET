@@ -11,7 +11,7 @@ namespace DuckDB.NET.Data.PreparedStatement;
 
 internal static class ClrToDuckDBConverter
 {
-    private static readonly Dictionary<DbType, Func<object, DuckDBValue>> valueCreators = new()
+    private static readonly Dictionary<DbType, Func<object, DuckDBValue>> ValueCreators = new()
     {
         { DbType.Guid, value =>
             {
@@ -127,7 +127,7 @@ internal static class ClrToDuckDBConverter
             (DuckDBType.Blob, byte[] value) => NativeMethods.Value.DuckDBCreateBlob(value, value.Length),
             (DuckDBType.List, ICollection value) => CreateCollectionValue(logicalType, value, true, dbType),
             (DuckDBType.Array, ICollection value) => CreateCollectionValue(logicalType, value, false, dbType),
-            _ when valueCreators.TryGetValue(dbType, out var converter) => converter.Invoke(item),
+            _ when ValueCreators.TryGetValue(dbType, out var converter) => converter(item),
             _ => StringToDuckDBValue(item.ToString())
         };
 

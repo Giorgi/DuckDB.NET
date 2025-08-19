@@ -120,14 +120,16 @@ public class DateTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    public void UseDateTimeDbType()
+    public void BindParameterWithoutTable()
     {
-        var dt = new DateTime(1992, 06, 16);
-        Command.CommandText = "SELECT ? + INTERVAL '7' DAY;";
-        Command.Parameters.Add(new DuckDBParameter(dt) { DbType = DbType.DateTime });
+        var value = Faker.Date.PastDateOnly();
+        
+        Command.CommandText = "SELECT ?;";
+        Command.Parameters.Add(new DuckDBParameter(value));
+        
         var result = Command.ExecuteScalar();
-        result.Should()
-            .BeOfType<DateTime>().Subject
-            .Should().Be(dt.AddDays(7));
+        
+        result.Should().BeOfType<DateOnly>().Subject
+              .Should().Be(value);
     }
 }

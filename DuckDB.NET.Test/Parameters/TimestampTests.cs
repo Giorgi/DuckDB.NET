@@ -192,5 +192,7 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         }
     }
 
-    public static DateTime Trim(DateTime date, long ticks) => new(date.Ticks - (date.Ticks % ticks), date.Kind);
+    public static TimeOnly Trim(TimeOnly date, long ticks) => new(date.Ticks - date.Ticks % ticks);
+
+    public static DateTime Trim(DateTime date, long ticks) => new(date.Ticks - date.Ticks % ticks, date.Kind);
 }

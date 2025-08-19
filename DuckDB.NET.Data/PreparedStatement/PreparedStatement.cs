@@ -1,7 +1,7 @@
+using DuckDB.NET.Native;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.PreparedStatement;
 

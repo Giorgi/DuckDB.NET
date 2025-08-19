@@ -83,6 +83,9 @@ public partial class NativeMethods
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_blob")]
         public static extern DuckDBValue DuckDBCreateBlob([In] byte[] value, long length);
 
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_uuid")]
+        public static extern DuckDBValue DuckDBCreateUuid(DuckDBHugeInt value);
+
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_bool")]
         public static extern bool DuckDBGetBool(DuckDBValue value);
 

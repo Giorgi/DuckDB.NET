@@ -202,4 +202,116 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
             yield return new object[] { bigInteger };
         }
     }
+
+    [Fact]
+    public void BindParameterWithoutTable_Int32()
+    {
+        var value = Faker.Random.Int();
+        
+        Command.CommandText = "SELECT ?;";
+        Command.Parameters.Add(new DuckDBParameter(value));
+        
+        var result = Command.ExecuteScalar();
+        
+        result.Should().BeOfType<int>().Subject
+              .Should().Be(value);
+    }
+
+    [Fact]
+    public void BindParameterWithoutTable_Int64()
+    {
+        var value = Faker.Random.Long();
+        
+        Command.CommandText = "SELECT ?;";
+        Command.Parameters.Add(new DuckDBParameter(value));
+        
+        var result = Command.ExecuteScalar();
+        
+        result.Should().BeOfType<long>().Subject
+              .Should().Be(value);
+    }
+
+    [Fact]
+    public void BindParameterWithoutTable_Int16()
+    {
+        var value = Faker.Random.Short();
+        
+        Command.CommandText = "SELECT ?;";
+        Command.Parameters.Add(new DuckDBParameter(value));
+        
+        var result = Command.ExecuteScalar();
+        
+        result.Should().BeOfType<short>().Subject
+              .Should().Be(value);
+    }
+
+    [Fact]
+    public void BindParameterWithoutTable_SByte()
+    {
+        var value = Faker.Random.SByte();
+        
+        Command.CommandText = "SELECT ?;";
+        Command.Parameters.Add(new DuckDBParameter(value));
+        
+        var result = Command.ExecuteScalar();
+        
+        result.Should().BeOfType<sbyte>().Subject
+              .Should().Be(value);
+    }
+
+    [Fact]
+    public void BindParameterWithoutTable_Byte()
+    {
+        var value = Faker.Random.Byte();
+        
+        Command.CommandText = "SELECT ?;";
+        Command.Parameters.Add(new DuckDBParameter(value));
+        
+        var result = Command.ExecuteScalar();
+        
+        result.Should().BeOfType<byte>().Subject
+              .Should().Be(value);
+    }
+
+    [Fact]
+    public void BindParameterWithoutTable_UInt16()
+    {
+        var value = Faker.Random.UShort();
+        
+        Command.CommandText = "SELECT ?;";
+        Command.Parameters.Add(new DuckDBParameter(value));
+        
+        var result = Command.ExecuteScalar();
+        
+        result.Should().BeOfType<ushort>().Subject
+              .Should().Be(value);
+    }
+
+    [Fact]
+    public void BindParameterWithoutTable_UInt32()
+    {
+        var value = Faker.Random.UInt();
+        
+        Command.CommandText = "SELECT ?;";
+        Command.Parameters.Add(new DuckDBParameter(value));
+        
+        var result = Command.ExecuteScalar();
+        
+        result.Should().BeOfType<uint>().Subject
+              .Should().Be(value);
+    }
+
+    [Fact]
+    public void BindParameterWithoutTable_UInt64()
+    {
+        var value = Faker.Random.ULong();
+        
+        Command.CommandText = "SELECT ?;";
+        Command.Parameters.Add(new DuckDBParameter(value));
+        
+        var result = Command.ExecuteScalar();
+        
+        result.Should().BeOfType<ulong>().Subject
+              .Should().Be(value);
+    }
 }

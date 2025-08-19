@@ -201,4 +201,19 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         timeOnly.Second.Should().Be((byte)second);
         timeOnly.Ticks.Should().Be(expectedValue.Ticks);
     }
+
+
+    [Fact]
+    public void BindParameterWithoutTable()
+    {
+        var value = TimestampTests.Trim(Faker.Date.RecentTimeOnly(), TimeSpan.FromTicks(100).Ticks);
+
+        Command.CommandText = "SELECT ?;";
+        Command.Parameters.Add(new DuckDBParameter(value));
+
+        var result = Command.ExecuteScalar();
+
+        result.Should().BeOfType<TimeOnly>().Subject
+            .Should().Be(value);
+    }
 }
