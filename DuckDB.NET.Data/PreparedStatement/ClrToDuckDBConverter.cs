@@ -1,15 +1,84 @@
-using DuckDB.NET.Data.Extensions;
-using DuckDB.NET.Native;
 using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Data;
 using System.Globalization;
 using System.Numerics;
+using DuckDB.NET.Data.Extensions;
+using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.PreparedStatement;
 
 internal static class ClrToDuckDBConverter
 {
-    public static DuckDBValue ToDuckDBValue(this object? item, DuckDBLogicalType logicalType, DuckDBType duckDBType)
+    private static readonly Dictionary<DbType, Func<object, DuckDBValue>> valueCreators = new()
+    {
+        { DbType.Guid, value =>
+            {
+                using var handle = value.ToString().ToUnmanagedString();
+                return NativeMethods.Value.DuckDBCreateVarchar(handle);
+            }
+        },
+        { DbType.Currency, value =>
+            {
+                using var handle = ((decimal)value).ToString(CultureInfo.InvariantCulture).ToUnmanagedString();
+                return NativeMethods.Value.DuckDBCreateVarchar(handle);
+            }
+        },
+        { DbType.Boolean, value => NativeMethods.Value.DuckDBCreateBool((bool)value) },
+        { DbType.SByte, value => NativeMethods.Value.DuckDBCreateInt8((sbyte)value) },
+        { DbType.Int16, value => NativeMethods.Value.DuckDBCreateInt16((short)value) },
+        { DbType.Int32, value => NativeMethods.Value.DuckDBCreateInt32((int)value) },
+        { DbType.Int64, value => NativeMethods.Value.DuckDBCreateInt64((long)value) },
+        { DbType.Byte, value => NativeMethods.Value.DuckDBCreateUInt8((byte)value) },
+        { DbType.UInt16, value => NativeMethods.Value.DuckDBCreateUInt16((ushort)value) },
+        { DbType.UInt32, value => NativeMethods.Value.DuckDBCreateUInt32((uint)value) },
+        { DbType.UInt64, value => NativeMethods.Value.DuckDBCreateUInt64((ulong)value) },
+        { DbType.Single, value => NativeMethods.Value.DuckDBCreateFloat((float)value) },
+        { DbType.Double, value => NativeMethods.Value.DuckDBCreateDouble((double)value) },
+        { DbType.String, value =>
+            {
+                using var handle = ((string)value).ToUnmanagedString();
+                return NativeMethods.Value.DuckDBCreateVarchar(handle);
+            }
+        },
+        { DbType.VarNumeric, value => NativeMethods.Value.DuckDBCreateHugeInt(new((BigInteger)value)) },
+        { DbType.Binary, value =>
+            {
+                var bytes = (byte[])value;
+                return NativeMethods.Value.DuckDBCreateBlob(bytes, bytes.Length);
+            }
+        },
+        { DbType.Date, value =>
+            {
+#if NET6_0_OR_GREATER
+                var date = NativeMethods.DateTimeHelpers.DuckDBToDate(value is DateOnly dateOnly ? (DuckDBDateOnly)dateOnly : (DuckDBDateOnly)value);
+#else
+                var date = NativeMethods.DateTimeHelpers.DuckDBToDate((DuckDBDateOnly)value);
+#endif
+                return NativeMethods.Value.DuckDBCreateDate(date);
+            }
+        },
+        { DbType.Time, value =>
+            {
+#if NET6_0_OR_GREATER
+                var time = NativeMethods.DateTimeHelpers.DuckDBToTime(value is TimeOnly timeOnly ? (DuckDBTimeOnly)timeOnly : (DuckDBTimeOnly)value);
+#else
+                var time = NativeMethods.DateTimeHelpers.DuckDBToTime((DuckDBTimeOnly)value);
+#endif
+                return NativeMethods.Value.DuckDBCreateTime(time);
+            }
+        },
+        { DbType.DateTime, value =>
+            {
+                var timestamp = DuckDBTimestamp.FromDateTime((DateTime)value);
+                var timestampStruct = NativeMethods.DateTimeHelpers.DuckDBToTimestamp(timestamp);
+                return NativeMethods.Value.DuckDBCreateTimestamp(timestampStruct);
+            }
+        },
+    };
+
+    public static DuckDBValue ToDuckDBValue(this object? item, DuckDBLogicalType logicalType, DuckDBType duckDBType, DbType dbType)
     {
         if (item.IsNull() || item == null) //item == null is redundant but net standard can't understand that item isn't null after this point.
         {
@@ -56,8 +125,9 @@ internal static class ClrToDuckDBConverter
 #endif
             (DuckDBType.TimeTz, DateTimeOffset value) => NativeMethods.Value.DuckDBCreateTimeTz(value.ToTimeTzStruct()),
             (DuckDBType.Blob, byte[] value) => NativeMethods.Value.DuckDBCreateBlob(value, value.Length),
-            (DuckDBType.List, ICollection value) => CreateCollectionValue(logicalType, value, true),
-            (DuckDBType.Array, ICollection value) => CreateCollectionValue(logicalType, value, false),
+            (DuckDBType.List, ICollection value) => CreateCollectionValue(logicalType, value, true, dbType),
+            (DuckDBType.Array, ICollection value) => CreateCollectionValue(logicalType, value, false, dbType),
+            _ when valueCreators.TryGetValue(dbType, out var converter) => converter.Invoke(item),
             _ => StringToDuckDBValue(item.ToString())
         };
 
@@ -82,7 +152,7 @@ internal static class ClrToDuckDBConverter
         }
     }
 
-    private static DuckDBValue CreateCollectionValue(DuckDBLogicalType logicalType, ICollection collection, bool isList)
+    private static DuckDBValue CreateCollectionValue(DuckDBLogicalType logicalType, ICollection collection, bool isList, DbType dbType)
     {
         using var collectionItemType = isList ? NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType) :
                                                 NativeMethods.LogicalType.DuckDBArrayTypeChildType(logicalType);
@@ -94,7 +164,7 @@ internal static class ClrToDuckDBConverter
         var index = 0;
         foreach (var item in collection)
         {
-            var duckDBValue = item.ToDuckDBValue(collectionItemType, duckDBType);
+            var duckDBValue = item.ToDuckDBValue(collectionItemType, duckDBType, dbType);
             values[index] = duckDBValue;
             index++;
         }
