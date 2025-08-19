@@ -1,4 +1,5 @@
 using System;
+using System.Data;
 using DuckDB.NET.Data;
 using DuckDB.NET.Native;
 using FluentAssertions;
@@ -20,7 +21,7 @@ public class DateTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
         scalar.Should().BeOfType<DateOnly>();
 
-        var dateOnly = (DateOnly) scalar;
+        var dateOnly = (DateOnly)scalar;
 
         dateOnly.Year.Should().Be(year);
         dateOnly.Month.Should().Be((byte)mon);
@@ -34,7 +35,7 @@ public class DateTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     public void BindWithCastTest(int year, int mon, int day)
     {
         var expectedValue = new DateTime(year, mon, day);
-        
+
         Command.CommandText = "SELECT ?::DATE;";
         Command.Parameters.Add(new DuckDBParameter((DuckDBDateOnly)expectedValue));
 
@@ -42,7 +43,7 @@ public class DateTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
         scalar.Should().BeOfType<DateOnly>();
 
-        var dateOnly = (DateOnly) scalar;
+        var dateOnly = (DateOnly)scalar;
 
         dateOnly.Year.Should().Be(year);
         dateOnly.Month.Should().Be((byte)mon);
@@ -59,9 +60,9 @@ public class DateTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Command.ExecuteNonQuery();
 
         Command.CommandText = "INSERT INTO DateOnlyTestTable (a, b) VALUES (42, ?);";
-        Command.Parameters.Add(new DuckDBParameter(new DuckDBDateOnly (year,mon,day)));
+        Command.Parameters.Add(new DuckDBParameter(new DuckDBDateOnly(year, mon, day)));
         Command.ExecuteNonQuery();
-        
+
         Command.Parameters.Clear();
         Command.CommandText = "SELECT * FROM DateOnlyTestTable LIMIT 1;";
 
@@ -86,7 +87,7 @@ public class DateTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
         reader.GetFieldValue<DateOnly>(1).Should().Be(new DateOnly(year, mon, day));
 
-        var convertedValue = (DateTime) dateOnly;
+        var convertedValue = (DateTime)dateOnly;
         convertedValue.Should().Be(dateTime);
 
         reader.GetFieldValue<DuckDBDateOnly?>(2).Should().BeNull();
@@ -116,5 +117,14 @@ public class DateTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         dateOnly.Year.Should().Be(year);
         dateOnly.Month.Should().Be((byte)mon);
         dateOnly.Day.Should().Be((byte)day);
+    }
+
+    [Fact]
+    public void UseDateTimeDbType()
+    {
+        Command.CommandText = "SELECT ? + INTERVAL '7' DAY;";
+        Command.Parameters.Add(new DuckDBParameter(new DateTime(1992, 06, 16)) { DbType = DbType.DateTime });
+        var ex = Record.Exception(Command.ExecuteScalar);
+        Assert.Null(ex);
     }
 }
