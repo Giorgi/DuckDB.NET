@@ -138,10 +138,10 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         var result = Command.ExecuteScalar();
         
         using var stream = (Stream)result;
-        using var memoryStream = new MemoryStream();
-        stream.CopyTo(memoryStream);
-        var resultBytes = memoryStream.ToArray();
+        var resultBytes = new byte[value.Length];
         
+        stream.Read(resultBytes, 0, resultBytes.Length);
+
         resultBytes.Should().BeEquivalentTo(value);
     }
 }
