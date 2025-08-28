@@ -192,7 +192,38 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         }
     }
 
+    [Fact]
+    public void BindParameterWithoutTable_DateTime()
+    {
+        var value = Trim(Faker.Date.Recent(), TimeSpan.FromTicks(100).Ticks);
+        
+        Command.CommandText = "SELECT ?;";
+        Command.Parameters.Add(new DuckDBParameter(value));
+        
+        var result = Command.ExecuteScalar();
+        
+        result.Should().BeOfType<DateTime>().Subject
+              .Should().Be(value);
+    }
+
+    [Fact]
+    public void BindParameterWithoutTable_DateTimeOffset()
+    {
+        var value = Trim(Faker.Date.PastOffset(), TimeSpan.FromTicks(100).Ticks);
+        
+        Command.CommandText = "SELECT ?;";
+        Command.Parameters.Add(new DuckDBParameter(value));
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+        var result = reader.GetFieldValue<DateTimeOffset>(0);
+        
+        result.Should().Be(value);
+    }
+
     public static TimeOnly Trim(TimeOnly date, long ticks) => new(date.Ticks - date.Ticks % ticks);
 
     public static DateTime Trim(DateTime date, long ticks) => new(date.Ticks - date.Ticks % ticks, date.Kind);
+
+    public static DateTimeOffset Trim(DateTimeOffset date, long ticks) => new(Trim(date.DateTime, ticks), date.Offset);
 }

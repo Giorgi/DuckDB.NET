@@ -76,6 +76,7 @@ internal static class ClrToDuckDBConverter
                 return NativeMethods.Value.DuckDBCreateTimestamp(timestampStruct);
             }
         },
+        { DbType.DateTimeOffset, value => NativeMethods.Value.DuckDBCreateTimestampTz(((DateTimeOffset)value).ToTimestampStruct()) },
     };
 
     public static DuckDBValue ToDuckDBValue(this object? item, DuckDBLogicalType logicalType, DuckDBType duckDBType, DbType dbType)
