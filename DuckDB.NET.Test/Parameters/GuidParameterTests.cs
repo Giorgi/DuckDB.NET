@@ -87,4 +87,19 @@ public class GuidParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             receivedValue.Should().Be(guid);
         }
     }
+
+    [Fact]
+    public void BindParameterWithoutTable()
+    {
+        var value = Guid.NewGuid();
+        
+        Command.CommandText = "SELECT ?;";
+        Command.Parameters.Add(new DuckDBParameter(value));
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+        var result = reader.GetFieldValue<Guid>(0);
+
+        result.Should().Be(value);
+    }
 }

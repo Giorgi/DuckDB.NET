@@ -47,7 +47,7 @@ internal static class GuidConverter
 
 
     //https://github.com/duckdb/duckdb/blob/9c91b3a329073ea1767b0aaff94b51da98dd03e2/src/common/types/uuid.cpp#L6
-    public static DuckDBHugeInt ToHugeInt(this Guid guid)
+    public static DuckDBHugeInt ToHugeInt(this Guid guid, bool flip = true)
     {
         Span<byte> bytes = stackalloc byte[32];
 
@@ -76,9 +76,12 @@ internal static class GuidConverter
         var upper = BitConverter.ToInt64(array, GuidSize);
         var lower = BitConverter.ToUInt64(array, GuidSize + 8);
 #endif
-
-        // Flip the first bit to make `order by uuid` same as `order by uuid::varchar`
-        upper ^= (long)1 << 63;
+        //Do not flip if we are passing it to duckdb_create_uuid. That function will flip it for us.
+        if (flip)
+        {
+            // Flip the first bit to make `order by uuid` same as `order by uuid::varchar`
+            upper ^= (long)1 << 63; 
+        }
 
         return new DuckDBHugeInt(lower, upper);
     }

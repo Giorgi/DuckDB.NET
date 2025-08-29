@@ -13,12 +13,7 @@ internal static class ClrToDuckDBConverter
 {
     private static readonly Dictionary<DbType, Func<object, DuckDBValue>> ValueCreators = new()
     {
-        { DbType.Guid, value =>
-            {
-                using var handle = value.ToString().ToUnmanagedString();
-                return NativeMethods.Value.DuckDBCreateVarchar(handle);
-            }
-        },
+        { DbType.Guid, value => NativeMethods.Value.DuckDBCreateUuid(((Guid)value).ToHugeInt(false)) },
         { DbType.Currency, value =>
             {
                 using var handle = ((decimal)value).ToString(CultureInfo.InvariantCulture).ToUnmanagedString();
@@ -107,7 +102,7 @@ internal static class ClrToDuckDBConverter
             (DuckDBType.HugeInt, BigInteger value) => NativeMethods.Value.DuckDBCreateHugeInt(new DuckDBHugeInt(value)),
 
             (DuckDBType.Varchar, string value) => StringToDuckDBValue(value),
-            (DuckDBType.Uuid, Guid value) => GuidToDuckDBValue(value),
+            (DuckDBType.Uuid, Guid value) => NativeMethods.Value.DuckDBCreateUuid(value.ToHugeInt(false)),
 
             (DuckDBType.Timestamp, DateTime value) => NativeMethods.Value.DuckDBCreateTimestamp(value.ToTimestampStruct(duckDBType)),
             (DuckDBType.TimestampS, DateTime value) => NativeMethods.Value.DuckDBCreateTimestampS(value.ToTimestampStruct(duckDBType)),
@@ -172,12 +167,6 @@ internal static class ClrToDuckDBConverter
 
         return isList ? NativeMethods.Value.DuckDBCreateListValue(collectionItemType, values, collection.Count)
                       : NativeMethods.Value.DuckDBCreateArrayValue(collectionItemType, values, collection.Count);
-    }
-
-    private static DuckDBValue GuidToDuckDBValue(Guid value)
-    {
-        using var handle = value.ToString().ToUnmanagedString();
-        return NativeMethods.Value.DuckDBCreateVarchar(handle);
     }
 
     private static DuckDBValue StringToDuckDBValue(string? value)
