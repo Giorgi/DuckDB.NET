@@ -14,12 +14,7 @@ internal static class ClrToDuckDBConverter
     private static readonly Dictionary<DbType, Func<object, DuckDBValue>> ValueCreators = new()
     {
         { DbType.Guid, value => NativeMethods.Value.DuckDBCreateUuid(((Guid)value).ToHugeInt(false)) },
-        { DbType.Currency, value =>
-            {
-                using var handle = ((decimal)value).ToString(CultureInfo.InvariantCulture).ToUnmanagedString();
-                return NativeMethods.Value.DuckDBCreateVarchar(handle);
-            }
-        },
+        { DbType.Currency, value => DecimalToDuckDBValue((decimal)value) },
         { DbType.Boolean, value => NativeMethods.Value.DuckDBCreateBool((bool)value) },
         { DbType.SByte, value => NativeMethods.Value.DuckDBCreateInt8((sbyte)value) },
         { DbType.Int16, value => NativeMethods.Value.DuckDBCreateInt16((short)value) },
@@ -31,12 +26,7 @@ internal static class ClrToDuckDBConverter
         { DbType.UInt64, value => NativeMethods.Value.DuckDBCreateUInt64((ulong)value) },
         { DbType.Single, value => NativeMethods.Value.DuckDBCreateFloat((float)value) },
         { DbType.Double, value => NativeMethods.Value.DuckDBCreateDouble((double)value) },
-        { DbType.String, value =>
-            {
-                using var handle = ((string)value).ToUnmanagedString();
-                return NativeMethods.Value.DuckDBCreateVarchar(handle);
-            }
-        },
+        { DbType.String, value => StringToDuckDBValue((string?)value) },
         { DbType.VarNumeric, value => NativeMethods.Value.DuckDBCreateHugeInt(new((BigInteger)value)) },
         { DbType.Binary, value =>
             {
@@ -64,13 +54,7 @@ internal static class ClrToDuckDBConverter
                 return NativeMethods.Value.DuckDBCreateTime(time);
             }
         },
-        { DbType.DateTime, value =>
-            {
-                var timestamp = DuckDBTimestamp.FromDateTime((DateTime)value);
-                var timestampStruct = NativeMethods.DateTimeHelpers.DuckDBToTimestamp(timestamp);
-                return NativeMethods.Value.DuckDBCreateTimestamp(timestampStruct);
-            }
-        },
+        { DbType.DateTime, value => NativeMethods.Value.DuckDBCreateTimestamp(((DateTime)value).ToTimestampStruct(DuckDBType.Timestamp))},
         { DbType.DateTimeOffset, value => NativeMethods.Value.DuckDBCreateTimestampTz(((DateTimeOffset)value).ToTimestampStruct()) },
     };
 
@@ -175,9 +159,5 @@ internal static class ClrToDuckDBConverter
         return NativeMethods.Value.DuckDBCreateVarchar(handle);
     }
 
-    private static DuckDBValue DecimalToDuckDBValue(decimal value)
-    {
-        using var handle = value.ToString(CultureInfo.InvariantCulture).ToUnmanagedString();
-        return NativeMethods.Value.DuckDBCreateVarchar(handle);
-    }
+    private static DuckDBValue DecimalToDuckDBValue(decimal value) => StringToDuckDBValue(value.ToString(CultureInfo.InvariantCulture));
 }
