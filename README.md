@@ -67,6 +67,15 @@ private static void PrintQueryResults(DbDataReader queryResult)
   }
 }
 ```
+
+### MotherDuck
+
+To connect to [MotherDuck](https://motherduck.com):
+
+```cs
+using var duckDBConnection = new DuckDBConnection("DataSource=md:{your_database}?motherduck_token=ey...");
+```
+
 ## Known Issues
 
 When debugging your project that uses DuckDB.NET library, you may get the following error: **System.AccessViolationException: Attempted to read or write protected memory. This is often an indication that other memory is corrupt**. The error happens due to debugger interaction with the native memory. For a workaround check out [Debugger Options mess up debugging session during Marshalling
