@@ -88,4 +88,19 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         var receivedValue = reader.GetFieldValue<BigInteger>(1);
         receivedValue.Should().Be(value);
     }
+
+    [Fact]
+    public void BindParameterWithoutTable_HugeInt()
+    {
+        // Generate a value larger than long.MaxValue to ensure it is treated as HUGEINT
+        var value = new BigInteger(ulong.MaxValue) + Faker.Random.Int(1, 10_000);
+
+        Command.CommandText = "SELECT ?;";
+        Command.Parameters.Add(new DuckDBParameter(value));
+
+        var result = Command.ExecuteScalar();
+
+        result.Should().BeOfType<BigInteger>().Subject
+              .Should().Be(value);
+    }
 }
