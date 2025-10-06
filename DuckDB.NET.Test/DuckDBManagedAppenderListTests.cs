@@ -351,10 +351,10 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
         {
             var appender = Connection.CreateAppender(table);
 
-            appender.Invoking(app => app.CreateRow().AppendValue((int?)0).AppendValue(GetRandomList(generator, length + 1)))
+            appender.Invoking(app => app.CreateRow().AppendValue(0).AppendValue(GetRandomList(generator, length + 1)))
                 .Should().Throw<InvalidOperationException>().Where(exception => exception.Message.Contains(length.ToString()));
 
-            appender.Invoking(app => app.CreateRow().AppendValue((int?)0).AppendValue(GetRandomList(generator, length - 1)))
+            appender.Invoking(app => app.CreateRow().AppendValue(0).AppendValue(GetRandomList(generator, length - 1)))
                 .Should().Throw<InvalidOperationException>().Where(exception => exception.Message.Contains(length.ToString()));
         }
     }

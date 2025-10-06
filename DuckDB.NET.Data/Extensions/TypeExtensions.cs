@@ -98,16 +98,4 @@ internal static class TypeExtensions
 
         throw new InvalidOperationException($"Cannot map type {type.FullName} to DuckDBType.");
     }
-
-    public static bool IsCompatibleWithDuckDBType<T>(DuckDBType columnType)
-    {
-        var clrType = typeof(T);
-        
-        if (!ClrToDuckDBTypeMap.TryGetValue(clrType, out var expectedDuckDBType))
-        {
-            return false;
-        }
-
-        return expectedDuckDBType == columnType;
-    }
 }
