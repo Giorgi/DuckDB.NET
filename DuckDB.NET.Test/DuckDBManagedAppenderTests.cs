@@ -376,7 +376,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
             var row = appender.CreateRow();
             row
                 .AppendValue(true)
-                .AppendValue((byte)1)
+                .AppendValue((sbyte)1)
                 .AppendValue("test")
                 .EndRow();
 
