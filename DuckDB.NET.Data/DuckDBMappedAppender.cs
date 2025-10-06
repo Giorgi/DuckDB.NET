@@ -28,42 +28,38 @@ public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBClas
             throw new InvalidOperationException($"ClassMap {typeof(TMap).Name} has no property mappings defined");
         }
 
-        // Order mappings by column index
+        var columnTypes = appender.LogicalTypes;
+        if (mappings.Count != columnTypes.Count)
+        {
+            throw new InvalidOperationException(
+                $"ClassMap {typeof(TMap).Name} has {mappings.Count} mappings but table has {columnTypes.Count} columns");
+        }
+
+        // Validate each mapping
         orderedMappings = new Mapping.PropertyMapping[mappings.Count];
         for (int i = 0; i < mappings.Count; i++)
         {
             var mapping = mappings[i];
-            var columnIndex = mapping.ColumnIndex ?? i;
-            
-            if (columnIndex < 0 || columnIndex >= mappings.Count)
+            orderedMappings[i] = mapping;
+
+            // Skip validation for Default and Null mappings
+            if (mapping.MappingType != PropertyMappingType.Property)
             {
-                throw new InvalidOperationException($"Invalid column index {columnIndex} for property {mapping.PropertyName}");
+                continue;
             }
 
-            orderedMappings[columnIndex] = mapping;
+            // Get the actual column type from the appender
+            var columnType = NativeMethods.LogicalType.DuckDBGetTypeId(columnTypes[i]);
+            var expectedType = GetExpectedDuckDBType(mapping.PropertyType);
+
+            if (expectedType != columnType)
+            {
+                throw new InvalidOperationException(
+                    $"Type mismatch for property '{mapping.PropertyName}': " +
+                    $"Property type is {mapping.PropertyType.Name} (maps to {expectedType}) " +
+                    $"but column {i} is {columnType}");
+            }
         }
-    }
-
-    /// <summary>
-    /// Appends a single record to the table.
-    /// </summary>
-    /// <param name="record">The record to append</param>
-    public void AppendRecord(T record)
-    {
-        if (record == null)
-        {
-            throw new ArgumentNullException(nameof(record));
-        }
-
-        var row = appender.CreateRow();
-
-        foreach (var mapping in orderedMappings)
-        {
-            var value = mapping.Getter(record);
-            AppendValue(row, value, mapping.PropertyType);
-        }
-
-        row.EndRow();
     }
 
     /// <summary>
@@ -81,6 +77,67 @@ public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBClas
         {
             AppendRecord(record);
         }
+    }
+
+    private void AppendRecord(T record)
+    {
+        if (record == null)
+        {
+            throw new ArgumentNullException(nameof(record));
+        }
+
+        var row = appender.CreateRow();
+
+        foreach (var mapping in orderedMappings)
+        {
+            switch (mapping.MappingType)
+            {
+                case PropertyMappingType.Property:
+                    var value = mapping.Getter(record);
+                    AppendValue(row, value, mapping.PropertyType);
+                    break;
+                case PropertyMappingType.Default:
+                    row.AppendDefault();
+                    break;
+                case PropertyMappingType.Null:
+                    row.AppendNullValue();
+                    break;
+            }
+        }
+
+        row.EndRow();
+    }
+
+    private static DuckDBType GetExpectedDuckDBType(Type type)
+    {
+        // Handle nullable types
+        var underlyingType = Nullable.GetUnderlyingType(type) ?? type;
+
+        return underlyingType switch
+        {
+            Type t when t == typeof(bool) => DuckDBType.Boolean,
+            Type t when t == typeof(sbyte) => DuckDBType.TinyInt,
+            Type t when t == typeof(short) => DuckDBType.SmallInt,
+            Type t when t == typeof(int) => DuckDBType.Integer,
+            Type t when t == typeof(long) => DuckDBType.BigInt,
+            Type t when t == typeof(byte) => DuckDBType.UnsignedTinyInt,
+            Type t when t == typeof(ushort) => DuckDBType.UnsignedSmallInt,
+            Type t when t == typeof(uint) => DuckDBType.UnsignedInteger,
+            Type t when t == typeof(ulong) => DuckDBType.UnsignedBigInt,
+            Type t when t == typeof(float) => DuckDBType.Float,
+            Type t when t == typeof(double) => DuckDBType.Double,
+            Type t when t == typeof(decimal) => DuckDBType.Decimal,
+            Type t when t == typeof(string) => DuckDBType.Varchar,
+            Type t when t == typeof(DateTime) => DuckDBType.Timestamp,
+            Type t when t == typeof(DateTimeOffset) => DuckDBType.TimestampTz,
+            Type t when t == typeof(TimeSpan) => DuckDBType.Interval,
+            Type t when t == typeof(Guid) => DuckDBType.Uuid,
+#if NET6_0_OR_GREATER
+            Type t when t == typeof(DateOnly) => DuckDBType.Date,
+            Type t when t == typeof(TimeOnly) => DuckDBType.Time,
+#endif
+            _ => throw new NotSupportedException($"Type {type.Name} is not supported for mapping")
+        };
     }
 
     private static void AppendValue(IDuckDBAppenderRow row, object? value, Type propertyType)

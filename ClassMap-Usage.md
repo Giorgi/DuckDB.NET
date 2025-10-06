@@ -1,26 +1,26 @@
 # ClassMap-based Type-Safe Appender
 
-This implementation provides a type-safe way to append data to DuckDB tables using ClassMap-based mappings.
+This implementation provides a type-safe way to append data to DuckDB tables using ClassMap-based mappings with automatic type validation.
 
 ## Problem Solved
 
-The original issue was that users could accidentally append values with mismatched types (e.g., `decimal` to `REAL` column), causing silent data corruption. The ClassMap approach ensures type safety at compile time.
+The original issue was that users could accidentally append values with mismatched types (e.g., `decimal` to `REAL` column), causing silent data corruption. The ClassMap approach validates types against actual column types from the database.
 
 ## How It Works
 
 ### 1. Define a ClassMap
 
-Create a ClassMap that defines the property-to-column mappings:
+Create a ClassMap that defines property mappings in column order:
 
 ```csharp
 public class PersonMap : DuckDBClassMap<Person>
 {
     public PersonMap()
     {
-        Map(p => p.Id).ToColumn(0);        // Maps to INTEGER column
-        Map(p => p.Name).ToColumn(1);      // Maps to VARCHAR column  
-        Map(p => p.Height).ToColumn(2);    // Maps to REAL column - enforces float!
-        Map(p => p.BirthDate).ToColumn(3); // Maps to TIMESTAMP column
+        Map(p => p.Id);            // Column 0: INTEGER
+        Map(p => p.Name);          // Column 1: VARCHAR  
+        Map(p => p.Height);        // Column 2: REAL
+        Map(p => p.BirthDate);     // Column 3: TIMESTAMP
     }
 }
 ```
@@ -39,7 +39,7 @@ var people = new[]
     new Person { Id = 2, Name = "Bob", Height = 1.80f, BirthDate = new DateTime(1985, 5, 20) },
 };
 
-// Use mapped appender - type safety enforced by ClassMap
+// Use mapped appender - type validation happens at creation
 using (var appender = connection.CreateAppender<Person, PersonMap>("person"))
 {
     appender.AppendRecords(people);
@@ -48,31 +48,38 @@ using (var appender = connection.CreateAppender<Person, PersonMap>("person"))
 
 ## Benefits
 
-### 1. **Compile-Time Type Safety**
-The ClassMap defines the expected types. If your `Person` class has `decimal Height`, you must explicitly map it to the correct DuckDB type, making the type mismatch visible.
+### 1. **Type Validation Against Database Schema**
+The mapped appender retrieves actual column types from the database and validates that your .NET types match:
+- `int` → `INTEGER` ✅
+- `float` → `REAL` ✅  
+- `decimal` → `REAL` ❌ Throws exception at creation!
 
 ### 2. **No Performance Overhead**
-Unlike validation in the low-level appender, the ClassMap approach:
-- Only validates mappings once when creating the appender
-- Uses compiled property getters for fast value extraction
+- Type validation happens once when creating the appender
+- Uses the same fast data chunk API as the low-level appender
 - No per-value type checks during append operations
 
-### 3. **Explicit Type Mapping**
+### 3. **Support for Default and Null Values**
 ```csharp
-// Option 1: Explicit type specification
-Map(p => p.Height, DuckDBType.Float).ToColumn(2);
-
-// Option 2: Automatic type inference
-Map(p => p.Height).ToColumn(2);  // Infers DuckDBType.Float from float property
+public class MyMap : DuckDBClassMap<MyData>
+{
+    public MyMap()
+    {
+        Map(d => d.Id);
+        Map(d => d.Name);
+        DefaultValue();  // Use column's default value
+        NullValue();     // Insert NULL
+    }
+}
 ```
 
 ### 4. **Backward Compatible**
 The original fast, low-level `CreateAppender()` API remains unchanged:
 ```csharp
-// Still available for maximum performance when type safety is not needed
+// Still available for maximum performance
 using var appender = connection.CreateAppender("myTable");
 appender.CreateRow()
-    .AppendValue((float?)1.5)  // Manual type control
+    .AppendValue((float?)1.5)
     .EndRow();
 ```
 
@@ -92,7 +99,7 @@ appender.CreateRow()
     .EndRow();
 ```
 
-### ✅ After (Type Safety with ClassMap)
+### ✅ After (Type Safety with Validation)
 ```csharp
 public class MyData
 {
@@ -103,16 +110,29 @@ public class MyDataMap : DuckDBClassMap<MyData>
 {
     public MyDataMap()
     {
-        Map(x => x.Value);  // Automatically maps float to REAL
+        Map(x => x.Value);  // Validated: float → REAL ✅
     }
 }
 
-// Type-safe appender prevents mismatches
+// Type mismatch detected at appender creation
 using var appender = connection.CreateAppender<MyData, MyDataMap>("myTable");
 appender.AppendRecords(dataList);  // Safe!
 ```
 
-If you tried to map a `decimal` property to a `REAL` column, you'd need to explicitly handle the conversion in your ClassMap, making the type mismatch visible.
+If you tried to use a `decimal` property with a `REAL` column:
+```csharp
+public class WrongMap : DuckDBClassMap<MyData>
+{
+    public WrongMap()
+    {
+        Map(x => x.DecimalValue);  // decimal property
+    }
+}
+
+// Throws: "Type mismatch for property 'DecimalValue': 
+//          Property type is Decimal (maps to Decimal) but column 0 is Float"
+var appender = connection.CreateAppender<MyData, WrongMap>("myTable");
+```
 
 ## API Overview
 
@@ -132,9 +152,6 @@ var appender = connection.CreateAppender<T, TMap>("catalog", "schema", "table");
 ### Appending Data
 
 ```csharp
-// Single record
-appender.AppendRecord(record);
-
 // Multiple records
 appender.AppendRecords(recordList);
 
@@ -142,9 +159,24 @@ appender.AppendRecords(recordList);
 appender.Close();
 ```
 
-### Automatic Type Inference
+### Mapping Options
 
-The ClassMap automatically infers DuckDB types from .NET types:
+```csharp
+public class MyMap : DuckDBClassMap<MyData>
+{
+    public MyMap()
+    {
+        Map(x => x.Property1);  // Map to column in sequence
+        Map(x => x.Property2);  
+        DefaultValue();         // Use column default
+        NullValue();           // Insert NULL
+    }
+}
+```
+
+### Type Mappings
+
+The mapper validates .NET types against DuckDB column types:
 
 | .NET Type | DuckDB Type |
 |-----------|-------------|
@@ -170,6 +202,7 @@ The ClassMap automatically infers DuckDB types from .NET types:
 
 ## Performance
 
-- **No runtime overhead**: Type mapping is validated once at appender creation
+- **No runtime overhead**: Type mapping validated once at appender creation
 - **Fast value extraction**: Uses compiled expression getters
 - **Same underlying performance**: Uses the same fast data chunk API as the low-level appender
+- **Type safety without cost**: Validation at creation, not per-value

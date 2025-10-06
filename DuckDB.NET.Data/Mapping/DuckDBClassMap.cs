@@ -19,15 +19,12 @@ public abstract class DuckDBClassMap<T>
     internal IReadOnlyList<PropertyMapping> PropertyMappings => propertyMappings;
 
     /// <summary>
-    /// Maps a property to a column with type validation.
+    /// Maps a property to the next column in sequence.
     /// </summary>
     /// <typeparam name="TProperty">The property type</typeparam>
     /// <param name="propertyExpression">Expression to select the property</param>
-    /// <param name="columnType">The expected DuckDB column type</param>
     /// <returns>The current map instance for fluent configuration</returns>
-    protected PropertyMappingBuilder<T, TProperty> Map<TProperty>(
-        Expression<Func<T, TProperty>> propertyExpression,
-        DuckDBType columnType)
+    protected void Map<TProperty>(Expression<Func<T, TProperty>> propertyExpression)
     {
         if (propertyExpression.Body is not MemberExpression memberExpression)
         {
@@ -42,59 +39,54 @@ public abstract class DuckDBClassMap<T>
         {
             PropertyName = propertyName,
             PropertyType = propertyType,
-            ColumnType = columnType,
-            Getter = obj => getter((T)obj)
+            Getter = obj => getter((T)obj),
+            MappingType = PropertyMappingType.Property
         };
 
         propertyMappings.Add(mapping);
-
-        return new PropertyMappingBuilder<T, TProperty>(mapping);
     }
 
     /// <summary>
-    /// Maps a property to a column, automatically inferring the DuckDB type.
+    /// Adds a default value for the next column.
     /// </summary>
-    /// <typeparam name="TProperty">The property type</typeparam>
-    /// <param name="propertyExpression">Expression to select the property</param>
-    /// <returns>The current map instance for fluent configuration</returns>
-    protected PropertyMappingBuilder<T, TProperty> Map<TProperty>(
-        Expression<Func<T, TProperty>> propertyExpression)
+    protected void DefaultValue()
     {
-        var columnType = InferDuckDBType(typeof(TProperty));
-        return Map(propertyExpression, columnType);
-    }
-
-    private static DuckDBType InferDuckDBType(Type type)
-    {
-        // Handle nullable types
-        var underlyingType = Nullable.GetUnderlyingType(type) ?? type;
-
-        return underlyingType switch
+        var mapping = new PropertyMapping
         {
-            Type t when t == typeof(bool) => DuckDBType.Boolean,
-            Type t when t == typeof(sbyte) => DuckDBType.TinyInt,
-            Type t when t == typeof(short) => DuckDBType.SmallInt,
-            Type t when t == typeof(int) => DuckDBType.Integer,
-            Type t when t == typeof(long) => DuckDBType.BigInt,
-            Type t when t == typeof(byte) => DuckDBType.UnsignedTinyInt,
-            Type t when t == typeof(ushort) => DuckDBType.UnsignedSmallInt,
-            Type t when t == typeof(uint) => DuckDBType.UnsignedInteger,
-            Type t when t == typeof(ulong) => DuckDBType.UnsignedBigInt,
-            Type t when t == typeof(float) => DuckDBType.Float,
-            Type t when t == typeof(double) => DuckDBType.Double,
-            Type t when t == typeof(decimal) => DuckDBType.Decimal,
-            Type t when t == typeof(string) => DuckDBType.Varchar,
-            Type t when t == typeof(DateTime) => DuckDBType.Timestamp,
-            Type t when t == typeof(DateTimeOffset) => DuckDBType.TimestampTz,
-            Type t when t == typeof(TimeSpan) => DuckDBType.Interval,
-            Type t when t == typeof(Guid) => DuckDBType.Uuid,
-#if NET6_0_OR_GREATER
-            Type t when t == typeof(DateOnly) => DuckDBType.Date,
-            Type t when t == typeof(TimeOnly) => DuckDBType.Time,
-#endif
-            _ => throw new NotSupportedException($"Type {type.Name} is not supported for automatic mapping")
+            PropertyName = "<default>",
+            PropertyType = typeof(object),
+            Getter = _ => null,
+            MappingType = PropertyMappingType.Default
         };
+
+        propertyMappings.Add(mapping);
     }
+
+    /// <summary>
+    /// Adds a null value for the next column.
+    /// </summary>
+    protected void NullValue()
+    {
+        var mapping = new PropertyMapping
+        {
+            PropertyName = "<null>",
+            PropertyType = typeof(object),
+            Getter = _ => null,
+            MappingType = PropertyMappingType.Null
+        };
+
+        propertyMappings.Add(mapping);
+    }
+}
+
+/// <summary>
+/// Represents the type of mapping.
+/// </summary>
+internal enum PropertyMappingType
+{
+    Property,
+    Default,
+    Null
 }
 
 /// <summary>
@@ -104,33 +96,6 @@ internal class PropertyMapping
 {
     public string PropertyName { get; set; } = string.Empty;
     public Type PropertyType { get; set; } = typeof(object);
-    public DuckDBType ColumnType { get; set; }
     public Func<object, object?> Getter { get; set; } = _ => null;
-    public int? ColumnIndex { get; set; }
-}
-
-/// <summary>
-/// Builder for configuring property mappings.
-/// </summary>
-/// <typeparam name="T">The mapped class type</typeparam>
-/// <typeparam name="TProperty">The property type</typeparam>
-public class PropertyMappingBuilder<T, TProperty>
-{
-    private readonly PropertyMapping mapping;
-
-    internal PropertyMappingBuilder(PropertyMapping mapping)
-    {
-        this.mapping = mapping;
-    }
-
-    /// <summary>
-    /// Specifies the column index for this property mapping.
-    /// </summary>
-    /// <param name="columnIndex">The zero-based column index</param>
-    /// <returns>The builder for fluent configuration</returns>
-    public PropertyMappingBuilder<T, TProperty> ToColumn(int columnIndex)
-    {
-        mapping.ColumnIndex = columnIndex;
-        return this;
-    }
+    public PropertyMappingType MappingType { get; set; }
 }
