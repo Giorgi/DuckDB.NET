@@ -132,9 +132,9 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
 
         using (var appender = Connection.CreateAppender("blobAppenderTest"))
         {
-            appender.CreateRow().AppendValue(1).AppendValue(bytes).EndRow();
-            appender.CreateRow().AppendValue(10).AppendValue(span).EndRow();
-            appender.CreateRow().AppendValue(2).AppendValue((byte[])null).EndRow();
+            appender.CreateRow().AppendValue((int?)1).AppendValue(bytes).EndRow();
+            appender.CreateRow().AppendValue((int?)10).AppendValue(span).EndRow();
+            appender.CreateRow().AppendValue((int?)2).AppendValue((byte[])null).EndRow();
         }
 
         Command.CommandText = "Select b from blobAppenderTest";
@@ -619,8 +619,8 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
 
         using (var appender = Connection.CreateAppender("tbl"))
         {
-            appender.CreateRow().AppendValue((int?)2).AppendValue(2).AppendDefault().EndRow();
-            appender.CreateRow().AppendDefault().AppendValue(2).AppendDefault().EndRow();
+            appender.CreateRow().AppendValue((int?)2).AppendValue((int?)2).AppendDefault().EndRow();
+            appender.CreateRow().AppendDefault().AppendValue((int?)2).AppendDefault().EndRow();
         }
 
         Command.CommandText = "Select * from tbl";
@@ -685,5 +685,69 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     private enum EnumNotValidValueTestEnum
     {
         NotValid = 12345,
+    }
+
+    [Fact]
+    public void TypeMismatchThrowsException()
+    {
+        Command.CommandText = "CREATE TABLE typeMismatchTest(a REAL, b DOUBLE, c INTEGER);";
+        Command.ExecuteNonQuery();
+
+        // Test decimal to float - should throw (handled by base class since decimal isn't a numeric type in NumericVectorDataWriter)
+        Connection.Invoking(dbConnection =>
+        {
+            using var appender = dbConnection.CreateAppender("typeMismatchTest");
+            appender.CreateRow()
+                .AppendValue(1.5m) // decimal to REAL - should fail
+                .AppendValue(1.5)
+                .AppendValue((int?)1)
+                .EndRow();
+        }).Should().Throw<InvalidOperationException>()
+          .WithMessage("*Cannot write Decimal to Float column*");
+
+        // Test double to float - should throw with new validation
+        Connection.Invoking(dbConnection =>
+        {
+            using var appender = dbConnection.CreateAppender("typeMismatchTest");
+            appender.CreateRow()
+                .AppendValue((float?)1.5)
+                .AppendValue((float?)1.5) // float to DOUBLE - should fail
+                .AppendValue((int?)1)
+                .EndRow();
+        }).Should().Throw<InvalidOperationException>()
+          .WithMessage("*Cannot append Single value to Double column*");
+
+        // Test long to int - should throw with new validation
+        Connection.Invoking(dbConnection =>
+        {
+            using var appender = dbConnection.CreateAppender("typeMismatchTest");
+            appender.CreateRow()
+                .AppendValue((float?)1.5)
+                .AppendValue((double?)1.5)
+                .AppendValue((long?)1) // long to INTEGER - should fail
+                .EndRow();
+        }).Should().Throw<InvalidOperationException>()
+          .WithMessage("*Cannot append Int64 value to Integer column*");
+
+        // Clear the table and verify that correct types work
+        Command.CommandText = "DELETE FROM typeMismatchTest";
+        Command.ExecuteNonQuery();
+        
+        using (var appender = Connection.CreateAppender("typeMismatchTest"))
+        {
+            appender.CreateRow()
+                .AppendValue((float?)1.5)
+                .AppendValue((double?)2.5)
+                .AppendValue((int?)3)
+                .EndRow();
+        }
+
+        // Verify data was inserted correctly
+        Command.CommandText = "SELECT * FROM typeMismatchTest";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+        reader.GetFloat(0).Should().BeApproximately(1.5f, 0.001f);
+        reader.GetDouble(1).Should().BeApproximately(2.5, 0.001);
+        reader.GetInt32(2).Should().Be(3);
     }
 }
