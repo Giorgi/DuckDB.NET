@@ -3,10 +3,10 @@
 namespace DuckDB.NET.Native;
 
 [StructLayout(LayoutKind.Sequential)]
-public readonly struct DuckDBDecimal
+public readonly struct DuckDBDecimal(byte width, byte scale, DuckDBHugeInt value)
 {
-    public byte Width { get; }
-    public byte Scale { get; }
+    public byte Width { get; } = width;
+    public byte Scale { get; } = scale;
 
-    public DuckDBHugeInt Value { get; }
+    public DuckDBHugeInt Value { get; } = value;
 }

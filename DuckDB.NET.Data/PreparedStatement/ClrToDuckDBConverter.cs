@@ -159,5 +159,22 @@ internal static class ClrToDuckDBConverter
         return NativeMethods.Value.DuckDBCreateVarchar(handle);
     }
 
-    private static DuckDBValue DecimalToDuckDBValue(decimal value) => StringToDuckDBValue(value.ToString(CultureInfo.InvariantCulture));
+    private static DuckDBValue DecimalToDuckDBValue(decimal value)
+    {
+        var bits = decimal.GetBits(value);
+        var scale = (byte)((bits[3] >> 16) & 0x7F);
+        
+        var power = Math.Pow(10, scale);
+
+        var integralPart = decimal.Truncate(value);
+        var fractionalPart = value - integralPart;
+
+        var result = BigInteger.Multiply(new BigInteger(integralPart), new BigInteger(power));
+
+        result += new BigInteger(decimal.Multiply(fractionalPart, (decimal)power));
+
+        int width = result.IsZero ? 1 : (int)Math.Floor(BigInteger.Log10(BigInteger.Abs(result))) + 1;
+
+        return NativeMethods.Value.DuckDBCreateDecimal(new DuckDBDecimal((byte)width, scale, new DuckDBHugeInt(result)));
+    }
 }

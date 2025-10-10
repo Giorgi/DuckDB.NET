@@ -31,7 +31,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         }
 
 
-        values = new[] { decimal.One / 3, decimal.MinusOne / 3 };
+        values = [decimal.One / 3, decimal.MinusOne / 3];
 
         foreach (var value in values)
         {
@@ -51,33 +51,28 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [Fact]
     public void InsertSelectValueTest()
     {
-        DecimalTests(new[]
-        {
+        DecimalTests([
             0m, decimal.Zero,
             decimal.One,
             decimal.One / 2, decimal.MinusOne,
             decimal.MinusOne / 2
-        }, 38, 15);
+        ], 38, 15);
 
-        DecimalTests(new[]
-        {
+        DecimalTests([
             decimal.MinValue, decimal.MaxValue
-        }, 38, 0);
+        ], 38, 0);
 
-        DecimalTests(new[]
-        {
-            decimal.One/3, decimal.MinusOne/3
-        }, 38, 28);
+        DecimalTests([
+            decimal.One/3, decimal.MinusOne/3, -123456789.987654321m
+        ], 38, 28);
 
-        DecimalTests(new[]
-        {
+        DecimalTests([
             0.3333M, 56.1234M
-        }, 8, 4);
+        ], 8, 4);
 
-        DecimalTests(new[]
-        {
+        DecimalTests([
             0.33M, 12.34M
-        }, 4, 2);
+        ], 4, 2);
 
         void DecimalTests(decimal[] values, int precision, int scale)
         {
@@ -118,7 +113,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     {
         var defaultCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
 
-        DecimalTests(new[] { "fr-fr", "en-us" }, decimal.One / 2, 38, 15);
+        DecimalTests(["fr-fr", "en-us"], decimal.One / 2, 38, 15);
 
         void DecimalTests(string[] cultures, decimal value, int precision, int scale)
         {
@@ -153,6 +148,24 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
             Command.CommandText = "Drop TABLE DecimalValuesTests";
             Command.ExecuteNonQuery();
             System.Threading.Thread.CurrentThread.CurrentCulture = defaultCulture;
+        }
+    }
+
+    [Fact]
+    public void BindParameterWithoutTable()
+    {
+        decimal[] values = [decimal.Zero, 0.00m, 123456789.987654321m, -123456789.987654321m, 1.230m, -1.23m,
+                            0.000000001m, -0.000000001m, 1000000.000000001m, -1000000.000000001m, 1.123456789012345678901m];
+
+        foreach (var value in values)
+        {
+            Command.CommandText = "SELECT ?;";
+            Command.Parameters.Clear();
+            Command.Parameters.Add(new DuckDBParameter(value));
+
+            var result = Command.ExecuteScalar();
+
+            result.Should().BeOfType<decimal>().Subject.Should().Be(value);
         }
     }
 }
