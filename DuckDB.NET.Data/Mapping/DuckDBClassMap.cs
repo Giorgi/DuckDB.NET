@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
-using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.Mapping;
 
@@ -11,12 +10,12 @@ namespace DuckDB.NET.Data.Mapping;
 /// <typeparam name="T">The type to map</typeparam>
 public abstract class DuckDBClassMap<T>
 {
-    private readonly List<PropertyMapping> propertyMappings = new();
+    private readonly List<PropertyMapping<T>> propertyMappings = new();
 
     /// <summary>
     /// Gets the property mappings defined for this class map.
     /// </summary>
-    internal IReadOnlyList<PropertyMapping> PropertyMappings => propertyMappings;
+    internal IReadOnlyList<PropertyMapping<T>> PropertyMappings => propertyMappings;
 
     /// <summary>
     /// Maps a property to the next column in sequence.
@@ -35,11 +34,11 @@ public abstract class DuckDBClassMap<T>
         var propertyType = typeof(TProperty);
         var getter = propertyExpression.Compile();
 
-        var mapping = new PropertyMapping
+        var mapping = new PropertyMapping<T>
         {
             PropertyName = propertyName,
             PropertyType = propertyType,
-            Getter = obj => getter((T)obj),
+            Getter = obj => getter(obj),
             MappingType = PropertyMappingType.Property
         };
 
@@ -51,7 +50,7 @@ public abstract class DuckDBClassMap<T>
     /// </summary>
     protected void DefaultValue()
     {
-        var mapping = new PropertyMapping
+        var mapping = new PropertyMapping<T>
         {
             PropertyName = "<default>",
             PropertyType = typeof(object),
@@ -67,7 +66,7 @@ public abstract class DuckDBClassMap<T>
     /// </summary>
     protected void NullValue()
     {
-        var mapping = new PropertyMapping
+        var mapping = new PropertyMapping<T>
         {
             PropertyName = "<null>",
             PropertyType = typeof(object),
@@ -92,10 +91,10 @@ internal enum PropertyMappingType
 /// <summary>
 /// Represents a mapping between a property and a column.
 /// </summary>
-internal class PropertyMapping
+internal class PropertyMapping<T>
 {
     public string PropertyName { get; set; } = string.Empty;
     public Type PropertyType { get; set; } = typeof(object);
-    public Func<object, object?> Getter { get; set; } = _ => null;
+    public Func<T, object?> Getter { get; set; } = _ => null;
     public PropertyMappingType MappingType { get; set; }
 }

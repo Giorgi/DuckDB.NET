@@ -14,12 +14,12 @@ public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBClas
 {
     private readonly DuckDBAppender appender;
     private readonly TMap classMap;
-    private readonly Mapping.PropertyMapping[] orderedMappings;
+    private readonly PropertyMapping<T>[] orderedMappings;
 
     internal DuckDBMappedAppender(DuckDBAppender appender)
     {
         this.appender = appender;
-        this.classMap = new TMap();
+        classMap = new TMap();
         
         // Validate mappings match the table structure
         var mappings = classMap.PropertyMappings;
@@ -31,12 +31,11 @@ public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBClas
         var columnTypes = appender.LogicalTypes;
         if (mappings.Count != columnTypes.Count)
         {
-            throw new InvalidOperationException(
-                $"ClassMap {typeof(TMap).Name} has {mappings.Count} mappings but table has {columnTypes.Count} columns");
+            throw new InvalidOperationException($"ClassMap {typeof(TMap).Name} has {mappings.Count} mappings but table has {columnTypes.Count} columns");
         }
 
         // Validate each mapping
-        orderedMappings = new Mapping.PropertyMapping[mappings.Count];
+        orderedMappings = new PropertyMapping<T>[mappings.Count];
         for (int i = 0; i < mappings.Count; i++)
         {
             var mapping = mappings[i];
@@ -94,7 +93,7 @@ public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBClas
             {
                 case PropertyMappingType.Property:
                     var value = mapping.Getter(record);
-                    AppendValue(row, value, mapping.PropertyType);
+                    AppendValue(row, value);
                     break;
                 case PropertyMappingType.Default:
                     row.AppendDefault();
@@ -140,7 +139,7 @@ public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBClas
         };
     }
 
-    private static void AppendValue(IDuckDBAppenderRow row, object? value, Type propertyType)
+    private static void AppendValue(IDuckDBAppenderRow row, object? value)
     {
         if (value == null)
         {
@@ -148,61 +147,58 @@ public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBClas
             return;
         }
 
-        // Handle nullable types
-        var underlyingType = Nullable.GetUnderlyingType(propertyType) ?? propertyType;
-
         switch (value)
         {
             case bool boolValue:
                 row.AppendValue(boolValue);
                 break;
             case sbyte sbyteValue:
-                row.AppendValue((sbyte?)sbyteValue);
+                row.AppendValue(sbyteValue);
                 break;
             case short shortValue:
-                row.AppendValue((short?)shortValue);
+                row.AppendValue(shortValue);
                 break;
             case int intValue:
-                row.AppendValue((int?)intValue);
+                row.AppendValue(intValue);
                 break;
             case long longValue:
-                row.AppendValue((long?)longValue);
+                row.AppendValue(longValue);
                 break;
             case byte byteValue:
-                row.AppendValue((byte?)byteValue);
+                row.AppendValue(byteValue);
                 break;
             case ushort ushortValue:
-                row.AppendValue((ushort?)ushortValue);
+                row.AppendValue(ushortValue);
                 break;
             case uint uintValue:
-                row.AppendValue((uint?)uintValue);
+                row.AppendValue(uintValue);
                 break;
             case ulong ulongValue:
-                row.AppendValue((ulong?)ulongValue);
+                row.AppendValue(ulongValue);
                 break;
             case float floatValue:
-                row.AppendValue((float?)floatValue);
+                row.AppendValue(floatValue);
                 break;
             case double doubleValue:
-                row.AppendValue((double?)doubleValue);
+                row.AppendValue(doubleValue);
                 break;
             case decimal decimalValue:
-                row.AppendValue((decimal?)decimalValue);
+                row.AppendValue(decimalValue);
                 break;
             case string stringValue:
                 row.AppendValue(stringValue);
                 break;
             case DateTime dateTimeValue:
-                row.AppendValue((DateTime?)dateTimeValue);
+                row.AppendValue(dateTimeValue);
                 break;
             case DateTimeOffset dateTimeOffsetValue:
-                row.AppendValue((DateTimeOffset?)dateTimeOffsetValue);
+                row.AppendValue(dateTimeOffsetValue);
                 break;
             case TimeSpan timeSpanValue:
-                row.AppendValue((TimeSpan?)timeSpanValue);
+                row.AppendValue(timeSpanValue);
                 break;
             case Guid guidValue:
-                row.AppendValue((Guid?)guidValue);
+                row.AppendValue(guidValue);
                 break;
 #if NET6_0_OR_GREATER
             case DateOnly dateOnlyValue:
