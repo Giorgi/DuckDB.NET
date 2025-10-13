@@ -1,12 +1,20 @@
 ﻿<Project>
-    <Target Name="Downloadnativenatives" Condition="!Exists('$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native')">
-        <MakeDir Directories="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native" />
-        <DownloadFile
-                DestinationFolder="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)" 
-                SourceUrl="$(libUrl)" Retries="3"
-                DestinationFileName="native.zip"/>
-        <Unzip DestinationFolder="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native" 
-               SourceFiles="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native.zip"/>
-        <Delete Files="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native.zip"/>
-    </Target>
+  <Target Name="Downloadnativenatives" Condition="!Exists('$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native')">
+    <PropertyGroup>
+      <NativeZipPath>$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native.zip</NativeZipPath>
+    </PropertyGroup>
+    <MakeDir Directories="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native" />
+    <Delete Files="$(NativeZipPath)"
+            Condition="Exists('$(NativeZipPath)')"
+            ContinueOnError="true"/>
+    <DownloadFile
+            DestinationFolder="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)"
+            SourceUrl="$(libUrl)" 
+            Retries="5"
+            RetryDelayMilliseconds="1000"
+            DestinationFileName="native.zip"/>
+    <Unzip DestinationFolder="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native"
+           SourceFiles="$(NativeZipPath)"/>
+    <Delete Files="$(NativeZipPath)"/>
+  </Target>
 </Project>
