@@ -1,6 +1,4 @@
-using DuckDB.NET.Data;
 using DuckDB.NET.Data.Mapping;
-using DuckDB.NET.Native;
 using FluentAssertions;
 using System;
 using Xunit;
@@ -114,7 +112,7 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     [Fact]
     public void MappedAppender_SupportsDefaultAndNull()
     {
-        Command.CommandText = "CREATE TABLE person_defaults(id INTEGER, name VARCHAR, age INTEGER DEFAULT 18, city VARCHAR);";
+        Command.CommandText = "CREATE TABLE person_defaults(id INTEGER, name VARCHAR, age INT DEFAULT 18, city VARCHAR);";
         Command.ExecuteNonQuery();
 
         var people = new[]
@@ -134,8 +132,7 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
         reader.Read().Should().BeTrue();
         reader.GetInt32(0).Should().Be(1);
         reader.GetString(1).Should().Be("Alice");
-        // Note: AppendDefault may append 0 or NULL depending on DuckDB version
-        // Just verify the row was inserted
-        reader.IsDBNull(3).Should().BeTrue(); // Null value
+        reader.GetInt32(2).Should().Be(18);
+        reader.IsDBNull(3).Should().BeTrue();
     }
 }
