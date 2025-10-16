@@ -120,7 +120,7 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
     {
         CheckColumnAccess();
 
-        var state = NativeMethods.Appender.DuckDBAppendDefaultToChunk(nativeAppender, dataChunk, rowIndex, columnIndex);
+        var state = NativeMethods.Appender.DuckDBAppendDefaultToChunk(nativeAppender, dataChunk, columnIndex, rowIndex);
 
         if (state == DuckDBState.Error)
         {
