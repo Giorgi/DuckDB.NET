@@ -627,12 +627,12 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         var reader = Command.ExecuteReader();
         reader.Read();
 
-        var i = reader.GetInt32(0);
-        var k = reader.GetInt32(2);
+        reader.GetInt32(0).Should().Be(2);
+        reader.GetInt32(2).Should().Be(30);
         reader.Read();
 
-        i = reader.GetInt32(0);
-        k = reader.GetInt32(2);
+        reader.GetInt32(0).Should().Be(4);
+        reader.GetInt32(2).Should().Be(30);
     }
 
     private static string GetCreateEnumTypeSql(string enumName, string enumValueNamePrefix, int count)
