@@ -1,6 +1,7 @@
+using DuckDB.NET.Native;
 using System;
 using System.Collections.Generic;
-using System.Linq.Expressions;
+using System.Numerics;
 
 namespace DuckDB.NET.Data.Mapping;
 
@@ -10,39 +11,26 @@ namespace DuckDB.NET.Data.Mapping;
 /// <typeparam name="T">The type to map</typeparam>
 public abstract class DuckDBClassMap<T>
 {
-    private readonly List<PropertyMapping<T>> propertyMappings = new();
-
     /// <summary>
     /// Gets the property mappings defined for this class map.
     /// </summary>
-    internal IReadOnlyList<PropertyMapping<T>> PropertyMappings => propertyMappings;
+    internal List<IPropertyMapping<T>> PropertyMappings { get; } = new(8);
 
     /// <summary>
     /// Maps a property to the next column in sequence.
     /// </summary>
     /// <typeparam name="TProperty">The property type</typeparam>
-    /// <param name="propertyExpression">Expression to select the property</param>
-    /// <returns>The current map instance for fluent configuration</returns>
-    protected void Map<TProperty>(Expression<Func<T, TProperty>> propertyExpression)
+    /// <param name="getter">Function to get the property value</param>
+    protected void Map<TProperty>(Func<T, TProperty> getter)
     {
-        if (propertyExpression.Body is not MemberExpression memberExpression)
+        var mapping = new PropertyMapping<T, TProperty>
         {
-            throw new ArgumentException("Expression must be a member expression", nameof(propertyExpression));
-        }
-
-        var propertyName = memberExpression.Member.Name;
-        var propertyType = typeof(TProperty);
-        var getter = propertyExpression.Compile();
-
-        var mapping = new PropertyMapping<T>
-        {
-            PropertyName = propertyName,
-            PropertyType = propertyType,
-            Getter = obj => getter(obj),
+            PropertyType = typeof(TProperty),
+            Getter = getter,
             MappingType = PropertyMappingType.Property
         };
 
-        propertyMappings.Add(mapping);
+        PropertyMappings.Add(mapping);
     }
 
     /// <summary>
@@ -50,15 +38,13 @@ public abstract class DuckDBClassMap<T>
     /// </summary>
     protected void DefaultValue()
     {
-        var mapping = new PropertyMapping<T>
+        var mapping = new DefaultValueMapping<T>
         {
-            PropertyName = "<default>",
             PropertyType = typeof(object),
-            Getter = _ => null,
             MappingType = PropertyMappingType.Default
         };
 
-        propertyMappings.Add(mapping);
+        PropertyMappings.Add(mapping);
     }
 
     /// <summary>
@@ -66,21 +52,16 @@ public abstract class DuckDBClassMap<T>
     /// </summary>
     protected void NullValue()
     {
-        var mapping = new PropertyMapping<T>
+        var mapping = new NullValueMapping<T>
         {
-            PropertyName = "<null>",
             PropertyType = typeof(object),
-            Getter = _ => null,
             MappingType = PropertyMappingType.Null
         };
 
-        propertyMappings.Add(mapping);
+        PropertyMappings.Add(mapping);
     }
 }
 
-/// <summary>
-/// Represents the type of mapping.
-/// </summary>
 internal enum PropertyMappingType
 {
     Property,
@@ -88,13 +69,81 @@ internal enum PropertyMappingType
     Null
 }
 
-/// <summary>
-/// Represents a mapping between a property and a column.
-/// </summary>
-internal class PropertyMapping<T>
+internal interface IPropertyMapping<T>
 {
-    public string PropertyName { get; set; } = string.Empty;
+    Type PropertyType { get; }
+    PropertyMappingType MappingType { get; }
+    IDuckDBAppenderRow AppendToRow(IDuckDBAppenderRow row, T record);
+}
+
+internal sealed class PropertyMapping<T, TProperty> : IPropertyMapping<T>
+{
     public Type PropertyType { get; set; } = typeof(object);
-    public Func<T, object?> Getter { get; set; } = _ => null;
+    public Func<T, TProperty> Getter { get; set; } = _ => default!;
     public PropertyMappingType MappingType { get; set; }
+
+    public IDuckDBAppenderRow AppendToRow(IDuckDBAppenderRow row, T record)
+    {
+        var value = Getter(record);
+
+        if (value is null)
+        {
+            return row.AppendNullValue();
+        }
+
+        return value switch
+        {
+            // Reference types
+            string v => row.AppendValue(v),
+
+            // Value types
+            bool v => row.AppendValue(v),
+            sbyte v => row.AppendValue(v),
+            short v => row.AppendValue(v),
+            int v => row.AppendValue(v),
+            long v => row.AppendValue(v),
+            byte v => row.AppendValue(v),
+            ushort v => row.AppendValue(v),
+            uint v => row.AppendValue(v),
+            ulong v => row.AppendValue(v),
+            float v => row.AppendValue(v),
+            double v => row.AppendValue(v),
+            decimal v => row.AppendValue(v),
+            DateTime v => row.AppendValue(v),
+            DateTimeOffset v => row.AppendValue(v),
+            TimeSpan v => row.AppendValue(v),
+            Guid v => row.AppendValue(v),
+            BigInteger v => row.AppendValue(v),
+            DuckDBDateOnly v => row.AppendValue(v),
+            DuckDBTimeOnly v => row.AppendValue(v),
+#if NET6_0_OR_GREATER
+            DateOnly v => row.AppendValue(v),
+            TimeOnly v => row.AppendValue(v),
+#endif
+
+            _ => throw new NotSupportedException($"Type {typeof(TProperty).Name} is not supported for appending")
+        };
+    }
+}
+
+internal sealed class DefaultValueMapping<T> : IPropertyMapping<T>
+{
+    public Type PropertyType { get; set; } = typeof(object);
+    public PropertyMappingType MappingType { get; set; }
+
+    public IDuckDBAppenderRow AppendToRow(IDuckDBAppenderRow row, T record)
+    {
+        return row.AppendDefault();
+    }
+}
+
+internal sealed class NullValueMapping<T> : IPropertyMapping<T>
+{
+    public Type PropertyType { get; set; } = typeof(object);
+    public PropertyMappingType MappingType { get; set; }
+
+    public IDuckDBAppenderRow AppendToRow(IDuckDBAppenderRow row, T record)
+    {
+        return row.AppendNullValue();
+    }
 }

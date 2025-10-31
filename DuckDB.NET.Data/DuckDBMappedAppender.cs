@@ -14,15 +14,17 @@ namespace DuckDB.NET.Data;
 public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBClassMap<T>, new()
 {
     private readonly DuckDBAppender appender;
-    private readonly TMap classMap;
+    private readonly List<IPropertyMapping<T>> mappings;
 
     internal DuckDBMappedAppender(DuckDBAppender appender)
     {
         this.appender = appender;
-        classMap = new TMap();
-        
+        var classMap = new TMap();
+
+        // Get mappings as List<T> to avoid interface enumerator boxing
+        mappings = classMap.PropertyMappings;
+
         // Validate mappings match the table structure
-        var mappings = classMap.PropertyMappings;
         if (mappings.Count == 0)
         {
             throw new InvalidOperationException($"ClassMap {typeof(TMap).Name} has no property mappings defined");
@@ -49,9 +51,7 @@ public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBClas
             if (expectedType != columnType)
             {
                 throw new InvalidOperationException(
-                    $"Type mismatch for property '{mapping.PropertyName}': " +
-                    $"Property type is {mapping.PropertyType.Name} (maps to {expectedType}) " +
-                    $"but column {index} is {columnType}");
+                    $"Type mismatch at column index {index}: Mapped type is {mapping.PropertyType.Name} (expected DuckDB type: {expectedType}) but actual column type is {columnType}");
             }
         }
     }
@@ -82,15 +82,9 @@ public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBClas
 
         var row = appender.CreateRow();
 
-        foreach (var mapping in classMap.PropertyMappings)
+        foreach (var mapping in mappings)
         {
-            _ = mapping.MappingType switch
-            {
-                PropertyMappingType.Property => AppendValue(row, mapping.Getter(record)),
-                PropertyMappingType.Default => row.AppendDefault(),
-                PropertyMappingType.Null => row.AppendNullValue(),
-                _ => row
-            };
+            row = mapping.AppendToRow(row, record);
         }
 
         row.EndRow();
@@ -106,40 +100,6 @@ public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBClas
         {
             DuckDBType.Invalid => throw new NotSupportedException($"Type {type.Name} is not supported for mapping"),
             _ => duckDBType
-        };
-    }
-
-    private static IDuckDBAppenderRow AppendValue(IDuckDBAppenderRow row, object? value)
-    {
-        if (value == null)
-        {
-            return row.AppendNullValue();
-        }
-
-        return value switch
-        {
-            bool boolValue => row.AppendValue(boolValue),
-            sbyte sbyteValue => row.AppendValue(sbyteValue),
-            short shortValue => row.AppendValue(shortValue),
-            int intValue => row.AppendValue(intValue),
-            long longValue => row.AppendValue(longValue),
-            byte byteValue => row.AppendValue(byteValue),
-            ushort ushortValue => row.AppendValue(ushortValue),
-            uint uintValue => row.AppendValue(uintValue),
-            ulong ulongValue => row.AppendValue(ulongValue),
-            float floatValue => row.AppendValue(floatValue),
-            double doubleValue => row.AppendValue(doubleValue),
-            decimal decimalValue => row.AppendValue(decimalValue),
-            string stringValue => row.AppendValue(stringValue),
-            DateTime dateTimeValue => row.AppendValue(dateTimeValue),
-            DateTimeOffset dateTimeOffsetValue => row.AppendValue(dateTimeOffsetValue),
-            TimeSpan timeSpanValue => row.AppendValue(timeSpanValue),
-            Guid guidValue => row.AppendValue(guidValue),
-#if NET6_0_OR_GREATER
-            DateOnly dateOnlyValue => row.AppendValue((DateOnly?)dateOnlyValue),
-            TimeOnly timeOnlyValue => row.AppendValue((TimeOnly?)timeOnlyValue),
-#endif
-            _ => throw new NotSupportedException($"Type {value.GetType().Name} is not supported for appending")
         };
     }
 
