@@ -52,24 +52,40 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
     #region Append Signed Int
 
     public IDuckDBAppenderRow AppendValue(sbyte? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(sbyte value) => AppendValueInternal(value);
+
 
     public IDuckDBAppenderRow AppendValue(short? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(short value) => AppendValueInternal(value);
+
 
     public IDuckDBAppenderRow AppendValue(int? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(int value) => AppendValueInternal(value);
+
 
     public IDuckDBAppenderRow AppendValue(long? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(long value) => AppendValueInternal(value);
+
 
     #endregion
 
     #region Append Unsigned Int
 
     public IDuckDBAppenderRow AppendValue(byte? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(byte value) => AppendValueInternal(value);
+
 
     public IDuckDBAppenderRow AppendValue(ushort? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(ushort value) => AppendValueInternal(value);
+
 
     public IDuckDBAppenderRow AppendValue(uint? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(uint value) => AppendValueInternal(value);
+
 
     public IDuckDBAppenderRow AppendValue(ulong? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(ulong value) => AppendValueInternal(value);
+
 
     #endregion
 
@@ -181,13 +197,30 @@ public interface IDuckDBAppenderRow
     IDuckDBAppenderRow AppendValue(Guid? value);
     IDuckDBAppenderRow AppendValue(BigInteger? value);
     IDuckDBAppenderRow AppendValue(sbyte? value);
+    IDuckDBAppenderRow AppendValue(sbyte value);
+
     IDuckDBAppenderRow AppendValue(short? value);
+    IDuckDBAppenderRow AppendValue(short value);
+
     IDuckDBAppenderRow AppendValue(int? value);
+    IDuckDBAppenderRow AppendValue(int value);
+
     IDuckDBAppenderRow AppendValue(long? value);
+    IDuckDBAppenderRow AppendValue(long value);
+
     IDuckDBAppenderRow AppendValue(byte? value);
+    IDuckDBAppenderRow AppendValue(byte value);
+
     IDuckDBAppenderRow AppendValue(ushort? value);
+    IDuckDBAppenderRow AppendValue(ushort value);
+
     IDuckDBAppenderRow AppendValue(uint? value);
+    IDuckDBAppenderRow AppendValue(uint value);
+
     IDuckDBAppenderRow AppendValue(ulong? value);
+    IDuckDBAppenderRow AppendValue(ulong value);
+
+
     IDuckDBAppenderRow AppendValue<TEnum>(TEnum? value) where TEnum : Enum;
     IDuckDBAppenderRow AppendValue(float? value);
     IDuckDBAppenderRow AppendValue(double? value);
