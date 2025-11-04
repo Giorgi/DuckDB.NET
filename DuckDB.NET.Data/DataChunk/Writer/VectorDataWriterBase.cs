@@ -30,10 +30,34 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
 
     public void WriteValue<T>(T value, ulong rowIndex)
     {
+        static InvalidOperationException GetIncompatibleTypeException(DuckDBType columnType, Type valueType) 
+            => new($"{valueType.Name} type was passed for a {columnType} column.");
+   
         if (value == null)
         {
             WriteNull(rowIndex);
             return;
+        }
+
+        if (rowIndex == 0)
+        {
+            var type = value.GetType();
+
+            switch (columnType)
+            {
+                case DuckDBType.TinyInt: if (type != typeof(sbyte)) throw GetIncompatibleTypeException(DuckDBType.TinyInt, type); break;
+                case DuckDBType.SmallInt: if (type != typeof(short)) throw GetIncompatibleTypeException(DuckDBType.SmallInt, type); break;
+                case DuckDBType.Integer: if (type != typeof(int)) throw GetIncompatibleTypeException(DuckDBType.Integer, type); break;
+                case DuckDBType.BigInt: if (type != typeof(long)) throw GetIncompatibleTypeException(DuckDBType.BigInt, type); break;
+                case DuckDBType.UnsignedTinyInt: if (type != typeof(byte)) throw GetIncompatibleTypeException(DuckDBType.UnsignedTinyInt, type); break;
+                case DuckDBType.UnsignedSmallInt: if (type != typeof(ushort)) throw GetIncompatibleTypeException(DuckDBType.UnsignedSmallInt, type); break;
+                case DuckDBType.UnsignedInteger: if (type != typeof(uint)) throw GetIncompatibleTypeException(DuckDBType.UnsignedInteger, type); break;
+                case DuckDBType.UnsignedBigInt: if (type != typeof(ulong)) throw GetIncompatibleTypeException(DuckDBType.UnsignedBigInt, type); break;
+                case DuckDBType.Float: if (type != typeof(float)) throw GetIncompatibleTypeException(DuckDBType.Float, type); break;
+                case DuckDBType.Double: if (type != typeof(double)) throw GetIncompatibleTypeException(DuckDBType.Double, type); break;
+                default:
+                    break;
+            }
         }
 
         _ = value switch
