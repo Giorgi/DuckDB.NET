@@ -67,9 +67,10 @@ public class DuckDBDataReader : DbDataReader
 
     private bool InitChunkData()
     {
-        foreach (var reader in vectorReaders)
+        // Dispose existing readers using for loop (faster than foreach)
+        for (int i = 0; i < vectorReaders.Length; i++)
         {
-            reader.Dispose();
+            vectorReaders[i]?.Dispose();
         }
 
         currentChunk?.Dispose();
@@ -343,9 +344,10 @@ public class DuckDBDataReader : DbDataReader
     {
         if (closed) return;
 
-        foreach (var reader in vectorReaders)
+        // Dispose readers using for loop (faster than foreach)
+        for (int i = 0; i < vectorReaders.Length; i++)
         {
-            reader.Dispose();
+            vectorReaders[i]?.Dispose();
         }
 
         currentChunk?.Dispose();
