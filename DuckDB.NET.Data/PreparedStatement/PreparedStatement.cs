@@ -85,7 +85,18 @@ internal sealed class PreparedStatement : IDisposable
             throw new InvalidOperationException($"Invalid number of parameters. Expected {expectedParameters}, got {parameterCollection.Count}");
         }
 
-        if (parameterCollection.OfType<DuckDBParameter>().Any(p => !string.IsNullOrEmpty(p.ParameterName)))
+        // Check if any parameter has a name (faster than LINQ)
+        var hasNamedParameters = false;
+        for (var i = 0; i < parameterCollection.Count; i++)
+        {
+            if (!string.IsNullOrEmpty(parameterCollection[i].ParameterName))
+            {
+                hasNamedParameters = true;
+                break;
+            }
+        }
+
+        if (hasNamedParameters)
         {
             foreach (DuckDBParameter param in parameterCollection)
             {

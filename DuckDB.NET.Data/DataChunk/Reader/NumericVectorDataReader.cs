@@ -117,56 +117,72 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
 
         var isNegative = (buffer[0] & 0x80) == 0;
 
-        var bytes = new List<byte>(data->Length - VarIntHeaderSize);
+        // Allocate byte array once with proper capacity
+        var byteCount = data->Length - VarIntHeaderSize;
+        var bytes = new byte[byteCount];
+        var currentByteCount = byteCount;
 
-        for (var index = VarIntHeaderSize; index < buffer.Length; index++)
+        for (var index = 0; index < byteCount; index++)
         {
             if (isNegative)
             {
-                bytes.Add((byte)~buffer[index]);
+                bytes[index] = (byte)~buffer[index + VarIntHeaderSize];
             }
             else
             {
-                bytes.Add(buffer[index]);
+                bytes[index] = buffer[index + VarIntHeaderSize];
             }
         }
 
-        var bigIntegerDigits = new Stack<char>();
+        // Estimate maximum digit count: log10(256^n) = n * log10(256) ≈ n * 2.408
+        var maxDigits = (int)(byteCount * 2.5) + 2;
+        var digitChars = new char[maxDigits];
+        var digitCount = 0;
 
-        while (bytes.Count > 0)
+        // Preallocate quotient buffer
+        var quotient = new byte[byteCount];
+
+        while (currentByteCount > 0)
         {
-            var quotient = new List<char>();
-
             byte remainder = 0;
+            var quotientCount = 0;
 
-            foreach (var @byte in bytes)
+            for (var i = 0; i < currentByteCount; i++)
             {
-                var newValue = remainder * 256 + @byte;
-                quotient.Add(DigitToChar(newValue / 10));
+                var newValue = remainder * 256 + bytes[i];
+                var digit = (byte)(newValue / 10);
+                
+                // Only add non-zero or if we already have digits
+                if (digit != 0 || quotientCount > 0)
+                {
+                    quotient[quotientCount++] = digit;
+                }
 
                 remainder = (byte)(newValue % 10);
             }
 
-            bigIntegerDigits.Push(DigitToChar(remainder));
+            digitChars[digitCount++] = DigitToChar(remainder);
 
-            // Remove leading zeros from the quotient
-            bytes.Clear();
-
-            foreach (var digit in quotient)
-            {
-                if (digit != '0' || bytes.Count > 0)
-                {
-                    bytes.Add(CharToDigit(digit));
-                }
-            }
+            // Swap buffers to avoid allocation
+            var temp = bytes;
+            bytes = quotient;
+            quotient = temp;
+            currentByteCount = quotientCount;
         }
 
         if (isNegative)
         {
-            bigIntegerDigits.Push('-');
+            digitChars[digitCount++] = '-';
         }
-        
-        var integer = BigInteger.Parse(new string(bigIntegerDigits.ToArray()));
+
+        // Reverse the digits in place
+        Array.Reverse(digitChars, 0, digitCount);
+
+#if NET6_0_OR_GREATER
+        var integer = BigInteger.Parse(digitChars.AsSpan(0, digitCount));
+#else
+        var integer = BigInteger.Parse(new string(digitChars, 0, digitCount));
+#endif
         
         try
         {
@@ -178,8 +194,6 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
         }
 
         char DigitToChar(int c) => (char)(c + '0');
-
-        byte CharToDigit(char digit) => (byte)(digit-'0');
     }
 
     private T GetBigInteger<T>(ulong offset, bool unsigned)
