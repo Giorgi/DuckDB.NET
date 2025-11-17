@@ -168,4 +168,34 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
             result.Should().BeOfType<decimal>().Subject.Should().Be(value);
         }
     }
+
+    [Fact]
+    public void BindParameterInComparison()
+    {
+        var testCases = new (decimal value, bool expectedResult)[]
+        {
+            (decimal.Zero, true),
+            (0.00m, true),
+            (123456789.987654321m, false),
+            (-123456789.987654321m, true),
+            (1.230m, false),
+            (-1.23m, true),
+            (0.000000001m, true),
+            (-0.000000001m, true),
+            (1000000.000000001m, false),
+            (-1000000.000000001m, true),
+            (1.123456789012345678901m, false)
+        };
+
+        foreach (var (value, expectedResult) in testCases)
+        {
+            Command.CommandText = "SELECT 0.1 > ?;";
+            Command.Parameters.Clear();
+            Command.Parameters.Add(new DuckDBParameter(value));
+
+            var result = Command.ExecuteScalar();
+
+            result.Should().BeOfType<bool>().Subject.Should().Be(expectedResult);
+        }
+    }
 }
