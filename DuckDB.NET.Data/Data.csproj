@@ -5,7 +5,7 @@
     <PackageReleaseNotes>
 	  Improved support for parameter binding in parameterized statements.
 
-Updated to DuckDB v1.4.1
+Updated to DuckDB v1.4.2
     </PackageReleaseNotes>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
