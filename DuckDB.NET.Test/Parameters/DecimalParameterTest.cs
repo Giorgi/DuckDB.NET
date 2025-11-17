@@ -168,7 +168,8 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
             result.Should().BeOfType<decimal>().Subject.Should().Be(value);
         }
     }
-}    [Fact]
+
+    [Fact]
     public void BindParameterInComparison()
     {
         decimal[] values = [decimal.Zero, 0.00m, 123456789.987654321m, -123456789.987654321m, 1.230m, -1.23m,
