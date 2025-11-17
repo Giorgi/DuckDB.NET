@@ -173,7 +173,7 @@ internal static class ClrToDuckDBConverter
 
         result += new BigInteger(decimal.Multiply(fractionalPart, (decimal)power));
 
-        int width = result.IsZero ? 1 : (int)Math.Floor(BigInteger.Log10(BigInteger.Abs(result))) + 1;
+        int width = Math.Max(scale, result.IsZero ? 1 : (int)Math.Floor(BigInteger.Log10(BigInteger.Abs(result))) + 1);
 
         return NativeMethods.Value.DuckDBCreateDecimal(new DuckDBDecimal((byte)width, scale, new DuckDBHugeInt(result)));
     }
