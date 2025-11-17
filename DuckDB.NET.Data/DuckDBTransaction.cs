@@ -38,12 +38,23 @@ public class DuckDBTransaction : DbTransaction
             throw new InvalidOperationException("Transaction has already been finished.");
         }
 
-        connection.ExecuteNonQuery(finalizer);
-        connection.Transaction = null;
-        finished = true;
+        try
+        {
+            connection.ExecuteNonQuery(finalizer);
+            connection.Transaction = null;
+            finished = true;
+        }
+        // If something goes wrong with the transaction, to match the
+        // transaction's internal duckdb state it should still be considered
+        // finished and should no longer be used
+        catch (DuckDBException ex) when (ex.ErrorType == Native.DuckDBErrorType.Transaction)
+        {
+            connection.Transaction = null;
+            finished = true;
+            throw;
+        }
     }
-        
-        
+
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
