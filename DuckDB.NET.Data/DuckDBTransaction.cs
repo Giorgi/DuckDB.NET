@@ -9,9 +9,9 @@ public class DuckDBTransaction : DbTransaction
 {
     private bool finished = false;
     private readonly DuckDBConnection connection;
-        
+
     protected override DbConnection DbConnection => connection;
-        
+
     public override IsolationLevel IsolationLevel { get; }
 
     public DuckDBTransaction(DuckDBConnection connection, IsolationLevel isolationLevel)
@@ -41,17 +41,21 @@ public class DuckDBTransaction : DbTransaction
         try
         {
             connection.ExecuteNonQuery(finalizer);
-            connection.Transaction = null;
-            finished = true;
+            Cleanup();
         }
         // If something goes wrong with the transaction, to match the
         // transaction's internal duckdb state it should still be considered
         // finished and should no longer be used
         catch (DuckDBException ex) when (ex.ErrorType == Native.DuckDBErrorType.Transaction)
         {
+            Cleanup();
+            throw;
+        }
+
+        void Cleanup()
+        {
             connection.Transaction = null;
             finished = true;
-            throw;
         }
     }
 
