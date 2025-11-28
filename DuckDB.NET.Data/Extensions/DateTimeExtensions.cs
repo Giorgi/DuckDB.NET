@@ -81,4 +81,20 @@ internal static class DateTimeExtensions
 
         return (result, additionalTicks);
     }
+
+    public static bool IsFinite(this DuckDBTimestampStruct timestamp, DuckDBType duckDBType)
+    {
+        return duckDBType switch
+        {
+            DuckDBType.TimestampNs => NativeMethods.DateTimeHelpers.DuckDBIsFiniteTimestampNs(timestamp),
+            DuckDBType.TimestampMs => NativeMethods.DateTimeHelpers.DuckDBIsFiniteTimestampMs(timestamp),
+            DuckDBType.TimestampS => NativeMethods.DateTimeHelpers.DuckDBIsFiniteTimestampS(timestamp),
+            _ => NativeMethods.DateTimeHelpers.DuckDBIsFiniteTimestamp(timestamp)
+        };
+    }
+
+    public static bool IsPositiveInfinity(this DuckDBTimestampStruct timestamp)
+    {
+        return timestamp.Micros == long.MaxValue;
+    }
 }
