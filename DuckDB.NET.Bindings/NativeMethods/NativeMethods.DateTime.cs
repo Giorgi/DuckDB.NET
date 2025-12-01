@@ -31,19 +31,26 @@ public partial class NativeMethods
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_to_timestamp")]
         public static extern DuckDBTimestampStruct DuckDBToTimestamp(DuckDBTimestamp dateStruct);
 
+        // NOTE: for boolean return values, MarshalAs(UnmanagedType.I1) is used because the default is to use 4-byte Win32 BOOLs
+        // https://learn.microsoft.com/en-us/dotnet/standard/native-interop/customize-struct-marshalling#customizing-boolean-field-marshalling
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_is_finite_date")]
+        [return: MarshalAs(UnmanagedType.I1)]
         public static extern bool DuckDBIsFiniteDate(DuckDBDate date);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_is_finite_timestamp")]
+        [return: MarshalAs(UnmanagedType.I1)]
         public static extern bool DuckDBIsFiniteTimestamp(DuckDBTimestampStruct ts);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_is_finite_timestamp_s")]
+        [return: MarshalAs(UnmanagedType.I1)]
         public static extern bool DuckDBIsFiniteTimestampS(DuckDBTimestampStruct ts);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_is_finite_timestamp_ms")]
+        [return: MarshalAs(UnmanagedType.I1)]
         public static extern bool DuckDBIsFiniteTimestampMs(DuckDBTimestampStruct ts);
 
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_is_finite_timestamp_ns")]
+        [return: MarshalAs(UnmanagedType.I1)]
         public static extern bool DuckDBIsFiniteTimestampNs(DuckDBTimestampStruct ts);
     }
 }
