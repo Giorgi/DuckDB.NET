@@ -54,7 +54,12 @@ internal static class ClrToDuckDBConverter
                 return NativeMethods.Value.DuckDBCreateTime(time);
             }
         },
-        { DbType.DateTime, value => NativeMethods.Value.DuckDBCreateTimestamp(((DateTime)value).ToTimestampStruct(DuckDBType.Timestamp))},
+        { DbType.DateTime, value =>
+            {
+                var dateTime = (value is DateTime dt ? (DuckDBTimestamp)dt : (DuckDBTimestamp)value).ToDuckDBTimestampStruct();
+                return NativeMethods.Value.DuckDBCreateTimestamp(dateTime);
+            }
+        },
         { DbType.DateTimeOffset, value => NativeMethods.Value.DuckDBCreateTimestampTz(((DateTimeOffset)value).ToTimestampStruct()) },
     };
 
