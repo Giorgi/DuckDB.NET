@@ -28,21 +28,19 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
     {
         if (DuckDBType == DuckDBType.Date)
         {
-            var (dateOnly, isFinite, isPositiveInfinity) = GetDateOnly(offset);
+            var (dateOnly, isFinite) = GetDateOnly(offset);
 
             if (!isFinite)
             {
                 if (targetType == DateTimeType || targetType == DateTimeNullableType)
                 {
-                    var dateTime = isPositiveInfinity ? DateTime.MaxValue : DateTime.MinValue;
-                    return (T)(object)dateTime;
+                    ThrowInfinityDateException();
                 }
 
 #if NET6_0_OR_GREATER
                 if (targetType == DateOnlyType || targetType == DateOnlyNullableType)
                 {
-                    var dateOnlyValue = isPositiveInfinity ? DateOnly.MaxValue : DateOnly.MinValue;
-                    return (T)(object)dateOnlyValue;
+                    ThrowInfinityDateException();
                 }
 #endif
                 return (T)(object)dateOnly;
@@ -114,20 +112,14 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
         {
             if (targetType == DateTimeType || targetType == DateTimeNullableType)
             {
-                var dateTime = timestampStruct.IsPositiveInfinity() ? DateTime.MaxValue : DateTime.MinValue;
-                return (T)(object)dateTime;
+                ThrowInfinityTimestampException();
             }
 
             if (targetType == DateTimeOffsetType || targetType == DateTimeOffsetNullableType)
             {
-                var dateTime = timestampStruct.IsPositiveInfinity() ? DateTime.MaxValue : DateTime.MinValue;
-                var dateTimeOffset = new DateTimeOffset(dateTime, TimeSpan.Zero);
-                return (T)(object)dateTimeOffset;
+                ThrowInfinityTimestampException();
             }
 
-            // As of 1.4.2, duckdb_from_timestamp throws a ConversionException
-            // for infinity, so infinity values are only successfully returned
-            // for DateTime and DateOnly types.
             var infinityTimestamp = DuckDBTimestamp.FromDuckDBTimestampStruct(timestampStruct);
             return (T)(object)infinityTimestamp;
         }
@@ -176,35 +168,33 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
         return NativeMethods.DateTimeHelpers.DuckDBFromTime(GetFieldData<DuckDBTime>(offset));
     }
 
-    private (DuckDBDateOnly dateOnly, bool IsFinite, bool IsPositiveInfinity) GetDateOnly(ulong offset)
+    private (DuckDBDateOnly dateOnly, bool IsFinite) GetDateOnly(ulong offset)
     {
         var date = GetFieldData<DuckDBDate>(offset);
         var isFinite = NativeMethods.DateTimeHelpers.DuckDBIsFiniteDate(date);
-        var isPositiveInfinity = date.Days == int.MaxValue;
-        return (DuckDBDateOnly.FromDuckDBDate(date), isFinite, isPositiveInfinity);
+        return (DuckDBDateOnly.FromDuckDBDate(date), isFinite);
     }
 
     private object GetDate(ulong offset, Type targetType)
     {
-        var (dateOnly, isFinite, isPositiveInfinity) = GetDateOnly(offset);
+        var (dateOnly, isFinite) = GetDateOnly(offset);
 
         if (!isFinite)
         {
             if (targetType == DateTimeType)
             {
-                return isPositiveInfinity ? DateTime.MaxValue : DateTime.MinValue;
+                ThrowInfinityDateException();
             }
 
 #if NET6_0_OR_GREATER
             if (targetType == DateOnlyType)
             {
-                return isPositiveInfinity ? DateOnly.MaxValue : DateOnly.MinValue;
+                ThrowInfinityDateException();
             }
 #endif
 
             return dateOnly;
         }
-
 
         if (targetType == DateTimeType)
         {
@@ -247,19 +237,15 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
         {
             if (targetType == typeof(DateTime))
             {
-                return timestampStruct.IsPositiveInfinity() ? DateTime.MaxValue : DateTime.MinValue;
+                ThrowInfinityTimestampException();
             }
 
             if (targetType == DateTimeOffsetType)
             {
-                var dateTime = timestampStruct.IsPositiveInfinity() ? DateTime.MaxValue : DateTime.MinValue;
-                return new DateTimeOffset(dateTime, TimeSpan.Zero);
+                ThrowInfinityTimestampException();
             }
 
-            // As of 1.4.2, duckdb_from_timestamp throws a ConversionException
-            // for infinity, so infinity values are only successfully returned
-            // for DateTime and DateOnly types.
-            return timestampStruct.ToDuckDBTimestamp(DuckDBType);
+            return DuckDBTimestamp.FromDuckDBTimestampStruct(timestampStruct);
         }
 
         var (timestamp, additionalTicks) = timestampStruct.ToDuckDBTimestamp(DuckDBType);
@@ -290,5 +276,19 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
         }
 
         return timeTz;
+    }
+
+    private static void ThrowInfinityDateException()
+    {
+        throw new InvalidOperationException(
+            "Cannot convert infinite date value to DateTime or DateOnly. " +
+            "Use DuckDBDateOnly to read this value and check IsInfinity, IsPositiveInfinity, or IsNegativeInfinity before converting to .NET types.");
+    }
+
+    private static void ThrowInfinityTimestampException()
+    {
+        throw new InvalidOperationException(
+            "Cannot convert infinite timestamp value to DateTime or DateTimeOffset. " +
+            "Use DuckDBTimestamp to read this value and check IsInfinity, IsPositiveInfinity, or IsNegativeInfinity before converting to .NET types.");
     }
 }
