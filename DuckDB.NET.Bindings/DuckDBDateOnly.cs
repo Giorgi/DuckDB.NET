@@ -49,6 +49,14 @@ public readonly struct DuckDBDateOnly(int year, byte month, byte day)
 
     public DateTime ToDateTime() => new DateTime(Year, Month, Day);
 
+#if NET6_0_OR_GREATER
+
+    public static DuckDBDateOnly FromDateOnly(DateOnly dateOnly) => new DuckDBDateOnly(dateOnly.Year, (byte)dateOnly.Month, (byte)dateOnly.Day);
+
+    public DateOnly ToDateOnly() => new DateOnly(Year, Month, Day);
+
+#endif
+
     /// <summary>
     /// Converts a DuckDBDate to DuckDBDateOnly, handling infinity values.
     /// </summary>
@@ -81,9 +89,9 @@ public readonly struct DuckDBDateOnly(int year, byte month, byte day)
 
 #if NET6_0_OR_GREATER
 
-    public static implicit operator DateOnly(DuckDBDateOnly dateOnly) => new DateOnly(dateOnly.Year, dateOnly.Month, dateOnly.Day);
+    public static implicit operator DateOnly(DuckDBDateOnly dateOnly) => dateOnly.ToDateOnly();
 
-    public static implicit operator DuckDBDateOnly(DateOnly date) => new DuckDBDateOnly(date.Year, (byte)date.Month, (byte)date.Day);
+    public static implicit operator DuckDBDateOnly(DateOnly date) => DuckDBDateOnly.FromDateOnly(date);
 
 #endif
 }
