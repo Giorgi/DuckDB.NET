@@ -28,14 +28,14 @@ internal static class DateTimeExtensions
 
     public static DuckDBTimestampStruct ToTimestampStruct(this DateTimeOffset value)
     {
-        var timestamp = NativeMethods.DateTimeHelpers.DuckDBToTimestamp(DuckDBTimestamp.FromDateTime(value.UtcDateTime));
+        var timestamp = DuckDBTimestamp.FromDateTime(value.UtcDateTime).ToDuckDBTimestampStruct();
 
         return timestamp;
     }
 
     public static DuckDBTimestampStruct ToTimestampStruct(this DateTime value, DuckDBType duckDBType)
     {
-        var timestamp = NativeMethods.DateTimeHelpers.DuckDBToTimestamp(DuckDBTimestamp.FromDateTime(value));
+        var timestamp = DuckDBTimestamp.FromDateTime(value).ToDuckDBTimestampStruct();
 
         if (duckDBType == DuckDBType.TimestampNs)
         {
@@ -77,7 +77,7 @@ internal static class DateTimeExtensions
             timestamp.Micros *= 1000000;
         }
 
-        var result = NativeMethods.DateTimeHelpers.DuckDBFromTimestamp(timestamp);
+        var result = DuckDBTimestamp.FromDuckDBTimestampStruct(timestamp);
 
         return (result, additionalTicks);
     }

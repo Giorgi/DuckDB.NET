@@ -28,6 +28,7 @@ internal static class DuckDBTypeMap
         {typeof(BigInteger), DbType.VarNumeric},
         {typeof(byte[]), DbType.Binary},
         {typeof(DateTime), DbType.DateTime},
+        {typeof(DuckDBTimestamp), DbType.DateTime},
         {typeof(DateTimeOffset), DbType.DateTimeOffset},
         {typeof(DuckDBDateOnly), DbType.Date},
         {typeof(DuckDBTimeOnly), DbType.Time},

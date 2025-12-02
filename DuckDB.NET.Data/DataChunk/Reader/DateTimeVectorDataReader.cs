@@ -128,7 +128,7 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
             // As of 1.4.2, duckdb_from_timestamp throws a ConversionException
             // for infinity, so infinity values are only successfully returned
             // for DateTime and DateOnly types.
-            var infinityTimestamp = NativeMethods.DateTimeHelpers.DuckDBFromTimestamp(timestampStruct);
+            var infinityTimestamp = DuckDBTimestamp.FromDuckDBTimestampStruct(timestampStruct);
             return (T)(object)infinityTimestamp;
         }
 
@@ -181,7 +181,7 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
         var date = GetFieldData<DuckDBDate>(offset);
         var isFinite = NativeMethods.DateTimeHelpers.DuckDBIsFiniteDate(date);
         var isPositiveInfinity = date.Days == int.MaxValue;
-        return (NativeMethods.DateTimeHelpers.DuckDBFromDate(date), isFinite, isPositiveInfinity);
+        return (DuckDBDateOnly.FromDuckDBDate(date), isFinite, isPositiveInfinity);
     }
 
     private object GetDate(ulong offset, Type targetType)
