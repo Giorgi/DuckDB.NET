@@ -8,6 +8,98 @@ namespace DuckDB.NET.Test;
 
 public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
+    #region Assertion Helpers
+
+    private static void AssertInfinityDateValues(DuckDBDataReader reader)
+    {
+        // Positive infinity
+        var positiveInfinity = reader.GetFieldValue<DuckDBDateOnly>(0);
+        positiveInfinity.Should().Be(DuckDBDateOnly.PositiveInfinity);
+        positiveInfinity.IsPositiveInfinity.Should().BeTrue();
+        positiveInfinity.IsInfinity.Should().BeTrue();
+        NativeMethods.DateTimeHelpers.DuckDBIsFiniteDate(positiveInfinity.ToDuckDBDate()).Should().BeFalse();
+
+        // Negative infinity
+        var negativeInfinity = reader.GetFieldValue<DuckDBDateOnly>(1);
+        negativeInfinity.Should().Be(DuckDBDateOnly.NegativeInfinity);
+        negativeInfinity.IsNegativeInfinity.Should().BeTrue();
+        negativeInfinity.IsInfinity.Should().BeTrue();
+        reader.GetFieldValue<DuckDBDateOnly>(1).Should().Be(DuckDBDateOnly.NegativeInfinity);
+        NativeMethods.DateTimeHelpers.DuckDBIsFiniteDate(negativeInfinity.ToDuckDBDate()).Should().BeFalse();
+
+        // Reading as DateTime throws
+        var actPositive = () => reader.GetDateTime(0);
+        actPositive.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBDateOnly*");
+        var actNegative = () => reader.GetDateTime(1);
+        actNegative.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBDateOnly*");
+
+        // Reading as nullable DateTime throws
+        var actNullablePositive = () => reader.GetFieldValue<DateTime?>(0);
+        actNullablePositive.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBDateOnly*");
+
+#if NET6_0_OR_GREATER
+        // Reading as DateOnly throws
+        var actDateOnlyPositive = () => reader.GetFieldValue<DateOnly>(0);
+        actDateOnlyPositive.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBDateOnly*");
+        var actDateOnlyNegative = () => reader.GetFieldValue<DateOnly>(1);
+        actDateOnlyNegative.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBDateOnly*");
+
+        // Reading as nullable DateOnly throws
+        var actNullableDateOnly = () => reader.GetFieldValue<DateOnly?>(0);
+        actNullableDateOnly.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBDateOnly*");
+#endif
+    }
+
+    private static void AssertInfinityTimestampValues(DuckDBDataReader reader, DuckDBType duckDBType)
+    {
+        bool IsFinite(DuckDBTimestampStruct timestamp)
+        {
+            return duckDBType switch
+            {
+                DuckDBType.TimestampNs => NativeMethods.DateTimeHelpers.DuckDBIsFiniteTimestampNs(timestamp),
+                DuckDBType.TimestampMs => NativeMethods.DateTimeHelpers.DuckDBIsFiniteTimestampMs(timestamp),
+                DuckDBType.TimestampS => NativeMethods.DateTimeHelpers.DuckDBIsFiniteTimestampS(timestamp),
+                _ => NativeMethods.DateTimeHelpers.DuckDBIsFiniteTimestamp(timestamp)
+            };
+        }
+
+        // Positive infinity
+        var positiveInfinity = reader.GetFieldValue<DuckDBTimestamp>(0);
+        positiveInfinity.Should().Be(DuckDBTimestamp.PositiveInfinity);
+        positiveInfinity.IsPositiveInfinity.Should().BeTrue();
+        positiveInfinity.IsInfinity.Should().BeTrue();
+        IsFinite(positiveInfinity.ToDuckDBTimestampStruct()).Should().BeFalse();
+
+        // Negative infinity
+        var negativeInfinity = reader.GetFieldValue<DuckDBTimestamp>(1);
+        negativeInfinity.Should().Be(DuckDBTimestamp.NegativeInfinity);
+        negativeInfinity.IsNegativeInfinity.Should().BeTrue();
+        negativeInfinity.IsInfinity.Should().BeTrue();
+        IsFinite(negativeInfinity.ToDuckDBTimestampStruct()).Should().BeFalse();
+
+        // Reading as DateTime throws
+        var actPositive = () => reader.GetDateTime(0);
+        actPositive.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBTimestamp*");
+        var actNegative = () => reader.GetDateTime(1);
+        actNegative.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBTimestamp*");
+
+        // Reading as nullable DateTime throws
+        var actNullable = () => reader.GetFieldValue<DateTime?>(0);
+        actNullable.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBTimestamp*");
+
+        // Reading as DateTimeOffset throws
+        var actOffsetPositive = () => reader.GetFieldValue<DateTimeOffset>(0);
+        actOffsetPositive.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBTimestamp*");
+        var actOffsetNegative = () => reader.GetFieldValue<DateTimeOffset>(1);
+        actOffsetNegative.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBTimestamp*");
+
+        // Reading as nullable DateTimeOffset throws
+        var actNullableOffset = () => reader.GetFieldValue<DateTimeOffset?>(0);
+        actNullableOffset.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBTimestamp*");
+    }
+
+    #endregion
+
     #region Native IsFinite Tests
 
     [Fact]
@@ -86,41 +178,19 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         using var reader = Command.ExecuteReader();
         reader.Read();
 
-        // Positive infinity
-        var positiveInfinity = reader.GetFieldValue<DuckDBDateOnly>(0);
-        positiveInfinity.Should().Be(DuckDBDateOnly.PositiveInfinity);
-        positiveInfinity.IsPositiveInfinity.Should().BeTrue();
-        positiveInfinity.IsInfinity.Should().BeTrue();
-        reader.GetFieldValue<DuckDBDateOnly>(0).Should().Be(DuckDBDateOnly.PositiveInfinity);
+        AssertInfinityDateValues(reader);
+    }
 
-        // Negative infinity
-        var negativeInfinity = reader.GetFieldValue<DuckDBDateOnly>(1);
-        negativeInfinity.Should().Be(DuckDBDateOnly.NegativeInfinity);
-        negativeInfinity.IsNegativeInfinity.Should().BeTrue();
-        negativeInfinity.IsInfinity.Should().BeTrue();
-        reader.GetFieldValue<DuckDBDateOnly>(1).Should().Be(DuckDBDateOnly.NegativeInfinity);
+    [Fact]
+    public void ReadInfinityDateWithParameters()
+    {
+        Command.CommandText = "SELECT $1::DATE, $2::DATE";
+        Command.Parameters.Add(new DuckDBParameter(DuckDBDateOnly.PositiveInfinity));
+        Command.Parameters.Add(new DuckDBParameter(DuckDBDateOnly.NegativeInfinity));
+        using var reader = Command.ExecuteReader();
+        reader.Read();
 
-        // Reading as DateTime throws
-        var actPositive = () => reader.GetDateTime(0);
-        actPositive.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBDateOnly*");
-        var actNegative = () => reader.GetDateTime(1);
-        actNegative.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBDateOnly*");
-
-        // Reading as nullable DateTime throws
-        var actNullablePositive = () => reader.GetFieldValue<DateTime?>(0);
-        actNullablePositive.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBDateOnly*");
-
-#if NET6_0_OR_GREATER
-        // Reading as DateOnly throws
-        var actDateOnlyPositive = () => reader.GetFieldValue<DateOnly>(0);
-        actDateOnlyPositive.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBDateOnly*");
-        var actDateOnlyNegative = () => reader.GetFieldValue<DateOnly>(1);
-        actDateOnlyNegative.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBDateOnly*");
-
-        // Reading as nullable DateOnly throws
-        var actNullableDateOnly = () => reader.GetFieldValue<DateOnly?>(0);
-        actNullableDateOnly.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBDateOnly*");
-#endif
+        AssertInfinityDateValues(reader);
     }
 
     #endregion
@@ -134,39 +204,19 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         using var reader = Command.ExecuteReader();
         reader.Read();
 
-        // Positive infinity
-        var positiveInfinity = reader.GetFieldValue<DuckDBTimestamp>(0);
-        positiveInfinity.Should().Be(DuckDBTimestamp.PositiveInfinity);
-        positiveInfinity.IsPositiveInfinity.Should().BeTrue();
-        positiveInfinity.IsInfinity.Should().BeTrue();
-        reader.GetFieldValue<DuckDBTimestamp>(0).Should().Be(DuckDBTimestamp.PositiveInfinity);
+        AssertInfinityTimestampValues(reader, DuckDBType.Timestamp);
+    }
 
-        // Negative infinity
-        var negativeInfinity = reader.GetFieldValue<DuckDBTimestamp>(1);
-        negativeInfinity.Should().Be(DuckDBTimestamp.NegativeInfinity);
-        negativeInfinity.IsNegativeInfinity.Should().BeTrue();
-        negativeInfinity.IsInfinity.Should().BeTrue();
-        reader.GetFieldValue<DuckDBTimestamp>(1).Should().Be(DuckDBTimestamp.NegativeInfinity);
+    [Fact]
+    public void ReadInfinityTimestampWithParameters()
+    {
+        Command.CommandText = "SELECT $1::TIMESTAMP, $2::TIMESTAMP";
+        Command.Parameters.Add(new DuckDBParameter(DuckDBTimestamp.PositiveInfinity));
+        Command.Parameters.Add(new DuckDBParameter(DuckDBTimestamp.NegativeInfinity));
+        using var reader = Command.ExecuteReader();
+        reader.Read();
 
-        // Reading as DateTime throws
-        var actPositive = () => reader.GetDateTime(0);
-        actPositive.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBTimestamp*");
-        var actNegative = () => reader.GetDateTime(1);
-        actNegative.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBTimestamp*");
-
-        // Reading as nullable DateTime throws
-        var actNullable = () => reader.GetFieldValue<DateTime?>(0);
-        actNullable.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBTimestamp*");
-
-        // Reading as DateTimeOffset throws
-        var actOffsetPositive = () => reader.GetFieldValue<DateTimeOffset>(0);
-        actOffsetPositive.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBTimestamp*");
-        var actOffsetNegative = () => reader.GetFieldValue<DateTimeOffset>(1);
-        actOffsetNegative.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBTimestamp*");
-
-        // Reading as nullable DateTimeOffset throws
-        var actNullableOffset = () => reader.GetFieldValue<DateTimeOffset?>(0);
-        actNullableOffset.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBTimestamp*");
+        AssertInfinityTimestampValues(reader, DuckDBType.Timestamp);
     }
 
     [Fact]
@@ -176,23 +226,19 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         using var reader = Command.ExecuteReader();
         reader.Read();
 
-        // Positive infinity
-        var positiveInfinity = reader.GetFieldValue<DuckDBTimestamp>(0);
-        positiveInfinity.IsPositiveInfinity.Should().BeTrue();
-        positiveInfinity.IsInfinity.Should().BeTrue();
-        reader.GetFieldValue<DuckDBTimestamp>(0).IsPositiveInfinity.Should().BeTrue();
+        AssertInfinityTimestampValues(reader, DuckDBType.TimestampNs);
+    }
 
-        // Negative infinity
-        var negativeInfinity = reader.GetFieldValue<DuckDBTimestamp>(1);
-        negativeInfinity.IsNegativeInfinity.Should().BeTrue();
-        negativeInfinity.IsInfinity.Should().BeTrue();
-        reader.GetFieldValue<DuckDBTimestamp>(1).IsNegativeInfinity.Should().BeTrue();
+    [Fact]
+    public void ReadInfinityTimestampNsWithParameters()
+    {
+        Command.CommandText = "SELECT $1::TIMESTAMP_NS, $2::TIMESTAMP_NS";
+        Command.Parameters.Add(new DuckDBParameter(DuckDBTimestamp.PositiveInfinity));
+        Command.Parameters.Add(new DuckDBParameter(DuckDBTimestamp.NegativeInfinity));
+        using var reader = Command.ExecuteReader();
+        reader.Read();
 
-        // Reading as DateTime throws
-        var actPositive = () => reader.GetDateTime(0);
-        actPositive.Should().Throw<InvalidOperationException>();
-        var actNegative = () => reader.GetDateTime(1);
-        actNegative.Should().Throw<InvalidOperationException>();
+        AssertInfinityTimestampValues(reader, DuckDBType.TimestampNs);
     }
 
     [Fact]
@@ -202,23 +248,19 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         using var reader = Command.ExecuteReader();
         reader.Read();
 
-        // Positive infinity
-        var positiveInfinity = reader.GetFieldValue<DuckDBTimestamp>(0);
-        positiveInfinity.IsPositiveInfinity.Should().BeTrue();
-        positiveInfinity.IsInfinity.Should().BeTrue();
-        reader.GetFieldValue<DuckDBTimestamp>(0).IsPositiveInfinity.Should().BeTrue();
+        AssertInfinityTimestampValues(reader, DuckDBType.TimestampMs);
+    }
 
-        // Negative infinity
-        var negativeInfinity = reader.GetFieldValue<DuckDBTimestamp>(1);
-        negativeInfinity.IsNegativeInfinity.Should().BeTrue();
-        negativeInfinity.IsInfinity.Should().BeTrue();
-        reader.GetFieldValue<DuckDBTimestamp>(1).IsNegativeInfinity.Should().BeTrue();
+    [Fact]
+    public void ReadInfinityTimestampMsWithParameters()
+    {
+        Command.CommandText = "SELECT $1::TIMESTAMP_MS, $2::TIMESTAMP_MS";
+        Command.Parameters.Add(new DuckDBParameter(DuckDBTimestamp.PositiveInfinity));
+        Command.Parameters.Add(new DuckDBParameter(DuckDBTimestamp.NegativeInfinity));
+        using var reader = Command.ExecuteReader();
+        reader.Read();
 
-        // Reading as DateTime throws
-        var actPositive = () => reader.GetDateTime(0);
-        actPositive.Should().Throw<InvalidOperationException>();
-        var actNegative = () => reader.GetDateTime(1);
-        actNegative.Should().Throw<InvalidOperationException>();
+        AssertInfinityTimestampValues(reader, DuckDBType.TimestampMs);
     }
 
     [Fact]
@@ -228,23 +270,19 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         using var reader = Command.ExecuteReader();
         reader.Read();
 
-        // Positive infinity
-        var positiveInfinity = reader.GetFieldValue<DuckDBTimestamp>(0);
-        positiveInfinity.IsPositiveInfinity.Should().BeTrue();
-        positiveInfinity.IsInfinity.Should().BeTrue();
-        reader.GetFieldValue<DuckDBTimestamp>(0).IsPositiveInfinity.Should().BeTrue();
+        AssertInfinityTimestampValues(reader, DuckDBType.TimestampS);
+    }
 
-        // Negative infinity
-        var negativeInfinity = reader.GetFieldValue<DuckDBTimestamp>(1);
-        negativeInfinity.IsNegativeInfinity.Should().BeTrue();
-        negativeInfinity.IsInfinity.Should().BeTrue();
-        reader.GetFieldValue<DuckDBTimestamp>(1).IsNegativeInfinity.Should().BeTrue();
+    [Fact]
+    public void ReadInfinityTimestampSWithParameters()
+    {
+        Command.CommandText = "SELECT $1::TIMESTAMP_S, $2::TIMESTAMP_S";
+        Command.Parameters.Add(new DuckDBParameter(DuckDBTimestamp.PositiveInfinity));
+        Command.Parameters.Add(new DuckDBParameter(DuckDBTimestamp.NegativeInfinity));
+        using var reader = Command.ExecuteReader();
+        reader.Read();
 
-        // Reading as DateTime throws
-        var actPositive = () => reader.GetDateTime(0);
-        actPositive.Should().Throw<InvalidOperationException>();
-        var actNegative = () => reader.GetDateTime(1);
-        actNegative.Should().Throw<InvalidOperationException>();
+        AssertInfinityTimestampValues(reader, DuckDBType.TimestampS);
     }
 
     [Fact]
@@ -254,29 +292,19 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         using var reader = Command.ExecuteReader();
         reader.Read();
 
-        // Positive infinity
-        var positiveInfinity = reader.GetFieldValue<DuckDBTimestamp>(0);
-        positiveInfinity.IsPositiveInfinity.Should().BeTrue();
-        positiveInfinity.IsInfinity.Should().BeTrue();
-        reader.GetFieldValue<DuckDBTimestamp>(0).IsPositiveInfinity.Should().BeTrue();
+        AssertInfinityTimestampValues(reader, DuckDBType.TimestampTz);
+    }
 
-        // Negative infinity
-        var negativeInfinity = reader.GetFieldValue<DuckDBTimestamp>(1);
-        negativeInfinity.IsNegativeInfinity.Should().BeTrue();
-        negativeInfinity.IsInfinity.Should().BeTrue();
-        reader.GetFieldValue<DuckDBTimestamp>(1).IsNegativeInfinity.Should().BeTrue();
+    [Fact]
+    public void ReadInfinityTimestampTzWithParameters()
+    {
+        Command.CommandText = "SELECT $1::TIMESTAMPTZ, $2::TIMESTAMPTZ";
+        Command.Parameters.Add(new DuckDBParameter(DuckDBTimestamp.PositiveInfinity));
+        Command.Parameters.Add(new DuckDBParameter(DuckDBTimestamp.NegativeInfinity));
+        using var reader = Command.ExecuteReader();
+        reader.Read();
 
-        // Reading as DateTime throws
-        var actPositive = () => reader.GetDateTime(0);
-        actPositive.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBTimestamp*");
-        var actNegative = () => reader.GetDateTime(1);
-        actNegative.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBTimestamp*");
-
-        // Reading as DateTimeOffset throws
-        var actOffsetPositive = () => reader.GetFieldValue<DateTimeOffset>(0);
-        actOffsetPositive.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBTimestamp*");
-        var actOffsetNegative = () => reader.GetFieldValue<DateTimeOffset>(1);
-        actOffsetNegative.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBTimestamp*");
+        AssertInfinityTimestampValues(reader, DuckDBType.TimestampTz);
     }
 
     #endregion
