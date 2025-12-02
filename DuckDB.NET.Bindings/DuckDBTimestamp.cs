@@ -75,4 +75,7 @@ public readonly struct DuckDBTimestamp(DuckDBDateOnly date, DuckDBTimeOnly time)
 
         return NativeMethods.DateTimeHelpers.DuckDBToTimestamp(this);
     }
+
+    public static implicit operator DateTime(DuckDBTimestamp timestamp) => timestamp.ToDateTime();
+    public static implicit operator DuckDBTimestamp(DateTime timestamp) => DuckDBTimestamp.FromDateTime(timestamp);
 }
