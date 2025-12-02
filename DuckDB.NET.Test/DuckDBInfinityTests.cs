@@ -27,6 +27,10 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         reader.GetFieldValue<DuckDBDateOnly>(1).Should().Be(DuckDBDateOnly.NegativeInfinity);
         NativeMethods.DateTimeHelpers.DuckDBIsFiniteDate(negativeInfinity.ToDuckDBDate()).Should().BeFalse();
 
+        // isinf() function results
+        reader.GetBoolean(2).Should().BeTrue("isinf() should return true for positive infinity date");
+        reader.GetBoolean(3).Should().BeTrue("isinf() should return true for negative infinity date");
+
         // Reading as DateTime throws
         var actPositive = () => reader.GetDateTime(0);
         actPositive.Should().Throw<InvalidOperationException>().WithMessage("*infinite*DuckDBDateOnly*");
@@ -76,6 +80,10 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         negativeInfinity.IsNegativeInfinity.Should().BeTrue();
         negativeInfinity.IsInfinity.Should().BeTrue();
         IsFinite(negativeInfinity.ToDuckDBTimestampStruct()).Should().BeFalse();
+
+        // isinf() function results
+        reader.GetBoolean(2).Should().BeTrue("isinf() should return true for positive infinity timestamp");
+        reader.GetBoolean(3).Should().BeTrue("isinf() should return true for negative infinity timestamp");
 
         // Reading as DateTime throws
         var actPositive = () => reader.GetDateTime(0);
@@ -174,7 +182,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void ReadInfinityDate()
     {
-        Command.CommandText = "SELECT 'infinity'::DATE, '-infinity'::DATE";
+        Command.CommandText = "SELECT 'infinity'::DATE, '-infinity'::DATE, isinf('infinity'::DATE), isinf('-infinity'::DATE)";
         using var reader = Command.ExecuteReader();
         reader.Read();
 
@@ -184,7 +192,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void ReadInfinityDateWithParameters()
     {
-        Command.CommandText = "SELECT $1::DATE, $2::DATE";
+        Command.CommandText = "SELECT $1::DATE, $2::DATE, isinf($1::DATE), isinf($2::DATE)";
         Command.Parameters.Add(new DuckDBParameter(DuckDBDateOnly.PositiveInfinity));
         Command.Parameters.Add(new DuckDBParameter(DuckDBDateOnly.NegativeInfinity));
         using var reader = Command.ExecuteReader();
@@ -200,7 +208,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void ReadInfinityTimestamp()
     {
-        Command.CommandText = "SELECT 'infinity'::TIMESTAMP, '-infinity'::TIMESTAMP";
+        Command.CommandText = "SELECT 'infinity'::TIMESTAMP, '-infinity'::TIMESTAMP, isinf('infinity'::TIMESTAMP), isinf('-infinity'::TIMESTAMP)";
         using var reader = Command.ExecuteReader();
         reader.Read();
 
@@ -210,7 +218,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void ReadInfinityTimestampWithParameters()
     {
-        Command.CommandText = "SELECT $1::TIMESTAMP, $2::TIMESTAMP";
+        Command.CommandText = "SELECT $1::TIMESTAMP, $2::TIMESTAMP, isinf($1::TIMESTAMP), isinf($2::TIMESTAMP)";
         Command.Parameters.Add(new DuckDBParameter(DuckDBTimestamp.PositiveInfinity));
         Command.Parameters.Add(new DuckDBParameter(DuckDBTimestamp.NegativeInfinity));
         using var reader = Command.ExecuteReader();
@@ -222,7 +230,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void ReadInfinityTimestampNs()
     {
-        Command.CommandText = "SELECT 'infinity'::TIMESTAMP_NS, '-infinity'::TIMESTAMP_NS";
+        Command.CommandText = "SELECT 'infinity'::TIMESTAMP_NS, '-infinity'::TIMESTAMP_NS, isinf('infinity'::TIMESTAMP_NS), isinf('-infinity'::TIMESTAMP_NS)";
         using var reader = Command.ExecuteReader();
         reader.Read();
 
@@ -232,7 +240,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void ReadInfinityTimestampNsWithParameters()
     {
-        Command.CommandText = "SELECT $1::TIMESTAMP_NS, $2::TIMESTAMP_NS";
+        Command.CommandText = "SELECT $1::TIMESTAMP_NS, $2::TIMESTAMP_NS, isinf($1::TIMESTAMP_NS), isinf($2::TIMESTAMP_NS)";
         Command.Parameters.Add(new DuckDBParameter(DuckDBTimestamp.PositiveInfinity));
         Command.Parameters.Add(new DuckDBParameter(DuckDBTimestamp.NegativeInfinity));
         using var reader = Command.ExecuteReader();
@@ -244,7 +252,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void ReadInfinityTimestampMs()
     {
-        Command.CommandText = "SELECT 'infinity'::TIMESTAMP_MS, '-infinity'::TIMESTAMP_MS";
+        Command.CommandText = "SELECT 'infinity'::TIMESTAMP_MS, '-infinity'::TIMESTAMP_MS, isinf('infinity'::TIMESTAMP_MS), isinf('-infinity'::TIMESTAMP_MS)";
         using var reader = Command.ExecuteReader();
         reader.Read();
 
@@ -254,7 +262,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void ReadInfinityTimestampMsWithParameters()
     {
-        Command.CommandText = "SELECT $1::TIMESTAMP_MS, $2::TIMESTAMP_MS";
+        Command.CommandText = "SELECT $1::TIMESTAMP_MS, $2::TIMESTAMP_MS, isinf($1::TIMESTAMP_MS), isinf($2::TIMESTAMP_MS)";
         Command.Parameters.Add(new DuckDBParameter(DuckDBTimestamp.PositiveInfinity));
         Command.Parameters.Add(new DuckDBParameter(DuckDBTimestamp.NegativeInfinity));
         using var reader = Command.ExecuteReader();
@@ -266,7 +274,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void ReadInfinityTimestampS()
     {
-        Command.CommandText = "SELECT 'infinity'::TIMESTAMP_S, '-infinity'::TIMESTAMP_S";
+        Command.CommandText = "SELECT 'infinity'::TIMESTAMP_S, '-infinity'::TIMESTAMP_S, isinf('infinity'::TIMESTAMP_S), isinf('-infinity'::TIMESTAMP_S)";
         using var reader = Command.ExecuteReader();
         reader.Read();
 
@@ -276,7 +284,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void ReadInfinityTimestampSWithParameters()
     {
-        Command.CommandText = "SELECT $1::TIMESTAMP_S, $2::TIMESTAMP_S";
+        Command.CommandText = "SELECT $1::TIMESTAMP_S, $2::TIMESTAMP_S, isinf($1::TIMESTAMP_S), isinf($2::TIMESTAMP_S)";
         Command.Parameters.Add(new DuckDBParameter(DuckDBTimestamp.PositiveInfinity));
         Command.Parameters.Add(new DuckDBParameter(DuckDBTimestamp.NegativeInfinity));
         using var reader = Command.ExecuteReader();
@@ -288,7 +296,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void ReadInfinityTimestampTz()
     {
-        Command.CommandText = "SELECT 'infinity'::TIMESTAMPTZ, '-infinity'::TIMESTAMPTZ";
+        Command.CommandText = "SELECT 'infinity'::TIMESTAMPTZ, '-infinity'::TIMESTAMPTZ, isinf('infinity'::TIMESTAMPTZ), isinf('-infinity'::TIMESTAMPTZ)";
         using var reader = Command.ExecuteReader();
         reader.Read();
 
@@ -298,7 +306,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void ReadInfinityTimestampTzWithParameters()
     {
-        Command.CommandText = "SELECT $1::TIMESTAMPTZ, $2::TIMESTAMPTZ";
+        Command.CommandText = "SELECT $1::TIMESTAMPTZ, $2::TIMESTAMPTZ, isinf($1::TIMESTAMPTZ), isinf($2::TIMESTAMPTZ)";
         Command.Parameters.Add(new DuckDBParameter(DuckDBTimestamp.PositiveInfinity));
         Command.Parameters.Add(new DuckDBParameter(DuckDBTimestamp.NegativeInfinity));
         using var reader = Command.ExecuteReader();
