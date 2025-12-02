@@ -101,7 +101,7 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
         {
             value.Dispose();
         }
-        
+
         NativeMethods.Value.DuckDBDestroyValue(ref handle);
         return true;
     }
@@ -140,26 +140,26 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
 
             DuckDBType.Float => Cast(NativeMethods.Value.DuckDBGetFloat(this)),
             DuckDBType.Double => Cast(NativeMethods.Value.DuckDBGetDouble(this)),
-            
+
             DuckDBType.Decimal => Cast(decimal.Parse(NativeMethods.Value.DuckDBGetVarchar(this), NumberStyles.Any, CultureInfo.InvariantCulture)),
-            
+
             DuckDBType.Uuid => Cast(new Guid(NativeMethods.Value.DuckDBGetVarchar(this))),
-            
+
             DuckDBType.HugeInt => Cast(NativeMethods.Value.DuckDBGetHugeInt(this).ToBigInteger()),
             DuckDBType.UnsignedHugeInt => Cast(NativeMethods.Value.DuckDBGetUHugeInt(this).ToBigInteger()),
-            
+
             DuckDBType.Varchar => Cast(NativeMethods.Value.DuckDBGetVarchar(this)),
 
 #if NET6_0_OR_GREATER
-            DuckDBType.Date => Cast((DateOnly)NativeMethods.DateTimeHelpers.DuckDBFromDate(NativeMethods.Value.DuckDBGetDate(this))),
+            DuckDBType.Date => Cast((DateOnly)DuckDBDateOnly.FromDuckDBDate(NativeMethods.Value.DuckDBGetDate(this))),
             DuckDBType.Time => Cast((TimeOnly)NativeMethods.DateTimeHelpers.DuckDBFromTime(NativeMethods.Value.DuckDBGetTime(this))),
 #else
-            DuckDBType.Date => Cast(NativeMethods.DateTimeHelpers.DuckDBFromDate(NativeMethods.Value.DuckDBGetDate(this)).ToDateTime()),
+            DuckDBType.Date => Cast(DuckDBDateOnly.FromDuckDBDate(NativeMethods.Value.DuckDBGetDate(this)).ToDateTime()),
             DuckDBType.Time => Cast(NativeMethods.DateTimeHelpers.DuckDBFromTime(NativeMethods.Value.DuckDBGetTime(this)).ToDateTime()),
 #endif
             //DuckDBType.TimeTz => expr,
             DuckDBType.Interval => Cast((TimeSpan)NativeMethods.Value.DuckDBGetInterval(this)),
-            DuckDBType.Timestamp => Cast(NativeMethods.DateTimeHelpers.DuckDBFromTimestamp(NativeMethods.Value.DuckDBGetTimestamp(this)).ToDateTime()),
+            DuckDBType.Timestamp => Cast(DuckDBTimestamp.FromDuckDBTimestampStruct(NativeMethods.Value.DuckDBGetTimestamp(this)).ToDateTime()),
             //DuckDBType.TimestampS => expr,
             //DuckDBType.TimestampMs => expr,
             //DuckDBType.TimestampNs => expr,

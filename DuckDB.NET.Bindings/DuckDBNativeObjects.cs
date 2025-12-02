@@ -115,7 +115,14 @@ public struct DuckDBResult
 [StructLayout(LayoutKind.Sequential)]
 public struct DuckDBDate
 {
+    public static readonly DuckDBDate PositiveInfinity = new() { Days = int.MaxValue };
+    public static readonly DuckDBDate NegativeInfinity = new() { Days = -int.MaxValue };
+
     public int Days { get; set; }
+
+    public bool IsInfinity => IsPositiveInfinity || IsNegativeInfinity;
+    public bool IsPositiveInfinity => Days == int.MaxValue;
+    public bool IsNegativeInfinity => Days == -int.MaxValue;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -140,7 +147,14 @@ public struct DuckDBTimeTz
 [StructLayout(LayoutKind.Sequential)]
 public struct DuckDBTimestampStruct
 {
+    public static readonly DuckDBTimestampStruct PositiveInfinity = new() { Micros = long.MaxValue };
+    public static readonly DuckDBTimestampStruct NegativeInfinity = new() { Micros = -long.MaxValue };
+
     public long Micros { get; set; }
+
+    public bool IsInfinity => IsPositiveInfinity || IsNegativeInfinity;
+    public bool IsPositiveInfinity => Micros == long.MaxValue;
+    public bool IsNegativeInfinity => Micros == -long.MaxValue;
 }
 
 [StructLayout(LayoutKind.Sequential)]
