@@ -82,6 +82,8 @@ internal static class DateTimeExtensions
         return (result, additionalTicks);
     }
 
+    /// Uses the native method corresponding to the timestamp type, as opposed
+    /// to comparing with a constant directly.
     public static bool IsFinite(this DuckDBTimestampStruct timestamp, DuckDBType duckDBType)
     {
         return duckDBType switch
@@ -91,10 +93,5 @@ internal static class DateTimeExtensions
             DuckDBType.TimestampS => NativeMethods.DateTimeHelpers.DuckDBIsFiniteTimestampS(timestamp),
             _ => NativeMethods.DateTimeHelpers.DuckDBIsFiniteTimestamp(timestamp)
         };
-    }
-
-    public static bool IsPositiveInfinity(this DuckDBTimestampStruct timestamp)
-    {
-        return timestamp.Micros == long.MaxValue;
     }
 }
