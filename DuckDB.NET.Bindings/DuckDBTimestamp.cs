@@ -10,19 +10,17 @@ public readonly struct DuckDBTimestamp(DuckDBDateOnly date, DuckDBTimeOnly time)
     /// Represents positive infinity for DuckDB timestamps.
     /// </summary>
     public static readonly DuckDBTimestamp PositiveInfinity =
-        // The +infinity date value is not representable by the timestamp type,
-        // so this constant should never occur in normal usage
-        // 294247-01-10 04:00:54
-        new(new DuckDBDateOnly(294247, 1, 10), new DuckDBTimeOnly(4, 0, 54));
+        // This is the max timestamp value + 1 microsecond (because timestamps are represented as an int64 of microseconds)
+        // Theoretically: '294247-01-10 04:00:54.775806'::timestamp + INTERVAL '1 microsecond'
+        new(new DuckDBDateOnly(294247, 1, 10), new DuckDBTimeOnly(4, 0, 54, 775807));
 
     /// <summary>
     /// Represents negative infinity for DuckDB timestamps.
     /// </summary>
     public static readonly DuckDBTimestamp NegativeInfinity =
-        // The -infinity date value is not representable by the timestamp type,
-        // so this constant should never occur in normal usage
-        // 290309-12-22 (BC) 00:00:00
-        new(new DuckDBDateOnly(-290308, 12, 21), new DuckDBTimeOnly(0, 0, 0));
+        // This is the min timestamp value - 1 microsecond (because timestamps are represented as an int64 of microseconds)
+        // Theoretically: '290309-12-22 (BC) 00:00:00.000000'::timestamp - INTERVAL '1 microsecond'
+        new(new DuckDBDateOnly(-290308, 12, 21), new DuckDBTimeOnly(23, 59, 59, 999999));
 
     public DuckDBDateOnly Date { get; } = date;
     public DuckDBTimeOnly Time { get; } = time;

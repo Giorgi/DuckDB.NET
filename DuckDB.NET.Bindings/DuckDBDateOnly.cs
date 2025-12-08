@@ -11,8 +11,9 @@ public readonly struct DuckDBDateOnly(int year, byte month, byte day)
     /// </summary>
     public static readonly DuckDBDateOnly PositiveInfinity =
         // This is the value returned by DuckDB for positive infinity dates when
-        // passed to duckdb_from_date, and it is used for backwards compatibility
-        // 5881580-07-10
+        // passed to duckdb_from_date, and it is used for backwards compatibility.
+        // It is theoretically equal to the max date value plus one day:
+        // '5881580-07-10'::date + 1
         new(5881580, 7, 11);
 
     /// <summary>
@@ -21,7 +22,8 @@ public readonly struct DuckDBDateOnly(int year, byte month, byte day)
     public static readonly DuckDBDateOnly NegativeInfinity =
         // This is the value returned by DuckDB for negative infinity dates when
         // passed to duckdb_from_date, and it is used for backwards compatibility.
-        // 5877642-06-25 (BC)
+        // It is theoretically equal to the min date value minus one day:
+        // '5877642-06-25 (BC)'::date - 1
         new(-5877641, 6, 24);
 
     public int Year { get; } = year;
