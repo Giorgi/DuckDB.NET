@@ -12,7 +12,8 @@ public readonly struct DuckDBTimestamp(DuckDBDateOnly date, DuckDBTimeOnly time)
     public static readonly DuckDBTimestamp PositiveInfinity =
         // The +infinity date value is not representable by the timestamp type,
         // so this constant should never occur in normal usage
-        new(DuckDBDateOnly.PositiveInfinity, new DuckDBTimeOnly(0, 0, 0));
+        // 294247-01-10 04:00:54
+        new(new DuckDBDateOnly(294247, 1, 10), new DuckDBTimeOnly(4, 0, 54));
 
     /// <summary>
     /// Represents negative infinity for DuckDB timestamps.
@@ -20,7 +21,8 @@ public readonly struct DuckDBTimestamp(DuckDBDateOnly date, DuckDBTimeOnly time)
     public static readonly DuckDBTimestamp NegativeInfinity =
         // The -infinity date value is not representable by the timestamp type,
         // so this constant should never occur in normal usage
-        new(DuckDBDateOnly.NegativeInfinity, new DuckDBTimeOnly(0, 0, 0));
+        // 290309-12-22 (BC) 00:00:00
+        new(new DuckDBDateOnly(-290308, 12, 21), new DuckDBTimeOnly(0, 0, 0));
 
     public DuckDBDateOnly Date { get; } = date;
     public DuckDBTimeOnly Time { get; } = time;
@@ -28,17 +30,17 @@ public readonly struct DuckDBTimestamp(DuckDBDateOnly date, DuckDBTimeOnly time)
     /// <summary>
     /// Returns true if this timestamp represents positive or negative infinity.
     /// </summary>
-    public bool IsInfinity => Date.IsInfinity;
+    public bool IsInfinity => IsPositiveInfinity || IsNegativeInfinity;
 
     /// <summary>
     /// Returns true if this timestamp represents positive infinity.
     /// </summary>
-    public bool IsPositiveInfinity => Date.IsPositiveInfinity;
+    public bool IsPositiveInfinity => Equals(PositiveInfinity);
 
     /// <summary>
     /// Returns true if this timestamp represents negative infinity.
     /// </summary>
-    public bool IsNegativeInfinity => Date.IsNegativeInfinity;
+    public bool IsNegativeInfinity => Equals(NegativeInfinity);
 
     public DateTime ToDateTime()
     {
