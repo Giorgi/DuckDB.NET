@@ -3,9 +3,13 @@
   <PropertyGroup>
     <Description>DuckDB ADO.NET Provider for C#.</Description>
     <PackageReleaseNotes>
-	  Improved support for parameter binding in parameterized statements.
+	  Added support for handling ± dates and timestamps. Credits to @rynoV for the PR
 
-Updated to DuckDB v1.4.2
+    Improved support for handling transaction abortions. Credits to @rynoV for the PR.
+
+    Fixed decimal parameter handling in prepared statements. Credits to @rynoV for the PR.
+
+Updated to DuckDB v1.4.3
     </PackageReleaseNotes>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>

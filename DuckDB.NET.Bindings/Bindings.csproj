@@ -3,6 +3,7 @@
   <PropertyGroup>
     <Description>DuckDB Bindings for C#.</Description>
     <PackageReleaseNotes>
+	  Added support for handling ± dates and timestamps. Credits to @rynoV for the PR
 
 Updated to DuckDB v1.4.3
     </PackageReleaseNotes>
