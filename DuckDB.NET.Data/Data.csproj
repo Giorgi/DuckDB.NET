@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Description>DuckDB ADO.NET Provider for C#.</Description>
     <PackageReleaseNotes>
-	  Added support for handling ± dates and timestamps. Credits to @rynoV for the PR
+	  Added support for handling ± infinity dates and timestamps. Credits to @rynoV for the PR
 
     Improved support for handling transaction abortions. Credits to @rynoV for the PR.
 
