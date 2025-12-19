@@ -2,6 +2,7 @@
 using DuckDB.NET.Data.DataChunk.Writer;
 using DuckDB.NET.Native;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
@@ -38,6 +39,11 @@ public class DuckDBAppender : IDisposable
 
         dataChunk = NativeMethods.DataChunks.DuckDBCreateDataChunk(logicalTypeHandles, columnCount);
     }
+
+    /// <summary>
+    /// Gets the logical types of the columns in the appender.
+    /// </summary>
+    internal IReadOnlyList<DuckDBLogicalType> LogicalTypes => logicalTypes;
 
     public IDuckDBAppenderRow CreateRow()
     {
