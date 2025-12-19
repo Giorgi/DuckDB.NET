@@ -28,14 +28,14 @@ internal static class DateTimeExtensions
 
     public static DuckDBTimestampStruct ToTimestampStruct(this DateTimeOffset value)
     {
-        var timestamp = NativeMethods.DateTimeHelpers.DuckDBToTimestamp(DuckDBTimestamp.FromDateTime(value.UtcDateTime));
+        var timestamp = DuckDBTimestamp.FromDateTime(value.UtcDateTime).ToDuckDBTimestampStruct();
 
         return timestamp;
     }
 
     public static DuckDBTimestampStruct ToTimestampStruct(this DateTime value, DuckDBType duckDBType)
     {
-        var timestamp = NativeMethods.DateTimeHelpers.DuckDBToTimestamp(DuckDBTimestamp.FromDateTime(value));
+        var timestamp = DuckDBTimestamp.FromDateTime(value).ToDuckDBTimestampStruct();
 
         if (duckDBType == DuckDBType.TimestampNs)
         {
@@ -77,8 +77,21 @@ internal static class DateTimeExtensions
             timestamp.Micros *= 1000000;
         }
 
-        var result = NativeMethods.DateTimeHelpers.DuckDBFromTimestamp(timestamp);
+        var result = DuckDBTimestamp.FromDuckDBTimestampStruct(timestamp);
 
         return (result, additionalTicks);
+    }
+
+    /// Uses the native method corresponding to the timestamp type, as opposed
+    /// to comparing with a constant directly.
+    public static bool IsFinite(this DuckDBTimestampStruct timestamp, DuckDBType duckDBType)
+    {
+        return duckDBType switch
+        {
+            DuckDBType.TimestampNs => NativeMethods.DateTimeHelpers.DuckDBIsFiniteTimestampNs(timestamp),
+            DuckDBType.TimestampMs => NativeMethods.DateTimeHelpers.DuckDBIsFiniteTimestampMs(timestamp),
+            DuckDBType.TimestampS => NativeMethods.DateTimeHelpers.DuckDBIsFiniteTimestampS(timestamp),
+            _ => NativeMethods.DateTimeHelpers.DuckDBIsFiniteTimestamp(timestamp)
+        };
     }
 }

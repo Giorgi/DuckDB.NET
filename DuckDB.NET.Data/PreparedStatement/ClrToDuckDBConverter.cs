@@ -37,9 +37,9 @@ internal static class ClrToDuckDBConverter
         { DbType.Date, value =>
             {
 #if NET6_0_OR_GREATER
-                var date = NativeMethods.DateTimeHelpers.DuckDBToDate(value is DateOnly dateOnly ? (DuckDBDateOnly)dateOnly : (DuckDBDateOnly)value);
+                var date = (value is DateOnly dateOnly ? (DuckDBDateOnly)dateOnly : (DuckDBDateOnly)value).ToDuckDBDate();
 #else
-                var date = NativeMethods.DateTimeHelpers.DuckDBToDate((DuckDBDateOnly)value);
+                var date = ((DuckDBDateOnly)value).ToDuckDBDate();
 #endif
                 return NativeMethods.Value.DuckDBCreateDate(date);
             }
@@ -54,7 +54,12 @@ internal static class ClrToDuckDBConverter
                 return NativeMethods.Value.DuckDBCreateTime(time);
             }
         },
-        { DbType.DateTime, value => NativeMethods.Value.DuckDBCreateTimestamp(((DateTime)value).ToTimestampStruct(DuckDBType.Timestamp))},
+        { DbType.DateTime, value =>
+            {
+                var dateTime = (value is DateTime dt ? (DuckDBTimestamp)dt : (DuckDBTimestamp)value).ToDuckDBTimestampStruct();
+                return NativeMethods.Value.DuckDBCreateTimestamp(dateTime);
+            }
+        },
         { DbType.DateTimeOffset, value => NativeMethods.Value.DuckDBCreateTimestampTz(((DateTimeOffset)value).ToTimestampStruct()) },
     };
 
@@ -95,12 +100,12 @@ internal static class ClrToDuckDBConverter
             (DuckDBType.TimestampTz, DateTime value) => NativeMethods.Value.DuckDBCreateTimestampTz(value.ToTimestampStruct(duckDBType)),
             (DuckDBType.TimestampTz, DateTimeOffset value) => NativeMethods.Value.DuckDBCreateTimestampTz(value.ToTimestampStruct()),
             (DuckDBType.Interval, TimeSpan value) => NativeMethods.Value.DuckDBCreateInterval(value),
-            (DuckDBType.Date, DateTime value) => NativeMethods.Value.DuckDBCreateDate(NativeMethods.DateTimeHelpers.DuckDBToDate((DuckDBDateOnly)value)),
-            (DuckDBType.Date, DuckDBDateOnly value) => NativeMethods.Value.DuckDBCreateDate(NativeMethods.DateTimeHelpers.DuckDBToDate(value)),
+            (DuckDBType.Date, DateTime value) => NativeMethods.Value.DuckDBCreateDate(((DuckDBDateOnly)value).ToDuckDBDate()),
+            (DuckDBType.Date, DuckDBDateOnly value) => NativeMethods.Value.DuckDBCreateDate(value.ToDuckDBDate()),
             (DuckDBType.Time, DateTime value) => NativeMethods.Value.DuckDBCreateTime(NativeMethods.DateTimeHelpers.DuckDBToTime((DuckDBTimeOnly)value)),
             (DuckDBType.Time, DuckDBTimeOnly value) => NativeMethods.Value.DuckDBCreateTime(NativeMethods.DateTimeHelpers.DuckDBToTime(value)),
 #if NET6_0_OR_GREATER
-            (DuckDBType.Date, DateOnly value) => NativeMethods.Value.DuckDBCreateDate(NativeMethods.DateTimeHelpers.DuckDBToDate(value)),
+            (DuckDBType.Date, DateOnly value) => NativeMethods.Value.DuckDBCreateDate(((DuckDBDateOnly)value).ToDuckDBDate()),
             (DuckDBType.Time, TimeOnly value) => NativeMethods.Value.DuckDBCreateTime(NativeMethods.DateTimeHelpers.DuckDBToTime(value)),
 #endif
             (DuckDBType.TimeTz, DateTimeOffset value) => NativeMethods.Value.DuckDBCreateTimeTz(value.ToTimeTzStruct()),
@@ -159,5 +164,22 @@ internal static class ClrToDuckDBConverter
         return NativeMethods.Value.DuckDBCreateVarchar(handle);
     }
 
-    private static DuckDBValue DecimalToDuckDBValue(decimal value) => StringToDuckDBValue(value.ToString(CultureInfo.InvariantCulture));
+    private static DuckDBValue DecimalToDuckDBValue(decimal value)
+    {
+        var bits = decimal.GetBits(value);
+        var scale = (byte)((bits[3] >> 16) & 0x7F);
+
+        var power = Math.Pow(10, scale);
+
+        var integralPart = decimal.Truncate(value);
+        var fractionalPart = value - integralPart;
+
+        var result = BigInteger.Multiply(new BigInteger(integralPart), new BigInteger(power));
+
+        result += new BigInteger(decimal.Multiply(fractionalPart, (decimal)power));
+
+        var width = integralPart == 0 ? scale + 1 : (int)Math.Floor(BigInteger.Log10(BigInteger.Abs(result))) + 1;
+
+        return NativeMethods.Value.DuckDBCreateDecimal(new DuckDBDecimal((byte)width, scale, new DuckDBHugeInt(result)));
+    }
 }

@@ -3,7 +3,7 @@ branches:
     increment: None
   main:
     increment: None
+    mode: ContinuousDeployment
 ignore:
   sha: []
 merge-message-formats: {}
-next-version: 1.3.0

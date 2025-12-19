@@ -115,7 +115,22 @@ public struct DuckDBResult
 [StructLayout(LayoutKind.Sequential)]
 public struct DuckDBDate
 {
+    /// <summary>
+    /// Represents DuckDB's positive infinity date value.
+    /// This is the value used in the DuckDB source code for +infinity dates.
+    /// </summary>
+    public static readonly DuckDBDate PositiveInfinity = new() { Days = int.MaxValue };
+    /// <summary>
+    /// Represents DuckDB's negative infinity date value.
+    /// This is the value used in the DuckDB source code for -infinity dates.
+    /// </summary>
+    public static readonly DuckDBDate NegativeInfinity = new() { Days = -int.MaxValue };
+
     public int Days { get; set; }
+
+    public bool IsInfinity => IsPositiveInfinity || IsNegativeInfinity;
+    public bool IsPositiveInfinity => Days == int.MaxValue;
+    public bool IsNegativeInfinity => Days == -int.MaxValue;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -140,7 +155,22 @@ public struct DuckDBTimeTz
 [StructLayout(LayoutKind.Sequential)]
 public struct DuckDBTimestampStruct
 {
+    /// <summary>
+    /// Represents DuckDB's positive infinity timestamp value.
+    /// This is the value used in the DuckDB source code for +infinity timestamps.
+    /// </summary>
+    public static readonly DuckDBTimestampStruct PositiveInfinity = new() { Micros = long.MaxValue };
+    /// <summary>
+    /// Represents DuckDB's negative infinity timestamp value.
+    /// This is the value used in the DuckDB source code for -infinity timestamps.
+    /// </summary>
+    public static readonly DuckDBTimestampStruct NegativeInfinity = new() { Micros = -long.MaxValue };
+
     public long Micros { get; set; }
+
+    public bool IsInfinity => IsPositiveInfinity || IsNegativeInfinity;
+    public bool IsPositiveInfinity => Micros == long.MaxValue;
+    public bool IsNegativeInfinity => Micros == -long.MaxValue;
 }
 
 [StructLayout(LayoutKind.Sequential)]

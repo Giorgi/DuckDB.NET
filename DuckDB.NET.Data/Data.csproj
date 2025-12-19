@@ -3,9 +3,13 @@
   <PropertyGroup>
     <Description>DuckDB ADO.NET Provider for C#.</Description>
     <PackageReleaseNotes>
-	  Added support for parameterless table-valued functions
+	  Added support for handling ± dates and timestamps. Credits to @rynoV for the PR
 
-Updated to DuckDB v1.3.0
+    Improved support for handling transaction abortions. Credits to @rynoV for the PR.
+
+    Fixed decimal parameter handling in prepared statements. Credits to @rynoV for the PR.
+
+Updated to DuckDB v1.4.3
     </PackageReleaseNotes>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
@@ -22,7 +26,7 @@ Updated to DuckDB v1.3.0
   </PropertyGroup>
 
   <ItemGroup Condition="'$(CI)' == 'true'">
-    <PackageReference Include="GitVersion.MsBuild" Version="5.11.1" PrivateAssets="all" />
+    <PackageReference Include="GitVersion.MsBuild" Version="6.4.0" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.0" />
