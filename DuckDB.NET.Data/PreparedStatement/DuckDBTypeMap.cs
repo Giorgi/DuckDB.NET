@@ -32,10 +32,8 @@ internal static class DuckDBTypeMap
         {typeof(DateTimeOffset), DbType.DateTimeOffset},
         {typeof(DuckDBDateOnly), DbType.Date},
         {typeof(DuckDBTimeOnly), DbType.Time},
-#if NET6_0_OR_GREATER
         {typeof(DateOnly), DbType.Date},
         {typeof(TimeOnly), DbType.Time},
-#endif
     };
 
     public static DbType GetDbTypeForValue(object? value)
@@ -45,13 +43,8 @@ internal static class DuckDBTypeMap
             return DbType.Object;
         }
 
-        var type = value!.GetType();
+        var type = value.GetType();
 
-        if (ClrToDbTypeMap.TryGetValue(type, out var dbType))
-        {
-            return dbType;
-        }
-
-        return DbType.Object;
+        return ClrToDbTypeMap.GetValueOrDefault(type, DbType.Object);
     }
 }

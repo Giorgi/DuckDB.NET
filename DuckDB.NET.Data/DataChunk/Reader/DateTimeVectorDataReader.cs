@@ -12,13 +12,11 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
     private static readonly Type DateTimeOffsetType = typeof(DateTimeOffset);
     private static readonly Type DateTimeOffsetNullableType = typeof(DateTimeOffset?);
 
-#if NET6_0_OR_GREATER
     private static readonly Type DateOnlyType = typeof(DateOnly);
     private static readonly Type DateOnlyNullableType = typeof(DateOnly?);
 
     private static readonly Type TimeOnlyType = typeof(TimeOnly);
     private static readonly Type TimeOnlyNullableType = typeof(TimeOnly?);
-#endif
 
     internal unsafe DateTimeVectorDataReader(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
@@ -37,12 +35,10 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
                     ThrowInfinityDateException();
                 }
 
-#if NET6_0_OR_GREATER
                 if (targetType == DateOnlyType || targetType == DateOnlyNullableType)
                 {
                     ThrowInfinityDateException();
                 }
-#endif
                 return (T)(object)dateOnly;
             }
 
@@ -52,13 +48,11 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
                 return (T)(object)dateTime;
             }
 
-#if NET6_0_OR_GREATER
             if (targetType == DateOnlyType || targetType == DateOnlyNullableType)
             {
                 var dateTime = (DateOnly)dateOnly;
                 return (T)(object)dateTime;
             }
-#endif
             return (T)(object)dateOnly;
         }
 
@@ -72,13 +66,11 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
                 return (T)(object)dateTime;
             }
 
-#if NET6_0_OR_GREATER
             if (targetType == TimeOnlyType || targetType == TimeOnlyNullableType)
             {
                 var dateTime = (TimeOnly)timeOnly;
                 return (T)(object)dateTime;
             }
-#endif
             return (T)(object)timeOnly;
         }
 
@@ -186,12 +178,10 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
                 ThrowInfinityDateException();
             }
 
-#if NET6_0_OR_GREATER
             if (targetType == DateOnlyType)
             {
                 ThrowInfinityDateException();
             }
-#endif
 
             return dateOnly;
         }
@@ -201,12 +191,10 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
             return (DateTime)dateOnly;
         }
 
-#if NET6_0_OR_GREATER
         if (targetType == DateOnlyType)
         {
             return (DateOnly)dateOnly;
         }
-#endif
 
         return dateOnly;
     }
@@ -219,12 +207,10 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
             return (DateTime)timeOnly;
         }
 
-#if NET6_0_OR_GREATER
         if (targetType == TimeOnlyType)
         {
             return (TimeOnly)timeOnly;
         }
-#endif
 
         return timeOnly;
     }

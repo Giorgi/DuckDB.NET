@@ -34,9 +34,7 @@ public class DuckDBCommand : DbCommand
 
     private string commandText = string.Empty;
 
-#if NET6_0_OR_GREATER
     [AllowNull]
-#endif
     [DefaultValue("")]
     public override string CommandText
     {
@@ -68,13 +66,7 @@ public class DuckDBCommand : DbCommand
         Connection = connection;
     }
 
-    public override void Cancel()
-    {
-        if (connection != null)
-        {
-            connection.NativeConnection.Interrupt();
-        }
-    }
+    public override void Cancel() => connection?.NativeConnection.Interrupt();
 
     public override int ExecuteNonQuery()
     {

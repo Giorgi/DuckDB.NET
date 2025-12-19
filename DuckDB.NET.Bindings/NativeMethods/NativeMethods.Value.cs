@@ -163,7 +163,7 @@ public partial class NativeMethods
 
         public static DuckDBValue DuckDBCreateListValue(DuckDBLogicalType logicalType, DuckDBValue[] values, int count)
         {
-            var duckDBValue = DuckDBCreateListValue(logicalType, values.Select(item => item.DangerousGetHandle()).ToArray(), count);
+            var duckDBValue = DuckDBCreateListValue(logicalType, [..values.Select(item => item.DangerousGetHandle())], count);
             
             duckDBValue.SetChildValues(values);
             
@@ -172,7 +172,7 @@ public partial class NativeMethods
 
         public static DuckDBValue DuckDBCreateArrayValue(DuckDBLogicalType logicalType, DuckDBValue[] values, int count)
         {
-            var duckDBValue = DuckDBCreateArrayValue(logicalType, values.Select(item => item.DangerousGetHandle()).ToArray(), count);
+            var duckDBValue = DuckDBCreateArrayValue(logicalType, [..values.Select(item => item.DangerousGetHandle())], count);
             
             duckDBValue.SetChildValues(values);
             

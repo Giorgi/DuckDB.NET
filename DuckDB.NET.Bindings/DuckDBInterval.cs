@@ -20,11 +20,7 @@ public readonly struct DuckDBInterval(int months, int days, ulong micros)
     }
     public static implicit operator DuckDBInterval(TimeSpan timeSpan) => FromTimeSpan(timeSpan);
 
-#if NET6_0_OR_GREATER
     public bool TryConvert([NotNullWhen(true)] out TimeSpan? timeSpan)
-#else
-    public bool TryConvert(out TimeSpan? timeSpan)
-#endif
     {
         (timeSpan, var exception) = ToTimeSpan(this);
         return exception is null;

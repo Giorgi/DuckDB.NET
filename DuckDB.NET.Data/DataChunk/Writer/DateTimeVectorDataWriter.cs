@@ -37,11 +37,9 @@ internal sealed unsafe class DateTimeVectorDataWriter(IntPtr vector, void* vecto
         return base.AppendDateTimeOffset(value, rowIndex);
     }
 
-#if NET6_0_OR_GREATER
     internal override bool AppendDateOnly(DateOnly value, ulong rowIndex) => AppendValueInternal(((DuckDBDateOnly)value).ToDuckDBDate(), rowIndex);
 
     internal override bool AppendTimeOnly(TimeOnly value, ulong rowIndex) => AppendValueInternal(NativeMethods.DateTimeHelpers.DuckDBToTime(value), rowIndex);
-#endif
 
     internal override bool AppendDateOnly(DuckDBDateOnly value, ulong rowIndex) => AppendValueInternal(value.ToDuckDBDate(), rowIndex);
 

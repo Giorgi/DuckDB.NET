@@ -35,10 +35,8 @@ internal static class TypeExtensions
         { typeof(Guid), DuckDBType.Uuid},
         { typeof(DateTime), DuckDBType.Timestamp},
         { typeof(TimeSpan), DuckDBType.Interval},
-#if NET6_0_OR_GREATER
         { typeof(DateOnly), DuckDBType.Date},
         { typeof(TimeOnly), DuckDBType.Time},
-#endif
         { typeof(DateTimeOffset), DuckDBType.TimestampTz},
         { typeof(BigInteger), DuckDBType.HugeInt},
         { typeof(string), DuckDBType.Varchar},
@@ -99,5 +97,5 @@ internal static class TypeExtensions
         throw new InvalidOperationException($"Cannot map type {type.FullName} to DuckDBType.");
     }
 
-    public static DuckDBType GetDuckDBType(this Type type) => ClrToDuckDBTypeMap.TryGetValue(type, out var duckDBType) ? duckDBType : DuckDBType.Invalid;
+    public static DuckDBType GetDuckDBType(this Type type) => ClrToDuckDBTypeMap.GetValueOrDefault(type, DuckDBType.Invalid);
 }

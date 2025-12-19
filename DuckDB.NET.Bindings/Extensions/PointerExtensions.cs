@@ -8,40 +8,18 @@ namespace DuckDB.NET.Native;
 public static class PointerExtensions
 {
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public static string ToManagedString(this IntPtr unmanagedString, bool freeWhenCopied = true, int? length = null)
+    public static unsafe string ToManagedString(this IntPtr unmanagedString, bool freeWhenCopied = true, int? length = null)
     {
-        string result;
-#if NET6_0_OR_GREATER
-        result = length.HasValue
-            ? Marshal.PtrToStringUTF8(unmanagedString, length.Value)
-            : Marshal.PtrToStringUTF8(unmanagedString) ?? string.Empty;
-#else
         if (unmanagedString == IntPtr.Zero)
-        {
-            return "";
-        }
-
-        if (length == null)
-        {
-            length = 0;
-
-            while (Marshal.ReadByte(unmanagedString, length.Value) != 0)
-            {
-                length++;
-            }
-        }
-
-        if (length == 0)
         {
             return string.Empty;
         }
 
-        var byteArray = new byte[length.Value];
+        var span = length.HasValue ? new ReadOnlySpan<byte>((byte*)unmanagedString, length.Value) 
+                                   : MemoryMarshal.CreateReadOnlySpanFromNullTerminated((byte*)unmanagedString);
 
-        Marshal.Copy(unmanagedString, byteArray, 0, length.Value);
+        var result = Encoding.UTF8.GetString(span);
 
-        result = Encoding.UTF8.GetString(byteArray, 0, length.Value);
-#endif
         if (freeWhenCopied)
         {
             NativeMethods.Helpers.DuckDBFree(unmanagedString);
@@ -51,27 +29,5 @@ public static class PointerExtensions
     }
 
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public static SafeUnmanagedMemoryHandle ToUnmanagedString(this string? managedString)
-    {
-#if NET6_0_OR_GREATER
-        var pointer = Marshal.StringToCoTaskMemUTF8(managedString);
-        return new SafeUnmanagedMemoryHandle(pointer);
-#else
-        
-        if (managedString == null)
-        {
-            return new SafeUnmanagedMemoryHandle();
-        }
-
-        int len = Encoding.UTF8.GetByteCount(managedString);
-
-        var buffer = new byte[len + 1];
-        Encoding.UTF8.GetBytes(managedString, 0, managedString.Length, buffer, 0);
-
-        var nativeUtf8 = Marshal.AllocCoTaskMem(buffer.Length);
-        Marshal.Copy(buffer, 0, nativeUtf8, buffer.Length);
-
-        return new SafeUnmanagedMemoryHandle(nativeUtf8); 
-#endif
-    }
+    public static SafeUnmanagedMemoryHandle ToUnmanagedString(this string? managedString) => new(Marshal.StringToCoTaskMemUTF8(managedString));
 }

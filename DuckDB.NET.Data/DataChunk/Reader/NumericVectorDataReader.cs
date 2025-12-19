@@ -94,7 +94,7 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
     {
         if (unsigned)
         {
-            var unsignedHugeInt = ((DuckDBUHugeInt*)DataPointer + offset);
+            var unsignedHugeInt = (DuckDBUHugeInt*)DataPointer + offset;
             return unsignedHugeInt->ToBigInteger();
         }
         else
@@ -165,9 +165,9 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
         {
             bigIntegerDigits.Push('-');
         }
-        
+
         var integer = BigInteger.Parse(new string(bigIntegerDigits.ToArray()));
-        
+
         try
         {
             return CastTo<T>(integer);
@@ -179,7 +179,7 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
 
         char DigitToChar(int c) => (char)(c + '0');
 
-        byte CharToDigit(char digit) => (byte)(digit-'0');
+        byte CharToDigit(char digit) => (byte)(digit - '0');
     }
 
     private T GetBigInteger<T>(ulong offset, bool unsigned)
@@ -241,10 +241,7 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
         return (T)(object)bigInteger;
     }
 
-    private TResult GetUnmanagedTypeValue<TQuery, TResult>(ulong offset) where TQuery : unmanaged
-#if NET8_0_OR_GREATER
-        , INumberBase<TQuery> 
-#endif
+    private TResult GetUnmanagedTypeValue<TQuery, TResult>(ulong offset) where TQuery : unmanaged, INumberBase<TQuery>
     {
         var resultType = typeof(TResult);
         var value = GetFieldData<TQuery>(offset);
@@ -256,7 +253,6 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
 
         try
         {
-#if NET8_0_OR_GREATER
             if (resultType == typeof(byte))
             {
                 return (TResult)(object)byte.CreateChecked(value);
@@ -289,7 +285,6 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
             {
                 return (TResult)(object)ulong.CreateChecked(value);
             }
-#endif
 
             return (TResult)Convert.ChangeType(value, resultType);
         }

@@ -88,11 +88,9 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
     #endregion
 
     #region Append Temporal
-#if NET6_0_OR_GREATER
     public IDuckDBAppenderRow AppendValue(DateOnly? value) => AppendValueInternal(value);
 
     public IDuckDBAppenderRow AppendValue(TimeOnly? value) => AppendValueInternal(value);
-#endif
 
     public IDuckDBAppenderRow AppendValue(DuckDBDateOnly? value) => AppendValueInternal(value);
 
