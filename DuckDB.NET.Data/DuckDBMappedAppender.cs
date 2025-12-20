@@ -7,11 +7,11 @@ using DuckDB.NET.Native;
 namespace DuckDB.NET.Data;
 
 /// <summary>
-/// A type-safe appender that uses ClassMap to validate type mappings.
+/// A type-safe appender that uses AppenderMap to validate type mappings.
 /// </summary>
 /// <typeparam name="T">The type being appended</typeparam>
-/// <typeparam name="TMap">The ClassMap type defining the mappings</typeparam>
-public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBClassMap<T>, new()
+/// <typeparam name="TMap">The AppenderMap type defining the mappings</typeparam>
+public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBAppenderMap<T>, new()
 {
     private readonly DuckDBAppender appender;
     private readonly List<IPropertyMapping<T>> mappings;
@@ -27,13 +27,13 @@ public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBClas
         // Validate mappings match the table structure
         if (mappings.Count == 0)
         {
-            throw new InvalidOperationException($"ClassMap {typeof(TMap).Name} has no property mappings defined");
+            throw new InvalidOperationException($"AppenderMap {typeof(TMap).Name} has no property mappings defined");
         }
 
         var columnTypes = appender.LogicalTypes;
         if (mappings.Count != columnTypes.Count)
         {
-            throw new InvalidOperationException($"ClassMap {typeof(TMap).Name} has {mappings.Count} mappings but table has {columnTypes.Count} columns");
+            throw new InvalidOperationException($"AppenderMap {typeof(TMap).Name} has {mappings.Count} mappings but table has {columnTypes.Count} columns");
         }
 
         for (int index = 0; index < mappings.Count; index++)

@@ -6,10 +6,10 @@ using System.Numerics;
 namespace DuckDB.NET.Data.Mapping;
 
 /// <summary>
-/// Base class for defining mappings between .NET classes and DuckDB table columns.
+/// Base class for defining mappings between .NET classes and DuckDB table columns for appender operations.
 /// </summary>
 /// <typeparam name="T">The type to map</typeparam>
-public abstract class DuckDBClassMap<T>
+public abstract class DuckDBAppenderMap<T>
 {
     /// <summary>
     /// Gets the property mappings defined for this class map.

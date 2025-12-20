@@ -1,19 +1,19 @@
-# ClassMap-based Type-Safe Appender
+# AppenderMap-based Type-Safe Appender
 
-This implementation provides a type-safe way to append data to DuckDB tables using ClassMap-based mappings with automatic type validation.
+This implementation provides a type-safe way to append data to DuckDB tables using AppenderMap-based mappings with automatic type validation.
 
 ## Problem Solved
 
-The original issue was that users could accidentally append values with mismatched types (e.g., `decimal` to `REAL` column), causing silent data corruption. The ClassMap approach validates types against actual column types from the database.
+The original issue was that users could accidentally append values with mismatched types (e.g., `decimal` to `REAL` column), causing silent data corruption. The AppenderMap approach validates types against actual column types from the database.
 
 ## How It Works
 
-### 1. Define a ClassMap
+### 1. Define an AppenderMap
 
-Create a ClassMap that defines property mappings in column order:
+Create an AppenderMap that defines property mappings in column order:
 
 ```csharp
-public class PersonMap : DuckDBClassMap<Person>
+public class PersonMap : DuckDBAppenderMap<Person>
 {
     public PersonMap()
     {
@@ -61,7 +61,7 @@ The mapped appender retrieves actual column types from the database and validate
 
 ### 3. **Support for Default and Null Values**
 ```csharp
-public class MyMap : DuckDBClassMap<MyData>
+public class MyMap : DuckDBAppenderMap<MyData>
 {
     public MyMap()
     {

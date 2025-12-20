@@ -16,8 +16,8 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
         public DateTime BirthDate { get; set; }
     }
 
-    // ClassMap for Person - matches the example from the comment
-    public class PersonMap : DuckDBClassMap<Person>
+    // AppenderMap for Person - matches the example from the comment
+    public class PersonMap : DuckDBAppenderMap<Person>
     {
         public PersonMap()
         {
@@ -66,7 +66,7 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     // Example with type mismatch - should throw
-    public class WrongTypeMap : DuckDBClassMap<Person>
+    public class WrongTypeMap : DuckDBAppenderMap<Person>
     {
         public WrongTypeMap()
         {
@@ -98,7 +98,7 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
         public string Name { get; set; } = string.Empty;
     }
 
-    public class PersonWithDefaultsMap : DuckDBClassMap<PersonWithDefaults>
+    public class PersonWithDefaultsMap : DuckDBAppenderMap<PersonWithDefaults>
     {
         public PersonWithDefaultsMap()
         {
