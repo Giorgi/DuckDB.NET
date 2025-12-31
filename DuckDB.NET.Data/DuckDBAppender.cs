@@ -62,6 +62,23 @@ public class DuckDBAppender : IDisposable
         return new DuckDBAppenderRow(qualifiedTableName, vectorWriters, rowCount - 1, dataChunk, nativeAppender);
     }
 
+    public void Clear()
+    {
+        if (closed)
+        {
+            throw new InvalidOperationException("Appender is already closed");
+        }
+        
+        var state = NativeMethods.Appender.DuckDBAppenderClear(nativeAppender);
+        if (!state.IsSuccess())
+        {
+            ThrowLastError(nativeAppender);
+        }
+
+        rowCount = 0;
+        NativeMethods.DataChunks.DuckDBDataChunkReset(dataChunk);
+    }
+
     public void Close()
     {
         closed = true;
