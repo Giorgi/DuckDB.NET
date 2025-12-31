@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Numerics;
-using DuckDB.NET.Native;
-
-namespace DuckDB.NET.Data.DataChunk.Writer;
+﻿namespace DuckDB.NET.Data.DataChunk.Writer;
 
 internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, DuckDBType columnType) : IDisposable, IDuckDBDataWriter
 {

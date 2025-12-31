@@ -1,7 +1,3 @@
-using DuckDB.NET.Data;
-using FluentAssertions;
-using Xunit;
-
 namespace DuckDB.NET.Test.Parameters;
 
 public class BooleanParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)

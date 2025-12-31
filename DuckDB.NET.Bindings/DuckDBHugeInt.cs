@@ -1,6 +1,4 @@
-﻿using System;
-using System.Numerics;
-using System.Runtime.InteropServices;
+﻿using System.Numerics;
 
 namespace DuckDB.NET.Native;
 

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Runtime.InteropServices;
-using Microsoft.Win32.SafeHandles;
-
-namespace DuckDB.NET.Native;
+﻿namespace DuckDB.NET.Native;
 
 public class SafeUnmanagedMemoryHandle : SafeHandleZeroOrMinusOneIsInvalid
 {

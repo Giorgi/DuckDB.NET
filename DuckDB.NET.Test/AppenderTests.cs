@@ -1,7 +1,3 @@
-using DuckDB.NET.Native;
-using Xunit;
-using FluentAssertions;
-
 namespace DuckDB.NET.Test;
 
 public class DuckDBAppenderTests

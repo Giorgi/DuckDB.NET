@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Numerics;
-using DuckDB.NET.Data.Common;
-using DuckDB.NET.Native;
+﻿using DuckDB.NET.Data.Common;
 
 namespace DuckDB.NET.Data.DataChunk.Writer;
 

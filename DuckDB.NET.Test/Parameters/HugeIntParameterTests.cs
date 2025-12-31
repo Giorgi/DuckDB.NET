@@ -1,9 +1,3 @@
-using System.Numerics;
-using DuckDB.NET.Data;
-using DuckDB.NET.Native;
-using FluentAssertions;
-using Xunit;
-
 namespace DuckDB.NET.Test.Parameters;
 
 public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)

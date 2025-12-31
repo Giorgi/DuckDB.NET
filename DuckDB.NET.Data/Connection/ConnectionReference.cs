@@ -1,6 +1,4 @@
-﻿using DuckDB.NET.Native;
-
-namespace DuckDB.NET.Data.Connection;
+﻿namespace DuckDB.NET.Data.Connection;
 
 /// <summary>
 /// Just makes it easier to pass/receive this data from the ConnectionManager

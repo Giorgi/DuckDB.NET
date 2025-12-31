@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using FluentAssertions;
-using Xunit;
-
-namespace DuckDB.NET.Test;
+﻿namespace DuckDB.NET.Test;
 
 public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {

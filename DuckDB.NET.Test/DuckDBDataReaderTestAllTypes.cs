@@ -1,13 +1,4 @@
-﻿using DuckDB.NET.Data;
-using DuckDB.NET.Native;
-using FluentAssertions;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Numerics;
-using Xunit;
-
-namespace DuckDB.NET.Test;
+﻿namespace DuckDB.NET.Test;
 
 public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
 {

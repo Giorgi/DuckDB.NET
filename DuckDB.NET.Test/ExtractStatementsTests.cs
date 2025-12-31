@@ -1,9 +1,4 @@
-﻿using System;
-using DuckDB.NET.Data;
-using FluentAssertions;
-using Xunit;
-
-namespace DuckDB.NET.Test;
+﻿namespace DuckDB.NET.Test;
 
 public class ExtractStatementsTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {

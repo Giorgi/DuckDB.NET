@@ -1,8 +1,4 @@
-﻿using DuckDB.NET.Data;
-using FluentAssertions;
-using Xunit;
-
-namespace DuckDB.NET.Test;
+﻿namespace DuckDB.NET.Test;
 
 public class DuckDBCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {

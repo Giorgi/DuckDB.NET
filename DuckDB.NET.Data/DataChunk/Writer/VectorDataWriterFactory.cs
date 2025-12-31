@@ -1,7 +1,4 @@
-﻿using System;
-using DuckDB.NET.Native;
-
-namespace DuckDB.NET.Data.DataChunk.Writer;
+﻿namespace DuckDB.NET.Data.DataChunk.Writer;
 
 internal static class VectorDataWriterFactory
 {

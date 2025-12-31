@@ -1,7 +1,4 @@
-﻿using System;
-using System.ComponentModel;
-using System.Runtime.InteropServices;
-using System.Text;
+﻿using System.ComponentModel;
 
 namespace DuckDB.NET.Native;
 

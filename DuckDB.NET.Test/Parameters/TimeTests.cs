@@ -1,9 +1,3 @@
-using System;
-using DuckDB.NET.Data;
-using DuckDB.NET.Native;
-using FluentAssertions;
-using Xunit;
-
 namespace DuckDB.NET.Test.Parameters;
 
 public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)

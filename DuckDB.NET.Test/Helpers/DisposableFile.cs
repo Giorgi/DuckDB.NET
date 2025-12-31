@@ -1,9 +1,4 @@
-﻿using System;
-using System.IO;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace DuckDB.NET.Test.Helpers;
+﻿namespace DuckDB.NET.Test.Helpers;
 
 sealed class DisposableFile : IDisposable
 {

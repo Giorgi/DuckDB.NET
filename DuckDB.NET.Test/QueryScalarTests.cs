@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using DuckDB.NET.Data;
-using FluentAssertions;
-using Xunit;
-
 namespace DuckDB.NET.Test;
 
 public class QueryScalarTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)

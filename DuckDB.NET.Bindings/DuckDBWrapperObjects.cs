@@ -1,7 +1,4 @@
-﻿using Microsoft.Win32.SafeHandles;
-using System;
-using System.Globalization;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Native;
 

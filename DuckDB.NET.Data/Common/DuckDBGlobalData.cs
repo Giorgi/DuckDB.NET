@@ -1,6 +1,4 @@
-﻿using DuckDB.NET.Native;
-
-namespace DuckDB.NET.Data.Common;
+﻿namespace DuckDB.NET.Data.Common;
 
 internal static class DuckDBGlobalData
 {

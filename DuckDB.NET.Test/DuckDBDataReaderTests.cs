@@ -1,13 +1,4 @@
-﻿using DuckDB.NET.Data;
-using DuckDB.NET.Native;
-using FluentAssertions;
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Numerics;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
+﻿using System.Threading;
 
 namespace DuckDB.NET.Test;
 

@@ -1,7 +1,4 @@
-﻿using System;
-using DuckDB.NET.Native;
-
-namespace DuckDB.NET.Data.Extensions;
+﻿namespace DuckDB.NET.Data.Extensions;
 
 //https://stackoverflow.com/a/5359304/239438
 internal static class DateTimeExtensions

@@ -1,5 +1,3 @@
-using System.Data;
-
 namespace DuckDB.NET.Data.Extensions;
 
 internal static class DbConnectionExtension

@@ -1,10 +1,4 @@
 ﻿using DuckDB.NET.Data.DataChunk.Reader;
-using DuckDB.NET.Native;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Data;
-using System.Data.Common;
 using System.IO;
 
 namespace DuckDB.NET.Data;

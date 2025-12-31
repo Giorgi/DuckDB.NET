@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace DuckDB.NET.Test.Helpers;
 
 internal sealed class Defer : IDisposable

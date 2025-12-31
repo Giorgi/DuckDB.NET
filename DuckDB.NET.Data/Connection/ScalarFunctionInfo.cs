@@ -1,7 +1,5 @@
 ﻿using DuckDB.NET.Data.DataChunk.Reader;
 using DuckDB.NET.Data.DataChunk.Writer;
-using DuckDB.NET.Native;
-using System;
 
 namespace DuckDB.NET.Data.Connection;
 

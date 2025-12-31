@@ -1,10 +1,3 @@
-using DuckDB.NET.Data.Extensions;
-using DuckDB.NET.Native;
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Numerics;
-
 namespace DuckDB.NET.Data.PreparedStatement;
 
 internal static class DuckDBTypeMap

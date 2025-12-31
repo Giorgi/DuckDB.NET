@@ -1,0 +1,7 @@
+// Global using directives
+
+global using System;
+global using System.Globalization;
+global using System.Runtime.InteropServices;
+global using System.Text;
+global using Microsoft.Win32.SafeHandles;

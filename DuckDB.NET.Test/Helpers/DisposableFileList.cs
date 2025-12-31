@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace DuckDB.NET.Test.Helpers;
+﻿namespace DuckDB.NET.Test.Helpers;
 
 internal class DisposableFileList : List<DisposableFile>, IDisposable
 {

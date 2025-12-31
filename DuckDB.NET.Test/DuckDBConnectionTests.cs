@@ -1,12 +1,5 @@
-using Dapper;
-using DuckDB.NET.Data;
-using DuckDB.NET.Test.Helpers;
-using FluentAssertions;
-using System;
-using System.Data;
 using System.Diagnostics;
-using System.Threading.Tasks;
-using Xunit;
+using DuckDB.NET.Test.Helpers;
 
 namespace DuckDB.NET.Test;
 

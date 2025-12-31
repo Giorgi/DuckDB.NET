@@ -1,7 +1,4 @@
-﻿using System;
-using DuckDB.NET.Native;
-
-namespace DuckDB.NET.Data.DataChunk.Reader;
+﻿namespace DuckDB.NET.Data.DataChunk.Reader;
 
 internal sealed class BooleanVectorDataReader : VectorDataReaderBase
 {

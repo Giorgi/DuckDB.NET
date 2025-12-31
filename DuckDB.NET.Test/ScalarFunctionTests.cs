@@ -1,11 +1,5 @@
-﻿using Dapper;
-using FluentAssertions;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using System.Linq;
-using Xunit;
 
 namespace DuckDB.NET.Test;
 

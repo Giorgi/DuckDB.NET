@@ -1,8 +1,4 @@
-using System;
 using System.Globalization;
-using DuckDB.NET.Data;
-using FluentAssertions;
-using Xunit;
 
 namespace DuckDB.NET.Test.Parameters;
 
