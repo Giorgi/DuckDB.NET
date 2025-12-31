@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace DuckDB.NET.Data.Common;
 
 internal class TypeDetails

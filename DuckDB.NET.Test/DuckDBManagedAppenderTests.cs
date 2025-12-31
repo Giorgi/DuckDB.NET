@@ -1,17 +1,5 @@
-﻿using Dapper;
-using DuckDB.NET.Data;
-using FluentAssertions;
+﻿using System.Globalization;
 using FluentAssertions.Common;
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Numerics;
-using Bogus;
-using Xunit;
-using System.Text;
 
 namespace DuckDB.NET.Test;
 

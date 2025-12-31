@@ -1,10 +1,6 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
+﻿using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using DuckDB.NET.Data.Common;
-using DuckDB.NET.Data.Extensions;
-using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.DataChunk.Reader;
 

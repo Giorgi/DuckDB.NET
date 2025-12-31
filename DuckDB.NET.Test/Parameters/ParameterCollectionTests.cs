@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using Dapper;
-using DuckDB.NET.Data;
-using DuckDB.NET.Test.Helpers;
-using FluentAssertions;
-using Xunit;
+﻿using DuckDB.NET.Test.Helpers;
 
 namespace DuckDB.NET.Test.Parameters;
 

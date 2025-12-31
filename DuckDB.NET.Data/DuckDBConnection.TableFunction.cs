@@ -1,11 +1,6 @@
 ﻿using DuckDB.NET.Data.Common;
 using DuckDB.NET.Data.Connection;
 using DuckDB.NET.Data.DataChunk.Writer;
-using DuckDB.NET.Data.Extensions;
-using DuckDB.NET.Native;
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 

@@ -1,6 +1,4 @@
-﻿using DuckDB.NET.Native;
-using System;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Threading;
 
 namespace DuckDB.NET.Data.Connection;

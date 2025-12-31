@@ -1,8 +1,3 @@
-using DuckDB.NET.Native;
-using System;
-using System.Collections.Generic;
-using System.Numerics;
-
 namespace DuckDB.NET.Data.Mapping;
 
 /// <summary>

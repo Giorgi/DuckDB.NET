@@ -1,7 +1,7 @@
-﻿using System.Runtime.InteropServices;
-using System;
+﻿using System;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace DuckDB.NET.Test.Helpers;
 

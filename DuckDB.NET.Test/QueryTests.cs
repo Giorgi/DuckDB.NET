@@ -1,7 +1,3 @@
-using DuckDB.NET.Native;
-using FluentAssertions;
-using Xunit;
-
 namespace DuckDB.NET.Test;
 
 public class QueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)

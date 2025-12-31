@@ -1,12 +1,4 @@
-﻿using Bogus;
-using DuckDB.NET.Native;
-using FluentAssertions;
-using System;
-using System.Collections.Generic;
-using System.Numerics;
-using Xunit;
-
-namespace DuckDB.NET.Test;
+﻿namespace DuckDB.NET.Test;
 
 public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {

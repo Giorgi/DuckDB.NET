@@ -1,8 +1,4 @@
-﻿using FluentAssertions;
-using System.Collections.Generic;
-using Xunit;
-
-namespace DuckDB.NET.Test;
+﻿namespace DuckDB.NET.Test;
 
 public class ExecuteNonQueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {

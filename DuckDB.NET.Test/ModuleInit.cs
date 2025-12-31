@@ -1,8 +1,5 @@
-﻿using DuckDB.NET.Test.Helpers;
-using FluentAssertions;
-using System;
-using System.Collections.Generic;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
+using DuckDB.NET.Test.Helpers;
 
 #nullable enable
 namespace DuckDB.NET.Test;

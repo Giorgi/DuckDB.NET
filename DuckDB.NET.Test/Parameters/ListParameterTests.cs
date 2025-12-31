@@ -1,13 +1,4 @@
-using Bogus;
-using DuckDB.NET.Data;
-using DuckDB.NET.Native;
-using FluentAssertions;
 using FluentAssertions.Common;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using Xunit;
 
 namespace DuckDB.NET.Test.Parameters;
 

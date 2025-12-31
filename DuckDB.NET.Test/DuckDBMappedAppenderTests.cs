@@ -1,7 +1,4 @@
 using DuckDB.NET.Data.Mapping;
-using FluentAssertions;
-using System;
-using Xunit;
 
 namespace DuckDB.NET.Test;
 

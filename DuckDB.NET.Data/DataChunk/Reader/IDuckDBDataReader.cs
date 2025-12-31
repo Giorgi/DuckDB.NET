@@ -1,7 +1,4 @@
-﻿using DuckDB.NET.Native;
-using System;
-
-namespace DuckDB.NET.Data.DataChunk.Reader;
+﻿namespace DuckDB.NET.Data.DataChunk.Reader;
 
 public interface IDuckDBDataReader
 {

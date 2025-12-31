@@ -1,9 +1,3 @@
-using DuckDB.NET.Data;
-using DuckDB.NET.Native;
-using FluentAssertions;
-using System;
-using Xunit;
-
 namespace DuckDB.NET.Test;
 
 public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)

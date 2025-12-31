@@ -1,14 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using System.Numerics;
+﻿using System.Globalization;
 using System.Threading;
-using Dapper;
-using DuckDB.NET.Data;
-using DuckDB.NET.Native;
-using FluentAssertions;
-using Xunit;
 
 namespace DuckDB.NET.Test;
 

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Numerics;
-using DuckDB.NET.Native;
-
-namespace DuckDB.NET.Data.DataChunk.Writer;
+﻿namespace DuckDB.NET.Data.DataChunk.Writer;
 
 internal sealed unsafe class DecimalVectorDataWriter(IntPtr vector, void* vectorData, DuckDBLogicalType logicalType, DuckDBType columnType) : VectorDataWriterBase(vector, vectorData, columnType)
 {

@@ -1,8 +1,4 @@
 ﻿using DuckDB.NET.Data.DataChunk.Writer;
-using DuckDB.NET.Native;
-using System;
-using System.Collections;
-using System.Collections.Generic;
 
 namespace DuckDB.NET.Data.Connection;
 

@@ -1,6 +1,4 @@
 using DuckDB.NET.Native.Extensions;
-using System;
-using System.Runtime.InteropServices;
 
 namespace DuckDB.NET.Native;
 

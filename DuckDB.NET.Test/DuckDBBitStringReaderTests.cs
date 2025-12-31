@@ -1,7 +1,4 @@
 ﻿using System.Collections;
-using System.Linq;
-using FluentAssertions;
-using Xunit;
 
 namespace DuckDB.NET.Test;
 

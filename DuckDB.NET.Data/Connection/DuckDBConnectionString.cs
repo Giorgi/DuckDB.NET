@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace DuckDB.NET.Data.Connection;
 
 internal class DuckDBConnectionString(string dataSource, bool inMemory, bool shared, IReadOnlyDictionary<string, string> configuration)

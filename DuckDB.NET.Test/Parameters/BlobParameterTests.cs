@@ -1,8 +1,3 @@
-using DuckDB.NET.Data;
-using FluentAssertions;
-using System.IO;
-using Xunit;
-
 namespace DuckDB.NET.Test.Parameters;
 
 public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)

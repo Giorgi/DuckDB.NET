@@ -1,12 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using Bogus;
-using DuckDB.NET.Data;
-using FluentAssertions;
-using Xunit;
-
 namespace DuckDB.NET.Test.Parameters;
 
 public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)

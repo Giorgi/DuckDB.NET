@@ -1,9 +1,4 @@
-using DuckDB.NET.Data;
-using DuckDB.NET.Native;
-using FluentAssertions;
-using System;
 using FluentAssertions.Extensions;
-using Xunit;
 
 namespace DuckDB.NET.Test.Parameters;
 

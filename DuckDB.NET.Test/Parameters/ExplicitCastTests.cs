@@ -1,9 +1,4 @@
-﻿using System;
-using DuckDB.NET.Data;
-using FluentAssertions;
-using Xunit;
-
-namespace DuckDB.NET.Test.Parameters;
+﻿namespace DuckDB.NET.Test.Parameters;
 
 public class ExplicitCastTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {

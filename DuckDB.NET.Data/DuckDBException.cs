@@ -1,7 +1,4 @@
-﻿using DuckDB.NET.Native;
-using System.Data.Common;
-
-namespace DuckDB.NET.Data;
+﻿namespace DuckDB.NET.Data;
 
 public class DuckDBException : DbException
 {

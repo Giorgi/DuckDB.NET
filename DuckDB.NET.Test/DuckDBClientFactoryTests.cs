@@ -1,13 +1,6 @@
-﻿using DuckDB.NET.Data;
-using DuckDB.NET.Test.Helpers;
-using System;
-using System.Collections.Generic;
-using System.Data.Common;
+﻿using System.Data.Common;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Xunit;
+using DuckDB.NET.Test.Helpers;
 
 namespace DuckDB.NET.Test;
 

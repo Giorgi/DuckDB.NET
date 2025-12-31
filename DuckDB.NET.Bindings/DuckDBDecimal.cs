@@ -1,6 +1,4 @@
-﻿using System.Runtime.InteropServices;
-
-namespace DuckDB.NET.Native;
+﻿namespace DuckDB.NET.Native;
 
 [StructLayout(LayoutKind.Sequential)]
 public readonly struct DuckDBDecimal(byte width, byte scale, DuckDBHugeInt value)

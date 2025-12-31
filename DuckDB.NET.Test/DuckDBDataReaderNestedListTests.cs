@@ -1,8 +1,4 @@
-﻿using System.Collections.Generic;
-using FluentAssertions;
-using Xunit;
-
-namespace DuckDB.NET.Test;
+﻿namespace DuckDB.NET.Test;
 
 public class DuckDBDataReaderNestedListTests : DuckDBTestBase
 {
