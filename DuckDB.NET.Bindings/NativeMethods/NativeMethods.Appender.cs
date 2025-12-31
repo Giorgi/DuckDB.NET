@@ -26,6 +26,9 @@ public partial class NativeMethods
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_appender_flush")]
         public static extern DuckDBState DuckDBAppenderFlush(DuckDBAppender appender);
 
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_appender_clear")]
+        public static extern DuckDBState DuckDBAppenderClear(DuckDBAppender appender);
+
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_appender_end_row")]
         public static extern DuckDBState DuckDBAppenderEndRow(DuckDBAppender appender);
 

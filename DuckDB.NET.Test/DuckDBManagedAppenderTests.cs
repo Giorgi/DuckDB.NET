@@ -209,7 +209,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         Command.ExecuteNonQuery();
 
         //DuckDB's precision for Interval is MicroSeconds so results will be rounded down to the nearest 10th.
-        var timeSpans = GetRandomList<TimeSpan>(faker =>
+        var timeSpans = GetRandomList(faker =>
         {
             var timespan = faker.Date.Timespan();
 
@@ -546,7 +546,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
 
         var specialTableName = "SPÉçÏÃL - TÁBLÈ_";
         var specialColumnName = "SPÉçÏÃL @ CÓlümn";
-        var specialStringValues = new string[] { "Válüe 1", "Öthér V@L", "Lãst" };
+        var specialStringValues = new[] { "Válüe 1", "Öthér V@L", "Lãst" };
 
         Command.CommandText = $"CREATE TABLE {GetQualifiedObjectName(schemaName, specialTableName)} ({GetQualifiedObjectName(specialColumnName)} TEXT)";
         Command.ExecuteNonQuery();
@@ -621,6 +621,54 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
 
         reader.GetInt32(0).Should().Be(4);
         reader.GetInt32(2).Should().Be(30);
+    }
+
+    [Fact]
+    public void ClearAppender()
+    {
+        Command.CommandText = "CREATE OR REPLACE TABLE tbl_empty (i INT DEFAULT 4, j INT, k INT DEFAULT 30)";
+        Command.ExecuteNonQuery();
+
+        using (var appender = Connection.CreateAppender("tbl_empty"))
+        {
+            for (int i = 0; i < 10_000; i++)
+            {
+                appender.CreateRow().AppendValue((int?)2).AppendValue(2).AppendDefault().EndRow();
+            }
+
+            appender.Clear();
+        }
+
+        Command.CommandText = "Select count(*) from tbl_empty";
+        var count = Command.ExecuteScalar();
+        count.Should().Be(0);
+    }
+
+
+    [Fact]
+    public void ClearAppenderAddMoreData()
+    {
+        Command.CommandText = "CREATE OR REPLACE TABLE tbl_empty (i INT DEFAULT 4, j INT, k INT DEFAULT 30)";
+        Command.ExecuteNonQuery();
+
+        using (var appender = Connection.CreateAppender("tbl_empty"))
+        {
+            for (int i = 0; i < 10_000; i++)
+            {
+                appender.CreateRow().AppendValue((int?)2).AppendValue(2).AppendDefault().EndRow();
+            }
+
+            appender.Clear();
+
+            for (int i = 0; i < 5_000; i++)
+            {
+                appender.CreateRow().AppendValue((int?)3).AppendValue(3).AppendDefault().EndRow();
+            }
+        }
+
+        Command.CommandText = "Select count(*) from tbl_empty";
+        var count = Command.ExecuteScalar();
+        count.Should().Be(5000);
     }
 
     private static string GetCreateEnumTypeSql(string enumName, string enumValueNamePrefix, int count)
