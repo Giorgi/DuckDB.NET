@@ -1,5 +1,6 @@
 ﻿using Dapper;
 using DuckDB.NET.Data;
+using DuckDB.NET.Native;
 using FluentAssertions;
 using System;
 using System.Collections.Generic;
@@ -20,10 +21,10 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     {
         Connection.RegisterTableFunction("answer", () =>
         {
-            return new TableFunction(new List<ColumnInfo>()
+            return new TableFunction(new List<ColumnInfo>
             {
-                new ColumnInfo("answer", typeof(int)),
-            }, new int[]{42});
+                new("answer", typeof(int)),
+            }, new[] { 42 });
         }, (item, writers, rowIndex) =>
         {
             writers[0].WriteValue((int)item, rowIndex);
@@ -36,13 +37,13 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void RegisterTableFunctionWithOneParameter()
     {
-        Connection.RegisterTableFunction<int>("demo", (parameters) =>
+        Connection.RegisterTableFunction<int>("demo", parameters =>
         {
             var value = parameters[0].GetValue<int>();
 
-            return new TableFunction(new List<ColumnInfo>()
+            return new TableFunction(new List<ColumnInfo>
             {
-                new ColumnInfo("foo", typeof(int)),
+                new("foo", typeof(int)),
             }, Enumerable.Range(0, value));
         }, (item, writers, rowIndex) =>
         {
@@ -58,15 +59,15 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     {
         var count = 50;
 
-        Connection.RegisterTableFunction<short, string>("demo2", (parameters) =>
+        Connection.RegisterTableFunction<short, string>("demo2", parameters =>
         {
             var start = parameters[0].GetValue<short>();
             var prefix = parameters[1].GetValue<string>();
 
-            return new TableFunction(new List<ColumnInfo>()
+            return new TableFunction(new List<ColumnInfo>
             {
-                new ColumnInfo("foo", typeof(int)),
-                new ColumnInfo("bar", typeof(string)),
+                new("foo", typeof(int)),
+                new("bar", typeof(string)),
             }, Enumerable.Range(start, count).Select(index => KeyValuePair.Create(index, prefix + index)));
         }, (item, writers, rowIndex) =>
         {
@@ -89,15 +90,15 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         var minutesParam = 10;
         var secondsParam = 2.5;
 
-        Connection.RegisterTableFunction<DateTime, long, double>("demo3", (parameters) =>
+        Connection.RegisterTableFunction<DateTime, long, double>("demo3", parameters =>
         {
             var date = parameters[0].GetValue<DateTime>();
             var minutes = parameters[1].GetValue<long>();
             var seconds = parameters[2].GetValue<double>();
 
-            return new TableFunction(new List<ColumnInfo>()
+            return new TableFunction(new List<ColumnInfo>
             {
-                new ColumnInfo("foo", typeof(DateTime)),
+                new("foo", typeof(DateTime)),
             }, Enumerable.Range(0, count).Select(i => date.AddDays(i).AddMinutes(minutes).AddSeconds(seconds)));
         }, (item, writers, rowIndex) =>
         {
@@ -115,7 +116,7 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     {
         var guid = Guid.NewGuid();
 
-        Connection.RegisterTableFunction<bool, decimal, byte, Guid>("demo4", (parameters) =>
+        Connection.RegisterTableFunction<bool, decimal, byte, Guid>("demo4", parameters =>
         {
             var param1 = parameters[0].GetValue<bool>();
             var param2 = parameters[1].GetValue<decimal>();
@@ -124,9 +125,9 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
             var enumerable = param4.ToByteArray(param1).Append(param3);
 
-            return new TableFunction(new List<ColumnInfo>()
+            return new TableFunction(new List<ColumnInfo>
             {
-                new ColumnInfo("foo", typeof(byte)),
+                new("foo", typeof(byte)),
             }, enumerable);
         }, (item, writers, rowIndex) =>
         {
@@ -142,7 +143,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void RegisterTableFunctionWithDecimalCultureInvariantParameters()
     {
-        var guid = Guid.NewGuid();
         var currentCulture = Thread.CurrentThread.CurrentCulture;
 
         try
@@ -153,13 +153,13 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             // Verify that the decimal separator for numbers in this culture is indeed a comma
             Thread.CurrentThread.CurrentCulture.NumberFormat.NumberDecimalSeparator.Should().Be(",");
 
-            Connection.RegisterTableFunction<decimal>("demo_decimal", (parameters) =>
+            Connection.RegisterTableFunction<decimal>("demo_decimal", parameters =>
             {
                 var param1 = parameters[0].GetValue<decimal>();
-               
-                return new TableFunction(new List<ColumnInfo>()
+
+                return new TableFunction(new List<ColumnInfo>
                 {
-                    new ColumnInfo("foo", typeof(decimal)),
+                    new("foo", typeof(decimal)),
                 }, new[] { param1 });
             }, (item, writers, rowIndex) =>
             {
@@ -169,7 +169,7 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             var data = Connection.Query<decimal>($"SELECT * FROM demo_decimal(10.2::DECIMAL(18, 3));").ToList();
 
             data.Should().BeEquivalentTo([10.2m]);
-        } 
+        }
         finally
         {
             Thread.CurrentThread.CurrentCulture = currentCulture;
@@ -179,7 +179,7 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void RegisterTableFunctionWithEmptyResult()
     {
-        Connection.RegisterTableFunction<sbyte, ushort, uint, ulong, float>("demo5", (parameters) =>
+        Connection.RegisterTableFunction<sbyte, ushort, uint, ulong, float>("demo5", parameters =>
         {
             var param1 = parameters[0].GetValue<sbyte>();
             var param2 = parameters[1].GetValue<ushort>();
@@ -193,9 +193,9 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             param4.Should().Be(4);
             param5.Should().Be(5.6f);
 
-            return new TableFunction(new List<ColumnInfo>()
+            return new TableFunction(new List<ColumnInfo>
             {
-                new ColumnInfo("foo", typeof(int)),
+                new("foo", typeof(int)),
             }, Enumerable.Empty<int>());
         }, (item, writers, rowIndex) =>
         {
@@ -217,9 +217,9 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
             var timeSpans = param1.ToByteArray().Select(b => param2.Add(TimeSpan.FromDays(b)));
 
-            return new TableFunction(new List<ColumnInfo>()
+            return new TableFunction(new List<ColumnInfo>
             {
-                new ColumnInfo("foo", typeof(TimeSpan)),
+                new("foo", typeof(TimeSpan)),
             }, timeSpans);
         }, (item, writers, rowIndex) =>
         {
@@ -238,14 +238,11 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         {
         });
 
-        Connection.Invoking(con=>con.Query<int>("SELECT * FROM bind_err('')")). Should().Throw<DuckDBException>().WithMessage("*bind_err_msg*");
+        Connection.Invoking(con => con.Query<int>("SELECT * FROM bind_err('')")).Should().Throw<DuckDBException>().WithMessage("*bind_err_msg*");
 
         Connection.RegisterTableFunction<string>("map_err", _ =>
         {
-            return new TableFunction(
-                new[] { new ColumnInfo("t1", typeof(string)) },
-                new[] { "a" }
-            );
+            return new TableFunction([new ColumnInfo("t1", typeof(string))], new[] { "a" });
         }, (_, _, _) => throw new NotSupportedException("map_err_msg"));
 
         Connection.Invoking(con => con.Query<int>("SELECT * FROM map_err('')")).Should().Throw<DuckDBException>().WithMessage("*map_err_msg*");
@@ -254,11 +251,11 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void RegisterTableFunctionWithNullParameter()
     {
-        Connection.RegisterTableFunction<int>("nullParam", (parameters) =>
+        Connection.RegisterTableFunction<int>("nullParam", parameters =>
         {
             parameters[0].IsNull().Should().BeTrue();
 
-            return new TableFunction(new List<ColumnInfo>()
+            return new TableFunction(new List<ColumnInfo>
             {
                 new("foo", typeof(int)),
             }, Enumerable.Empty<int>());
@@ -275,19 +272,16 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void RegisterFunctionWithDateOnlyTimeOnlyParameters()
     {
-        var dateOnly = new DateOnly(2024, 11, 6);
-        var timeOnly = new TimeOnly(10, 30, 24);
-
-        Connection.RegisterTableFunction<DateOnly, TimeOnly>("demo7", (parameters) =>
+        Connection.RegisterTableFunction<DateOnly, TimeOnly>("demo7", parameters =>
         {
             var date = parameters[0].GetValue<DateOnly>();
             var time = parameters[1].GetValue<TimeOnly>();
 
             var dateTime = date.ToDateTime(time);
 
-            return new TableFunction(new List<ColumnInfo>()
+            return new TableFunction(new List<ColumnInfo>
             {
-                new ColumnInfo("foo", typeof(DateTime)),
+                new("foo", typeof(DateTime)),
             }, new[] { dateTime });
         }, (item, writers, rowIndex) =>
         {
@@ -297,5 +291,89 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         var data = Connection.Query<DateTime>("SELECT * FROM demo7('2024-11-06'::DATE, '10:30:24'::TIME);").ToList();
 
         data.Should().BeEquivalentTo([new DateTime(2024, 11, 6, 10, 30, 24)]);
+    }
+
+    [Fact]
+    public void RegisterTableFunctionWithExplicitTimestampTypes()
+    {
+        Connection.RegisterTableFunction("demo_explicit_timestamps",
+            parameters =>
+            {
+                // All timestamp variants should be retrievable as DateTime
+                var timestampS = parameters[0].GetValue<DateTime>();
+                var timestampMs = parameters[1].GetValue<DateTime>();
+                var timestampNs = parameters[2].GetValue<DateTime>();
+                var timestampTz = parameters[3].GetValue<DateTime>();
+
+                // TimestampS: second precision - fractional seconds should be 0
+                timestampS.Should().Be(new DateTime(2024, 11, 6, 15, 30, 45));
+
+                // TimestampMs: millisecond precision
+                timestampMs.Should().Be(new DateTime(2024, 11, 6, 15, 30, 45, 123));
+
+                // TimestampNs: nanosecond precision is preserved up to tick precision (100ns)
+                // '2024-11-06 15:30:45.123456789' -> 123 ms + 456 μs + 789 ns
+                // 789 ns / 100 = 7 additional ticks (since 1 tick = 100ns)
+                timestampNs.Should().Be(new DateTime(2024, 11, 6, 15, 30, 45, 123).AddTicks(4567));
+
+                // TimestampTz: timezone timestamp gets converted to UTC
+                // The exact value depends on the session timezone setting
+                timestampTz.Year.Should().Be(2024);
+                timestampTz.Month.Should().Be(11);
+                timestampTz.Day.Should().Be(6);
+
+                return new TableFunction(new List<ColumnInfo>
+                {
+                    new("result", typeof(string)),
+                }, new[] { "success" });
+            },
+            (item, writers, rowIndex) =>
+            {
+                writers[0].WriteValue((string)item, rowIndex);
+            },
+            DuckDBType.TimestampS,
+            DuckDBType.TimestampMs,
+            DuckDBType.TimestampNs,
+            DuckDBType.TimestampTz);
+
+        var data = Connection.Query<string>(
+            "SELECT * FROM demo_explicit_timestamps(" +
+            "'2024-11-06 15:30:45'::TIMESTAMP_S, " +
+            "'2024-11-06 15:30:45.123'::TIMESTAMP_MS, " +
+            "'2024-11-06 15:30:45.123456789'::TIMESTAMP_NS, " +
+            "'2024-11-06 15:30:45.123456'::TIMESTAMPTZ);").ToList();
+
+        data.Should().BeEquivalentTo("success");
+    }
+
+    [Fact]
+    public void RegisterTableFunctionWithTimeTzParameter()
+    {
+        Connection.RegisterTableFunction("demo_timetz",
+            parameters =>
+            {
+                var timeTz = parameters[0].GetValue<DateTimeOffset>();
+
+                // TimeTz stores time with timezone offset
+                // The time should be 10:30:45 with +02:00 offset
+                timeTz.Hour.Should().Be(10);
+                timeTz.Minute.Should().Be(30);
+                timeTz.Second.Should().Be(45);
+                timeTz.Offset.Should().Be(TimeSpan.FromHours(2));
+
+                return new TableFunction(new List<ColumnInfo>
+                {
+                    new("result", typeof(string)),
+                }, new[] { "success" });
+            },
+            (item, writers, rowIndex) =>
+            {
+                writers[0].WriteValue((string)item, rowIndex);
+            },
+            DuckDBType.TimeTz);
+
+        var data = Connection.Query<string>("SELECT * FROM demo_timetz('10:30:45+02:00'::TIMETZ);").ToList();
+
+        data.Should().BeEquivalentTo("success");
     }
 }
