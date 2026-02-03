@@ -186,6 +186,49 @@ public partial class DuckDBConnection : DbConnection
         }
     }
 
+    /// <summary>
+    /// Creates a type-safe appender using an AppenderMap for property-to-column mappings.
+    /// </summary>
+    /// <typeparam name="T">The type to append</typeparam>
+    /// <typeparam name="TMap">The AppenderMap type defining the mappings</typeparam>
+    /// <param name="table">The table name</param>
+    /// <returns>A type-safe mapped appender</returns>
+    public DuckDBMappedAppender<T, TMap> CreateAppender<T, TMap>(string table) 
+        where TMap : Mapping.DuckDBAppenderMap<T>, new()
+    {
+        return CreateAppender<T, TMap>(null, null, table);
+    }
+
+    /// <summary>
+    /// Creates a type-safe appender using an AppenderMap for property-to-column mappings.
+    /// </summary>
+    /// <typeparam name="T">The type to append</typeparam>
+    /// <typeparam name="TMap">The AppenderMap type defining the mappings</typeparam>
+    /// <param name="schema">The schema name</param>
+    /// <param name="table">The table name</param>
+    /// <returns>A type-safe mapped appender</returns>
+    public DuckDBMappedAppender<T, TMap> CreateAppender<T, TMap>(string? schema, string table)
+        where TMap : Mapping.DuckDBAppenderMap<T>, new()
+    {
+        return CreateAppender<T, TMap>(null, schema, table);
+    }
+
+    /// <summary>
+    /// Creates a type-safe appender using an AppenderMap for property-to-column mappings.
+    /// </summary>
+    /// <typeparam name="T">The type to append</typeparam>
+    /// <typeparam name="TMap">The AppenderMap type defining the mappings</typeparam>
+    /// <param name="catalog">The catalog name</param>
+    /// <param name="schema">The schema name</param>
+    /// <param name="table">The table name</param>
+    /// <returns>A type-safe mapped appender</returns>
+    public DuckDBMappedAppender<T, TMap> CreateAppender<T, TMap>(string? catalog, string? schema, string table)
+        where TMap : Mapping.DuckDBAppenderMap<T>, new()
+    {
+        var appender = CreateAppender(catalog, schema, table);
+        return new DuckDBMappedAppender<T, TMap>(appender);
+    }
+
     protected override void Dispose(bool disposing)
     {
         if (disposing)

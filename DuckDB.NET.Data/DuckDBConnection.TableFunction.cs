@@ -22,7 +22,7 @@ partial class DuckDBConnection
     [Experimental("DuckDBNET001")]
     public void RegisterTableFunction(string name, Func<TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
     {
-        RegisterTableFunctionInternal(name, (_) => resultCallback(), mapperCallback);
+        RegisterTableFunctionInternal(name, (_) => resultCallback(), mapperCallback, Array.Empty<Type>());
     }
 
     [Experimental("DuckDBNET001")]
@@ -74,6 +74,12 @@ partial class DuckDBConnection
     }
 
     [Experimental("DuckDBNET001")]
+    public void RegisterTableFunction(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback, params DuckDBType[] parameterTypes)
+    {
+        RegisterTableFunctionInternal(name, resultCallback, mapperCallback, parameterTypes);
+    }
+
+    [Experimental("DuckDBNET001")]
     private unsafe void RegisterTableFunctionInternal(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback, params Type[] parameterTypes)
     {
         var function = NativeMethods.TableFunction.DuckDBCreateTableFunction();
@@ -85,6 +91,38 @@ partial class DuckDBConnection
         foreach (var type in parameterTypes)
         {
             using var logicalType = type.GetLogicalType();
+            NativeMethods.TableFunction.DuckDBTableFunctionAddParameter(function, logicalType);
+        }
+
+        var tableFunctionInfo = new TableFunctionInfo(resultCallback, mapperCallback);
+
+        NativeMethods.TableFunction.DuckDBTableFunctionSetBind(function, &Bind);
+        NativeMethods.TableFunction.DuckDBTableFunctionSetInit(function, &Init);
+        NativeMethods.TableFunction.DuckDBTableFunctionSetFunction(function, &TableFunction);
+        NativeMethods.TableFunction.DuckDBTableFunctionSetExtraInfo(function, tableFunctionInfo.ToHandle(), &DestroyExtraInfo);
+
+        var state = NativeMethods.TableFunction.DuckDBRegisterTableFunction(NativeConnection, function);
+
+        if (!state.IsSuccess())
+        {
+            throw new InvalidOperationException($"Error registering user defined table function: {name}");
+        }
+
+        NativeMethods.TableFunction.DuckDBDestroyTableFunction(ref function);
+    }
+
+    [Experimental("DuckDBNET001")]
+    private unsafe void RegisterTableFunctionInternal(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback, params DuckDBType[] parameterTypes)
+    {
+        var function = NativeMethods.TableFunction.DuckDBCreateTableFunction();
+        using (var handle = name.ToUnmanagedString())
+        {
+            NativeMethods.TableFunction.DuckDBTableFunctionSetName(function, handle);
+        }
+
+        foreach (var duckDBType in parameterTypes)
+        {
+            using var logicalType = NativeMethods.LogicalType.DuckDBCreateLogicalType(duckDBType);
             NativeMethods.TableFunction.DuckDBTableFunctionAddParameter(function, logicalType);
         }
 

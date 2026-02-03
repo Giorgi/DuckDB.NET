@@ -140,6 +140,15 @@ public partial class NativeMethods
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_timestamp")]
         public static extern DuckDBTimestampStruct DuckDBGetTimestamp(DuckDBValue value);
 
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_timestamp_s")]
+        public static extern DuckDBTimestampStruct DuckDBGetTimestampS(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_timestamp_ms")]
+        public static extern DuckDBTimestampStruct DuckDBGetTimestampMs(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_timestamp_ns")]
+        public static extern DuckDBTimestampStruct DuckDBGetTimestampNs(DuckDBValue value);
+
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_interval")]
         public static extern DuckDBInterval DuckDBGetInterval(DuckDBValue value);
 

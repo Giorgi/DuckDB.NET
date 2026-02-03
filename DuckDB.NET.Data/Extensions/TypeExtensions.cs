@@ -98,4 +98,6 @@ internal static class TypeExtensions
 
         throw new InvalidOperationException($"Cannot map type {type.FullName} to DuckDBType.");
     }
+
+    public static DuckDBType GetDuckDBType(this Type type) => ClrToDuckDBTypeMap.TryGetValue(type, out var duckDBType) ? duckDBType : DuckDBType.Invalid;
 }
