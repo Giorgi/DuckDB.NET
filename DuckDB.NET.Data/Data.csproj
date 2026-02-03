@@ -3,13 +3,9 @@
   <PropertyGroup>
     <Description>DuckDB ADO.NET Provider for C#.</Description>
     <PackageReleaseNotes>
-	  Added support for handling ± dates and timestamps. Credits to @rynoV for the PR
+	  Added DuckDBMappedAppender for a type-safe way to bulk load data
 
-    Improved support for handling transaction abortions. Credits to @rynoV for the PR.
-
-    Fixed decimal parameter handling in prepared statements. Credits to @rynoV for the PR.
-
-Updated to DuckDB v1.4.3
+Updated to DuckDB v1.4.4
     </PackageReleaseNotes>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
