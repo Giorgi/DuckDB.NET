@@ -19,7 +19,7 @@ Updated to DuckDB v1.4.4
   </PropertyGroup>
   
   <!-- Download and include the native libraries into the NuGet package-->
-  <Target Name="DownloadNativeLibs" BeforeTargets="GenerateAdditionalSources" Condition="'$(BuildType)' == 'Full'">
+  <Target Name="DownloadNativeLibs" BeforeTargets="GenerateAdditionalSources" Condition="'$(BuildType)' == 'Full' AND '$(TargetFramework)' == 'netstandard2.0'">
     <ItemGroup Condition="'$(NightlyBuild)' != 'true'">
       <_NativeLib Include="win-x64" LibUrl="$(DuckDbArtifactRoot)/libduckdb-windows-amd64.zip" />
       <_NativeLib Include="win-arm64" LibUrl="$(DuckDbArtifactRoot)/libduckdb-windows-arm64.zip" />
