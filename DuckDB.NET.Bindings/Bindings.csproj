@@ -28,17 +28,14 @@ Updated to DuckDB v1.4.4
       <_NativeLib Include="osx" LibUrl="$(DuckDbArtifactRoot)/libduckdb-osx-universal.zip" />
     </ItemGroup>
     <ItemGroup Condition="'$(NightlyBuild)' == 'true'">
-      <_NativeLib Include="win-x64" LibUrl="$(DuckDbArtifactRoot)/duckdb-binaries-windows.zip" InnerZipName="libduckdb-windows-amd64.zip" />
-      <_NativeLib Include="win-arm64" LibUrl="$(DuckDbArtifactRoot)/duckdb-binaries-windows.zip" InnerZipName="libduckdb-windows-arm64.zip" />
-      <_NativeLib Include="linux-x64" LibUrl="$(DuckDbArtifactRoot)/duckdb-binaries-linux-amd64.zip" InnerZipName="libduckdb-linux-amd64.zip" />
-      <_NativeLib Include="linux-arm64" LibUrl="$(DuckDbArtifactRoot)/duckdb-binaries-linux-arm64.zip" InnerZipName="libduckdb-linux-arm64.zip" />
-      <_NativeLib Include="osx" LibUrl="$(DuckDbArtifactRoot)/duckdb-binaries-osx.zip" InnerZipName="libduckdb-osx-universal.zip" />
+      <_NativeLib Include="win-x64" LibUrl="$(DuckDbArtifactRoot)/duckdb-binaries-windows.zip" InnerZipName="libduckdb-windows-amd64.zip" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
+      <_NativeLib Include="linux-x64" LibUrl="$(DuckDbArtifactRoot)/duckdb-binaries-linux-amd64.zip" InnerZipName="libduckdb-linux-amd64.zip" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
+      <_NativeLib Include="osx" LibUrl="$(DuckDbArtifactRoot)/duckdb-binaries-osx.zip" InnerZipName="libduckdb-osx-universal.zip" Condition="$([MSBuild]::IsOSPlatform('OSX'))" />
     </ItemGroup>
     <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=%(_NativeLib.Identity);LibUrl=%(_NativeLib.LibUrl);InnerZipName=%(_NativeLib.InnerZipName)" />
   </Target>
   <Target Name="CleanNativeLibs" BeforeTargets="Clean" Condition="'$(BuildType)' == 'Full' ">
     <RemoveDir Directories="obj\runtimes" />
-    <RemoveDir Directories="obj\nightly-cache" />
   </Target>
   <ItemGroup Condition="'$(BuildType)' == 'Full' ">
     <None Include="obj\runtimes\**\*.dll;obj\runtimes\**\*.so;obj\runtimes\**\*.dylib;">

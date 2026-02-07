@@ -21,30 +21,27 @@
     <Delete Files="$(NativeZipPath)"/>
   </Target>
 
-  <!-- Nightly: download outer zip (cached per platform), extract inner zip -->
+  <!-- Nightly: download outer zip, extract inner lib zip -->
   <Target Name="DownloadNightlyNatives"
           Condition="!Exists('$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native') AND '$(InnerZipName)' != ''">
     <PropertyGroup>
-      <_OuterZipName>$([System.IO.Path]::GetFileNameWithoutExtension('$(LibUrl)'))</_OuterZipName>
-      <_CacheDir>$(MSBuildProjectDirectory)\obj\nightly-cache\$(_OuterZipName)</_CacheDir>
-      <_CacheZip>$(MSBuildProjectDirectory)\obj\nightly-cache\$(_OuterZipName).zip</_CacheZip>
+      <NativeZipPath>$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native.zip</NativeZipPath>
+      <TempExtractPath>$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\temp</TempExtractPath>
     </PropertyGroup>
-    <!-- Download and extract outer zip only if not already cached -->
-    <MakeDir Directories="$(_CacheDir)" />
-    <DownloadFile Condition="!Exists('$(_CacheDir)\$(InnerZipName)')"
-            DestinationFolder="$(MSBuildProjectDirectory)\obj\nightly-cache"
+    <MakeDir Directories="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native" />
+    <Delete Files="$(NativeZipPath)" Condition="Exists('$(NativeZipPath)')" ContinueOnError="true"/>
+    <DownloadFile
+            DestinationFolder="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)"
             SourceUrl="$(LibUrl)"
             Retries="5"
             RetryDelayMilliseconds="1000"
-            DestinationFileName="$(_OuterZipName).zip"/>
-    <Unzip Condition="!Exists('$(_CacheDir)\$(InnerZipName)')"
-           DestinationFolder="$(_CacheDir)"
-           SourceFiles="$(_CacheZip)"/>
-    <Delete Files="$(_CacheZip)" Condition="Exists('$(_CacheZip)')" ContinueOnError="true"/>
-    <!-- Extract inner zip for this Rid -->
-    <MakeDir Directories="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native" />
+            DestinationFileName="native.zip"/>
+    <Unzip DestinationFolder="$(TempExtractPath)"
+           SourceFiles="$(NativeZipPath)"/>
     <Unzip DestinationFolder="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native"
-           SourceFiles="$(_CacheDir)\$(InnerZipName)"/>
+           SourceFiles="$(TempExtractPath)\$(InnerZipName)"/>
+    <RemoveDir Directories="$(TempExtractPath)" />
+    <Delete Files="$(NativeZipPath)"/>
   </Target>
 
 </Project>
