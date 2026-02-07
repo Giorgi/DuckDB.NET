@@ -17,11 +17,9 @@ internal static class DateTimeExtensions
         return (int)(ticks / 10);
     }
 
-#if NET6_0_OR_GREATER
     internal static int GetMicrosecond(this TimeOnly timeOnly)
     {
         var ticks = timeOnly.Ticks - GetTicks(timeOnly.Hour, timeOnly.Minute, timeOnly.Second);
         return (int)(ticks / 10);
     }
-#endif
 }

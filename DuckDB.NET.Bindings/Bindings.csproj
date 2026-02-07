@@ -49,8 +49,5 @@ Updated to DuckDB v1.4.4
   <ItemGroup Condition="'$(CI)' == 'true'">
     <PackageReference Include="GitVersion.MsBuild" Version="6.4.0" PrivateAssets="all" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
-    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.0" />
-  </ItemGroup>
   <!-- End native lib section -->
 </Project>

@@ -7,12 +7,7 @@ using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Data.DataChunk.Reader;
 
-internal class VectorDataReaderBase : IDisposable
-#if NET8_0_OR_GREATER
-#pragma warning disable DuckDBNET001
-    , IDuckDBDataReader 
-#pragma warning restore DuckDBNET001
-#endif
+internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
 {
     private readonly unsafe ulong* validityMaskPointer;
 
@@ -126,16 +121,8 @@ internal class VectorDataReaderBase : IDisposable
             DuckDBType.Double => typeof(double),
             DuckDBType.Timestamp => typeof(DateTime),
             DuckDBType.Interval => typeof(TimeSpan),
-#if NET6_0_OR_GREATER
             DuckDBType.Date => typeof(DateOnly),
-#else
-            DuckDBType.Date => typeof(DateTime),
-#endif
-#if NET6_0_OR_GREATER
             DuckDBType.Time => typeof(TimeOnly),
-#else
-            DuckDBType.Time => typeof(TimeSpan),
-#endif
             DuckDBType.TimeTz => typeof(DateTimeOffset),
             DuckDBType.HugeInt => typeof(BigInteger),
             DuckDBType.UnsignedHugeInt => typeof(BigInteger),

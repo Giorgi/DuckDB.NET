@@ -1,19 +1,17 @@
-﻿using Dapper;
-using DuckDB.NET.Data;
-using DuckDB.NET.Native;
-using FluentAssertions;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using System.Threading;
+using Dapper;
+using DuckDB.NET.Data;
+using DuckDB.NET.Native;
+using FluentAssertions;
 using Xunit;
 
 namespace DuckDB.NET.Test;
 
-[Experimental("DuckDBNET001")]
 public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]

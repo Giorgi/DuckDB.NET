@@ -17,19 +17,11 @@ internal static class GuidConverter
         // Reverse the bit flip on the upper 64 bits
         var upper = input.Upper ^ ((long)1 << 63);
 
-#if NET6_0_OR_GREATER
         // Write upper 64 bits (bytes 0-7)
         BitConverter.TryWriteBytes(bytes[GuidSize..], upper);
 
         // Write lower 64 bits (bytes 8-15)
         BitConverter.TryWriteBytes(bytes[(GuidSize + 8)..], input.Lower);
-#else
-        var data = BitConverter.GetBytes(upper);
-        data.CopyTo(bytes.Slice(GuidSize)); // Copy to bytes[16..23]
-
-        data = BitConverter.GetBytes(input.Lower);
-        data.CopyTo(bytes.Slice(GuidSize + 8)); // Copy to bytes[24..31]
-#endif
 
         // Reconstruct the Guid bytes (reverse the original byte reordering)
         for (var i = 0; i < GuidSize; i++)
@@ -38,11 +30,7 @@ internal static class GuidConverter
         }
 
         // Create Guid from the first 16 bytes
-#if NET6_0_OR_GREATER
         return new Guid(bytes[..GuidSize]);
-#else
-        return new Guid(bytes.Slice(0, GuidSize).ToArray());
-#endif
     }
 
 
@@ -51,12 +39,7 @@ internal static class GuidConverter
     {
         Span<byte> bytes = stackalloc byte[32];
 
-#if NET6_0_OR_GREATER
         guid.TryWriteBytes(bytes);
-#else
-        var byteArray = guid.ToByteArray();
-        byteArray.AsSpan().CopyTo(bytes);
-#endif
 
         // Reconstruct the Guid bytes (reverse the original byte reordering)
         for (var i = 0; i < GuidSize; i++)
@@ -64,18 +47,11 @@ internal static class GuidConverter
             bytes[i + GuidSize] = bytes[GuidByteOrder[i]];
         }
 
-#if NET6_0_OR_GREATER
         // Upper 64 bits (bytes 0-7)
         var upper = BitConverter.ToInt64(bytes[GuidSize..]);
 
         // Lower 64 bits (bytes 8-15)
         var lower = BitConverter.ToUInt64(bytes[(GuidSize + 8)..]);
-#else
-        var array = bytes.ToArray();
-
-        var upper = BitConverter.ToInt64(array, GuidSize);
-        var lower = BitConverter.ToUInt64(array, GuidSize + 8);
-#endif
         //Do not flip if we are passing it to duckdb_create_uuid. That function will flip it for us.
         if (flip)
         {

@@ -40,9 +40,7 @@ public partial class DuckDBConnection : DbConnection
         ConnectionString = connectionString;
     }
 
-#if NET6_0_OR_GREATER
     [AllowNull]
-#endif
     [DefaultValue("")]
     public override string ConnectionString { get; set; }
 

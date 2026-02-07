@@ -53,7 +53,6 @@ internal sealed class StringVectorDataReader : VectorDataReaderBase
     {
         var bitArray = GetBitStringAsBitArray(offset);
 
-#if NET6_0_OR_GREATER
         return string.Create(bitArray.Length, bitArray, (chars, array) =>
         {
             for (int index = 0; index < array.Length; index++)
@@ -61,16 +60,6 @@ internal sealed class StringVectorDataReader : VectorDataReaderBase
                 chars[index] = array[index] ? '1' : '0';
             }
         });
-#else
-        var output = new char[bitArray.Length];
-
-        for (var index = 0; index < bitArray.Count; index++)
-        {
-            output[index] = bitArray[index] ? '1' : '0';
-        }
-
-        return new string(output);
-#endif
     }
 
     //Copied from https://github.com/duckdb/duckdb/blob/8a17511028d306561d88da9425f9e0e88dedd70c/src/common/types/bit.cpp#L63

@@ -9,15 +9,6 @@ internal static class DateTimeExtensions
     public const int TicksPerMicrosecond = 10;
     public const int NanosecondsPerTick = 100;
 
-    public static int Nanoseconds(this DateTime self)
-    {
-#if NET8_0_OR_GREATER
-        return self.Nanosecond;
-#else
-        return (int)(self.Ticks % TimeSpan.TicksPerMillisecond % TicksPerMicrosecond) * NanosecondsPerTick;
-#endif
-    }
-
     public static DuckDBTimeTzStruct ToTimeTzStruct(this DateTimeOffset value)
     {
         var time = NativeMethods.DateTimeHelpers.DuckDBToTime((DuckDBTimeOnly)value.DateTime);
@@ -41,7 +32,7 @@ internal static class DateTimeExtensions
         {
             timestamp.Micros *= 1000;
 
-            timestamp.Micros += value.Nanoseconds();
+            timestamp.Micros += value.Nanosecond;
         }
 
         if (duckDBType == DuckDBType.TimestampMs)

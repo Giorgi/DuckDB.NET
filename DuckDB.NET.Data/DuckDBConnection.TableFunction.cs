@@ -6,7 +6,6 @@ using DuckDB.NET.Native;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -18,68 +17,57 @@ public record TableFunction(IReadOnlyList<ColumnInfo> Columns, IEnumerable Data)
 
 partial class DuckDBConnection
 {
-#if NET8_0_OR_GREATER
-    [Experimental("DuckDBNET001")]
+
     public void RegisterTableFunction(string name, Func<TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
     {
         RegisterTableFunctionInternal(name, (_) => resultCallback(), mapperCallback, Array.Empty<Type>());
     }
 
-    [Experimental("DuckDBNET001")]
     public void RegisterTableFunction<T>(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
     {
         RegisterTableFunctionInternal(name, resultCallback, mapperCallback, typeof(T));
     }
 
-    [Experimental("DuckDBNET001")]
     public void RegisterTableFunction<T1, T2>(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
     {
         RegisterTableFunctionInternal(name, resultCallback, mapperCallback, typeof(T1), typeof(T2));
     }
 
-    [Experimental("DuckDBNET001")]
     public void RegisterTableFunction<T1, T2, T3>(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
     {
         RegisterTableFunctionInternal(name, resultCallback, mapperCallback, typeof(T1), typeof(T2), typeof(T3));
     }
 
-    [Experimental("DuckDBNET001")]
     public void RegisterTableFunction<T1, T2, T3, T4>(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
     {
         RegisterTableFunctionInternal(name, resultCallback, mapperCallback, typeof(T1), typeof(T2), typeof(T3), typeof(T4));
     }
 
-    [Experimental("DuckDBNET001")]
     public void RegisterTableFunction<T1, T2, T3, T4, T5>(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
     {
         RegisterTableFunctionInternal(name, resultCallback, mapperCallback, typeof(T1), typeof(T2), typeof(T3), typeof(T4), typeof(T5));
     }
 
-    [Experimental("DuckDBNET001")]
     public void RegisterTableFunction<T1, T2, T3, T4, T5, T6>(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
     {
         RegisterTableFunctionInternal(name, resultCallback, mapperCallback, typeof(T1), typeof(T2), typeof(T3), typeof(T4), typeof(T5), typeof(T6));
     }
 
-    [Experimental("DuckDBNET001")]
     public void RegisterTableFunction<T1, T2, T3, T4, T5, T6, T7>(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
     {
         RegisterTableFunctionInternal(name, resultCallback, mapperCallback, typeof(T1), typeof(T2), typeof(T3), typeof(T4), typeof(T5), typeof(T6), typeof(T7));
     }
 
-    [Experimental("DuckDBNET001")]
     public void RegisterTableFunction<T1, T2, T3, T4, T5, T6, T7, T8>(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
     {
         RegisterTableFunctionInternal(name, resultCallback, mapperCallback, typeof(T1), typeof(T2), typeof(T3), typeof(T4), typeof(T5), typeof(T6), typeof(T7), typeof(T8));
     }
 
-    [Experimental("DuckDBNET001")]
     public void RegisterTableFunction(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback, params DuckDBType[] parameterTypes)
     {
         RegisterTableFunctionInternal(name, resultCallback, mapperCallback, parameterTypes);
     }
 
-    [Experimental("DuckDBNET001")]
     private unsafe void RegisterTableFunctionInternal(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback, params Type[] parameterTypes)
     {
         var function = NativeMethods.TableFunction.DuckDBCreateTableFunction();
@@ -111,7 +99,6 @@ partial class DuckDBConnection
         NativeMethods.TableFunction.DuckDBDestroyTableFunction(ref function);
     }
 
-    [Experimental("DuckDBNET001")]
     private unsafe void RegisterTableFunctionInternal(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback, params DuckDBType[] parameterTypes)
     {
         var function = NativeMethods.TableFunction.DuckDBCreateTableFunction();
@@ -245,5 +232,4 @@ partial class DuckDBConnection
             NativeMethods.TableFunction.DuckDBFunctionSetError(info, errorMessage);
         }
     }
-#endif
 }

@@ -36,21 +36,13 @@ internal static class ClrToDuckDBConverter
         },
         { DbType.Date, value =>
             {
-#if NET6_0_OR_GREATER
                 var date = (value is DateOnly dateOnly ? (DuckDBDateOnly)dateOnly : (DuckDBDateOnly)value).ToDuckDBDate();
-#else
-                var date = ((DuckDBDateOnly)value).ToDuckDBDate();
-#endif
                 return NativeMethods.Value.DuckDBCreateDate(date);
             }
         },
         { DbType.Time, value =>
             {
-#if NET6_0_OR_GREATER
                 var time = NativeMethods.DateTimeHelpers.DuckDBToTime(value is TimeOnly timeOnly ? (DuckDBTimeOnly)timeOnly : (DuckDBTimeOnly)value);
-#else
-                var time = NativeMethods.DateTimeHelpers.DuckDBToTime((DuckDBTimeOnly)value);
-#endif
                 return NativeMethods.Value.DuckDBCreateTime(time);
             }
         },
@@ -65,7 +57,7 @@ internal static class ClrToDuckDBConverter
 
     public static DuckDBValue ToDuckDBValue(this object? item, DuckDBLogicalType logicalType, DuckDBType duckDBType, DbType dbType)
     {
-        if (item.IsNull() || item == null) //item == null is redundant but net standard can't understand that item isn't null after this point.
+        if (item.IsNull())
         {
             return NativeMethods.Value.DuckDBCreateNullValue();
         }
@@ -104,10 +96,8 @@ internal static class ClrToDuckDBConverter
             (DuckDBType.Date, DuckDBDateOnly value) => NativeMethods.Value.DuckDBCreateDate(value.ToDuckDBDate()),
             (DuckDBType.Time, DateTime value) => NativeMethods.Value.DuckDBCreateTime(NativeMethods.DateTimeHelpers.DuckDBToTime((DuckDBTimeOnly)value)),
             (DuckDBType.Time, DuckDBTimeOnly value) => NativeMethods.Value.DuckDBCreateTime(NativeMethods.DateTimeHelpers.DuckDBToTime(value)),
-#if NET6_0_OR_GREATER
             (DuckDBType.Date, DateOnly value) => NativeMethods.Value.DuckDBCreateDate(((DuckDBDateOnly)value).ToDuckDBDate()),
             (DuckDBType.Time, TimeOnly value) => NativeMethods.Value.DuckDBCreateTime(NativeMethods.DateTimeHelpers.DuckDBToTime(value)),
-#endif
             (DuckDBType.TimeTz, DateTimeOffset value) => NativeMethods.Value.DuckDBCreateTimeTz(value.ToTimeTzStruct()),
             (DuckDBType.Blob, byte[] value) => NativeMethods.Value.DuckDBCreateBlob(value, value.Length),
             (DuckDBType.List, ICollection value) => CreateCollectionValue(logicalType, value, true, dbType),

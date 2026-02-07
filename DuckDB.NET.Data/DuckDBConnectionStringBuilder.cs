@@ -81,9 +81,7 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
         return new DuckDBConnectionString(dataSource, inMemory, isShared, configurations);
     }
 
-#if NET6_0_OR_GREATER
     [AllowNull]
-#endif
     public override object this[string keyword]
     {
         get => base[keyword];
