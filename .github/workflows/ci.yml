@@ -11,8 +11,8 @@ on:
     paths-ignore:
       - '**.md'
       
-#  schedule:    
-#      - cron: "15 */12 * * *"
+  schedule:
+      - cron: "15 */12 * * *"
 
 concurrency:
   group: ${{ github.ref }}
@@ -38,10 +38,10 @@ jobs:
     - name: Set Env
       if: startsWith(github.ref_name, 'nightly') || startsWith(env.BuildBranch, 'nightly')
       run: |
-        echo "DuckDbArtifactRoot=https://carlopi.github.io/duckdb-latest" >> "$GITHUB_ENV"
-        echo "SkipArm=True" >> "$GITHUB_ENV"
-        echo "DuckDbArtifactRoot=https://carlopi.github.io/duckdb-latest" >> $env:GITHUB_ENV
-        echo "SkipArm=True" >> $env:GITHUB_ENV
+        echo "DuckDbArtifactRoot=https://artifacts.duckdb.org/latest" >> "$GITHUB_ENV"
+        echo "NightlyBuild=true" >> "$GITHUB_ENV"
+        echo "DuckDbArtifactRoot=https://artifacts.duckdb.org/latest" >> $env:GITHUB_ENV
+        echo "NightlyBuild=true" >> $env:GITHUB_ENV
     
     - name: Checkout
       uses: actions/checkout@v4
