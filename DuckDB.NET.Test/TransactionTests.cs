@@ -117,26 +117,20 @@ public class TransactionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void AbortedTransactionTest()
     {
-        // This block of code is to make the transaction commit fail using an index limitation in duckdb
-        // (https://github.com/duckdb/duckdb/issues/17802)
-        Command.CommandText = "CREATE TABLE IF NOT EXISTS test_table (id INTEGER PRIMARY KEY);";
+        // This block of code is to make the transaction commit fail using a catalog limitation in duckdb
+        // (https://github.com/duckdb/duckdb/issues/20570)
+        Command.CommandText = "CREATE TABLE IF NOT EXISTS test_table (id INTEGER, col INTEGER);";
         Command.ExecuteNonQuery();
-        Command.CommandText = "INSERT OR IGNORE INTO test_table VALUES (1);";
+        Command.CommandText = "INSERT INTO test_table VALUES (1, 1);";
         Command.ExecuteNonQuery();
-        // Keep a reference to the row in an open transaction to trigger the concurrent access limitation
-        using var tx1 = Connection.BeginTransaction();
-        Command.Transaction = tx1;
-        Command.CommandText = "SELECT id FROM test_table LIMIT 1;";
-        using var reader1 = Command.ExecuteReader();
-        using var conn2 = Connection.Duplicate();
-        conn2.Open();
-        using var cmd2 = conn2.CreateCommand();
-        cmd2.CommandText = "UPDATE test_table SET id = 1 WHERE id = 1;";
-        cmd2.ExecuteNonQuery();
-        var tx2 = conn2.BeginTransaction();
-        cmd2.Transaction = tx2;
-        cmd2.CommandText = "UPDATE test_table SET id = 1 WHERE id = 1;";
-        cmd2.ExecuteNonQuery();
+
+        using var tx2 = Connection.BeginTransaction();
+        Command.Transaction = tx2;
+        Command.CommandText = "UPDATE test_table SET id = 2;";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "ALTER TABLE test_table DROP COLUMN id;";
+        Command.ExecuteNonQuery();
 
         using (new FluentAssertions.Execution.AssertionScope())
         {
@@ -148,7 +142,7 @@ public class TransactionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             tx2.Invoking(tx2 => tx2.Rollback()).Should().Throw<InvalidOperationException>();
             tx2.Invoking(tx2 => tx2.Dispose()).Should().NotThrow();
 
-            conn2.Invoking(conn2 => conn2.BeginTransaction()).Should().NotThrow();
+            Connection.Invoking(conn => conn.BeginTransaction()).Should().NotThrow();
         }
     }
 }
