@@ -108,7 +108,7 @@ public class TransactionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             .Throw<ArgumentException>();
     }
 
-    [Fact(Skip = "Failing for DuckDB 1.5.0")]
+    [Fact]
     public void AbortedTransactionTest()
     {
         // This block of code is to make the transaction commit fail using a catalog limitation in duckdb
