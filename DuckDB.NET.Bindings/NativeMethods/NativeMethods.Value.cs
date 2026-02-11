@@ -4,185 +4,241 @@ namespace DuckDB.NET.Native;
 
 public partial class NativeMethods
 {
-    public static class Value
+    public static partial class Value
     {
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_value")]
-        public static extern void DuckDBDestroyValue(ref IntPtr config);
-        
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_varchar")]
-        public static extern DuckDBValue DuckDBCreateVarchar(SafeUnmanagedMemoryHandle value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_destroy_value")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial void DuckDBDestroyValue(ref IntPtr config);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_bool")]
-        public static extern DuckDBValue DuckDBCreateBool(bool value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_varchar")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateVarchar(SafeUnmanagedMemoryHandle value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_int8")]
-        public static extern DuckDBValue DuckDBCreateInt8(sbyte value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_bool")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateBool([MarshalAs(UnmanagedType.I1)] bool value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_uint8")]
-        public static extern DuckDBValue DuckDBCreateUInt8(byte value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_int8")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateInt8(sbyte value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_int16")]
-        public static extern DuckDBValue DuckDBCreateInt16(short value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_uint8")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateUInt8(byte value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_uint16")]
-        public static extern DuckDBValue DuckDBCreateUInt16(ushort value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_int16")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateInt16(short value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_int32")]
-        public static extern DuckDBValue DuckDBCreateInt32(int value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_uint16")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateUInt16(ushort value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_uint32")]
-        public static extern DuckDBValue DuckDBCreateUInt32(uint value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_int32")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateInt32(int value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_int64")]
-        public static extern DuckDBValue DuckDBCreateInt64(long value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_uint32")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateUInt32(uint value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_uint64")]
-        public static extern DuckDBValue DuckDBCreateUInt64(ulong value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_int64")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateInt64(long value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_hugeint")]
-        public static extern DuckDBValue DuckDBCreateHugeInt(DuckDBHugeInt value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_uint64")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateUInt64(ulong value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_uhugeint")]
-        public static extern DuckDBValue DuckDBCreateUHugeInt(DuckDBUHugeInt value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_hugeint")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateHugeInt(DuckDBHugeInt value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_decimal")]
-        public static extern DuckDBValue DuckDBCreateDecimal(DuckDBDecimal value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_uhugeint")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateUHugeInt(DuckDBUHugeInt value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_float")]
-        public static extern DuckDBValue DuckDBCreateFloat(float value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_decimal")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateDecimal(DuckDBDecimal value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_double")]
-        public static extern DuckDBValue DuckDBCreateDouble(double value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_float")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateFloat(float value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_date")]
-        public static extern DuckDBValue DuckDBCreateDate(DuckDBDate value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_double")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateDouble(double value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_time")]
-        public static extern DuckDBValue DuckDBCreateTime(DuckDBTime value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_date")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateDate(DuckDBDate value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_time_tz_value")]
-        public static extern DuckDBValue DuckDBCreateTimeTz(DuckDBTimeTzStruct value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_time")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateTime(DuckDBTime value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_timestamp")]
-        public static extern DuckDBValue DuckDBCreateTimestamp(DuckDBTimestampStruct value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_time_tz_value")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateTimeTz(DuckDBTimeTzStruct value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_timestamp_tz")]
-        public static extern DuckDBValue DuckDBCreateTimestampTz(DuckDBTimestampStruct value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_timestamp")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateTimestamp(DuckDBTimestampStruct value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_timestamp_s")]
-        public static extern DuckDBValue DuckDBCreateTimestampS(DuckDBTimestampStruct value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_timestamp_tz")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateTimestampTz(DuckDBTimestampStruct value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_timestamp_ms")]
-        public static extern DuckDBValue DuckDBCreateTimestampMs(DuckDBTimestampStruct value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_timestamp_s")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateTimestampS(DuckDBTimestampStruct value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_timestamp_ns")]
-        public static extern DuckDBValue DuckDBCreateTimestampNs(DuckDBTimestampStruct value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_timestamp_ms")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateTimestampMs(DuckDBTimestampStruct value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_interval")]
-        public static extern DuckDBValue DuckDBCreateInterval(DuckDBInterval value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_timestamp_ns")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateTimestampNs(DuckDBTimestampStruct value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_blob")]
-        public static extern DuckDBValue DuckDBCreateBlob([In] byte[] value, long length);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_interval")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateInterval(DuckDBInterval value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_uuid")]
-        public static extern DuckDBValue DuckDBCreateUuid(DuckDBHugeInt value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_blob")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateBlob([In] byte[] value, long length);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_bool")]
-        public static extern bool DuckDBGetBool(DuckDBValue value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_uuid")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateUuid(DuckDBHugeInt value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_int8")]
-        public static extern sbyte DuckDBGetInt8(DuckDBValue value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_bool")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        [return: MarshalAs(UnmanagedType.I1)]
+        public static partial bool DuckDBGetBool(DuckDBValue value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_uint8")]
-        public static extern byte DuckDBGetUInt8(DuckDBValue value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_int8")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial sbyte DuckDBGetInt8(DuckDBValue value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_int16")]
-        public static extern short DuckDBGetInt16(DuckDBValue value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_uint8")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial byte DuckDBGetUInt8(DuckDBValue value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_uint16")]
-        public static extern ushort DuckDBGetUInt16(DuckDBValue value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_int16")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial short DuckDBGetInt16(DuckDBValue value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_int32")]
-        public static extern int DuckDBGetInt32(DuckDBValue value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_uint16")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial ushort DuckDBGetUInt16(DuckDBValue value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_uint32")]
-        public static extern uint DuckDBGetUInt32(DuckDBValue value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_int32")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial int DuckDBGetInt32(DuckDBValue value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_int64")]
-        public static extern long DuckDBGetInt64(DuckDBValue value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_uint32")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial uint DuckDBGetUInt32(DuckDBValue value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_uint64")]
-        public static extern ulong DuckDBGetUInt64(DuckDBValue value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_int64")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial long DuckDBGetInt64(DuckDBValue value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_hugeint")]
-        public static extern DuckDBHugeInt DuckDBGetHugeInt(DuckDBValue value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_uint64")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial ulong DuckDBGetUInt64(DuckDBValue value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_uhugeint")]
-        public static extern DuckDBUHugeInt DuckDBGetUHugeInt(DuckDBValue value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_hugeint")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBHugeInt DuckDBGetHugeInt(DuckDBValue value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_float")]
-        public static extern float DuckDBGetFloat(DuckDBValue value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_uhugeint")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBUHugeInt DuckDBGetUHugeInt(DuckDBValue value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_double")]
-        public static extern double DuckDBGetDouble(DuckDBValue value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_float")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial float DuckDBGetFloat(DuckDBValue value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_date")]
-        public static extern DuckDBDate DuckDBGetDate(DuckDBValue value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_double")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial double DuckDBGetDouble(DuckDBValue value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_time")]
-        public static extern DuckDBTime DuckDBGetTime(DuckDBValue value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_date")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBDate DuckDBGetDate(DuckDBValue value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_time_tz")] 
-        public static extern DuckDBTimeTzStruct DuckDBGetTimeTz(DuckDBValue value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_time")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBTime DuckDBGetTime(DuckDBValue value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_timestamp")]
-        public static extern DuckDBTimestampStruct DuckDBGetTimestamp(DuckDBValue value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_time_tz")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBTimeTzStruct DuckDBGetTimeTz(DuckDBValue value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_timestamp_s")]
-        public static extern DuckDBTimestampStruct DuckDBGetTimestampS(DuckDBValue value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_timestamp")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBTimestampStruct DuckDBGetTimestamp(DuckDBValue value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_timestamp_ms")]
-        public static extern DuckDBTimestampStruct DuckDBGetTimestampMs(DuckDBValue value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_timestamp_s")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBTimestampStruct DuckDBGetTimestampS(DuckDBValue value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_timestamp_ns")]
-        public static extern DuckDBTimestampStruct DuckDBGetTimestampNs(DuckDBValue value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_timestamp_ms")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBTimestampStruct DuckDBGetTimestampMs(DuckDBValue value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_interval")]
-        public static extern DuckDBInterval DuckDBGetInterval(DuckDBValue value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_timestamp_ns")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBTimestampStruct DuckDBGetTimestampNs(DuckDBValue value);
 
-        [DllImport(DuckDbLibrary, CallingConvention =  CallingConvention.Cdecl, EntryPoint = "duckdb_get_value_type")]
-        public static extern DuckDBLogicalType DuckDBGetValueType(DuckDBValue value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_interval")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBInterval DuckDBGetInterval(DuckDBValue value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_varchar")]
-        public static extern string DuckDBGetVarchar(DuckDBValue value);
-        
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_list_value")]
-        public static extern DuckDBValue DuckDBCreateListValue(DuckDBLogicalType logicalType, IntPtr[] values, long count);
-        
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_array_value")]
-        public static extern DuckDBValue DuckDBCreateArrayValue(DuckDBLogicalType logicalType, IntPtr[] values, long count);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_value_type")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBLogicalType DuckDBGetValueType(DuckDBValue value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_null_value")]
-        public static extern DuckDBValue DuckDBCreateNullValue();
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_varchar", StringMarshalling = StringMarshalling.Utf8)]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial string DuckDBGetVarchar(DuckDBValue value);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_is_null_value")]
-        public static extern bool DuckDBIsNullValue(DuckDBValue value);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_list_value")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateListValue(DuckDBLogicalType logicalType, IntPtr[] values, long count);
+
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_array_value")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateArrayValue(DuckDBLogicalType logicalType, IntPtr[] values, long count);
+
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_null_value")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateNullValue();
+
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_is_null_value")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        [return: MarshalAs(UnmanagedType.I1)]
+        public static partial bool DuckDBIsNullValue(DuckDBValue value);
 
         public static DuckDBValue DuckDBCreateListValue(DuckDBLogicalType logicalType, DuckDBValue[] values, int count)
         {
             var duckDBValue = DuckDBCreateListValue(logicalType, values.Select(item => item.DangerousGetHandle()).ToArray(), count);
-            
+
             duckDBValue.SetChildValues(values);
-            
+
             return duckDBValue;
         }
 
         public static DuckDBValue DuckDBCreateArrayValue(DuckDBLogicalType logicalType, DuckDBValue[] values, int count)
         {
             var duckDBValue = DuckDBCreateArrayValue(logicalType, values.Select(item => item.DangerousGetHandle()).ToArray(), count);
-            
+
             duckDBValue.SetChildValues(values);
-            
+
             return duckDBValue;
         }
     }

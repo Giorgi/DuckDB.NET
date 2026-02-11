@@ -3,56 +3,72 @@
 public partial class NativeMethods
 {
     //https://duckdb.org/docs/api/c/api#query-execution
-    public static class Query
+    public static partial class Query
     {
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_query")]
-        public static extern DuckDBState DuckDBQuery(DuckDBNativeConnection connection, string query, out DuckDBResult result);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_query", StringMarshalling = StringMarshalling.Utf8)]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBState DuckDBQuery(DuckDBNativeConnection connection, string query, out DuckDBResult result);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_query")]
-        public static extern DuckDBState DuckDBQuery(DuckDBNativeConnection connection, SafeUnmanagedMemoryHandle query, out DuckDBResult result);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_query")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBState DuckDBQuery(DuckDBNativeConnection connection, SafeUnmanagedMemoryHandle query, out DuckDBResult result);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_result")]
-        public static extern void DuckDBDestroyResult([In, Out] ref DuckDBResult result);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_destroy_result")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial void DuckDBDestroyResult(ref DuckDBResult result);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_fetch_chunk")]
-        public static extern DuckDBDataChunk DuckDBFetchChunk([In, Out] DuckDBResult result);
-        
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_column_name")]
-        public static extern IntPtr DuckDBColumnName([In, Out] ref DuckDBResult result, long col);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_fetch_chunk")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBDataChunk DuckDBFetchChunk(DuckDBResult result);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_column_type")]
-        public static extern DuckDBType DuckDBColumnType([In, Out] ref DuckDBResult result, long col);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_column_name")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial IntPtr DuckDBColumnName(ref DuckDBResult result, long col);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_result_statement_type")]
-        public static extern DuckDBStatementType DuckDBResultStatementType([In, Out] DuckDBResult result);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_column_type")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBType DuckDBColumnType(ref DuckDBResult result, long col);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_result_return_type")]
-        public static extern DuckDBResultType DuckDBResultReturnType([In, Out] DuckDBResult result);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_result_statement_type")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBStatementType DuckDBResultStatementType(DuckDBResult result);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_column_logical_type")]
-        public static extern DuckDBLogicalType DuckDBColumnLogicalType([In, Out] ref DuckDBResult result, long col);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_result_return_type")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBResultType DuckDBResultReturnType(DuckDBResult result);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_column_count")]
-        public static extern ulong DuckDBColumnCount([In, Out] ref DuckDBResult result);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_column_logical_type")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBLogicalType DuckDBColumnLogicalType(ref DuckDBResult result, long col);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_row_count")]
-        public static extern long DuckDBRowCount([In, Out] ref DuckDBResult result);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_column_count")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial ulong DuckDBColumnCount(ref DuckDBResult result);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_rows_changed")]
-        public static extern long DuckDBRowsChanged([In, Out] ref DuckDBResult result);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_row_count")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial long DuckDBRowCount(ref DuckDBResult result);
+
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_rows_changed")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial long DuckDBRowsChanged(ref DuckDBResult result);
 
         [Obsolete("Prefer using duckdb_result_get_chunk instead")]
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_column_data")]
-        public static extern IntPtr DuckDBColumnData([In, Out] ref DuckDBResult result, long col);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_column_data")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial IntPtr DuckDBColumnData(ref DuckDBResult result, long col);
 
         [Obsolete("Prefer using duckdb_result_get_chunk instead")]
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_nullmask_data")]
-        public static extern IntPtr DuckDBNullmaskData([In, Out] ref DuckDBResult result, long col);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_nullmask_data")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial IntPtr DuckDBNullmaskData(ref DuckDBResult result, long col);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_result_error")]
-        public static extern IntPtr DuckDBResultError([In, Out] ref DuckDBResult result);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_result_error")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial IntPtr DuckDBResultError(ref DuckDBResult result);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_result_error_type")]
-        public static extern DuckDBErrorType DuckDBResultErrorType(ref DuckDBResult result);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_result_error_type")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBErrorType DuckDBResultErrorType(ref DuckDBResult result);
     }
 }

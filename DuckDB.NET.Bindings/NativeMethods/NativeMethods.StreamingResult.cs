@@ -2,9 +2,10 @@
 
 public partial class NativeMethods
 {
-    public static class StreamingResult
+    public static partial class StreamingResult
     {
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_stream_fetch_chunk")]
-        public static extern DuckDBDataChunk DuckDBStreamFetchChunk([In, Out] DuckDBResult result);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_stream_fetch_chunk")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBDataChunk DuckDBStreamFetchChunk(DuckDBResult result);
     }
 }

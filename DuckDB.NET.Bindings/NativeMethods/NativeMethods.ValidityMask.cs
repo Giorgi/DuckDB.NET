@@ -2,9 +2,10 @@
 
 public partial class NativeMethods
 {
-    public static class ValidityMask
+    public static partial class ValidityMask
     {
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_validity_set_row_validity")]
-        public static extern unsafe void DuckDBValiditySetRowValidity(ulong* validity, ulong index, bool valid);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_validity_set_row_validity")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static unsafe partial void DuckDBValiditySetRowValidity(ulong* validity, ulong index, [MarshalAs(UnmanagedType.I1)] bool valid);
     }
 }

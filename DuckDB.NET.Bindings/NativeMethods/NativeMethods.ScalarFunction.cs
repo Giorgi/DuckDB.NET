@@ -2,39 +2,50 @@
 
 public partial class NativeMethods
 {
-    public static class ScalarFunction
+    public static partial class ScalarFunction
     {
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_scalar_function")]
-        public static extern IntPtr DuckDBCreateScalarFunction();
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_scalar_function")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial IntPtr DuckDBCreateScalarFunction();
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_scalar_function")]
-        public static extern void DuckDBDestroyScalarFunction(ref IntPtr scalarFunction);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_destroy_scalar_function")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial void DuckDBDestroyScalarFunction(ref IntPtr scalarFunction);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_scalar_function_set_name")]
-        public static extern void DuckDBScalarFunctionSetName(IntPtr scalarFunction, SafeUnmanagedMemoryHandle name);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_set_name")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial void DuckDBScalarFunctionSetName(IntPtr scalarFunction, SafeUnmanagedMemoryHandle name);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_scalar_function_set_varargs")]
-        public static extern void DuckDBScalarFunctionSetVarargs(IntPtr scalarFunction, DuckDBLogicalType type);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_set_varargs")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial void DuckDBScalarFunctionSetVarargs(IntPtr scalarFunction, DuckDBLogicalType type);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_scalar_function_set_volatile")]
-        public static extern void DuckDBScalarFunctionSetVolatile(IntPtr scalarFunction);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_set_volatile")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial void DuckDBScalarFunctionSetVolatile(IntPtr scalarFunction);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_scalar_function_add_parameter")]
-        public static extern void DuckDBScalarFunctionAddParameter(IntPtr scalarFunction, DuckDBLogicalType type);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_add_parameter")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial void DuckDBScalarFunctionAddParameter(IntPtr scalarFunction, DuckDBLogicalType type);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_scalar_function_set_return_type")]
-        public static extern void DuckDBScalarFunctionSetReturnType(IntPtr scalarFunction, DuckDBLogicalType type);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_set_return_type")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial void DuckDBScalarFunctionSetReturnType(IntPtr scalarFunction, DuckDBLogicalType type);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_scalar_function_set_extra_info")]
-        public static extern unsafe void DuckDBScalarFunctionSetExtraInfo(IntPtr scalarFunction, IntPtr extraInfo, delegate* unmanaged[Cdecl]<IntPtr, void> destroy);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_set_extra_info")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static unsafe partial void DuckDBScalarFunctionSetExtraInfo(IntPtr scalarFunction, IntPtr extraInfo, delegate* unmanaged[Cdecl]<IntPtr, void> destroy);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_scalar_function_set_function")]
-        public static extern unsafe void DuckDBScalarFunctionSetFunction(IntPtr scalarFunction, delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, void> callback);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_set_function")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static unsafe partial void DuckDBScalarFunctionSetFunction(IntPtr scalarFunction, delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, void> callback);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_register_scalar_function")]
-        public static extern DuckDBState DuckDBRegisterScalarFunction(DuckDBNativeConnection con, IntPtr scalarFunction);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_register_scalar_function")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBState DuckDBRegisterScalarFunction(DuckDBNativeConnection con, IntPtr scalarFunction);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_scalar_function_get_extra_info")]
-        public static extern IntPtr DuckDBScalarFunctionGetExtraInfo(IntPtr scalarFunction);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_get_extra_info")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial IntPtr DuckDBScalarFunctionGetExtraInfo(IntPtr scalarFunction);
     }
 }

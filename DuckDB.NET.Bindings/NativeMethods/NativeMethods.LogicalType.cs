@@ -3,60 +3,78 @@
 public partial class NativeMethods
 {
     //https://duckdb.org/docs/api/c/api#logical-type-interface
-    public static class LogicalType
+    public static partial class LogicalType
     {
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_logical_type")]
-        public static extern DuckDBLogicalType DuckDBCreateLogicalType(DuckDBType type);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_logical_type")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBLogicalType DuckDBCreateLogicalType(DuckDBType type);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_create_decimal_type")]
-        public static extern DuckDBLogicalType DuckDBCreateDecimalType(byte width, byte scale);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_decimal_type")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBLogicalType DuckDBCreateDecimalType(byte width, byte scale);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_type_id")]
-        public static extern DuckDBType DuckDBGetTypeId(DuckDBLogicalType type);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_type_id")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBType DuckDBGetTypeId(DuckDBLogicalType type);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_decimal_width")]
-        public static extern byte DuckDBDecimalWidth(DuckDBLogicalType type);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_decimal_width")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial byte DuckDBDecimalWidth(DuckDBLogicalType type);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_decimal_scale")]
-        public static extern byte DuckDBDecimalScale(DuckDBLogicalType type);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_decimal_scale")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial byte DuckDBDecimalScale(DuckDBLogicalType type);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_decimal_internal_type")]
-        public static extern DuckDBType DuckDBDecimalInternalType(DuckDBLogicalType type);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_decimal_internal_type")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBType DuckDBDecimalInternalType(DuckDBLogicalType type);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_enum_internal_type")]
-        public static extern DuckDBType DuckDBEnumInternalType(DuckDBLogicalType type);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_enum_internal_type")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBType DuckDBEnumInternalType(DuckDBLogicalType type);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_enum_dictionary_size")]
-        public static extern uint DuckDBEnumDictionarySize(DuckDBLogicalType type);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_enum_dictionary_size")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial uint DuckDBEnumDictionarySize(DuckDBLogicalType type);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_enum_dictionary_value")]
-        public static extern IntPtr DuckDBEnumDictionaryValue(DuckDBLogicalType type, long index);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_enum_dictionary_value")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial IntPtr DuckDBEnumDictionaryValue(DuckDBLogicalType type, long index);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_list_type_child_type")]
-        public static extern DuckDBLogicalType DuckDBListTypeChildType(DuckDBLogicalType type);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_list_type_child_type")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBLogicalType DuckDBListTypeChildType(DuckDBLogicalType type);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_array_type_child_type")]
-        public static extern DuckDBLogicalType DuckDBArrayTypeChildType(DuckDBLogicalType type);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_array_type_child_type")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBLogicalType DuckDBArrayTypeChildType(DuckDBLogicalType type);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_map_type_key_type")]
-        public static extern DuckDBLogicalType DuckDBMapTypeKeyType(DuckDBLogicalType type);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_map_type_key_type")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBLogicalType DuckDBMapTypeKeyType(DuckDBLogicalType type);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_map_type_value_type")]
-        public static extern DuckDBLogicalType DuckDBMapTypeValueType(DuckDBLogicalType type);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_map_type_value_type")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBLogicalType DuckDBMapTypeValueType(DuckDBLogicalType type);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_struct_type_child_count")]
-        public static extern long DuckDBStructTypeChildCount(DuckDBLogicalType type);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_struct_type_child_count")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial long DuckDBStructTypeChildCount(DuckDBLogicalType type);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_struct_type_child_name")]
-        public static extern IntPtr DuckDBStructTypeChildName(DuckDBLogicalType type, long index);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_struct_type_child_name")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial IntPtr DuckDBStructTypeChildName(DuckDBLogicalType type, long index);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_struct_type_child_type")]
-        public static extern DuckDBLogicalType DuckDBStructTypeChildType(DuckDBLogicalType type, long index);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_struct_type_child_type")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBLogicalType DuckDBStructTypeChildType(DuckDBLogicalType type, long index);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_destroy_logical_type")]
-        public static extern void DuckDBDestroyLogicalType(ref IntPtr type);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_destroy_logical_type")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial void DuckDBDestroyLogicalType(ref IntPtr type);
 
-        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_array_type_array_size")]
-        public static extern long DuckDBArrayVectorGetSize(DuckDBLogicalType logicalType);
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_array_type_array_size")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial long DuckDBArrayVectorGetSize(DuckDBLogicalType logicalType);
     }
 }
