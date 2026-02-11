@@ -23,7 +23,8 @@ public partial class NativeMethods
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_appender_error")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial IntPtr DuckDBAppenderError(DuckDBAppender appender);
+        [return: MarshalUsing(typeof(DuckDBOwnedStringMarshaller))]
+        public static partial string DuckDBAppenderError(DuckDBAppender appender);
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_appender_flush")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]

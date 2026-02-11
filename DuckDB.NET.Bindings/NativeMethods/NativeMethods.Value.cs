@@ -203,8 +203,9 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBLogicalType DuckDBGetValueType(DuckDBValue value);
 
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_varchar", StringMarshalling = StringMarshalling.Utf8)]
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_varchar")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        [return: MarshalUsing(typeof(DuckDBCallerOwnedStringMarshaller))]
         public static partial string DuckDBGetVarchar(DuckDBValue value);
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_list_value")]

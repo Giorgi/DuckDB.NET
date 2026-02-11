@@ -11,7 +11,7 @@ public partial class NativeMethods
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_open_ext", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial DuckDBState DuckDBOpen(string? path, out DuckDBDatabase database, DuckDBConfig config, out IntPtr error);
+        public static partial DuckDBState DuckDBOpen(string? path, out DuckDBDatabase database, DuckDBConfig config, [MarshalUsing(typeof(DuckDBCallerOwnedStringMarshaller))] out string error);
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_close")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
@@ -35,6 +35,7 @@ public partial class NativeMethods
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_library_version")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial IntPtr DuckDBLibraryVersion();
+        [return: MarshalUsing(typeof(DuckDBOwnedStringMarshaller))]
+        public static partial string DuckDBLibraryVersion();
     }
 }

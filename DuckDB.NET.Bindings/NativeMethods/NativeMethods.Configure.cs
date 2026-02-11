@@ -14,7 +14,7 @@ public partial class NativeMethods
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_config_flag")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial DuckDBState DuckDBGetConfigFlag(int index, out IntPtr name, out IntPtr description);
+        public static partial DuckDBState DuckDBGetConfigFlag(int index, [MarshalUsing(typeof(DuckDBOwnedStringMarshaller))] out string name, [MarshalUsing(typeof(DuckDBOwnedStringMarshaller))] out string description);
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_set_config", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]

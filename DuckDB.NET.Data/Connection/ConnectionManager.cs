@@ -68,7 +68,7 @@ internal class ConnectionManager
 
                     if (!resultOpen.IsSuccess())
                     {
-                        throw new DuckDBException($"DuckDBOpen failed: {error.ToManagedString()}");
+                        throw new DuckDBException($"DuckDBOpen failed: {error}");
                     }
                     fileRef.Database = db;
                 }

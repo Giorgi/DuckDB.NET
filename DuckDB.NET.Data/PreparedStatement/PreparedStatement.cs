@@ -20,7 +20,7 @@ internal sealed class PreparedStatement : IDisposable
             if (statementCount <= 0)
             {
                 var error = NativeMethods.ExtractStatements.DuckDBExtractStatementsError(extractedStatements);
-                throw new DuckDBException(error.ToManagedString(false));
+                throw new DuckDBException(error);
             }
 
             for (int index = 0; index < statementCount; index++)
@@ -34,7 +34,7 @@ internal sealed class PreparedStatement : IDisposable
                 }
                 else
                 {
-                    var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(statement).ToManagedString(false);
+                    var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(statement);
 
                     throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage);
                 }
@@ -52,7 +52,7 @@ internal sealed class PreparedStatement : IDisposable
 
         if (!status.IsSuccess())
         {
-            var errorMessage = NativeMethods.Query.DuckDBResultError(ref queryResult).ToManagedString(false);
+            var errorMessage = NativeMethods.Query.DuckDBResultError(ref queryResult);
             var errorType = NativeMethods.Query.DuckDBResultErrorType(ref queryResult);
             queryResult.Close();
 
@@ -112,7 +112,7 @@ internal sealed class PreparedStatement : IDisposable
 
         if (!result.IsSuccess())
         {
-            var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(preparedStatement).ToManagedString(false);
+            var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(preparedStatement);
             throw new InvalidOperationException($"Unable to bind parameter {index}: {errorMessage}");
         }
     }

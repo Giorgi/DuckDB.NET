@@ -17,7 +17,7 @@ internal sealed class StructVectorDataReader : VectorDataReaderBase
 
         for (int index = 0; index < memberCount; index++)
         {
-            var name = NativeMethods.LogicalType.DuckDBStructTypeChildName(logicalType, index).ToManagedString();
+            var name = NativeMethods.LogicalType.DuckDBStructTypeChildName(logicalType, index);
             var childVector = NativeMethods.Vectors.DuckDBStructVectorGetChild(vector, index);
             
             using var childType = NativeMethods.LogicalType.DuckDBStructTypeChildType(logicalType, index);

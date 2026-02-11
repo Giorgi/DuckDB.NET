@@ -15,7 +15,8 @@ public partial class NativeMethods
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_extract_statements_error")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial IntPtr DuckDBExtractStatementsError(DuckDBExtractedStatements extractedStatements);
+        [return: MarshalUsing(typeof(DuckDBOwnedStringMarshaller))]
+        public static partial string DuckDBExtractStatementsError(DuckDBExtractedStatements extractedStatements);
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_destroy_extracted")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]

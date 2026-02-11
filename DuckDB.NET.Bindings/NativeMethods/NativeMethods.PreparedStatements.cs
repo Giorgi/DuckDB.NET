@@ -16,7 +16,8 @@ public partial class NativeMethods
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_prepare_error")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial IntPtr DuckDBPrepareError(DuckDBPreparedStatement preparedStatement);
+        [return: MarshalUsing(typeof(DuckDBOwnedStringMarshaller))]
+        public static partial string DuckDBPrepareError(DuckDBPreparedStatement preparedStatement);
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_nparams")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]

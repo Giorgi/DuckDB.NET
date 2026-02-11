@@ -39,7 +39,8 @@ public partial class NativeMethods
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_enum_dictionary_value")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial IntPtr DuckDBEnumDictionaryValue(DuckDBLogicalType type, long index);
+        [return: MarshalUsing(typeof(DuckDBCallerOwnedStringMarshaller))]
+        public static partial string DuckDBEnumDictionaryValue(DuckDBLogicalType type, long index);
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_list_type_child_type")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
@@ -63,7 +64,8 @@ public partial class NativeMethods
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_struct_type_child_name")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial IntPtr DuckDBStructTypeChildName(DuckDBLogicalType type, long index);
+        [return: MarshalUsing(typeof(DuckDBCallerOwnedStringMarshaller))]
+        public static partial string DuckDBStructTypeChildName(DuckDBLogicalType type, long index);
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_struct_type_child_type")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]

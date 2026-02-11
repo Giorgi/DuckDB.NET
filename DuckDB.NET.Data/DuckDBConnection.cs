@@ -72,7 +72,7 @@ public partial class DuckDBConnection : DbConnection
     public DuckDBNativeConnection NativeConnection => connectionReference?.NativeConnection
                                                       ?? throw new InvalidOperationException("The DuckDBConnection must be open to access the native connection.");
 
-    public override string ServerVersion => NativeMethods.Startup.DuckDBLibraryVersion().ToManagedString(false);
+    public override string ServerVersion => NativeMethods.Startup.DuckDBLibraryVersion();
 
     public override ConnectionState State => connectionState;
 

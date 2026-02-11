@@ -84,7 +84,7 @@ public class DuckDBDataReader : DbDataReader
 
             using var logicalType = NativeMethods.Query.DuckDBColumnLogicalType(ref currentResult, index);
 
-            var columnName = vectorReaders[index]?.ColumnName ?? NativeMethods.Query.DuckDBColumnName(ref currentResult, index).ToManagedString(false);
+            var columnName = vectorReaders[index]?.ColumnName ?? NativeMethods.Query.DuckDBColumnName(ref currentResult, index);
             vectorReaders[index] = VectorDataReaderFactory.CreateReader(vector, logicalType, columnName);
         }
 

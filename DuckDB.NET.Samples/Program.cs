@@ -221,7 +221,7 @@ namespace DuckDB.NET.Samples
             var columnCount = (int)Query.DuckDBColumnCount(ref queryResult);
             for (var index = 0; index < columnCount; index++)
             {
-                var columnName = Query.DuckDBColumnName(ref queryResult, index).ToManagedString(false);
+                var columnName = Query.DuckDBColumnName(ref queryResult, index);
                 Console.Write($"{columnName} ");
             }
 
