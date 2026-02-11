@@ -9,10 +9,6 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial int DuckDBExtractStatements(DuckDBNativeConnection connection, string query, out DuckDBExtractedStatements extractedStatements);
 
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_extract_statements")]
-        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial int DuckDBExtractStatements(DuckDBNativeConnection connection, SafeUnmanagedMemoryHandle query, out DuckDBExtractedStatements extractedStatements);
-
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_prepare_extracted_statement")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBPrepareExtractedStatement(DuckDBNativeConnection connection, DuckDBExtractedStatements extractedStatements, long index, out DuckDBPreparedStatement preparedStatement);

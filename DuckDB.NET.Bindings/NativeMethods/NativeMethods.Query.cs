@@ -9,10 +9,6 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBQuery(DuckDBNativeConnection connection, string query, out DuckDBResult result);
 
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_query")]
-        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial DuckDBState DuckDBQuery(DuckDBNativeConnection connection, SafeUnmanagedMemoryHandle query, out DuckDBResult result);
-
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_destroy_result")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial void DuckDBDestroyResult(ref DuckDBResult result);

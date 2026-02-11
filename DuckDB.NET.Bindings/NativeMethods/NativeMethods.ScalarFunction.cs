@@ -12,9 +12,9 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial void DuckDBDestroyScalarFunction(ref IntPtr scalarFunction);
 
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_set_name")]
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_set_name", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial void DuckDBScalarFunctionSetName(IntPtr scalarFunction, SafeUnmanagedMemoryHandle name);
+        public static partial void DuckDBScalarFunctionSetName(IntPtr scalarFunction, string name);
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_set_varargs")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]

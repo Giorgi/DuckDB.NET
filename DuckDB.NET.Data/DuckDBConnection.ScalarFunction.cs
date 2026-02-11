@@ -46,10 +46,7 @@ partial class DuckDBConnection
                                              bool varargs, bool @volatile, params DuckDBLogicalType[] parameterTypes)
     {
         var function = NativeMethods.ScalarFunction.DuckDBCreateScalarFunction();
-        using (var handle = name.ToUnmanagedString())
-        {
-            NativeMethods.ScalarFunction.DuckDBScalarFunctionSetName(function, handle);
-        }
+        NativeMethods.ScalarFunction.DuckDBScalarFunctionSetName(function, name);
 
         if (varargs)
         {

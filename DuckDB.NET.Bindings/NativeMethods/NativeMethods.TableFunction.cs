@@ -12,9 +12,9 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial void DuckDBDestroyTableFunction(ref IntPtr tableFunction);
 
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_table_function_set_name")]
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_table_function_set_name", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial void DuckDBTableFunctionSetName(IntPtr tableFunction, SafeUnmanagedMemoryHandle name);
+        public static partial void DuckDBTableFunctionSetName(IntPtr tableFunction, string name);
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_table_function_add_parameter")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
@@ -46,9 +46,9 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial IntPtr DuckDBBindGetExtraInfo(IntPtr info);
 
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_add_result_column")]
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_add_result_column", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial void DuckDBBindAddResultColumn(IntPtr info, SafeUnmanagedMemoryHandle name, DuckDBLogicalType type);
+        public static partial void DuckDBBindAddResultColumn(IntPtr info, string name, DuckDBLogicalType type);
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_get_parameter_count")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
@@ -62,9 +62,9 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static unsafe partial void DuckDBBindSetBindData(IntPtr info, IntPtr bindData, delegate* unmanaged[Cdecl]<IntPtr, void> destroy);
 
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_set_error")]
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_set_error", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial void DuckDBBindSetError(IntPtr info, SafeUnmanagedMemoryHandle error);
+        public static partial void DuckDBBindSetError(IntPtr info, string error);
 
         #endregion
 
@@ -78,9 +78,9 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial IntPtr DuckDBFunctionGetBindData(IntPtr info);
 
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_function_set_error")]
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_function_set_error", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial void DuckDBFunctionSetError(IntPtr info, SafeUnmanagedMemoryHandle error);
+        public static partial void DuckDBFunctionSetError(IntPtr info, string error);
 
         #endregion
     }

@@ -15,11 +15,11 @@ public class QueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         using (connection)
         {
             var table = "CREATE TABLE queryTest(a INTEGER, b BOOLEAN);";
-            result = NativeMethods.Query.DuckDBQuery(connection, table.ToUnmanagedString(), out _);
+            result = NativeMethods.Query.DuckDBQuery(connection, table, out _);
             result.Should().Be(DuckDBState.Success);
 
             var insert = "INSERT INTO queryTest VALUES (1, TRUE), (2, FALSE), (3, TRUE);";
-            result = NativeMethods.Query.DuckDBQuery(connection, insert.ToUnmanagedString(), out var queryResult);
+            result = NativeMethods.Query.DuckDBQuery(connection, insert, out var queryResult);
             result.Should().Be(DuckDBState.Success);
 
             var rowsChanged = NativeMethods.Query.DuckDBRowsChanged(ref queryResult);
@@ -29,7 +29,7 @@ public class QueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
 
             var query = "SELECT * FROM queryTest;";
-            result = NativeMethods.Query.DuckDBQuery(connection, query.ToUnmanagedString(), out queryResult);
+            result = NativeMethods.Query.DuckDBQuery(connection, query, out queryResult);
             result.Should().Be(DuckDBState.Success);
 
             var rowCount = NativeMethods.Query.DuckDBRowCount(ref queryResult);
@@ -75,15 +75,15 @@ public class QueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         using (connection)
         {
             var tableQuery = "CREATE TABLE integers (i INTEGER, j INTEGER);";
-            result = NativeMethods.Query.DuckDBQuery(connection, tableQuery.ToUnmanagedString(), out _);
+            result = NativeMethods.Query.DuckDBQuery(connection, tableQuery, out _);
             result.Should().Be(DuckDBState.Success);
 
             var insertQuery = "INSERT INTO integers VALUES (3, 4), (5, 6);";
-            result = NativeMethods.Query.DuckDBQuery(connection, insertQuery.ToUnmanagedString(), out _);
+            result = NativeMethods.Query.DuckDBQuery(connection, insertQuery, out _);
             result.Should().Be(DuckDBState.Success);
 
             var selectQuery = "SELECT * FROM integers;";
-            result = NativeMethods.Query.DuckDBQuery(connection, selectQuery.ToUnmanagedString(), out var queryResult);
+            result = NativeMethods.Query.DuckDBQuery(connection, selectQuery, out var queryResult);
             result.Should().Be(DuckDBState.Success);
 
             using (var chunk = NativeMethods.Query.DuckDBFetchChunk(queryResult))

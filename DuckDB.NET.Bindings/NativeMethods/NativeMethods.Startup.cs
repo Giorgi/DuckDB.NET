@@ -5,17 +5,9 @@ public partial class NativeMethods
     //https://duckdb.org/docs/api/c/api#openconnect
     public static partial class Startup
     {
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_open")]
-        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial DuckDBState DuckDBOpen(SafeUnmanagedMemoryHandle path, out DuckDBDatabase database);
-
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_open", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBOpen(string? path, out DuckDBDatabase database);
-
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_open_ext")]
-        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial DuckDBState DuckDBOpen(SafeUnmanagedMemoryHandle path, out DuckDBDatabase database, DuckDBConfig config, out IntPtr error);
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_open_ext", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]

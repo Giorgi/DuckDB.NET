@@ -13,9 +13,7 @@ internal sealed class PreparedStatement : IDisposable
 
     public static IEnumerable<DuckDBResult> PrepareMultiple(DuckDBNativeConnection connection, string query, DuckDBParameterCollection parameters, bool useStreamingMode)
     {
-        using var unmanagedQuery = query.ToUnmanagedString();
-
-        var statementCount = NativeMethods.ExtractStatements.DuckDBExtractStatements(connection, unmanagedQuery, out var extractedStatements);
+        var statementCount = NativeMethods.ExtractStatements.DuckDBExtractStatements(connection, query, out var extractedStatements);
 
         using (extractedStatements)
         {
@@ -86,7 +84,7 @@ internal sealed class PreparedStatement : IDisposable
         {
             foreach (DuckDBParameter param in parameterCollection)
             {
-                var state = NativeMethods.PreparedStatements.DuckDBBindParameterIndex(preparedStatement, out var index, param.ParameterName.ToUnmanagedString());
+                var state = NativeMethods.PreparedStatements.DuckDBBindParameterIndex(preparedStatement, out var index, param.ParameterName);
                 if (state.IsSuccess())
                 {
                     BindParameter(preparedStatement, index, param);

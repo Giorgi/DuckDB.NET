@@ -10,10 +10,6 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBPrepare(DuckDBNativeConnection connection, string query, out DuckDBPreparedStatement preparedStatement);
 
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_prepare")]
-        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial DuckDBState DuckDBPrepare(DuckDBNativeConnection connection, SafeUnmanagedMemoryHandle query, out DuckDBPreparedStatement preparedStatement);
-
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_destroy_prepare")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial void DuckDBDestroyPrepare(ref IntPtr preparedStatement);
@@ -33,10 +29,6 @@ public partial class NativeMethods
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_parameter_index", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBBindParameterIndex(DuckDBPreparedStatement preparedStatement, out int index, string name);
-
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_parameter_index")]
-        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial DuckDBState DuckDBBindParameterIndex(DuckDBPreparedStatement preparedStatement, out int index, SafeUnmanagedMemoryHandle name);
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_boolean")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
@@ -101,10 +93,6 @@ public partial class NativeMethods
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_varchar", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBBindVarchar(DuckDBPreparedStatement preparedStatement, long index, string val);
-
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_varchar")]
-        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial DuckDBState DuckDBBindVarchar(DuckDBPreparedStatement preparedStatement, long index, SafeUnmanagedMemoryHandle val);
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_blob")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]

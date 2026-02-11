@@ -66,10 +66,7 @@ partial class DuckDBConnection
     private unsafe void RegisterTableFunctionInternal(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback, params Type[] parameterTypes)
     {
         var function = NativeMethods.TableFunction.DuckDBCreateTableFunction();
-        using (var handle = name.ToUnmanagedString())
-        {
-            NativeMethods.TableFunction.DuckDBTableFunctionSetName(function, handle);
-        }
+        NativeMethods.TableFunction.DuckDBTableFunctionSetName(function, name);
 
         foreach (var type in parameterTypes)
         {
@@ -97,10 +94,7 @@ partial class DuckDBConnection
     private unsafe void RegisterTableFunctionInternal(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback, params DuckDBType[] parameterTypes)
     {
         var function = NativeMethods.TableFunction.DuckDBCreateTableFunction();
-        using (var handle = name.ToUnmanagedString())
-        {
-            NativeMethods.TableFunction.DuckDBTableFunctionSetName(function, handle);
-        }
+        NativeMethods.TableFunction.DuckDBTableFunctionSetName(function, name);
 
         foreach (var duckDBType in parameterTypes)
         {
@@ -151,7 +145,7 @@ partial class DuckDBConnection
             foreach (var columnInfo in tableFunctionData.Columns)
             {
                 using var logicalType = columnInfo.Type.GetLogicalType();
-                NativeMethods.TableFunction.DuckDBBindAddResultColumn(info, columnInfo.Name.ToUnmanagedString(), logicalType);
+                NativeMethods.TableFunction.DuckDBBindAddResultColumn(info, columnInfo.Name, logicalType);
             }
 
             var bindData = new TableFunctionBindData(tableFunctionData.Columns, tableFunctionData.Data.GetEnumerator());
@@ -160,8 +154,7 @@ partial class DuckDBConnection
         }
         catch (Exception ex)
         {
-            using var errorMessage = ex.Message.ToUnmanagedString();
-            NativeMethods.TableFunction.DuckDBBindSetError(info, errorMessage);
+            NativeMethods.TableFunction.DuckDBBindSetError(info, ex.Message);
         }
         finally
         {
@@ -223,8 +216,7 @@ partial class DuckDBConnection
         }
         catch (Exception ex)
         {
-            using var errorMessage = ex.Message.ToUnmanagedString();
-            NativeMethods.TableFunction.DuckDBFunctionSetError(info, errorMessage);
+            NativeMethods.TableFunction.DuckDBFunctionSetError(info, ex.Message);
         }
     }
 }

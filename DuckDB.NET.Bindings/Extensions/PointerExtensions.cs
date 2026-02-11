@@ -5,13 +5,10 @@ namespace DuckDB.NET.Native;
 public static class PointerExtensions
 {
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public static unsafe string ToManagedString(this IntPtr unmanagedString, bool freeWhenCopied = true, int? length = null)
+    public static string ToManagedString(this IntPtr unmanagedString, bool freeWhenCopied = true, int? length = null)
     {
-        var span = length.HasValue ? new ReadOnlySpan<byte>((byte*)unmanagedString, length.Value)
-            : MemoryMarshal.CreateReadOnlySpanFromNullTerminated((byte*)unmanagedString);
-
-        var result = Encoding.UTF8.GetString(span);
-
+        var result = length == null ? Marshal.PtrToStringUTF8(unmanagedString) : Marshal.PtrToStringUTF8(unmanagedString, length.Value);
+        
         if (freeWhenCopied)
         {
             NativeMethods.Helpers.DuckDBFree(unmanagedString);
@@ -19,7 +16,4 @@ public static class PointerExtensions
 
         return result;
     }
-
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static SafeUnmanagedMemoryHandle ToUnmanagedString(this string? managedString) => new(Marshal.StringToCoTaskMemUTF8(managedString));
 }

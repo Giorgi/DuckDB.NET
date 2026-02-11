@@ -10,9 +10,9 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial void DuckDBDestroyValue(ref IntPtr config);
 
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_varchar")]
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_varchar", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial DuckDBValue DuckDBCreateVarchar(SafeUnmanagedMemoryHandle value);
+        public static partial DuckDBValue DuckDBCreateVarchar(string? value);
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_bool")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]

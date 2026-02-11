@@ -64,9 +64,7 @@ internal class ConnectionManager
                         }
                     }
 
-                    using var pathUnmanaged = path.ToUnmanagedString();
-
-                    var resultOpen = NativeMethods.Startup.DuckDBOpen(pathUnmanaged, out var db, config, out var error);
+                    var resultOpen = NativeMethods.Startup.DuckDBOpen(path, out var db, config, out var error);
 
                     if (!resultOpen.IsSuccess())
                     {

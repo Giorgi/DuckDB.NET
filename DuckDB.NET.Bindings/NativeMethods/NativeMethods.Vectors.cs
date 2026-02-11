@@ -20,9 +20,9 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial void DuckDBVectorEnsureValidityWritable(IntPtr vector);
 
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_vector_assign_string_element")]
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_vector_assign_string_element", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial void DuckDBVectorAssignStringElement(IntPtr vector, ulong index, SafeUnmanagedMemoryHandle handle);
+        public static partial void DuckDBVectorAssignStringElement(IntPtr vector, ulong index, string value);
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_vector_assign_string_element_len")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]

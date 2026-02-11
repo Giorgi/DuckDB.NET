@@ -9,13 +9,9 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBAppenderCreate(DuckDBNativeConnection connection, string? schema, string table, out DuckDBAppender appender);
 
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_appender_create")]
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_appender_create_ext", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial DuckDBState DuckDBAppenderCreate(DuckDBNativeConnection connection, SafeUnmanagedMemoryHandle schema, SafeUnmanagedMemoryHandle table, out DuckDBAppender appender);
-
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_appender_create_ext")]
-        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial DuckDBState DuckDBAppenderCreateExt(DuckDBNativeConnection connection, SafeUnmanagedMemoryHandle catalog, SafeUnmanagedMemoryHandle schema, SafeUnmanagedMemoryHandle table, out DuckDBAppender appender);
+        public static partial DuckDBState DuckDBAppenderCreateExt(DuckDBNativeConnection connection, string? catalog, string? schema, string table, out DuckDBAppender appender);
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_appender_column_count")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
@@ -134,15 +130,13 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBAppendInterval(DuckDBAppender appender, DuckDBInterval val);
 
-        [SuppressGCTransition]
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_append_varchar")]
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_append_varchar", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial DuckDBState DuckDBAppendVarchar(DuckDBAppender appender, SafeUnmanagedMemoryHandle val);
+        public static partial DuckDBState DuckDBAppendVarchar(DuckDBAppender appender, string val);
 
-        [SuppressGCTransition]
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_append_varchar_length")]
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_append_varchar_length", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial DuckDBState DuckDBAppendVarchar(DuckDBAppender appender, SafeUnmanagedMemoryHandle val, int length);
+        public static partial DuckDBState DuckDBAppendVarchar(DuckDBAppender appender, string val, int length);
 
         [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_append_blob")]
