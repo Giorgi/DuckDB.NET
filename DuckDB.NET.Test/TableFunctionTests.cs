@@ -3,8 +3,125 @@ using System.Threading;
 
 namespace DuckDB.NET.Test;
 
+record Employee(int Id, string Name, double Salary);
+
+class EmployeeDto
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = "";
+}
+
 public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
+    private static IEnumerable<Employee> GetEmployees(int count) =>
+        Enumerable.Range(1, count).Select(i => new Employee(i, $"Employee{i}", 50000 + i * 100));
+
+    [Fact]
+    public void RegisterTableFunctionSimplifiedZeroParams()
+    {
+        var employees = new[]
+        {
+            new Employee(1, "Alice", 60000),
+            new Employee(2, "Bob", 70000),
+        };
+
+        Connection.RegisterTableFunction("ext_zero",
+            () => employees.AsEnumerable(),
+            (Employee e) => new { e.Id, e.Name });
+
+        var data = Connection.Query<(int, string)>("SELECT * FROM ext_zero();").ToList();
+
+        data.Should().BeEquivalentTo([(1, "Alice"), (2, "Bob")]);
+    }
+
+    [Fact]
+    public void RegisterTableFunctionSimplifiedOneParam()
+    {
+        Connection.RegisterTableFunction("ext_one",
+            (int count) => GetEmployees(count),
+            (Employee e) => new { e.Id, e.Name });
+
+        var data = Connection.Query<(int, string)>("SELECT * FROM ext_one(3);").ToList();
+
+        data.Should().BeEquivalentTo([(1, "Employee1"), (2, "Employee2"), (3, "Employee3")]);
+    }
+
+    [Fact]
+    public void RegisterTableFunctionSimplifiedTwoParams()
+    {
+        Connection.RegisterTableFunction("ext_two",
+            (int start, int count) => Enumerable.Range(start, count).Select(i => new Employee(i, $"E{i}", i * 1000)),
+            (Employee e) => new { e.Id, e.Name, e.Salary });
+
+        var data = Connection.Query<(int, string, double)>("SELECT * FROM ext_two(10, 3);").ToList();
+
+        data.Select(d => d.Item1).Should().BeEquivalentTo([10, 11, 12]);
+        data.Select(d => d.Item2).Should().BeEquivalentTo(["E10", "E11", "E12"]);
+        data.Select(d => d.Item3).Should().BeEquivalentTo([10000.0, 11000.0, 12000.0]);
+    }
+
+    [Fact]
+    public void RegisterTableFunctionSimplifiedComputedColumns()
+    {
+        Connection.RegisterTableFunction("ext_computed",
+            (int count) => GetEmployees(count),
+            (Employee e) => new { FullName = "Dr. " + e.Name, DoubleSalary = e.Salary * 2 });
+
+        var data = Connection.Query<(string, double)>("SELECT * FROM ext_computed(2);").ToList();
+
+        data.Should().BeEquivalentTo([("Dr. Employee1", 100200.0), ("Dr. Employee2", 100400.0)]);
+    }
+
+    [Fact]
+    public void RegisterTableFunctionSimplifiedMemberInit()
+    {
+        Connection.RegisterTableFunction("ext_init",
+            (int count) => GetEmployees(count),
+            (Employee e) => new EmployeeDto { Id = e.Id, Name = e.Name });
+
+        var data = Connection.Query<(int, string)>("SELECT * FROM ext_init(2);").ToList();
+
+        data.Should().BeEquivalentTo([(1, "Employee1"), (2, "Employee2")]);
+    }
+
+    [Fact]
+    public void RegisterTableFunctionSimplifiedLargeResultSet()
+    {
+        Connection.RegisterTableFunction("ext_large",
+            (int count) => GetEmployees(count),
+            (Employee e) => new { e.Id, e.Name });
+
+        var data = Connection.Query<(int, string)>("SELECT * FROM ext_large(5000);").ToList();
+
+        data.Should().HaveCount(5000);
+        data.First().Should().Be((1, "Employee1"));
+        data.Last().Should().Be((5000, "Employee5000"));
+    }
+
+    [Fact]
+    public void RegisterTableFunctionSimplifiedAsyncEnumerable()
+    {
+        Connection.RegisterTableFunction("ext_async",
+            (int count) => FetchEmployeesAsync(count).ToBlockingEnumerable(),
+            (Employee e) => new { e.Id, e.Name });
+
+        var data = Connection.Query<(int, string)>("SELECT * FROM ext_async(5);").ToList();
+
+        data.Should().BeEquivalentTo([
+            (1, "Employee1"), (2, "Employee2"), (3, "Employee3"),
+            (4, "Employee4"), (5, "Employee5")
+        ]);
+
+        static async IAsyncEnumerable<Employee> FetchEmployeesAsync(int count)
+        {
+            for (int i = 1; i <= count; i++)
+            {
+                await Task.Delay(10); // simulate async I/O
+                yield return new Employee(i, $"Employee{i}", 50000 + i * 100);
+            }
+        }
+    }
+
     [Fact]
     public void RegisterTableFunctionWithNoParameters()
     {
