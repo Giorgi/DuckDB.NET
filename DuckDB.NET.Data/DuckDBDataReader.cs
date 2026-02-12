@@ -350,15 +350,17 @@ public class DuckDBDataReader : DbDataReader
             // which table each column comes from without additional API support
             if (!string.IsNullOrEmpty(singleTableName))
             {
-                // Split schema and table name if qualified
-                var parts = singleTableName.Split('.');
-                if (parts.Length == 2)
+                // The table name from duckdb_get_table_names with qualified=true should be in the format "schema.table"
+                // Split by the last dot to handle schema names or table names that might contain dots
+                var lastDotIndex = singleTableName.LastIndexOf('.');
+                if (lastDotIndex > 0 && lastDotIndex < singleTableName.Length - 1)
                 {
-                    rowData[7] = parts[0]; // BaseSchemaName
-                    rowData[8] = parts[1]; // BaseTableName
+                    rowData[7] = singleTableName.Substring(0, lastDotIndex); // BaseSchemaName
+                    rowData[8] = singleTableName.Substring(lastDotIndex + 1); // BaseTableName
                 }
                 else
                 {
+                    // No schema qualifier found, just use the table name
                     rowData[7] = DBNull.Value; // BaseSchemaName
                     rowData[8] = singleTableName; // BaseTableName
                 }
@@ -387,11 +389,11 @@ public class DuckDBDataReader : DbDataReader
                 return null;
             }
 
-            // Call duckdb_get_table_names with qualified=false to get unqualified names
+            // Call duckdb_get_table_names with qualified=true to get schema-qualified names
             using var tableNamesValue = NativeMethods.Query.DuckDBGetTableNames(
                 duckDBConnection.NativeConnection,
                 command.CommandText,
-                false);
+                true);
 
             if (tableNamesValue.IsNull())
             {
@@ -425,11 +427,12 @@ public class DuckDBDataReader : DbDataReader
 
             return tableNames;
         }
-        catch
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or InvalidOperationException)
         {
-            // If we fail to get table names, just return null
-            // This ensures backward compatibility - if the feature isn't available or fails,
-            // we just don't populate the table names
+            // If we fail to get table names due to missing DLL, missing entry point, or operation errors,
+            // just return null. This ensures backward compatibility - if the feature isn't available or fails,
+            // we just don't populate the table names.
+            // We don't log here to avoid noise in normal operation when the feature might not be available.
             return null;
         }
     }
