@@ -317,7 +317,11 @@ public class DuckDBDataReader : DbDataReader
         };
 
         // Get table names from the query
+        // Note: DuckDB's duckdb_get_table_names returns unique table names referenced in the query,
+        // not per-column mappings. For single-table queries, we can populate BaseTableName.
+        // For multi-table queries (joins), the mapping is not directly available from the C API.
         var tableNames = GetTableNamesFromQuery();
+        var singleTableName = tableNames != null && tableNames.Length == 1 ? tableNames[0] : null;
 
         var rowData = new object[10];
 
@@ -341,28 +345,22 @@ public class DuckDBDataReader : DbDataReader
             }
 
             // Set table name information
-            if (tableNames != null && i < tableNames.Length)
+            // For single-table queries, populate the table name
+            // For multi-table queries, BaseTableName will be DBNull since we cannot determine
+            // which table each column comes from without additional API support
+            if (!string.IsNullOrEmpty(singleTableName))
             {
-                var tableName = tableNames[i];
-                if (!string.IsNullOrEmpty(tableName))
+                // Split schema and table name if qualified
+                var parts = singleTableName.Split('.');
+                if (parts.Length == 2)
                 {
-                    // Split schema and table name if qualified
-                    var parts = tableName.Split('.');
-                    if (parts.Length == 2)
-                    {
-                        rowData[7] = parts[0]; // BaseSchemaName
-                        rowData[8] = parts[1]; // BaseTableName
-                    }
-                    else
-                    {
-                        rowData[7] = DBNull.Value; // BaseSchemaName
-                        rowData[8] = tableName; // BaseTableName
-                    }
+                    rowData[7] = parts[0]; // BaseSchemaName
+                    rowData[8] = parts[1]; // BaseTableName
                 }
                 else
                 {
-                    rowData[7] = DBNull.Value;
-                    rowData[8] = DBNull.Value;
+                    rowData[7] = DBNull.Value; // BaseSchemaName
+                    rowData[8] = singleTableName; // BaseTableName
                 }
             }
             else

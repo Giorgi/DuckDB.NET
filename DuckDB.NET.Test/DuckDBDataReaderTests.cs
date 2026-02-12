@@ -433,4 +433,67 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.Read();
         var value = (BigInteger)reader.GetValue(0);
     }
+
+    [Fact]
+    public void GetSchemaTableReturnsBaseTableName()
+    {
+        Command.CommandText = "CREATE TABLE test_table(id INTEGER, name VARCHAR);";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "INSERT INTO test_table VALUES (1, 'Alice'), (2, 'Bob');";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "SELECT id, name FROM test_table";
+        using var reader = Command.ExecuteReader();
+
+        var schemaTable = reader.GetSchemaTable();
+        
+        schemaTable.Should().NotBeNull();
+        schemaTable!.Rows.Count.Should().Be(2);
+        
+        // Check that BaseTableName column exists
+        schemaTable.Columns.Should().Contain(c => c.ColumnName == "BaseTableName");
+        
+        // Check that both columns have the same table name
+        schemaTable.Rows[0]["BaseTableName"].Should().Be("test_table");
+        schemaTable.Rows[1]["BaseTableName"].Should().Be("test_table");
+        
+        // Check that BaseColumnName is populated
+        schemaTable.Rows[0]["BaseColumnName"].Should().Be("id");
+        schemaTable.Rows[1]["BaseColumnName"].Should().Be("name");
+    }
+
+    [Fact]
+    public void GetSchemaTableForJoinReturnsDbNull()
+    {
+        // Note: DuckDB's duckdb_get_table_names C API returns a list of unique table names
+        // referenced in the query, but does not provide per-column table name mapping.
+        // Therefore, for queries with multiple tables (joins), BaseTableName will be DBNull.
+        
+        Command.CommandText = "CREATE TABLE users(id INTEGER, name VARCHAR);";
+        Command.ExecuteNonQuery();
+        
+        Command.CommandText = "CREATE TABLE orders(order_id INTEGER, user_id INTEGER);";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "INSERT INTO users VALUES (1, 'Alice'), (2, 'Bob');";
+        Command.ExecuteNonQuery();
+        
+        Command.CommandText = "INSERT INTO orders VALUES (100, 1), (200, 2);";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "SELECT u.id, u.name, o.order_id FROM users u JOIN orders o ON u.id = o.user_id";
+        using var reader = Command.ExecuteReader();
+
+        var schemaTable = reader.GetSchemaTable();
+        
+        schemaTable.Should().NotBeNull();
+        schemaTable!.Rows.Count.Should().Be(3);
+        
+        // For join queries, BaseTableName should be DBNull since we can't determine 
+        // which table each column comes from without additional API support
+        schemaTable.Rows[0]["BaseTableName"].Should().Be(DBNull.Value);
+        schemaTable.Rows[1]["BaseTableName"].Should().Be(DBNull.Value);
+        schemaTable.Rows[2]["BaseTableName"].Should().Be(DBNull.Value);
+    }
 }
