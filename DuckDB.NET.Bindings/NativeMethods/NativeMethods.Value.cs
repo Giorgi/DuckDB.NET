@@ -170,6 +170,12 @@ public partial class NativeMethods
         [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_is_null_value")]
         public static extern bool DuckDBIsNullValue(DuckDBValue value);
 
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_list_size")]
+        public static extern ulong DuckDBGetListSize(DuckDBValue value);
+
+        [DllImport(DuckDbLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "duckdb_get_list_child")]
+        public static extern DuckDBValue DuckDBGetListChild(DuckDBValue value, ulong index);
+
         public static DuckDBValue DuckDBCreateListValue(DuckDBLogicalType logicalType, DuckDBValue[] values, int count)
         {
             var duckDBValue = DuckDBCreateListValue(logicalType, values.Select(item => item.DangerousGetHandle()).ToArray(), count);

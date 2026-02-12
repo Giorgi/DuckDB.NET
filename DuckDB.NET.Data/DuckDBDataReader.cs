@@ -309,15 +309,26 @@ public class DuckDBDataReader : DbDataReader
                 { SchemaTableColumn.NumericPrecision, typeof(byte)},
                 { SchemaTableColumn.NumericScale, typeof(byte) },
                 { SchemaTableColumn.DataType, typeof(Type) },
-                { SchemaTableColumn.AllowDBNull, typeof(bool)  }
+                { SchemaTableColumn.AllowDBNull, typeof(bool)  },
+                { SchemaTableColumn.BaseSchemaName, typeof(string) },
+                { SchemaTableColumn.BaseTableName, typeof(string) },
+                { SchemaTableColumn.BaseColumnName, typeof(string) }
             }
         };
 
-        var rowData = new object[7];
+        // Get table names from the query
+        // Note: DuckDB's duckdb_get_table_names returns unique table names referenced in the query,
+        // not per-column mappings. For single-table queries, we can populate BaseTableName.
+        // For multi-table queries (joins), the mapping is not directly available from the C API.
+        var tableNames = GetTableNamesFromQuery();
+        var singleTableName = tableNames != null && tableNames.Length == 1 ? tableNames[0] : null;
+
+        var rowData = new object[10];
 
         for (var i = 0; i < FieldCount; i++)
         {
-            rowData[0] = GetName(i);
+            var columnName = GetName(i);
+            rowData[0] = columnName;
             rowData[1] = i;
             rowData[2] = -1;
             rowData[5] = GetFieldType(i);
@@ -333,10 +344,97 @@ public class DuckDBDataReader : DbDataReader
                 rowData[3] = rowData[4] = DBNull.Value;
             }
 
+            // Set table name information
+            // For single-table queries, populate the table name
+            // For multi-table queries, BaseTableName will be DBNull since we cannot determine
+            // which table each column comes from without additional API support
+            if (!string.IsNullOrEmpty(singleTableName))
+            {
+                // The table name from duckdb_get_table_names with qualified=true should be in the format "schema.table"
+                // Split by the last dot to handle schema names or table names that might contain dots
+                var lastDotIndex = singleTableName.LastIndexOf('.');
+                if (lastDotIndex > 0 && lastDotIndex < singleTableName.Length - 1)
+                {
+                    rowData[7] = singleTableName.Substring(0, lastDotIndex); // BaseSchemaName
+                    rowData[8] = singleTableName.Substring(lastDotIndex + 1); // BaseTableName
+                }
+                else
+                {
+                    // No schema qualifier found, just use the table name
+                    rowData[7] = DBNull.Value; // BaseSchemaName
+                    rowData[8] = singleTableName; // BaseTableName
+                }
+            }
+            else
+            {
+                rowData[7] = DBNull.Value;
+                rowData[8] = DBNull.Value;
+            }
+
+            rowData[9] = columnName; // BaseColumnName
+
             table.Rows.Add(rowData);
         }
 
         return table;
+    }
+
+    private string[]? GetTableNamesFromQuery()
+    {
+        try
+        {
+            var duckDBConnection = command?.Connection as DuckDBConnection;
+            if (duckDBConnection?.NativeConnection == null || command?.CommandText == null || string.IsNullOrEmpty(command.CommandText))
+            {
+                return null;
+            }
+
+            // Call duckdb_get_table_names with qualified=true to get schema-qualified names
+            using var tableNamesValue = NativeMethods.Query.DuckDBGetTableNames(
+                duckDBConnection.NativeConnection,
+                command.CommandText,
+                true);
+
+            if (tableNamesValue.IsNull())
+            {
+                return null;
+            }
+
+            // Get the size of the list
+            var listSize = NativeMethods.Value.DuckDBGetListSize(tableNamesValue);
+            
+            // If the list is empty, return null
+            if (listSize == 0)
+            {
+                return null;
+            }
+
+            var tableNames = new string[listSize];
+
+            // Extract each table name from the list
+            for (ulong i = 0; i < listSize; i++)
+            {
+                using var childValue = NativeMethods.Value.DuckDBGetListChild(tableNamesValue, i);
+                if (!childValue.IsNull())
+                {
+                    tableNames[i] = NativeMethods.Value.DuckDBGetVarchar(childValue);
+                }
+                else
+                {
+                    tableNames[i] = string.Empty;
+                }
+            }
+
+            return tableNames;
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or InvalidOperationException)
+        {
+            // If we fail to get table names due to missing DLL, missing entry point, or operation errors,
+            // just return null. This ensures backward compatibility - if the feature isn't available or fails,
+            // we just don't populate the table names.
+            // We don't log here to avoid noise in normal operation when the feature might not be available.
+            return null;
+        }
     }
 
     public override void Close()
