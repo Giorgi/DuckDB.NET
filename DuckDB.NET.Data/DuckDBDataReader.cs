@@ -309,15 +309,22 @@ public class DuckDBDataReader : DbDataReader
                 { SchemaTableColumn.NumericPrecision, typeof(byte)},
                 { SchemaTableColumn.NumericScale, typeof(byte) },
                 { SchemaTableColumn.DataType, typeof(Type) },
-                { SchemaTableColumn.AllowDBNull, typeof(bool)  }
+                { SchemaTableColumn.AllowDBNull, typeof(bool)  },
+                { SchemaTableColumn.BaseSchemaName, typeof(string) },
+                { SchemaTableColumn.BaseTableName, typeof(string) },
+                { SchemaTableColumn.BaseColumnName, typeof(string) }
             }
         };
 
-        var rowData = new object[7];
+        // Get table names from the query
+        var tableNames = GetTableNamesFromQuery();
+
+        var rowData = new object[10];
 
         for (var i = 0; i < FieldCount; i++)
         {
-            rowData[0] = GetName(i);
+            var columnName = GetName(i);
+            rowData[0] = columnName;
             rowData[1] = i;
             rowData[2] = -1;
             rowData[5] = GetFieldType(i);
@@ -333,10 +340,100 @@ public class DuckDBDataReader : DbDataReader
                 rowData[3] = rowData[4] = DBNull.Value;
             }
 
+            // Set table name information
+            if (tableNames != null && i < tableNames.Length)
+            {
+                var tableName = tableNames[i];
+                if (!string.IsNullOrEmpty(tableName))
+                {
+                    // Split schema and table name if qualified
+                    var parts = tableName.Split('.');
+                    if (parts.Length == 2)
+                    {
+                        rowData[7] = parts[0]; // BaseSchemaName
+                        rowData[8] = parts[1]; // BaseTableName
+                    }
+                    else
+                    {
+                        rowData[7] = DBNull.Value; // BaseSchemaName
+                        rowData[8] = tableName; // BaseTableName
+                    }
+                }
+                else
+                {
+                    rowData[7] = DBNull.Value;
+                    rowData[8] = DBNull.Value;
+                }
+            }
+            else
+            {
+                rowData[7] = DBNull.Value;
+                rowData[8] = DBNull.Value;
+            }
+
+            rowData[9] = columnName; // BaseColumnName
+
             table.Rows.Add(rowData);
         }
 
         return table;
+    }
+
+    private string[]? GetTableNamesFromQuery()
+    {
+        try
+        {
+            var duckDBConnection = command?.Connection as DuckDBConnection;
+            if (duckDBConnection?.NativeConnection == null || command?.CommandText == null || string.IsNullOrEmpty(command.CommandText))
+            {
+                return null;
+            }
+
+            // Call duckdb_get_table_names with qualified=false to get unqualified names
+            using var tableNamesValue = NativeMethods.Query.DuckDBGetTableNames(
+                duckDBConnection.NativeConnection,
+                command.CommandText,
+                false);
+
+            if (tableNamesValue.IsNull())
+            {
+                return null;
+            }
+
+            // Get the size of the list
+            var listSize = NativeMethods.Value.DuckDBGetListSize(tableNamesValue);
+            
+            // If the list is empty, return null
+            if (listSize == 0)
+            {
+                return null;
+            }
+
+            var tableNames = new string[listSize];
+
+            // Extract each table name from the list
+            for (ulong i = 0; i < listSize; i++)
+            {
+                using var childValue = NativeMethods.Value.DuckDBGetListChild(tableNamesValue, i);
+                if (!childValue.IsNull())
+                {
+                    tableNames[i] = NativeMethods.Value.DuckDBGetVarchar(childValue);
+                }
+                else
+                {
+                    tableNames[i] = string.Empty;
+                }
+            }
+
+            return tableNames;
+        }
+        catch
+        {
+            // If we fail to get table names, just return null
+            // This ensures backward compatibility - if the feature isn't available or fails,
+            // we just don't populate the table names
+            return null;
+        }
     }
 
     public override void Close()
