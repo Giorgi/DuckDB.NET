@@ -4,6 +4,8 @@ using System.Data.Common;
 using System.Linq;
 using System.Text;
 
+using DuckDB.NET.Native;
+
 namespace DuckDB.NET.Data;
 
 internal static class DuckDBSchema
@@ -20,6 +22,7 @@ internal static class DuckDBSchema
         collectionName.ToUpperInvariant() switch
         {
             "METADATACOLLECTIONS" => GetMetaDataCollections(),
+            "DATASOURCEINFORMATION" => GetDataSourceInformation(connection.ServerVersion),
             "RESTRICTIONS" => GetRestrictions(),
             "RESERVEDWORDS" => GetReservedWords(connection),
             "TABLES" => GetTables(connection, restrictionValues),
@@ -41,12 +44,69 @@ internal static class DuckDBSchema
             Rows =
             {
                 { DbMetaDataCollectionNames.MetaDataCollections, 0, 0 },
+                { DbMetaDataCollectionNames.DataSourceInformation, 0, 0 },
                 { DbMetaDataCollectionNames.Restrictions, 0, 0 },
                 { DbMetaDataCollectionNames.ReservedWords, 0, 0 },
                 { DuckDbMetaDataCollectionNames.Tables, TableRestrictions.Length, 3 },
                 { DuckDbMetaDataCollectionNames.Columns, ColumnRestrictions.Length, 4 },
                 { DuckDbMetaDataCollectionNames.ForeignKeys, ForeignKeyRestrictions.Length, 3 },
                 { DuckDbMetaDataCollectionNames.Indexes, IndexesRestrictions.Length, 3 },
+            }
+        };
+
+    private static DataTable GetDataSourceInformation(string? serverVersion) =>
+        new(DbMetaDataCollectionNames.DataSourceInformation) {
+            Columns =
+            {
+                { DbMetaDataColumnNames.CompositeIdentifierSeparatorPattern, typeof(string) },
+                { DbMetaDataColumnNames.DataSourceProductName, typeof(string) },
+                { DbMetaDataColumnNames.DataSourceProductVersion, typeof(string) },
+                { DbMetaDataColumnNames.DataSourceProductVersionNormalized, typeof(string) },
+                { DbMetaDataColumnNames.GroupByBehavior, typeof(GroupByBehavior) },
+                { DbMetaDataColumnNames.IdentifierPattern, typeof(string) },
+                { DbMetaDataColumnNames.IdentifierCase, typeof(IdentifierCase) },
+                { DbMetaDataColumnNames.OrderByColumnsInSelect, typeof(bool) },
+                { DbMetaDataColumnNames.ParameterMarkerFormat, typeof(string) },
+                { DbMetaDataColumnNames.ParameterMarkerPattern, typeof(string) }, 
+                { DbMetaDataColumnNames.ParameterNameMaxLength, typeof(int) },
+                { DbMetaDataColumnNames.ParameterNamePattern, typeof(string) },
+                { DbMetaDataColumnNames.QuotedIdentifierPattern, typeof(string) },
+                { DbMetaDataColumnNames.QuotedIdentifierCase, typeof(IdentifierCase) },
+                { DbMetaDataColumnNames.StatementSeparatorPattern, typeof(string) },
+                { DbMetaDataColumnNames.StringLiteralPattern, typeof(string) },
+                { DbMetaDataColumnNames.SupportedJoinOperators, typeof(SupportedJoinOperators) }
+            },
+            Rows =
+            {
+                    // For more information about pattern, parameters and so on go to:
+                    // https://duckdb.org/docs/sql/keywords_and_identifiers.html
+                    // https://duckdb.org/docs/sql/query_syntax/prepared_statements
+                    {
+                        "\\.", 
+                        "DuckDB", 
+                        serverVersion, 
+                        serverVersion, 
+                        GroupByBehavior.Unrelated, 
+                        // strings that begin with a single special character ($, letter, or underscore) followed by zero or more alphanumeric characters, underscore, $
+                        // or strings that begin with a double quote followed by one or more any characters (except double quotes or null character)
+                        "(^\\[\\p{Lo}\\p{Lu}\\p{Ll}_$][\\p{Lo}\\p{Lu}\\p{Ll}\\p{Nd}$$_]*$)|(^\\\"[^\\\"\\0]|\\\"\\\"+\\\"$)", 
+                        IdentifierCase.Insensitive, 
+                        false, 
+                        "{0}", 
+                        // identifies strings composed of letters, numbers, underscores and $
+                        "$[\\p{Lo}\\p{Lu}\\p{Ll}\\p{Lm}_$][\\p{Lo}\\p{Lu}\\p{Ll}\\p{Lm}\\p{Nd}\\uff3f_$\\$]*(?=\\s+|$)", 
+                        128,
+                        // This regexp matches a string that begins with a letter, number, underscore, or dollar sign, and can contain other similar characters, numbers, question marks, underscores, dollar signs, and white spaces.
+                        // The string must end with white space or the end of the string.
+                        "^[\\p{Lo}\\p{Lu}\\p{Ll}\\p{Lm}_$][\\p{Lo}\\p{Lu}\\p{Ll}\\p{Lm}\\p{Nd}\\uff3f_$\\$]*(?=\\s+|$)",
+                        // This regexp is used to find a sequence of characters that does not contain double quote or contains them in pairs.
+                        "((\"^\\\"\"|\\\"\\\")*)", 
+                        IdentifierCase.Insensitive, 
+                        ";", 
+                        // The regexp is used to find a sequence of one or more characters, excluding single quotes (').
+                        "'(([^']|'')*)'", 
+                        SupportedJoinOperators.Inner | SupportedJoinOperators.LeftOuter | SupportedJoinOperators.RightOuter | SupportedJoinOperators.FullOuter
+                    }
             }
         };
 
