@@ -26,7 +26,7 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
         for (var index = 0; index < configCount; index++)
         {
             NativeMethods.Configuration.DuckDBGetConfigFlag(index, out var name, out _);
-            ConfigurationOptions.Add(name.ToManagedString(false));
+            ConfigurationOptions.Add(name);
         }
 
 #if CI

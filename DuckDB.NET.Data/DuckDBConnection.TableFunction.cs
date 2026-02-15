@@ -12,7 +12,6 @@ public record TableFunction(IReadOnlyList<ColumnInfo> Columns, IEnumerable Data)
 
 partial class DuckDBConnection
 {
-
     public void RegisterTableFunction(string name, Func<TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
     {
         RegisterTableFunctionInternal(name, (_) => resultCallback(), mapperCallback, Array.Empty<Type>());
@@ -66,10 +65,7 @@ partial class DuckDBConnection
     private unsafe void RegisterTableFunctionInternal(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback, params Type[] parameterTypes)
     {
         var function = NativeMethods.TableFunction.DuckDBCreateTableFunction();
-        using (var handle = name.ToUnmanagedString())
-        {
-            NativeMethods.TableFunction.DuckDBTableFunctionSetName(function, handle);
-        }
+        NativeMethods.TableFunction.DuckDBTableFunctionSetName(function, name);
 
         foreach (var type in parameterTypes)
         {
@@ -85,22 +81,19 @@ partial class DuckDBConnection
         NativeMethods.TableFunction.DuckDBTableFunctionSetExtraInfo(function, tableFunctionInfo.ToHandle(), &DestroyExtraInfo);
 
         var state = NativeMethods.TableFunction.DuckDBRegisterTableFunction(NativeConnection, function);
+        
+        NativeMethods.TableFunction.DuckDBDestroyTableFunction(ref function);
 
         if (!state.IsSuccess())
         {
             throw new InvalidOperationException($"Error registering user defined table function: {name}");
         }
-
-        NativeMethods.TableFunction.DuckDBDestroyTableFunction(ref function);
     }
 
     private unsafe void RegisterTableFunctionInternal(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback, params DuckDBType[] parameterTypes)
     {
         var function = NativeMethods.TableFunction.DuckDBCreateTableFunction();
-        using (var handle = name.ToUnmanagedString())
-        {
-            NativeMethods.TableFunction.DuckDBTableFunctionSetName(function, handle);
-        }
+        NativeMethods.TableFunction.DuckDBTableFunctionSetName(function, name);
 
         foreach (var duckDBType in parameterTypes)
         {
@@ -117,16 +110,16 @@ partial class DuckDBConnection
 
         var state = NativeMethods.TableFunction.DuckDBRegisterTableFunction(NativeConnection, function);
 
+        NativeMethods.TableFunction.DuckDBDestroyTableFunction(ref function);
+        
         if (!state.IsSuccess())
         {
             throw new InvalidOperationException($"Error registering user defined table function: {name}");
         }
-
-        NativeMethods.TableFunction.DuckDBDestroyTableFunction(ref function);
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    public static unsafe void Bind(IntPtr info)
+    private static unsafe void Bind(IntPtr info)
     {
         IDuckDBValueReader[] parameters = [];
         try
@@ -151,7 +144,7 @@ partial class DuckDBConnection
             foreach (var columnInfo in tableFunctionData.Columns)
             {
                 using var logicalType = columnInfo.Type.GetLogicalType();
-                NativeMethods.TableFunction.DuckDBBindAddResultColumn(info, columnInfo.Name.ToUnmanagedString(), logicalType);
+                NativeMethods.TableFunction.DuckDBBindAddResultColumn(info, columnInfo.Name, logicalType);
             }
 
             var bindData = new TableFunctionBindData(tableFunctionData.Columns, tableFunctionData.Data.GetEnumerator());
@@ -160,8 +153,7 @@ partial class DuckDBConnection
         }
         catch (Exception ex)
         {
-            using var errorMessage = ex.Message.ToUnmanagedString();
-            NativeMethods.TableFunction.DuckDBBindSetError(info, errorMessage);
+            NativeMethods.TableFunction.DuckDBBindSetError(info, ex.Message);
         }
         finally
         {
@@ -173,11 +165,12 @@ partial class DuckDBConnection
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    public static void Init(IntPtr info) { }
+    private static void Init(IntPtr info) { }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    public static void TableFunction(IntPtr info, IntPtr chunk)
+    private static void TableFunction(IntPtr info, IntPtr chunk)
     {
+        VectorDataWriterBase[] writers = [];
         try
         {
             var bindData = GCHandle.FromIntPtr(NativeMethods.TableFunction.DuckDBFunctionGetBindData(info));
@@ -195,7 +188,7 @@ partial class DuckDBConnection
 
             var dataChunk = new DuckDBDataChunk(chunk);
 
-            var writers = new VectorDataWriterBase[tableFunctionBindData.Columns.Count];
+            writers = new VectorDataWriterBase[tableFunctionBindData.Columns.Count];
             for (var columnIndex = 0; columnIndex < tableFunctionBindData.Columns.Count; columnIndex++)
             {
                 var column = tableFunctionBindData.Columns[columnIndex];
@@ -223,8 +216,14 @@ partial class DuckDBConnection
         }
         catch (Exception ex)
         {
-            using var errorMessage = ex.Message.ToUnmanagedString();
-            NativeMethods.TableFunction.DuckDBFunctionSetError(info, errorMessage);
+            NativeMethods.TableFunction.DuckDBFunctionSetError(info, ex.Message);
+        }
+        finally
+        {
+            foreach (var writer in writers)
+            {
+                writer.Dispose();
+            }
         }
     }
 }

@@ -46,7 +46,7 @@ internal sealed class EnumVectorDataReader : VectorDataReaderBase
         {
             if (typeof(T) == typeof(string))
             {
-                var value = NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType, Convert.ToInt64(enumValue)).ToManagedString();
+                var value = NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType, Convert.ToInt64(enumValue));
                 return (T)(object)value;
             }
             return Unsafe.As<TSource, T>(ref enumValue);
@@ -75,7 +75,7 @@ internal sealed class EnumVectorDataReader : VectorDataReaderBase
 
         if (returnType == typeof(string))
         {
-            var value = NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType, enumValue).ToManagedString();
+            var value = NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType, enumValue);
             return value;
         }
         

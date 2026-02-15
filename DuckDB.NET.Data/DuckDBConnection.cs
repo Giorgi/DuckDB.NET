@@ -72,7 +72,7 @@ public partial class DuckDBConnection : DbConnection
     public DuckDBNativeConnection NativeConnection => connectionReference?.NativeConnection
                                                       ?? throw new InvalidOperationException("The DuckDBConnection must be open to access the native connection.");
 
-    public override string ServerVersion => NativeMethods.Startup.DuckDBLibraryVersion().ToManagedString(false);
+    public override string ServerVersion => NativeMethods.Startup.DuckDBLibraryVersion();
 
     public override ConnectionState State => connectionState;
 
@@ -154,11 +154,8 @@ public partial class DuckDBConnection : DbConnection
     public DuckDBAppender CreateAppender(string? catalog, string? schema, string table)
     {
         EnsureConnectionOpen();
-        using var unmanagedCatalog = catalog.ToUnmanagedString();
-        using var unmanagedSchema = schema.ToUnmanagedString();
-        using var unmanagedTable = table.ToUnmanagedString();
 
-        var appenderState = NativeMethods.Appender.DuckDBAppenderCreateExt(NativeConnection, unmanagedCatalog, unmanagedSchema, unmanagedTable, out var nativeAppender);
+        var appenderState = NativeMethods.Appender.DuckDBAppenderCreateExt(NativeConnection, catalog, schema, table, out var nativeAppender);
 
         if (!appenderState.IsSuccess())
         {

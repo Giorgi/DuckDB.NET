@@ -147,7 +147,7 @@ public class DuckDBAppender : IDisposable
     [StackTraceHidden]
     internal static void ThrowLastError(Native.DuckDBAppender appender)
     {
-        var errorMessage = NativeMethods.Appender.DuckDBAppenderError(appender).ToManagedString(false);
+        var errorMessage = NativeMethods.Appender.DuckDBAppenderError(appender);
 
         throw new DuckDBException(errorMessage);
     }

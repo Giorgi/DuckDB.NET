@@ -13,16 +13,14 @@ internal sealed class PreparedStatement : IDisposable
 
     public static IEnumerable<DuckDBResult> PrepareMultiple(DuckDBNativeConnection connection, string query, DuckDBParameterCollection parameters, bool useStreamingMode)
     {
-        using var unmanagedQuery = query.ToUnmanagedString();
-
-        var statementCount = NativeMethods.ExtractStatements.DuckDBExtractStatements(connection, unmanagedQuery, out var extractedStatements);
+        var statementCount = NativeMethods.ExtractStatements.DuckDBExtractStatements(connection, query, out var extractedStatements);
 
         using (extractedStatements)
         {
             if (statementCount <= 0)
             {
                 var error = NativeMethods.ExtractStatements.DuckDBExtractStatementsError(extractedStatements);
-                throw new DuckDBException(error.ToManagedString(false));
+                throw new DuckDBException(error);
             }
 
             for (int index = 0; index < statementCount; index++)
@@ -36,7 +34,7 @@ internal sealed class PreparedStatement : IDisposable
                 }
                 else
                 {
-                    var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(statement).ToManagedString(false);
+                    var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(statement);
 
                     throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage);
                 }
@@ -54,7 +52,7 @@ internal sealed class PreparedStatement : IDisposable
 
         if (!status.IsSuccess())
         {
-            var errorMessage = NativeMethods.Query.DuckDBResultError(ref queryResult).ToManagedString(false);
+            var errorMessage = NativeMethods.Query.DuckDBResultError(ref queryResult);
             var errorType = NativeMethods.Query.DuckDBResultErrorType(ref queryResult);
             queryResult.Close();
 
@@ -86,7 +84,7 @@ internal sealed class PreparedStatement : IDisposable
         {
             foreach (DuckDBParameter param in parameterCollection)
             {
-                var state = NativeMethods.PreparedStatements.DuckDBBindParameterIndex(preparedStatement, out var index, param.ParameterName.ToUnmanagedString());
+                var state = NativeMethods.PreparedStatements.DuckDBBindParameterIndex(preparedStatement, out var index, param.ParameterName);
                 if (state.IsSuccess())
                 {
                     BindParameter(preparedStatement, index, param);
@@ -114,7 +112,7 @@ internal sealed class PreparedStatement : IDisposable
 
         if (!result.IsSuccess())
         {
-            var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(preparedStatement).ToManagedString(false);
+            var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(preparedStatement);
             throw new InvalidOperationException($"Unable to bind parameter {index}: {errorMessage}");
         }
     }
