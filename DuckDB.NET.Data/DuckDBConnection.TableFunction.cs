@@ -12,7 +12,6 @@ public record TableFunction(IReadOnlyList<ColumnInfo> Columns, IEnumerable Data)
 
 partial class DuckDBConnection
 {
-
     public void RegisterTableFunction(string name, Func<TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback)
     {
         RegisterTableFunctionInternal(name, (_) => resultCallback(), mapperCallback, Array.Empty<Type>());
@@ -82,13 +81,13 @@ partial class DuckDBConnection
         NativeMethods.TableFunction.DuckDBTableFunctionSetExtraInfo(function, tableFunctionInfo.ToHandle(), &DestroyExtraInfo);
 
         var state = NativeMethods.TableFunction.DuckDBRegisterTableFunction(NativeConnection, function);
+        
+        NativeMethods.TableFunction.DuckDBDestroyTableFunction(ref function);
 
         if (!state.IsSuccess())
         {
             throw new InvalidOperationException($"Error registering user defined table function: {name}");
         }
-
-        NativeMethods.TableFunction.DuckDBDestroyTableFunction(ref function);
     }
 
     private unsafe void RegisterTableFunctionInternal(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback, params DuckDBType[] parameterTypes)
@@ -111,16 +110,16 @@ partial class DuckDBConnection
 
         var state = NativeMethods.TableFunction.DuckDBRegisterTableFunction(NativeConnection, function);
 
+        NativeMethods.TableFunction.DuckDBDestroyTableFunction(ref function);
+        
         if (!state.IsSuccess())
         {
             throw new InvalidOperationException($"Error registering user defined table function: {name}");
         }
-
-        NativeMethods.TableFunction.DuckDBDestroyTableFunction(ref function);
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    public static unsafe void Bind(IntPtr info)
+    private static unsafe void Bind(IntPtr info)
     {
         IDuckDBValueReader[] parameters = [];
         try
@@ -166,11 +165,12 @@ partial class DuckDBConnection
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    public static void Init(IntPtr info) { }
+    private static void Init(IntPtr info) { }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    public static void TableFunction(IntPtr info, IntPtr chunk)
+    private static void TableFunction(IntPtr info, IntPtr chunk)
     {
+        VectorDataWriterBase[] writers = [];
         try
         {
             var bindData = GCHandle.FromIntPtr(NativeMethods.TableFunction.DuckDBFunctionGetBindData(info));
@@ -188,7 +188,7 @@ partial class DuckDBConnection
 
             var dataChunk = new DuckDBDataChunk(chunk);
 
-            var writers = new VectorDataWriterBase[tableFunctionBindData.Columns.Count];
+            writers = new VectorDataWriterBase[tableFunctionBindData.Columns.Count];
             for (var columnIndex = 0; columnIndex < tableFunctionBindData.Columns.Count; columnIndex++)
             {
                 var column = tableFunctionBindData.Columns[columnIndex];
@@ -217,6 +217,13 @@ partial class DuckDBConnection
         catch (Exception ex)
         {
             NativeMethods.TableFunction.DuckDBFunctionSetError(info, ex.Message);
+        }
+        finally
+        {
+            foreach (var writer in writers)
+            {
+                writer.Dispose();
+            }
         }
     }
 }
