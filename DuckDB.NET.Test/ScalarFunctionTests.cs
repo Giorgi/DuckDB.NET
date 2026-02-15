@@ -99,6 +99,21 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    public void RegisterScalarFunctionCallbackThrows()
+    {
+        const string functionName = "throwing_scalar";
+
+        Connection.RegisterScalarFunction<long, long>(functionName, (_, _, _) =>
+        {
+            throw new InvalidOperationException("Scalar callback failed");
+        });
+
+        Connection.Invoking(con => con.Query<long>($"SELECT {functionName}(1)"))
+                  .Should().Throw<DuckDBException>()
+                  .WithMessage("*Scalar callback failed*");
+    }
+
+    [Fact]
     public void RegisterScalarFunctionIsPrime()
     {
         Connection.RegisterScalarFunction<int, bool>("is_prime", (readers, writer, rowCount) =>

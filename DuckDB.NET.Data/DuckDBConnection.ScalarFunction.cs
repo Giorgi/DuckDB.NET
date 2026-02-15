@@ -56,6 +56,7 @@ partial class DuckDBConnection
             }
 
             NativeMethods.ScalarFunction.DuckDBScalarFunctionSetVarargs(function, parameterTypes[0]);
+            parameterTypes[0].Dispose();
         }
         else
         {
@@ -91,27 +92,47 @@ partial class DuckDBConnection
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void ScalarFunctionCallback(IntPtr info, IntPtr chunk, IntPtr outputVector)
     {
-        var dataChunk = new DuckDBDataChunk(chunk);
+        VectorDataReaderBase[] readers = [];
+        VectorDataWriterBase? writer = null;
 
-        var chunkSize = NativeMethods.DataChunks.DuckDBDataChunkGetSize(dataChunk);
-        var handle = GCHandle.FromIntPtr(NativeMethods.ScalarFunction.DuckDBScalarFunctionGetExtraInfo(info));
-
-        if (handle.Target is not ScalarFunctionInfo functionInfo)
+        try
         {
-            throw new InvalidOperationException("User defined scalar function execution failed. Function extra info is null");
+            var dataChunk = new DuckDBDataChunk(chunk);
+
+            var chunkSize = NativeMethods.DataChunks.DuckDBDataChunkGetSize(dataChunk);
+            var handle = GCHandle.FromIntPtr(NativeMethods.ScalarFunction.DuckDBScalarFunctionGetExtraInfo(info));
+
+            if (handle.Target is not ScalarFunctionInfo functionInfo)
+            {
+                throw new InvalidOperationException("User defined scalar function execution failed. Function extra info is null");
+            }
+
+            readers = new VectorDataReaderBase[NativeMethods.DataChunks.DuckDBDataChunkGetColumnCount(dataChunk)];
+
+            for (var index = 0; index < readers.Length; index++)
+            {
+                var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(dataChunk, index);
+                using var logicalType = NativeMethods.Vectors.DuckDBVectorGetColumnType(vector);
+                readers[index] = VectorDataReaderFactory.CreateReader(vector, logicalType);
+            }
+
+            writer = VectorDataWriterFactory.CreateWriter(outputVector, functionInfo.ReturnType);
+
+            functionInfo.Action(readers, writer, chunkSize);
         }
-
-        var readers = new VectorDataReaderBase[NativeMethods.DataChunks.DuckDBDataChunkGetColumnCount(dataChunk)];
-
-        for (var index = 0; index < readers.Length; index++)
+        catch (Exception ex)
         {
-            var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(dataChunk, index);
-            readers[index] = VectorDataReaderFactory.CreateReader(vector, NativeMethods.Vectors.DuckDBVectorGetColumnType(vector));
+            NativeMethods.ScalarFunction.DuckDBScalarFunctionSetError(info, ex.Message);
         }
+        finally
+        {
+            foreach (var reader in readers)
+            {
+                reader.Dispose();
+            }
 
-        var writer = VectorDataWriterFactory.CreateWriter(outputVector, functionInfo.ReturnType);
-
-        functionInfo.Action(readers, writer, chunkSize);
+            writer?.Dispose();
+        }
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]

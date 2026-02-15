@@ -47,5 +47,9 @@ public partial class NativeMethods
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_get_extra_info")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial IntPtr DuckDBScalarFunctionGetExtraInfo(IntPtr scalarFunction);
+
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_set_error", StringMarshalling = StringMarshalling.Utf8)]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial void DuckDBScalarFunctionSetError(IntPtr info, string error);
     }
 }
