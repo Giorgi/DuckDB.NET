@@ -1,4 +1,4 @@
-﻿namespace DuckDB.NET.Native;
+namespace DuckDB.NET.Native;
 
 public partial class NativeMethods
 {
@@ -13,14 +13,17 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBAppenderCreateExt(DuckDBNativeConnection connection, string? catalog, string? schema, string table, out DuckDBAppender appender);
 
+        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_appender_column_count")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial ulong DuckDBAppenderColumnCount(DuckDBAppender appender);
 
+        // Maybe [SuppressGCTransition]: new LogicalType — one small allocation
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_appender_column_type")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBLogicalType DuckDBAppenderColumnType(DuckDBAppender appender, ulong index);
 
+        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_appender_error")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         [return: MarshalUsing(typeof(DuckDBOwnedStringMarshaller))]
@@ -30,6 +33,7 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBAppenderFlush(DuckDBAppender appender);
 
+        // Maybe [SuppressGCTransition]: reinitializes active chunk — small deallocation + allocation
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_appender_clear")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBAppenderClear(DuckDBAppender appender);
@@ -131,15 +135,16 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBAppendInterval(DuckDBAppender appender, DuckDBInterval val);
 
+        // Maybe [SuppressGCTransition]: UTF-8 validation + creates Value::VARCHAR — string allocation
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_append_varchar", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBAppendVarchar(DuckDBAppender appender, string val);
 
+        // Maybe [SuppressGCTransition]: UTF-8 validation + creates Value::VARCHAR — string allocation
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_append_varchar_length", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBAppendVarchar(DuckDBAppender appender, string val, int length);
 
-        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_append_blob")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static unsafe partial DuckDBState DuckDBAppendBlob(DuckDBAppender appender, byte* data, int length);
@@ -149,11 +154,11 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBAppendNull(DuckDBAppender appender);
 
-        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_append_data_chunk")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBAppendDataChunk(DuckDBAppender appender, DuckDBDataChunk chunk);
 
+        // Maybe [SuppressGCTransition]: evaluates default expression — typically small but expression-dependent
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_append_default_to_chunk")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBAppendDefaultToChunk(DuckDBAppender appender, DuckDBDataChunk chunk, int column, ulong row);

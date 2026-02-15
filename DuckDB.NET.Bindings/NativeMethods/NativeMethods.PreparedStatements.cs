@@ -10,27 +10,34 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBPrepare(DuckDBNativeConnection connection, string query, out DuckDBPreparedStatement preparedStatement);
 
+        // Maybe [SuppressGCTransition]: delete PreparedStatementWrapper — small deallocation, may cascade
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_destroy_prepare")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial void DuckDBDestroyPrepare(ref IntPtr preparedStatement);
 
+        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_prepare_error")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         [return: MarshalUsing(typeof(DuckDBOwnedStringMarshaller))]
         public static partial string DuckDBPrepareError(DuckDBPreparedStatement preparedStatement);
 
+        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_nparams")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial long DuckDBParams(DuckDBPreparedStatement preparedStatement);
 
+        // Maybe [SuppressGCTransition]: map insertion with small node allocation
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_value")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBBindValue(DuckDBPreparedStatement preparedStatement, long index, DuckDBValue val);
 
+        // Maybe [SuppressGCTransition]: linear search + std::string construction (small allocation)
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_parameter_index", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBBindParameterIndex(DuckDBPreparedStatement preparedStatement, out int index, string name);
 
+        // Maybe [SuppressGCTransition]: the following DuckDBBind* functions each create a stack Value then call
+        // duckdb_bind_value which does a map insertion (small node allocation).
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_boolean")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBBindBoolean(DuckDBPreparedStatement preparedStatement, long index, [MarshalAs(UnmanagedType.I1)] bool val);
@@ -111,6 +118,7 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBExecutePreparedStreaming(DuckDBPreparedStatement preparedStatement, out DuckDBResult result);
 
+        // Maybe [SuppressGCTransition]: new LogicalType — small allocation + name lookup
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_param_logical_type")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBLogicalType DuckDBParamLogicalType(DuckDBPreparedStatement preparedStatement, long index);

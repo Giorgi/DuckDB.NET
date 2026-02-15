@@ -17,31 +17,38 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBDataChunk DuckDBFetchChunk(DuckDBResult result);
 
+        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_column_name")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         [return: MarshalUsing(typeof(DuckDBOwnedStringMarshaller))]
         public static partial string DuckDBColumnName(ref DuckDBResult result, long col);
 
+        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_column_type")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBType DuckDBColumnType(ref DuckDBResult result, long col);
 
+        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_result_statement_type")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBStatementType DuckDBResultStatementType(DuckDBResult result);
 
+        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_result_return_type")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBResultType DuckDBResultReturnType(DuckDBResult result);
 
+        // Maybe [SuppressGCTransition]: new LogicalType — one small allocation
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_column_logical_type")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBLogicalType DuckDBColumnLogicalType(ref DuckDBResult result, long col);
 
+        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_column_count")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial ulong DuckDBColumnCount(ref DuckDBResult result);
 
+        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_row_count")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial long DuckDBRowCount(ref DuckDBResult result);
@@ -60,11 +67,13 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial IntPtr DuckDBNullmaskData(ref DuckDBResult result, long col);
 
+        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_result_error")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         [return: MarshalUsing(typeof(DuckDBOwnedStringMarshaller))]
         public static partial string DuckDBResultError(ref DuckDBResult result);
 
+        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_result_error_type")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBErrorType DuckDBResultErrorType(ref DuckDBResult result);

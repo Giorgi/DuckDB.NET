@@ -25,14 +25,17 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial void DuckDBDisconnect(ref IntPtr connection);
 
+        // Maybe [SuppressGCTransition]: likely sets an atomic flag, but may signal across threads
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_interrupt")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial void DuckDBInterrupt(DuckDBNativeConnection connection);
 
+        // Maybe [SuppressGCTransition]: reads 3 atomic fields from shared context, no locks but uses concurrency primitives
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_query_progress")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBQueryProgress DuckDBQueryProgress(DuckDBNativeConnection connection);
 
+        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_library_version")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         [return: MarshalUsing(typeof(DuckDBOwnedStringMarshaller))]

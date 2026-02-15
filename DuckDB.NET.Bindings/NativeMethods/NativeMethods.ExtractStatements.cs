@@ -13,11 +13,13 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBPrepareExtractedStatement(DuckDBNativeConnection connection, DuckDBExtractedStatements extractedStatements, long index, out DuckDBPreparedStatement preparedStatement);
 
+        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_extract_statements_error")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         [return: MarshalUsing(typeof(DuckDBOwnedStringMarshaller))]
         public static partial string DuckDBExtractStatementsError(DuckDBExtractedStatements extractedStatements);
 
+        // Maybe [SuppressGCTransition]: delete ExtractStatementsWrapper — small deallocation
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_destroy_extracted")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial void DuckDBDestroyExtracted(ref IntPtr extractedStatements);

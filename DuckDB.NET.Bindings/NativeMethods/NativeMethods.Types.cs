@@ -1,4 +1,4 @@
-﻿namespace DuckDB.NET.Native;
+namespace DuckDB.NET.Native;
 
 public partial class NativeMethods
 {
@@ -78,14 +78,17 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBTimestampStruct DuckDBValueTimestamp(ref DuckDBResult result, long col, long row);
 
+        // Maybe [SuppressGCTransition]: new DataChunk from materialized result — bounded allocation
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_result_get_chunk")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBDataChunk DuckDBResultGetChunk(DuckDBResult result, long chunkIndex);
 
+        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_result_is_streaming")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial byte DuckDBResultIsStreaming(DuckDBResult result);
 
+        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_result_chunk_count")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial long DuckDBResultChunkCount(DuckDBResult result);

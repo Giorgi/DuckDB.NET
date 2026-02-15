@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 
 namespace DuckDB.NET.Native;
 
@@ -6,14 +6,17 @@ public partial class NativeMethods
 {
     public static partial class Value
     {
+        // Maybe [SuppressGCTransition]: delete Value — one small deallocation
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_destroy_value")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial void DuckDBDestroyValue(ref IntPtr config);
 
+        // Maybe [SuppressGCTransition]: new Value + strdup — two small allocations
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_varchar", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBValue DuckDBCreateVarchar(string? value);
 
+        // Maybe [SuppressGCTransition]: duckdb_create_* — each creates one heap-allocated Value object
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_bool")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBValue DuckDBCreateBool([MarshalAs(UnmanagedType.I1)] bool value);
@@ -106,6 +109,7 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBValue DuckDBCreateInterval(DuckDBInterval value);
 
+        // Maybe [SuppressGCTransition]: new Value + data copy — bounded by input size
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_blob")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBValue DuckDBCreateBlob([In] byte[] value, long length);
@@ -114,6 +118,7 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBValue DuckDBCreateUuid(DuckDBHugeInt value);
 
+        // Maybe [SuppressGCTransition]: duckdb_get_* calls CAPIGetValue → DefaultTryCastAs → CastFunctionSet ctor does vector::emplace_back (heap allocation on every call)
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_bool")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         [return: MarshalAs(UnmanagedType.I1)]
@@ -199,10 +204,12 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBInterval DuckDBGetInterval(DuckDBValue value);
 
+        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_value_type")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBLogicalType DuckDBGetValueType(DuckDBValue value);
 
+        // Maybe [SuppressGCTransition]: strdup + caller must free via duckdb_free
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_varchar")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         [return: MarshalUsing(typeof(DuckDBCallerOwnedStringMarshaller))]
@@ -216,10 +223,12 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBValue DuckDBCreateArrayValue(DuckDBLogicalType logicalType, IntPtr[] values, long count);
 
+        // Maybe [SuppressGCTransition]: new Value — one small allocation
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_null_value")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBValue DuckDBCreateNullValue();
 
+        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_is_null_value")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         [return: MarshalAs(UnmanagedType.I1)]
