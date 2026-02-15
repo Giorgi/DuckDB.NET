@@ -7,7 +7,7 @@ public static class DuckDBConnectionScalarFunctionExtensions
 {
     extension(DuckDBConnection connection)
     {
-        public void RegisterScalarFunction<TResult>(string name, Func<TResult> func, bool isPureFunction = true)
+        public void RegisterScalarFunction<TResult>(string name, Func<TResult> func, bool isPureFunction = false)
         {
             connection.RegisterScalarFunction<TResult>(name, (writer, rowCount) =>
             {
@@ -29,47 +29,36 @@ public static class DuckDBConnectionScalarFunctionExtensions
 
         public void RegisterScalarFunction<T, TResult>(string name, Func<T, TResult> func, bool isPureFunction = true)
         {
-            connection.RegisterScalarFunction<T, TResult>(name, WrapScalarFunction<TResult>(1, (readers, index) => func(readers[0].GetValue<T>(index))), isPureFunction);
+            connection.RegisterScalarFunction<T, TResult>(name, WrapScalarFunction<TResult>((readers, index) =>
+                func(readers[0].GetValue<T>(index))), isPureFunction);
         }
 
         public void RegisterScalarFunction<T1, T2, TResult>(string name, Func<T1, T2, TResult> func, bool isPureFunction = true)
         {
-            connection.RegisterScalarFunction<T1, T2, TResult>(name, WrapScalarFunction<TResult>(2, (readers, index) => func(readers[0].GetValue<T1>(index), readers[1].GetValue<T2>(index))), isPureFunction);
+            connection.RegisterScalarFunction<T1, T2, TResult>(name, WrapScalarFunction<TResult>((readers, index) =>
+                func(readers[0].GetValue<T1>(index), readers[1].GetValue<T2>(index))), isPureFunction);
         }
 
         public void RegisterScalarFunction<T1, T2, T3, TResult>(string name, Func<T1, T2, T3, TResult> func, bool isPureFunction = true)
         {
-            connection.RegisterScalarFunction<T1, T2, T3, TResult>(name, WrapScalarFunction<TResult>(3, (readers, index) => func(readers[0].GetValue<T1>(index), readers[1].GetValue<T2>(index), readers[2].GetValue<T3>(index))), isPureFunction);
+            connection.RegisterScalarFunction<T1, T2, T3, TResult>(name, WrapScalarFunction<TResult>((readers, index) =>
+                func(readers[0].GetValue<T1>(index), readers[1].GetValue<T2>(index), readers[2].GetValue<T3>(index))), isPureFunction);
         }
 
         public void RegisterScalarFunction<T1, T2, T3, T4, TResult>(string name, Func<T1, T2, T3, T4, TResult> func, bool isPureFunction = true)
         {
-            connection.RegisterScalarFunction<T1, T2, T3, T4, TResult>(name, WrapScalarFunction<TResult>(4, (readers, index) => func(readers[0].GetValue<T1>(index), readers[1].GetValue<T2>(index), readers[2].GetValue<T3>(index), readers[3].GetValue<T4>(index))), isPureFunction);
+            connection.RegisterScalarFunction<T1, T2, T3, T4, TResult>(name, WrapScalarFunction<TResult>((readers, index) =>
+                func(readers[0].GetValue<T1>(index), readers[1].GetValue<T2>(index),
+                    readers[2].GetValue<T3>(index), readers[3].GetValue<T4>(index))), isPureFunction);
         }
     }
 
-    private static Action<IReadOnlyList<IDuckDBDataReader>, IDuckDBDataWriter, ulong> WrapScalarFunction<TResult>(int parameterCount, Func<IReadOnlyList<IDuckDBDataReader>, ulong, TResult> perRowFunc)
+    private static Action<IReadOnlyList<IDuckDBDataReader>, IDuckDBDataWriter, ulong> WrapScalarFunction<TResult>(Func<IReadOnlyList<IDuckDBDataReader>, ulong, TResult> perRowFunc)
     {
         return (readers, writer, rowCount) =>
         {
             for (ulong index = 0; index < rowCount; index++)
             {
-                var isNull = false;
-                for (int i = 0; i < parameterCount; i++)
-                {
-                    if (!readers[i].IsValid(index))
-                    {
-                        isNull = true;
-                        break;
-                    }
-                }
-
-                if (isNull)
-                {
-                    writer.WriteNull(index);
-                    continue;
-                }
-
                 var result = perRowFunc(readers, index);
 
                 if (result is null)
