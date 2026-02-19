@@ -293,6 +293,15 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         results.Should().BeEquivalentTo(["one", "two", "three", null]);
     }
 
+    [Fact]
+    public void SimplifiedScalarFunctionNullableValueTypeReturn()
+    {
+        Connection.RegisterScalarFunction<int, int?>("maybe_double", n => n > 3 ? n * 2 : null);
+
+        var results = Connection.Query<int?>("SELECT maybe_double(i::INT) FROM range(1, 6) t(i)").ToList();
+        results.Should().BeEquivalentTo([(int?)null, null, null, 8, 10]);
+    }
+
     private static bool IsPrime(int value)
     {
         for (int i = 2; i <= Math.Sqrt(value); i++)

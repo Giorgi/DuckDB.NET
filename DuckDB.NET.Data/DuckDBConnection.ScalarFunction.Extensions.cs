@@ -13,16 +13,7 @@ public static class DuckDBConnectionScalarFunctionExtensions
             {
                 for (ulong index = 0; index < rowCount; index++)
                 {
-                    var result = func();
-
-                    if (result is null)
-                    {
-                        writer.WriteNull(index);
-                    }
-                    else
-                    {
-                        writer.WriteValue(result, index);
-                    }
+                    writer.WriteValue(func(), index);
                 }
             }, isPureFunction);
         }
@@ -61,14 +52,7 @@ public static class DuckDBConnectionScalarFunctionExtensions
             {
                 var result = perRowFunc(readers, index);
 
-                if (result is null)
-                {
-                    writer.WriteNull(index);
-                }
-                else
-                {
-                    writer.WriteValue(result, index);
-                }
+                writer.WriteValue(result, index);
             }
         };
     }

@@ -25,8 +25,9 @@ public static class DuckDBConnectionTableFunctionExtensions
             Expression<Func<TData, TProjection>> projection)
         {
             var (columns, mapper) = ParseProjection(projection);
+            var read1 = CompileParameterReader<T1>(0, name);
             connection.RegisterTableFunction<T1>(name,
-                parameters => new TableFunction(columns, dataFunc(parameters[0].GetValue<T1>())),
+                parameters => new TableFunction(columns, dataFunc(read1(parameters))),
                 mapper);
         }
 
@@ -36,10 +37,10 @@ public static class DuckDBConnectionTableFunctionExtensions
             Expression<Func<TData, TProjection>> projection)
         {
             var (columns, mapper) = ParseProjection(projection);
+            var read1 = CompileParameterReader<T1>(0, name);
+            var read2 = CompileParameterReader<T2>(1, name);
             connection.RegisterTableFunction<T1, T2>(name,
-                parameters => new TableFunction(columns, dataFunc(
-                    parameters[0].GetValue<T1>(),
-                    parameters[1].GetValue<T2>())),
+                parameters => new TableFunction(columns, dataFunc(read1(parameters), read2(parameters))),
                 mapper);
         }
 
@@ -49,11 +50,11 @@ public static class DuckDBConnectionTableFunctionExtensions
             Expression<Func<TData, TProjection>> projection)
         {
             var (columns, mapper) = ParseProjection(projection);
+            var read1 = CompileParameterReader<T1>(0, name);
+            var read2 = CompileParameterReader<T2>(1, name);
+            var read3 = CompileParameterReader<T3>(2, name);
             connection.RegisterTableFunction<T1, T2, T3>(name,
-                parameters => new TableFunction(columns, dataFunc(
-                    parameters[0].GetValue<T1>(),
-                    parameters[1].GetValue<T2>(),
-                    parameters[2].GetValue<T3>())),
+                parameters => new TableFunction(columns, dataFunc(read1(parameters), read2(parameters), read3(parameters))),
                 mapper);
         }
 
@@ -63,15 +64,18 @@ public static class DuckDBConnectionTableFunctionExtensions
             Expression<Func<TData, TProjection>> projection)
         {
             var (columns, mapper) = ParseProjection(projection);
+            var read1 = CompileParameterReader<T1>(0, name);
+            var read2 = CompileParameterReader<T2>(1, name);
+            var read3 = CompileParameterReader<T3>(2, name);
+            var read4 = CompileParameterReader<T4>(3, name);
             connection.RegisterTableFunction<T1, T2, T3, T4>(name,
-                parameters => new TableFunction(columns, dataFunc(
-                    parameters[0].GetValue<T1>(),
-                    parameters[1].GetValue<T2>(),
-                    parameters[2].GetValue<T3>(),
-                    parameters[3].GetValue<T4>())),
+                parameters => new TableFunction(columns, dataFunc(read1(parameters), read2(parameters), read3(parameters), read4(parameters))),
                 mapper);
         }
     }
+
+    private static readonly MethodInfo GetValueMethod = typeof(IDuckDBValueReader).GetMethod(nameof(IDuckDBValueReader.GetValue))!;
+    private static readonly MethodInfo WriteValueMethod = typeof(IDuckDBDataWriter).GetMethod(nameof(IDuckDBDataWriter.WriteValue))!;
 
     private static (ColumnInfo[] columns, Action<object?, IDuckDBDataWriter[], ulong> mapper) ParseProjection<TData, TProjection>(Expression<Func<TData, TProjection>> projection)
     {
@@ -86,8 +90,7 @@ public static class DuckDBConnectionTableFunctionExtensions
         var columns = new ColumnInfo[names.Length];
         for (int i = 0; i < names.Length; i++)
         {
-            var columnType = Nullable.GetUnderlyingType(types[i]) ?? types[i];
-            columns[i] = new ColumnInfo(names[i], columnType);
+            columns[i] = new ColumnInfo(names[i], types[i]);
         }
 
         var combinedWriter = CompileCombinedWriter<TData>(names.Length, types, accessors, projection.Parameters[0]);
@@ -135,7 +138,41 @@ public static class DuckDBConnectionTableFunctionExtensions
         return (names, types, accessors);
     }
 
-    private static readonly MethodInfo WriteValueMethod = typeof(IDuckDBDataWriter).GetMethod(nameof(IDuckDBDataWriter.WriteValue))!;
+    private static Func<IReadOnlyList<IDuckDBValueReader>, T> CompileParameterReader<T>(int index, string functionName)
+    {
+        var nullableUnderlyingType = Nullable.GetUnderlyingType(typeof(T));
+
+        if (nullableUnderlyingType is not null)
+        {
+            var readNullable = CompileNullableReader<T>(nullableUnderlyingType);
+            return parameters =>
+            {
+                var reader = parameters[index];
+                return reader.IsNull() ? default! : readNullable(reader);
+            };
+        }
+
+        return parameters =>
+        {
+            var reader = parameters[index];
+            if (reader.IsNull())
+            {
+                if (default(T) is null) return default!;
+                throw new InvalidOperationException($"Table function '{functionName}' argument {index + 1} is NULL, but parameter type '{typeof(T).Name}' is non-nullable.");
+            }
+            return reader.GetValue<T>();
+        };
+    }
+
+    private static Func<IDuckDBValueReader, T> CompileNullableReader<T>(Type underlyingType)
+    {
+        var readerParam = Expression.Parameter(typeof(IDuckDBValueReader), "reader");
+
+        var getValue = Expression.Call(readerParam, GetValueMethod.MakeGenericMethod(underlyingType));
+        var convert = Expression.Convert(getValue, typeof(T));
+
+        return Expression.Lambda<Func<IDuckDBValueReader, T>>(convert, readerParam).Compile();
+    }
 
     private static Action<TData, IDuckDBDataWriter[], ulong> CompileCombinedWriter<TData>(int columnCount, Type[] types, Expression[] accessors, ParameterExpression originalParam)
     {
