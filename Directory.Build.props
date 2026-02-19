@@ -11,7 +11,7 @@
   <PropertyGroup Label="Common assembly attributes">
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
-    <LangVersion>default</LangVersion>
+    <LangVersion>latest</LangVersion>
 
     <Year>$([System.DateTime]::Today.Year)</Year>
 

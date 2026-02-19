@@ -42,6 +42,8 @@ internal static class TypeExtensions
 
     public static bool IsNull([NotNullWhen(false)] this object? value) => value is null or DBNull;
 
+    public static Type UnderlyingTypeOrSelf(this Type type) => Nullable.GetUnderlyingType(type) ?? type;
+
     public static (bool isNullableValueType, Type type) IsNullableValueType<T>()
     {
         var targetType = typeof(T);
@@ -80,6 +82,8 @@ internal static class TypeExtensions
 
     public static DuckDBLogicalType GetLogicalType(this Type type)
     {
+        type = type.UnderlyingTypeOrSelf();
+
         if (type == typeof(decimal))
         {
             return NativeMethods.LogicalType.DuckDBCreateDecimalType(38, 18);

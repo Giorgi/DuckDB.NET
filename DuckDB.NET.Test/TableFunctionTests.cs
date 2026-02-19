@@ -259,6 +259,28 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    public void RegisterTableFunctionWithNullableParameterType()
+    {
+        Connection.RegisterTableFunction<int?>("nullableParam", parameters =>
+        {
+            parameters[0].IsNull().Should().BeTrue();
+
+            return new TableFunction(new List<ColumnInfo>
+            {
+                new("foo", typeof(int)),
+            }, Enumerable.Empty<int>());
+        },
+        (item, writers, rowIndex) =>
+        {
+            writers[0].WriteValue((int)item, rowIndex);
+        });
+
+        var data = Connection.Query<int>("SELECT * FROM nullableParam(NULL::INTEGER);").ToList();
+
+        data.Should().BeEquivalentTo(Enumerable.Empty<int>());
+    }
+
+    [Fact]
     public void RegisterFunctionWithDateOnlyTimeOnlyParameters()
     {
         Connection.RegisterTableFunction<DateOnly, TimeOnly>("demo7", parameters =>

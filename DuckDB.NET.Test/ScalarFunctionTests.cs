@@ -99,6 +99,21 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    public void RegisterScalarFunctionCallbackThrows()
+    {
+        const string functionName = "throwing_scalar";
+
+        Connection.RegisterScalarFunction<long, long>(functionName, (_, _, _) =>
+        {
+            throw new InvalidOperationException("Scalar callback failed");
+        });
+
+        Connection.Invoking(con => con.Query<long>($"SELECT {functionName}(1)"))
+                  .Should().Throw<DuckDBException>()
+                  .WithMessage("*Scalar callback failed*");
+    }
+
+    [Fact]
     public void RegisterScalarFunctionIsPrime()
     {
         Connection.RegisterScalarFunction<int, bool>("is_prime", (readers, writer, rowCount) =>
@@ -199,5 +214,100 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
         var rows = Connection.Query<(int a, string formatA, DateOnly b, string formatB, double c, string formatC)>(Command.CommandText).ToList();
         rows.Should().BeEquivalentTo(randomList.Select(item => (item.a, item.a.ToString("G", CultureInfo.InvariantCulture), item.b, item.b.ToString("dd-MM-yyyy", CultureInfo.InvariantCulture), item.c, item.c.ToString("G", CultureInfo.InvariantCulture))));
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionZeroParams()
+    {
+        Connection.RegisterScalarFunction<int>("the_answer", () => 42);
+
+        var results = Connection.Query<int>("SELECT the_answer() FROM range(5)").ToList();
+        results.Should().AllBeEquivalentTo(42);
+        results.Should().HaveCount(5);
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionOneParam()
+    {
+        Connection.RegisterScalarFunction<int, bool>("is_prime_simple", IsPrime);
+
+        var primes = Connection.Query<int>("SELECT i FROM range(2, 100) t(i) WHERE is_prime_simple(i::INT)").ToList();
+        primes.Should().BeEquivalentTo([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97]);
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionTwoParams()
+    {
+        Connection.RegisterScalarFunction<long, long, long>("add_simple", (a, b) => a + b);
+
+        Command.CommandText = "SELECT add_simple(10, 32)";
+        var result = Command.ExecuteScalar();
+        result.Should().Be(42L);
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionThreeParams()
+    {
+        Connection.RegisterScalarFunction<int, int, int, int>("clamp_simple", (value, min, max) => Math.Clamp(value, min, max));
+
+        var results = Connection.Query<int>("SELECT clamp_simple(i::INT, 3, 7) FROM range(10) t(i)").ToList();
+        results.Should().BeEquivalentTo([3, 3, 3, 3, 4, 5, 6, 7, 7, 7]);
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionNullPropagation()
+    {
+        Connection.RegisterScalarFunction<int, int>("double_it", x => x * 2);
+
+        Command.CommandText = "SELECT double_it(NULL::INT)";
+        var result = Command.ExecuteScalar();
+        result.Should().Be(DBNull.Value);
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionNullPropagationMultipleParams()
+    {
+        Connection.RegisterScalarFunction<int, int, int>("add_ints", (a, b) => a + b);
+
+        Command.CommandText = "SELECT add_ints(5, NULL::INT)";
+        var result = Command.ExecuteScalar();
+        result.Should().Be(DBNull.Value);
+
+        Command.CommandText = "SELECT add_ints(NULL::INT, 5)";
+        result = Command.ExecuteScalar();
+        result.Should().Be(DBNull.Value);
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionStringReturn()
+    {
+        Connection.RegisterScalarFunction<int, string>("to_words", n => n switch
+        {
+            1 => "one",
+            2 => "two",
+            3 => "three",
+            _ => null
+        });
+
+        var results = Connection.Query<string>("SELECT to_words(i::INT) FROM range(1, 5) t(i)").ToList();
+        results.Should().BeEquivalentTo(["one", "two", "three", null]);
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionNullableValueTypeReturn()
+    {
+        Connection.RegisterScalarFunction<int, int?>("maybe_double", n => n > 3 ? n * 2 : null);
+
+        var results = Connection.Query<int?>("SELECT maybe_double(i::INT) FROM range(1, 6) t(i)").ToList();
+        results.Should().BeEquivalentTo([(int?)null, null, null, 8, 10]);
+    }
+
+    private static bool IsPrime(int value)
+    {
+        for (int i = 2; i <= Math.Sqrt(value); i++)
+        {
+            if (value % i == 0) return false;
+        }
+        return true;
     }
 }
