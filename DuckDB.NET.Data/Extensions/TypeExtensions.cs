@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Data.Extensions;
 
@@ -40,8 +41,10 @@ internal static class TypeExtensions
         { typeof(object), DuckDBType.Any},
     };
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsNull([NotNullWhen(false)] this object? value) => value is null or DBNull;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Type UnderlyingTypeOrSelf(this Type type) => Nullable.GetUnderlyingType(type) ?? type;
 
     public static (bool isNullableValueType, Type type) IsNullableValueType<T>()

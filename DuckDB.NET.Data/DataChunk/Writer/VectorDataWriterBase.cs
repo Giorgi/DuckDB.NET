@@ -1,4 +1,6 @@
-﻿namespace DuckDB.NET.Data.DataChunk.Writer;
+using System.Runtime.CompilerServices;
+
+namespace DuckDB.NET.Data.DataChunk.Writer;
 
 internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, DuckDBType columnType) : IDisposable, IDuckDBDataWriter
 {
@@ -99,6 +101,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
         throw new InvalidOperationException($"Cannot write {typeof(T).Name} to {columnType} column");
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal bool AppendValueInternal<T>(T value, ulong rowIndex) where T : unmanaged
     {
         ((T*)vectorData)[rowIndex] = value;

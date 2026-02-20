@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Data.DataChunk.Reader;
 
@@ -26,6 +27,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
         ColumnName = columnName;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public unsafe bool IsValid(ulong offset)
     {
         if (validityMaskPointer == default)
@@ -176,6 +178,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
         };
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected unsafe T GetFieldData<T>(ulong offset) where T : unmanaged => *((T*)DataPointer + offset);
 
     public virtual void Dispose()
