@@ -40,7 +40,7 @@ public readonly struct DuckDBHugeInt
 
     public BigInteger ToBigInteger()
     {
-        return Upper * BigInteger.Pow(2, 64) + Lower;
+        return Upper * Base + Lower;
     }
 }
 
@@ -76,6 +76,6 @@ public readonly struct DuckDBUHugeInt
 
     public BigInteger ToBigInteger()
     {
-        return Upper * BigInteger.Pow(2, 64) + Lower;
+        return Upper * Base + Lower;
     }
 }

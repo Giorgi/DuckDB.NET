@@ -1,34 +1,34 @@
-﻿namespace DuckDB.NET.Data.DataChunk.Writer;
+namespace DuckDB.NET.Data.DataChunk.Writer;
 
-internal sealed unsafe class DecimalVectorDataWriter(IntPtr vector, void* vectorData, DuckDBLogicalType logicalType, DuckDBType columnType) : VectorDataWriterBase(vector, vectorData, columnType)
+internal sealed unsafe class DecimalVectorDataWriter(IntPtr vector, void* vectorData, DuckDBLogicalType logicalType, DuckDBType columnType)
+    : VectorDataWriterBase(vector, vectorData, columnType)
 {
-    private readonly byte scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
     private readonly DuckDBType decimalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
+    private readonly byte targetColumnScale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
 
     internal override bool AppendDecimal(decimal value, ulong rowIndex)
     {
-        var power = Math.Pow(10, scale);
-
         switch (decimalType)
         {
             case DuckDBType.SmallInt:
-                AppendValueInternal((short)decimal.Multiply(value, new decimal(power)), rowIndex);
+                AppendValueInternal((short)decimal.Multiply(value, DecimalExtensions.PowersOfTen[targetColumnScale]), rowIndex);
                 break;
             case DuckDBType.Integer:
-                AppendValueInternal((int)decimal.Multiply(value, new decimal(power)), rowIndex);
+                AppendValueInternal((int)decimal.Multiply(value, DecimalExtensions.PowersOfTen[targetColumnScale]), rowIndex);
                 break;
             case DuckDBType.BigInt:
-                AppendValueInternal((long)decimal.Multiply(value, new decimal(power)), rowIndex);
+                AppendValueInternal((long)decimal.Multiply(value, DecimalExtensions.PowersOfTen[targetColumnScale]), rowIndex);
                 break;
             case DuckDBType.HugeInt:
-                var integralPart = decimal.Truncate(value);
-                var fractionalPart = value - integralPart;
+                var mantissa = value.GetMantissa();
 
-                var result = BigInteger.Multiply(new BigInteger(integralPart), new BigInteger(power));
+                // Rescale: mantissa is value × 10^valueScale, DuckDB needs value × 10^targetColumnScale.
+                if (targetColumnScale > value.Scale)
+                    mantissa *= DecimalExtensions.BigIntPowersOfTen[targetColumnScale - value.Scale];
+                else if (targetColumnScale < value.Scale)
+                    mantissa /= DecimalExtensions.BigIntPowersOfTen[value.Scale - targetColumnScale];
 
-                result += new BigInteger(decimal.Multiply(fractionalPart, (decimal)power));
-
-                AppendValueInternal(new DuckDBHugeInt(result), rowIndex);
+                AppendValueInternal(new DuckDBHugeInt(mantissa), rowIndex);
                 break;
         }
 

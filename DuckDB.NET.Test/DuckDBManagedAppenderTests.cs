@@ -182,6 +182,98 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    public void DecimalsTruncateExcessScale()
+    {
+        // Writing a .NET decimal with more fractional digits than the column's scale
+        // should truncate the extra digits. Tests all internal storage types.
+        TruncationTests("DECIMAL(4, 1)", // SmallInt internal type (width ≤ 4)
+        [
+            (1.19m, 1.1m),
+            (-3.75m, -3.7m),
+            (0.999m, 0.9m),
+        ]);
+
+        TruncationTests("DECIMAL(9, 2)", // Integer internal type (width 5-9)
+        [
+            (1.123m, 1.12m),
+            (-999.987m, -999.98m),
+            (0.005m, 0.00m),
+        ]);
+
+        TruncationTests("DECIMAL(18, 3)", // BigInt internal type (width 10-18)
+        [
+            (1.12345m, 1.123m),
+            (-99999.99999m, -99999.999m),
+            (0.0001m, 0.000m),
+        ]);
+
+        TruncationTests("DECIMAL(38, 2)", // HugeInt internal type (width > 18)
+        [
+            (1.123m, 1.12m),
+            (-1.987m, -1.98m),
+            (0.999m, 0.99m),
+            (0.005m, 0.00m),
+            (123456789012345678.009m, 123456789012345678.00m),
+        ]);
+
+        void TruncationTests(string columnType, (decimal input, decimal expected)[] testCases)
+        {
+            Command.CommandText = $"CREATE TABLE truncTest(value {columnType})";
+            Command.ExecuteNonQuery();
+
+            using (var appender = Connection.CreateAppender("truncTest"))
+            {
+                foreach (var (input, _) in testCases)
+                {
+                    appender.CreateRow().AppendValue(input).EndRow();
+                }
+            }
+
+            Command.CommandText = "SELECT value FROM truncTest ORDER BY rowid";
+            using (var reader = Command.ExecuteReader())
+            {
+                foreach (var (input, expected) in testCases)
+                {
+                    reader.Read().Should().BeTrue();
+                    reader.GetDecimal(0).Should().Be(expected, $"for input {input} in {columnType}");
+                }
+            }
+
+            Command.CommandText = "DROP TABLE truncTest";
+            Command.ExecuteNonQuery();
+        }
+    }
+
+    [Fact]
+    public void HighScaleDecimals()
+    {
+        // Scale 30 exceeds .NET decimal's max scale (28), exercising the BigInteger rescaling
+        // path in DecimalVectorDataWriter. Before the fix, this would crash with IndexOutOfRangeException.
+        Command.CommandText = "CREATE TABLE managedAppenderHighScaleDecimals(value DECIMAL(38, 30))";
+        Command.ExecuteNonQuery();
+
+        decimal[] values = [1.5m, -1.5m, 0m, 123.456m, 0.000000001m];
+
+        using (var appender = Connection.CreateAppender("managedAppenderHighScaleDecimals"))
+        {
+            foreach (var value in values)
+            {
+                appender.CreateRow().AppendValue(value).EndRow();
+            }
+        }
+
+        Command.CommandText = "SELECT value FROM managedAppenderHighScaleDecimals ORDER BY rowid";
+        using (var reader = Command.ExecuteReader())
+        {
+            foreach (var expected in values)
+            {
+                reader.Read().Should().BeTrue();
+                reader.GetDecimal(0).Should().Be(expected);
+            }
+        }
+    }
+
+    [Fact]
     public void GuidValues()
     {
         Command.CommandText = "CREATE TABLE managedAppenderGuids(a UUID);";

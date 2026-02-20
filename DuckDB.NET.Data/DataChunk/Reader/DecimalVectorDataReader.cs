@@ -1,7 +1,8 @@
-﻿namespace DuckDB.NET.Data.DataChunk.Reader;
+namespace DuckDB.NET.Data.DataChunk.Reader;
 
 internal sealed class DecimalVectorDataReader : VectorDataReaderBase
 {
+    private readonly BigInteger bigIntRemainderShift;
     private readonly DuckDBType decimalType;
     private readonly NumericVectorDataReader numericVectorDataReader;
 
@@ -11,6 +12,13 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
         Scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
         Precision = NativeMethods.LogicalType.DuckDBDecimalWidth(logicalType);
         decimalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
+
+        // SmallInt/Integer/BigInt paths have scale ≤ 18, always within range.
+        if (Scale > DecimalExtensions.MaxDecimalScale)
+        {
+            // Scale > 28: precompute the shift divisor for truncating the remainder to decimal range.
+            bigIntRemainderShift = DecimalExtensions.BigIntPowersOfTen[Scale - DecimalExtensions.MaxDecimalScale];
+        }
 
         numericVectorDataReader = new NumericVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName);
     }
@@ -42,22 +50,42 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
 
     private decimal GetDecimal(ulong offset)
     {
-        var pow = (decimal)Math.Pow(10, Scale);
         switch (decimalType)
         {
             case DuckDBType.SmallInt:
-                return decimal.Divide(GetFieldData<short>(offset), pow);
+                {
+                    var raw = GetFieldData<short>(offset);
+                    return new decimal(Math.Abs(raw), 0, 0, raw < 0, Scale);
+                }
             case DuckDBType.Integer:
-                return decimal.Divide(GetFieldData<int>(offset), pow);
+                {
+                    var raw = GetFieldData<int>(offset);
+                    return new decimal(Math.Abs(raw), 0, 0, raw < 0, Scale);
+                }
             case DuckDBType.BigInt:
-                return decimal.Divide(GetFieldData<long>(offset), pow);
+                {
+                    var raw = GetFieldData<long>(offset);
+                    var abs = (ulong)Math.Abs(raw);
+                    return new decimal((int)abs, (int)(abs >> 32), 0, raw < 0, Scale);
+                }
             case DuckDBType.HugeInt:
                 {
                     var hugeInt = numericVectorDataReader.GetBigInteger(offset, false);
 
-                    var result = (decimal)BigInteger.DivRem(hugeInt, (BigInteger)pow, out var remainder);
+                    var result = (decimal)BigInteger.DivRem(hugeInt, DecimalExtensions.BigIntPowersOfTen[Scale], out var remainder);
 
-                    result += decimal.Divide((decimal)remainder, pow);
+                    if (Scale <= DecimalExtensions.MaxDecimalScale)
+                    {
+                        result += decimal.Divide((decimal)remainder, DecimalExtensions.PowersOfTen[Scale]);
+                    }
+                    else
+                    {
+                        // Scale > 28: remainder can exceed decimal range.
+                        // Shift it down to fit, losing digits beyond decimal's 28-29 digit precision.
+                        var shiftedRemainder = remainder / bigIntRemainderShift;
+                        result += (decimal)shiftedRemainder / DecimalExtensions.PowersOfTen[DecimalExtensions.MaxDecimalScale];
+                    }
+
                     return result;
                 }
             default: throw new DuckDBException($"Invalid type {DuckDBType} ({(int)DuckDBType}) for column {ColumnName}");

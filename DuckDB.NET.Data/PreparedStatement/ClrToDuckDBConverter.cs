@@ -141,20 +141,12 @@ internal static class ClrToDuckDBConverter
 
     private static DuckDBValue DecimalToDuckDBValue(decimal value)
     {
-        var bits = decimal.GetBits(value);
-        var scale = (byte)((bits[3] >> 16) & 0x7F);
+        var mantissa = value.GetMantissa();
 
-        var power = Math.Pow(10, scale);
+        var width = mantissa.IsZero
+            ? value.Scale + 1
+            : Math.Max((int)BigInteger.Log10(BigInteger.Abs(mantissa)) + 1, value.Scale + 1);
 
-        var integralPart = decimal.Truncate(value);
-        var fractionalPart = value - integralPart;
-
-        var result = BigInteger.Multiply(new BigInteger(integralPart), new BigInteger(power));
-
-        result += new BigInteger(decimal.Multiply(fractionalPart, (decimal)power));
-
-        var width = integralPart == 0 ? scale + 1 : (int)Math.Floor(BigInteger.Log10(BigInteger.Abs(result))) + 1;
-
-        return NativeMethods.Value.DuckDBCreateDecimal(new DuckDBDecimal((byte)width, scale, new DuckDBHugeInt(result)));
+        return NativeMethods.Value.DuckDBCreateDecimal(new DuckDBDecimal((byte)width, value.Scale, new DuckDBHugeInt(mantissa)));
     }
 }

@@ -165,6 +165,64 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         }
     }
 
+    [Theory]
+    [InlineData("SELECT 1.5::DECIMAL(38, 30)", 1.5)]
+    [InlineData("SELECT -1.5::DECIMAL(38, 30)", -1.5)]
+    [InlineData("SELECT 0.0::DECIMAL(38, 30)", 0.0)]
+    [InlineData("SELECT 123.456::DECIMAL(38, 30)", 123.456)]
+    public void ReadHighScaleDecimal(string query, double expected)
+    {
+        // DuckDB DECIMAL(38, 30) uses HugeInt internal type with scale 30,
+        // which exceeds .NET decimal's max power of 10^28.
+        Command.CommandText = query;
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        var value = reader.GetDecimal(0);
+        value.Should().Be((decimal)expected);
+    }
+
+    [Theory]
+    [InlineData("SELECT 12345678901234567890.12::DECIMAL(38, 2)", "12345678901234567890.12")]
+    [InlineData("SELECT -99999999999999999999999999.999::DECIMAL(38, 3)", "-99999999999999999999999999.999")]
+    [InlineData("SELECT 0.01::DECIMAL(38, 2)", "0.01")]
+    public void ReadWideDecimalLowScale(string query, string expected)
+    {
+        // DuckDB DECIMAL(38, 2) uses HugeInt internal type (width > 18)
+        // but with a low scale that fits comfortably in .NET decimal.
+        Command.CommandText = query;
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        var value = reader.GetDecimal(0);
+        value.Should().Be(decimal.Parse(expected, CultureInfo.InvariantCulture));
+    }
+
+    [Theory]
+    // Scale 27: below MaxDecimalScale, HugeInt path, full precision
+    [InlineData("SELECT 1.234567890123456789012345678::DECIMAL(38, 27)", "1.234567890123456789012345678")]
+    [InlineData("SELECT -1.234567890123456789012345678::DECIMAL(38, 27)", "-1.234567890123456789012345678")]
+    // Scale 28: exactly at MaxDecimalScale, HugeInt path, full precision
+    [InlineData("SELECT 1.2345678901234567890123456789::DECIMAL(38, 28)", "1.2345678901234567890123456789")]
+    [InlineData("SELECT -1.2345678901234567890123456789::DECIMAL(38, 28)", "-1.2345678901234567890123456789")]
+    // Scale 29: above MaxDecimalScale — 29th fractional digit is truncated (not rounded)
+    [InlineData("SELECT 1.23456789012345678901234567891::DECIMAL(38, 29)", "1.2345678901234567890123456789")]
+    [InlineData("SELECT -1.23456789012345678901234567891::DECIMAL(38, 29)", "-1.2345678901234567890123456789")]
+    [InlineData("SELECT 0.00000000000000000000000000019::DECIMAL(38, 29)", "0.0000000000000000000000000001")]
+    [InlineData("SELECT 0.00000000000000000000000000009::DECIMAL(38, 29)", "0")]
+    public void ReadDecimalAtScaleBoundary(string query, string expected)
+    {
+        Command.CommandText = query;
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        var value = reader.GetDecimal(0);
+        value.Should().Be(decimal.Parse(expected, CultureInfo.InvariantCulture));
+    }
+
     [Fact]
     public void BindParameterInComparison()
     {
