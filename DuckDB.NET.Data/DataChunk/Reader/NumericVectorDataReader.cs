@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Buffers;
+using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Data.DataChunk.Reader;
 
@@ -109,72 +110,38 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
         }
 
         var buffer = new ReadOnlySpan<byte>(data->Data, data->Length);
+        var isPositive = (buffer[0] & 0x80) != 0;
+        var source = buffer.Slice(VarIntHeaderSize);
 
-        var isNegative = (buffer[0] & 0x80) == 0;
-
-        var bytes = new List<byte>(data->Length - VarIntHeaderSize);
-
-        for (var index = VarIntHeaderSize; index < buffer.Length; index++)
-        {
-            if (isNegative)
-            {
-                bytes.Add((byte)~buffer[index]);
-            }
-            else
-            {
-                bytes.Add(buffer[index]);
-            }
-        }
-
-        var bigIntegerDigits = new Stack<char>();
-
-        while (bytes.Count > 0)
-        {
-            var quotient = new List<char>();
-
-            byte remainder = 0;
-
-            foreach (var @byte in bytes)
-            {
-                var newValue = remainder * 256 + @byte;
-                quotient.Add(DigitToChar(newValue / 10));
-
-                remainder = (byte)(newValue % 10);
-            }
-
-            bigIntegerDigits.Push(DigitToChar(remainder));
-
-            // Remove leading zeros from the quotient
-            bytes.Clear();
-
-            foreach (var digit in quotient)
-            {
-                if (digit != '0' || bytes.Count > 0)
-                {
-                    bytes.Add(CharToDigit(digit));
-                }
-            }
-        }
-
-        if (isNegative)
-        {
-            bigIntegerDigits.Push('-');
-        }
-
-        var integer = BigInteger.Parse(new string(bigIntegerDigits.ToArray()));
+        byte[]? rented = null;
 
         try
         {
-            return CastTo<T>(integer);
+            if (isPositive) return CastTo<T>(new BigInteger(source, isUnsigned: true, isBigEndian: true));
+
+            // Negative values need byte complementing — use stack for small payloads, pool for large.
+            Span<byte> payload = source.Length <= 128
+                ? stackalloc byte[source.Length]
+                : (rented = ArrayPool<byte>.Shared.Rent(source.Length)).AsSpan(0, source.Length);
+
+            for (var i = 0; i < source.Length; i++)
+            {
+                payload[i] = (byte)~source[i];
+            }
+
+            return CastTo<T>(-new BigInteger(payload, isUnsigned: true, isBigEndian: true));
         }
         catch (OverflowException)
         {
             throw new InvalidCastException($"Cannot cast from {nameof(BigInteger)} to {typeof(T).Name} in column {ColumnName}");
         }
-
-        char DigitToChar(int c) => (char)(c + '0');
-
-        byte CharToDigit(char digit) => (byte)(digit - '0');
+        finally
+        {
+            if (rented != null)
+            {
+                ArrayPool<byte>.Shared.Return(rented);
+            }
+        }
     }
 
     private T GetBigInteger<T>(ulong offset, bool unsigned)
