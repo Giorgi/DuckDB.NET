@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using DuckDB.NET.Data.Common;
 
@@ -7,21 +7,27 @@ namespace DuckDB.NET.Data.DataChunk.Reader;
 internal sealed class StructVectorDataReader : VectorDataReaderBase
 {
     private static readonly ConcurrentDictionary<Type, TypeDetails> TypeCache = new();
+    // TODO: Replace with OrderedDictionary<string, VectorDataReaderBase> when .NET 8 support is dropped.
+    // The parallel array exists only to guarantee field-ordinal iteration in Reset/Dispose.
     private readonly Dictionary<string, VectorDataReaderBase> structDataReaders;
+    private readonly VectorDataReaderBase[] orderedReaders;
 
     internal unsafe StructVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
         using var logicalType = NativeMethods.Vectors.DuckDBVectorGetColumnType(vector);
         var memberCount = NativeMethods.LogicalType.DuckDBStructTypeChildCount(logicalType);
-        structDataReaders = new Dictionary<string, VectorDataReaderBase>(StringComparer.OrdinalIgnoreCase);
+        structDataReaders = new Dictionary<string, VectorDataReaderBase>((int)memberCount, StringComparer.OrdinalIgnoreCase);
+        orderedReaders = new VectorDataReaderBase[memberCount];
 
         for (int index = 0; index < memberCount; index++)
         {
             var name = NativeMethods.LogicalType.DuckDBStructTypeChildName(logicalType, index);
             var childVector = NativeMethods.Vectors.DuckDBStructVectorGetChild(vector, index);
-            
+
             using var childType = NativeMethods.LogicalType.DuckDBStructTypeChildType(logicalType, index);
-            structDataReaders[name] = VectorDataReaderFactory.CreateReader(childVector, childType, columnName);
+            var reader = VectorDataReaderFactory.CreateReader(childVector, childType, columnName);
+            structDataReaders[name] = reader;
+            orderedReaders[index] = reader;
         }
     }
 
@@ -110,11 +116,21 @@ internal sealed class StructVectorDataReader : VectorDataReaderBase
         return result!;
     }
 
+    internal override void Reset(IntPtr vector)
+    {
+        base.Reset(vector);
+        for (int index = 0; index < orderedReaders.Length; index++)
+        {
+            var childVector = NativeMethods.Vectors.DuckDBStructVectorGetChild(vector, index);
+            orderedReaders[index].Reset(childVector);
+        }
+    }
+
     public override void Dispose()
     {
-        foreach (var reader in structDataReaders)
+        foreach (var reader in orderedReaders)
         {
-            reader.Value.Dispose();
+            reader.Dispose();
         }
 
         base.Dispose();

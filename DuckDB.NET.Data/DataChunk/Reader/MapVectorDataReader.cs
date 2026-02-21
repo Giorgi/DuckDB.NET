@@ -67,4 +67,21 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
 
         return instance;
     }
+
+    internal override void Reset(IntPtr vector)
+    {
+        base.Reset(vector);
+        var childVector = NativeMethods.Vectors.DuckDBListVectorGetChild(vector);
+        var keyVector = NativeMethods.Vectors.DuckDBStructVectorGetChild(childVector, 0);
+        var valueVector = NativeMethods.Vectors.DuckDBStructVectorGetChild(childVector, 1);
+        keyReader.Reset(keyVector);
+        valueReader.Reset(valueVector);
+    }
+
+    public override void Dispose()
+    {
+        keyReader.Dispose();
+        valueReader.Dispose();
+        base.Dispose();
+    }
 }

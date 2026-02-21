@@ -92,6 +92,12 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
         }
     }
 
+    internal override void Reset(IntPtr vector)
+    {
+        base.Reset(vector);
+        numericVectorDataReader.Reset(vector);
+    }
+
     public override void Dispose()
     {
         numericVectorDataReader.Dispose();

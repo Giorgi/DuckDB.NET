@@ -105,6 +105,15 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
         }
     }
 
+    internal override void Reset(IntPtr vector)
+    {
+        base.Reset(vector);
+        var childVector = IsList
+            ? NativeMethods.Vectors.DuckDBListVectorGetChild(vector)
+            : NativeMethods.Vectors.DuckDBArrayVectorGetChild(vector);
+        listDataReader.Reset(childVector);
+    }
+
     public override void Dispose()
     {
         listDataReader.Dispose();

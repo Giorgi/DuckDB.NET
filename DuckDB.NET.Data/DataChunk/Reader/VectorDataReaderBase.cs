@@ -5,7 +5,7 @@ namespace DuckDB.NET.Data.DataChunk.Reader;
 
 internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
 {
-    private readonly unsafe ulong* validityMaskPointer;
+    private unsafe ulong* validityMaskPointer;
 
     private Type? clrType;
     public Type ClrType => clrType ??= GetColumnType();
@@ -16,7 +16,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
 
     public string ColumnName { get; }
     public DuckDBType DuckDBType { get; }
-    private protected unsafe void* DataPointer { get; }
+    private protected unsafe void* DataPointer { get; private set; }
 
     internal unsafe VectorDataReaderBase(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName)
     {
@@ -180,6 +180,16 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected unsafe T GetFieldData<T>(ulong offset) where T : unmanaged => *((T*)DataPointer + offset);
+
+    /// <summary>
+    /// Updates the data and validity pointers for a new chunk without recreating the reader.
+    /// Composite readers (Struct, List, Map, Decimal) override this to also reset nested readers.
+    /// </summary>
+    internal virtual unsafe void Reset(IntPtr vector)
+    {
+        DataPointer = NativeMethods.Vectors.DuckDBVectorGetData(vector);
+        validityMaskPointer = NativeMethods.Vectors.DuckDBVectorGetValidity(vector);
+    }
 
     public virtual void Dispose()
     {
