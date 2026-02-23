@@ -29,84 +29,101 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
         }
     }
 
-    public IDuckDBAppenderRow AppendNullValue() => AppendValueInternal<int?>(null); //Doesn't matter what type T we pass to Append when passing null.
+    public IDuckDBAppenderRow AppendNullValue()
+    {
+        CheckColumnAccess();
+        vectorWriters[columnIndex].WriteNull(rowIndex);
+        columnIndex++;
+        return this;
+    }
 
-    public IDuckDBAppenderRow AppendValue(bool? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(bool? value) => AppendValueInternalStruct(value);
 
     public IDuckDBAppenderRow AppendValue(byte[]? value) => AppendSpan(value);
 
     public IDuckDBAppenderRow AppendValue(Span<byte> value) => AppendSpan(value);
 
-    public IDuckDBAppenderRow AppendValue(string? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(string? value) => AppendValueInternalClass(value);
 
-    public IDuckDBAppenderRow AppendValue(decimal? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(decimal? value) => AppendValueInternalStruct(value);
 
-    public IDuckDBAppenderRow AppendValue(Guid? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(Guid? value) => AppendValueInternalStruct(value);
 
-    public IDuckDBAppenderRow AppendValue(BigInteger? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(BigInteger? value) => AppendValueInternalStruct(value);
 
     #region Append Signed Int
 
-    public IDuckDBAppenderRow AppendValue(sbyte? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(sbyte? value) => AppendValueInternalStruct(value);
 
-    public IDuckDBAppenderRow AppendValue(short? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(short? value) => AppendValueInternalStruct(value);
 
-    public IDuckDBAppenderRow AppendValue(int? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(int? value) => AppendValueInternalStruct(value);
 
-    public IDuckDBAppenderRow AppendValue(long? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(long? value) => AppendValueInternalStruct(value);
 
     #endregion
 
     #region Append Unsigned Int
 
-    public IDuckDBAppenderRow AppendValue(byte? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(byte? value) => AppendValueInternalStruct(value);
 
-    public IDuckDBAppenderRow AppendValue(ushort? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(ushort? value) => AppendValueInternalStruct(value);
 
-    public IDuckDBAppenderRow AppendValue(uint? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(uint? value) => AppendValueInternalStruct(value);
 
-    public IDuckDBAppenderRow AppendValue(ulong? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(ulong? value) => AppendValueInternalStruct(value);
 
     #endregion
 
     #region Append Enum
 
-    public IDuckDBAppenderRow AppendValue<TEnum>(TEnum? value) where TEnum : Enum => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue<TEnum>(TEnum? value) where TEnum : Enum
+    {
+        CheckColumnAccess();
+
+        if (value != null)
+        {
+            vectorWriters[columnIndex].WriteValue(value, rowIndex);
+        }
+        else
+        {
+            vectorWriters[columnIndex].WriteNull(rowIndex);
+        }
+
+        columnIndex++;
+        return this;
+    }
 
     #endregion
 
     #region Append Float
 
-    public IDuckDBAppenderRow AppendValue(float? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(float? value) => AppendValueInternalStruct(value);
 
-    public IDuckDBAppenderRow AppendValue(double? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(double? value) => AppendValueInternalStruct(value);
 
     #endregion
 
     #region Append Temporal
-    public IDuckDBAppenderRow AppendValue(DateOnly? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(DateOnly? value) => AppendValueInternalStruct(value);
 
-    public IDuckDBAppenderRow AppendValue(TimeOnly? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(TimeOnly? value) => AppendValueInternalStruct(value);
 
-    public IDuckDBAppenderRow AppendValue(DuckDBDateOnly? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(DuckDBDateOnly? value) => AppendValueInternalStruct(value);
 
-    public IDuckDBAppenderRow AppendValue(DuckDBTimeOnly? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(DuckDBTimeOnly? value) => AppendValueInternalStruct(value);
 
+    public IDuckDBAppenderRow AppendValue(DateTime? value) => AppendValueInternalStruct(value);
 
-    public IDuckDBAppenderRow AppendValue(DateTime? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue(DateTimeOffset? value) => AppendValueInternalStruct(value);
 
-    public IDuckDBAppenderRow AppendValue(DateTimeOffset? value) => AppendValueInternal(value);
-
-    public IDuckDBAppenderRow AppendValue(TimeSpan? value)
-    {
-        return AppendValueInternal(value);
-    }
+    public IDuckDBAppenderRow AppendValue(TimeSpan? value) => AppendValueInternalStruct(value);
 
     #endregion
 
     #region Composite Types
 
-    public IDuckDBAppenderRow AppendValue<T>(IEnumerable<T>? value) => AppendValueInternal(value);
+    public IDuckDBAppenderRow AppendValue<T>(IEnumerable<T>? value) => AppendValueInternalClass(value);
 
     #endregion
 
@@ -125,14 +142,30 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
         return this;
     }
 
-    private DuckDBAppenderRow AppendValueInternal<T>(T? value)
+    private DuckDBAppenderRow AppendValueInternalStruct<T>(T? value) where T : struct
+    {
+        CheckColumnAccess();
+
+        if (value.HasValue)
+        {
+            vectorWriters[columnIndex].WriteValue(value.Value, rowIndex);
+        }
+        else
+        {
+            vectorWriters[columnIndex].WriteNull(rowIndex);
+        }
+
+        columnIndex++;
+        return this;
+    }
+
+    private DuckDBAppenderRow AppendValueInternalClass<T>(T? value) where T : class
     {
         CheckColumnAccess();
 
         vectorWriters[columnIndex].WriteValue(value, rowIndex);
 
         columnIndex++;
-
         return this;
     }
 

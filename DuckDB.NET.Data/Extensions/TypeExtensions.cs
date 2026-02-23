@@ -81,7 +81,7 @@ internal static class TypeExtensions
         return isNullable;
     }
 
-    public static DuckDBLogicalType GetLogicalType<T>() => GetLogicalType(typeof(T));
+    public static DuckDBLogicalType GetLogicalType<T>() => typeof(T).GetLogicalType();
 
     public static DuckDBLogicalType GetLogicalType(this Type type)
     {
