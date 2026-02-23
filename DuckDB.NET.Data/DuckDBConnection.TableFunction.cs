@@ -150,6 +150,7 @@ partial class DuckDBConnection
     private static void TableFunction(IntPtr info, IntPtr chunk)
     {
         VectorDataWriterBase[] writers = [];
+        DuckDBLogicalType[] logicalTypes = [];
         try
         {
             var bindData = GCHandle.FromIntPtr(NativeMethods.TableFunction.DuckDBFunctionGetBindData(info));
@@ -168,13 +169,15 @@ partial class DuckDBConnection
             var dataChunk = new DuckDBDataChunk(chunk);
 
             writers = new VectorDataWriterBase[tableFunctionBindData.Columns.Count];
+            logicalTypes = new DuckDBLogicalType[tableFunctionBindData.Columns.Count];
+
             for (var columnIndex = 0; columnIndex < tableFunctionBindData.Columns.Count; columnIndex++)
             {
                 var column = tableFunctionBindData.Columns[columnIndex];
                 var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(dataChunk, columnIndex);
 
-                using var logicalType = column.Type.GetLogicalType();
-                writers[columnIndex] = VectorDataWriterFactory.CreateWriter(vector, logicalType);
+                logicalTypes[columnIndex] = column.Type.GetLogicalType();
+                writers[columnIndex] = VectorDataWriterFactory.CreateWriter(vector, logicalTypes[columnIndex]);
             }
 
             ulong size = 0;
@@ -202,6 +205,11 @@ partial class DuckDBConnection
             foreach (var writer in writers)
             {
                 writer.Dispose();
+            }
+
+            foreach (var logicalType in logicalTypes)
+            {
+                logicalType?.Dispose();
             }
         }
     }
