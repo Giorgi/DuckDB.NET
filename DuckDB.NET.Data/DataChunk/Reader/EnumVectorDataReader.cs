@@ -67,7 +67,7 @@ internal sealed class EnumVectorDataReader : VectorDataReaderBase
                 DuckDBType.UnsignedTinyInt => GetFieldData<byte>(offset),
                 DuckDBType.UnsignedSmallInt => GetFieldData<ushort>(offset),
                 DuckDBType.UnsignedInteger => GetFieldData<uint>(offset),
-                _ => -1
+                _ => throw new DuckDBException($"Invalid type {DuckDBType} ({(int)DuckDBType}) for column {ColumnName}")
             };
 
             if (targetType == typeof(string))
