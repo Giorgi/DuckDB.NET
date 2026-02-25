@@ -1,3 +1,5 @@
+#nullable enable
+
 namespace DuckDB.NET.Test;
 
 record Employee(int Id, string Name, double Salary);
@@ -197,5 +199,69 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
 
         var withNull = Connection.Query<int>("SELECT * FROM ext_null_nullable(NULL::INTEGER);").Single();
         withNull.Should().Be(-1);
+    }
+
+    [Fact]
+    public void RegisterTableFunctionNamedParameter()
+    {
+        Connection.RegisterTableFunction("ext_named", (int count, [Named] string? prefix) =>
+                GetEmployees(count).Select(e => e with { Name = (prefix ?? "") + e.Name }),
+            e => new { e.Id, e.Name });
+
+        var data = Connection.Query<(int, string)>("SELECT * FROM ext_named(2, prefix := 'Dr. ');").ToList();
+        data.Should().BeEquivalentTo([(1, "Dr. Employee1"), (2, "Dr. Employee2")]);
+
+        var data2 = Connection.Query<(int, string)>("SELECT * FROM ext_named(2);").ToList();
+        data2.Should().BeEquivalentTo([(1, "Employee1"), (2, "Employee2")]);
+
+        // Explicit NULL should behave the same as omitted
+        var data3 = Connection.Query<(int, string)>("SELECT * FROM ext_named(2, prefix := NULL);").ToList();
+        data3.Should().BeEquivalentTo([(1, "Employee1"), (2, "Employee2")]);
+    }
+
+    [Fact]
+    public void RegisterTableFunctionMultipleNamedParameters()
+    {
+        Connection.RegisterTableFunction("ext_multi_named",
+            (int count, [Named] string? prefix, [Named] double? multiplier) =>
+                GetEmployees(count).Select(e => e with
+                {
+                    Name = (prefix ?? "") + e.Name,
+                    Salary = e.Salary * (multiplier ?? 1)
+                }),
+            e => new { e.Id, e.Name, e.Salary });
+
+        var data = Connection.Query<(int, string, double)>(
+            "SELECT * FROM ext_multi_named(2, prefix := 'X', multiplier := 2.0);").ToList();
+        data.Should().BeEquivalentTo([(1, "XEmployee1", 100200.0), (2, "XEmployee2", 100400.0)]);
+
+        // Provide prefix but omit multiplier
+        var data2 = Connection.Query<(int, string, double)>(
+            "SELECT * FROM ext_multi_named(2, prefix := 'Y');").ToList();
+        data2.Should().BeEquivalentTo([(1, "YEmployee1", 50100.0), (2, "YEmployee2", 50200.0)]);
+    }
+
+    [Fact]
+    public void RegisterTableFunctionNamedParameterCustomName()
+    {
+        Connection.RegisterTableFunction("ext_custom_name",
+            (int count, [Named("max_rows")] int? limit) =>
+                GetEmployees(limit ?? count),
+            e => new { e.Id, e.Name });
+
+        var data = Connection.Query<(int, string)>("SELECT * FROM ext_custom_name(10, max_rows := 2);").ToList();
+        data.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void RegisterTableFunctionNamedParameterNonNullableThrows()
+    {
+        Connection.RegisterTableFunction("ext_named_nonnull",
+            (int count, [Named] int limit) => GetEmployees(count).Take(limit),
+            e => new { e.Id, e.Name });
+
+        Connection.Invoking(c => c.Query<(int, string)>("SELECT * FROM ext_named_nonnull(5);"))
+            .Should().Throw<DuckDBException>()
+            .WithMessage("*named parameter 'limit' is NULL*non-nullable*");
     }
 }

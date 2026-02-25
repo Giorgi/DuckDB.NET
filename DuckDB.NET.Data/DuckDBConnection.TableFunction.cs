@@ -60,27 +60,33 @@ partial class DuckDBConnection
     public void RegisterTableFunction(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback, params DuckDBType[] parameterTypes)
     {
         var logicalTypes = Array.ConvertAll(parameterTypes, NativeMethods.LogicalType.DuckDBCreateLogicalType);
-        RegisterTableFunctionInternal(name, resultCallback, mapperCallback, logicalTypes);
+        RegisterTableFunctionInternal(name, (positional, _) => resultCallback(positional), mapperCallback, logicalTypes, []);
     }
 
     private void RegisterTableFunctionInternal(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback, params Type[] parameterTypes)
     {
         var logicalTypes = Array.ConvertAll(parameterTypes, TypeExtensions.GetLogicalType);
-        RegisterTableFunctionInternal(name, resultCallback, mapperCallback, logicalTypes);
+        RegisterTableFunctionInternal(name, (positional, _) => resultCallback(positional), mapperCallback, logicalTypes, []);
     }
 
-    private unsafe void RegisterTableFunctionInternal(string name, Func<IReadOnlyList<IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback, DuckDBLogicalType[] parameterLogicalTypes)
+    internal unsafe void RegisterTableFunctionInternal(string name, Func<IReadOnlyList<IDuckDBValueReader>, IReadOnlyDictionary<string, IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback, DuckDBLogicalType[] positionalLogicalTypes, NamedParameterDefinition[] namedParameters)
     {
         var function = NativeMethods.TableFunction.DuckDBCreateTableFunction();
         NativeMethods.TableFunction.DuckDBTableFunctionSetName(function, name);
 
-        foreach (var logicalType in parameterLogicalTypes)
+        foreach (var logicalType in positionalLogicalTypes)
         {
             NativeMethods.TableFunction.DuckDBTableFunctionAddParameter(function, logicalType);
             logicalType.Dispose();
         }
 
-        var tableFunctionInfo = new TableFunctionInfo(resultCallback, mapperCallback);
+        foreach (var param in namedParameters)
+        {
+            using var logicalType = param.Type.GetLogicalType();
+            NativeMethods.TableFunction.DuckDBTableFunctionAddNamedParameter(function, param.Name, logicalType);
+        }
+
+        var tableFunctionInfo = new TableFunctionInfo(resultCallback, mapperCallback, Array.ConvertAll(namedParameters, p => p.Name));
 
         NativeMethods.TableFunction.DuckDBTableFunctionSetBind(function, &Bind);
         NativeMethods.TableFunction.DuckDBTableFunctionSetInit(function, &Init);
@@ -101,6 +107,7 @@ partial class DuckDBConnection
     private static unsafe void Bind(IntPtr info)
     {
         IDuckDBValueReader[] parameters = [];
+        Dictionary<string, IDuckDBValueReader> named = [];
         try
         {
             var handle = GCHandle.FromIntPtr(NativeMethods.TableFunction.DuckDBBindGetExtraInfo(info));
@@ -118,7 +125,16 @@ partial class DuckDBConnection
                 parameters[i] = value;
             }
 
-            var tableFunctionData = functionInfo.Bind(parameters);
+            // When a named parameter is omitted in SQL, duckdb_bind_get_named_parameter returns a null pointer.
+            // We substitute it with NullValueReader so CompileValueReader's IsNull() check
+            // correctly handles it (returns default for nullable, throws for non-nullable).
+            foreach (var paramName in functionInfo.NamedParameterNames)
+            {
+                var value = NativeMethods.TableFunction.DuckDBBindGetNamedParameter(info, paramName);
+                named[paramName] = value.IsInvalid ? NullValueReader.Instance : value;
+            }
+
+            var tableFunctionData = functionInfo.Bind(parameters, named);
 
             foreach (var columnInfo in tableFunctionData.Columns)
             {
@@ -139,6 +155,11 @@ partial class DuckDBConnection
             foreach (var parameter in parameters)
             {
                 (parameter as IDisposable)?.Dispose();
+            }
+
+            foreach (var namedParam in named.Values)
+            {
+                (namedParam as IDisposable)?.Dispose();
             }
         }
     }
@@ -212,5 +233,12 @@ partial class DuckDBConnection
                 logicalType?.Dispose();
             }
         }
+    }
+
+    private class NullValueReader : IDuckDBValueReader
+    {
+        public static readonly NullValueReader Instance = new();
+        public bool IsNull() => true;
+        public T GetValue<T>() => throw new InvalidOperationException("Cannot read value from a null parameter.");
     }
 }

@@ -24,6 +24,11 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial void DuckDBTableFunctionAddParameter(IntPtr tableFunction, DuckDBLogicalType type);
 
+        // Maybe [SuppressGCTransition]: copies LogicalType + strdup name — small allocation
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_table_function_add_named_parameter", StringMarshalling = StringMarshalling.Utf8)]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial void DuckDBTableFunctionAddNamedParameter(IntPtr tableFunction, string name, DuckDBLogicalType type);
+
         [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_table_function_set_extra_info")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
@@ -69,6 +74,11 @@ public partial class NativeMethods
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_get_parameter")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBValue DuckDBBindGetParameter(IntPtr info, ulong index);
+
+        // Maybe [SuppressGCTransition]: new Value copy — one small allocation
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_get_named_parameter", StringMarshalling = StringMarshalling.Utf8)]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBBindGetNamedParameter(IntPtr info, string name);
 
         [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_set_bind_data")]

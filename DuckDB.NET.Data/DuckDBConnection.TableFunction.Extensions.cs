@@ -1,3 +1,4 @@
+using DuckDB.NET.Data.Connection;
 using DuckDB.NET.Data.DataChunk.Writer;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -6,6 +7,11 @@ namespace DuckDB.NET.Data;
 
 public static class DuckDBConnectionTableFunctionExtensions
 {
+    private record TableFunctionParameter(string? NamedAs, int? PositionalIndex, Type Type)
+    {
+        public bool IsNamed => NamedAs is not null;
+    }
+
     extension(DuckDBConnection connection)
     {
         public void RegisterTableFunction<TData, TProjection>(
@@ -19,15 +25,49 @@ public static class DuckDBConnectionTableFunctionExtensions
                 mapper);
         }
 
+        // High-level table function registration flow (1–4 param overloads):
+        //
+        // Example: connection.RegisterTableFunction("my_func",
+        //     (int count, [Named] string? prefix) => GetEmployees(count).Select(e => ...),
+        //     e => new { e.Id, e.Name });
+        //
+        // 1. AnalyzeParameters inspects the lambda's parameters:
+        //      parameters[0] = (NamedAs: null,     PositionalIndex: 0, Type: int)    — positional
+        //      parameters[1] = (NamedAs: "prefix", PositionalIndex: null, Type: string) — named
+        //
+        // 2. CompileValueReader builds a Func<IDuckDBValueReader, T> per parameter —
+        //    handles null-checking and type conversion (what to do with the value):
+        //      read1: reader → reader.GetValue<int>()         (throws if NULL)
+        //      read2: reader → reader.IsNull() ? null : reader.GetValue<string>()
+        //
+        // 3. Resolve picks the right IDuckDBValueReader from the positional list or
+        //    named dictionary (where to find the value):
+        //      Resolve(p[0], positional, named) → positional[0]
+        //      Resolve(p[1], positional, named) → named["prefix"]
+        //
+        // 4. The bind lambda wires them together (called once per query):
+        //      (positional, named) => {
+        //          int count      = read1(Resolve(p[0], positional, named));
+        //          string? prefix = read2(Resolve(p[1], positional, named));
+        //          return new TableFunction(columns, dataFunc(count, prefix));
+        //      }
+        //
+        // 5. RegisterInternal registers with DuckDB:
+        //      1 positional parameter (INTEGER)
+        //      1 named parameter ("prefix", VARCHAR)
+
         public void RegisterTableFunction<T1, TData, TProjection>(
             string name,
             Func<T1, IEnumerable<TData>> dataFunc,
             Expression<Func<TData, TProjection>> projection)
         {
             var (columns, mapper) = ParseProjection(projection);
-            var read1 = CompileParameterReader<T1>(0, name);
-            connection.RegisterTableFunction<T1>(name,
-                parameters => new TableFunction(columns, dataFunc(read1(parameters))),
+            var parameters = AnalyzeParameters(dataFunc.Method.GetParameters());
+            var read1 = CompileValueReader<T1>(parameters[0], name);
+
+            RegisterInternal(connection, name, parameters,
+                (positional, named) => new TableFunction(columns, dataFunc(
+                    read1(Resolve(parameters[0], positional, named)))),
                 mapper);
         }
 
@@ -37,10 +77,15 @@ public static class DuckDBConnectionTableFunctionExtensions
             Expression<Func<TData, TProjection>> projection)
         {
             var (columns, mapper) = ParseProjection(projection);
-            var read1 = CompileParameterReader<T1>(0, name);
-            var read2 = CompileParameterReader<T2>(1, name);
-            connection.RegisterTableFunction<T1, T2>(name,
-                parameters => new TableFunction(columns, dataFunc(read1(parameters), read2(parameters))),
+            var parameters = AnalyzeParameters(dataFunc.Method.GetParameters());
+            
+            var read1 = CompileValueReader<T1>(parameters[0], name);
+            var read2 = CompileValueReader<T2>(parameters[1], name);
+
+            RegisterInternal(connection, name, parameters,
+                (positional, named) => new TableFunction(columns, dataFunc(
+                    read1(Resolve(parameters[0], positional, named)),
+                    read2(Resolve(parameters[1], positional, named)))),
                 mapper);
         }
 
@@ -50,11 +95,17 @@ public static class DuckDBConnectionTableFunctionExtensions
             Expression<Func<TData, TProjection>> projection)
         {
             var (columns, mapper) = ParseProjection(projection);
-            var read1 = CompileParameterReader<T1>(0, name);
-            var read2 = CompileParameterReader<T2>(1, name);
-            var read3 = CompileParameterReader<T3>(2, name);
-            connection.RegisterTableFunction<T1, T2, T3>(name,
-                parameters => new TableFunction(columns, dataFunc(read1(parameters), read2(parameters), read3(parameters))),
+            var parameters = AnalyzeParameters(dataFunc.Method.GetParameters());
+            
+            var read1 = CompileValueReader<T1>(parameters[0], name);
+            var read2 = CompileValueReader<T2>(parameters[1], name);
+            var read3 = CompileValueReader<T3>(parameters[2], name);
+
+            RegisterInternal(connection, name, parameters,
+                (positional, named) => new TableFunction(columns, dataFunc(
+                    read1(Resolve(parameters[0], positional, named)),
+                    read2(Resolve(parameters[1], positional, named)),
+                    read3(Resolve(parameters[2], positional, named)))),
                 mapper);
         }
 
@@ -64,12 +115,19 @@ public static class DuckDBConnectionTableFunctionExtensions
             Expression<Func<TData, TProjection>> projection)
         {
             var (columns, mapper) = ParseProjection(projection);
-            var read1 = CompileParameterReader<T1>(0, name);
-            var read2 = CompileParameterReader<T2>(1, name);
-            var read3 = CompileParameterReader<T3>(2, name);
-            var read4 = CompileParameterReader<T4>(3, name);
-            connection.RegisterTableFunction<T1, T2, T3, T4>(name,
-                parameters => new TableFunction(columns, dataFunc(read1(parameters), read2(parameters), read3(parameters), read4(parameters))),
+            var parameters = AnalyzeParameters(dataFunc.Method.GetParameters());
+            
+            var read1 = CompileValueReader<T1>(parameters[0], name);
+            var read2 = CompileValueReader<T2>(parameters[1], name);
+            var read3 = CompileValueReader<T3>(parameters[2], name);
+            var read4 = CompileValueReader<T4>(parameters[3], name);
+
+            RegisterInternal(connection, name, parameters,
+                (positional, named) => new TableFunction(columns, dataFunc(
+                    read1(Resolve(parameters[0], positional, named)),
+                    read2(Resolve(parameters[1], positional, named)),
+                    read3(Resolve(parameters[2], positional, named)),
+                    read4(Resolve(parameters[3], positional, named)))),
                 mapper);
         }
     }
@@ -138,27 +196,28 @@ public static class DuckDBConnectionTableFunctionExtensions
         return (names, types, accessors);
     }
 
-    private static Func<IReadOnlyList<IDuckDBValueReader>, T> CompileParameterReader<T>(int index, string functionName)
+    private static Func<IDuckDBValueReader, T> CompileValueReader<T>(TableFunctionParameter param, string functionName)
     {
         var nullableUnderlyingType = Nullable.GetUnderlyingType(typeof(T));
 
         if (nullableUnderlyingType is not null)
         {
             var readNullable = CompileNullableReader<T>(nullableUnderlyingType);
-            return parameters =>
-            {
-                var reader = parameters[index];
-                return reader.IsNull() ? default! : readNullable(reader);
-            };
+            return reader => reader.IsNull() ? default! : readNullable(reader);
         }
 
-        return parameters =>
+        var errorContext = param.IsNamed
+            ? $"named parameter '{param.NamedAs}'"
+            : $"argument {param.PositionalIndex!.Value + 1}";
+
+        return reader =>
         {
-            var reader = parameters[index];
             if (reader.IsNull())
             {
                 if (default(T) is null) return default!;
-                throw new InvalidOperationException($"Table function '{functionName}' argument {index + 1} is NULL, but parameter type '{typeof(T).Name}' is non-nullable.");
+                throw new InvalidOperationException(
+                    $"Table function '{functionName}' {errorContext} is NULL, "
+                    + $"but parameter type '{typeof(T).Name}' is non-nullable.");
             }
             return reader.GetValue<T>();
         };
@@ -172,6 +231,43 @@ public static class DuckDBConnectionTableFunctionExtensions
         var convert = Expression.Convert(getValue, typeof(T));
 
         return Expression.Lambda<Func<IDuckDBValueReader, T>>(convert, readerParam).Compile();
+    }
+
+    private static IDuckDBValueReader Resolve(TableFunctionParameter param, IReadOnlyList<IDuckDBValueReader> positional, IReadOnlyDictionary<string, IDuckDBValueReader> named)
+        => param.IsNamed ? named[param.NamedAs!] : positional[param.PositionalIndex!.Value];
+
+    private static void RegisterInternal(DuckDBConnection connection, string name, TableFunctionParameter[] parameters,
+                                         Func<IReadOnlyList<IDuckDBValueReader>, IReadOnlyDictionary<string, IDuckDBValueReader>, TableFunction> bind,
+                                         Action<object?, IDuckDBDataWriter[], ulong> mapper)
+    {
+        var positionalTypes = new List<DuckDBLogicalType>();
+        var namedDefinitions = new List<NamedParameterDefinition>();
+
+        foreach (var param in parameters)
+        {
+            if (param.IsNamed)
+                namedDefinitions.Add(new(param.NamedAs!, param.Type));
+            else
+                positionalTypes.Add(param.Type.GetLogicalType());
+        }
+
+        connection.RegisterTableFunctionInternal(name, bind, mapper, positionalTypes.ToArray(), namedDefinitions.ToArray());
+    }
+
+    private static TableFunctionParameter[] AnalyzeParameters(ParameterInfo[] methodParams)
+    {
+        var result = new TableFunctionParameter[methodParams.Length];
+        int nextPositional = 0;
+
+        for (int i = 0; i < methodParams.Length; i++)
+        {
+            var attr = methodParams[i].GetCustomAttribute<NamedAttribute>();
+            result[i] = attr is not null
+                ? new(attr.Name ?? methodParams[i].Name!, null, methodParams[i].ParameterType)
+                : new(null, nextPositional++, methodParams[i].ParameterType);
+        }
+
+        return result;
     }
 
     private static Action<TData, IDuckDBDataWriter[], ulong> CompileCombinedWriter<TData>(int columnCount, Type[] types, Expression[] accessors, ParameterExpression originalParam)
