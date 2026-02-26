@@ -24,6 +24,11 @@ public static class DuckDBConnectionScalarFunctionExtensions
                 func(readers[0].GetValue<T>(index))), isPureFunction);
         }
 
+        public void RegisterScalarFunction<T, TResult>(string name, Func<T[], TResult> func, bool isPureFunction = true)
+        {
+            connection.RegisterScalarFunction<T, TResult>(name, WrapVarargsScalarFunction(func), isPureFunction, @params: true);
+        }
+
         public void RegisterScalarFunction<T1, T2, TResult>(string name, Func<T1, T2, TResult> func, bool isPureFunction = true)
         {
             connection.RegisterScalarFunction<T1, T2, TResult>(name, WrapScalarFunction<TResult>((readers, index) =>
@@ -53,6 +58,24 @@ public static class DuckDBConnectionScalarFunctionExtensions
                 var result = perRowFunc(readers, index);
 
                 writer.WriteValue(result, index);
+            }
+        };
+    }
+
+    private static Action<IReadOnlyList<IDuckDBDataReader>, IDuckDBDataWriter, ulong> WrapVarargsScalarFunction<T, TResult>(Func<T[], TResult> func)
+    {
+        return (readers, writer, rowCount) =>
+        {
+            var args = new T[readers.Count];
+
+            for (ulong index = 0; index < rowCount; index++)
+            {
+                for (int r = 0; r < readers.Count; r++)
+                {
+                    args[r] = readers[r].GetValue<T>(index);
+                }
+
+                writer.WriteValue(func(args), index);
             }
         };
     }

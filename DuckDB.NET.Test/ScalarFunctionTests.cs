@@ -219,7 +219,7 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void SimplifiedScalarFunctionZeroParams()
     {
-        Connection.RegisterScalarFunction<int>("the_answer", () => 42);
+        Connection.RegisterScalarFunction("the_answer", () => 42);
 
         var results = Connection.Query<int>("SELECT the_answer() FROM range(5)").ToList();
         results.Should().AllBeEquivalentTo(42);
@@ -300,6 +300,81 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
         var results = Connection.Query<int?>("SELECT maybe_double(i::INT) FROM range(1, 6) t(i)").ToList();
         results.Should().BeEquivalentTo([(int?)null, null, null, 8, 10]);
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionVarargsSum()
+    {
+        Connection.RegisterScalarFunction("hi_sum", (long[] args) => args.Sum());
+
+        Connection.Query<long>("SELECT hi_sum(1, 2, 3)").Single().Should().Be(6);
+        Connection.Query<long>("SELECT hi_sum(10)").Single().Should().Be(10);
+        Connection.Query<long>("SELECT hi_sum()").Single().Should().Be(0);
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionVarargsConcat()
+    {
+        Connection.RegisterScalarFunction("hi_concat", (string[] parts) => string.Join(", ", parts));
+
+        Connection.Query<string>("SELECT hi_concat('a', 'b', 'c')").Single().Should().Be("a, b, c");
+        Connection.Query<string>("SELECT hi_concat('only')").Single().Should().Be("only");
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionVarargsMethodGroup()
+    {
+        Connection.RegisterScalarFunction<long, long>("hi_max", Max);
+
+        Connection.Query<long>("SELECT hi_max(3, 7, 1, 9, 2)").Single().Should().Be(9);
+
+        static long Max(params long[] values) => values.Max();
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionVarargsBranchOnCount()
+    {
+        var values = new List<long>();
+        Connection.RegisterScalarFunction("hi_rand", (long[] args) =>
+        {
+            var value = args.Length switch
+            {
+                0 => Random.Shared.NextInt64(),
+                1 => Random.Shared.NextInt64(args[0]),
+                _ => Random.Shared.NextInt64(args[0], args[1])
+            };
+
+            values.Add(value);
+            return value;
+        }, isPureFunction: false);
+
+        Command.CommandText = "CREATE TABLE varargs_table AS SELECT (greatest(random(), 0.1) * 10000)::BIGINT i FROM range(10000) t(i);";
+        Command.ExecuteNonQuery();
+
+        var longs = Connection.Query<long>("SELECT hi_rand() FROM varargs_table").ToList();
+        longs.Should().BeEquivalentTo(values);
+
+        values.Clear();
+
+        longs = Connection.Query<long>("SELECT hi_rand(i) FROM varargs_table").ToList();
+        longs.Should().BeEquivalentTo(values);
+
+        values.Clear();
+
+        longs = Connection.Query<long>("SELECT hi_rand(i, i+10) FROM varargs_table").ToList();
+        longs.Should().BeEquivalentTo(values);
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionVarargsLargeChunk()
+    {
+        Connection.RegisterScalarFunction("hi_sum_large", (long[] args) => args.Sum());
+
+        var results = Connection.Query<long>("SELECT hi_sum_large(i, i * 2) FROM range(5000) t(i)").ToList();
+        results.Should().HaveCount(5000);
+        results[0].Should().Be(0);
+        results[1].Should().Be(3);
+        results[100].Should().Be(300);
     }
 
     private static bool IsPrime(int value)

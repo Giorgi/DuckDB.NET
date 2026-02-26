@@ -244,10 +244,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     [Fact]
     public void RegisterTableFunctionNamedParameterCustomName()
     {
-        Connection.RegisterTableFunction("ext_custom_name",
-            (int count, [Named("max_rows")] int? limit) =>
-                GetEmployees(limit ?? count),
-            e => new { e.Id, e.Name });
+        Connection.RegisterTableFunction("ext_custom_name", (int count, [Named("max_rows")] int? limit) => GetEmployees(limit ?? count), e => new { e.Id, e.Name });
 
         var data = Connection.Query<(int, string)>("SELECT * FROM ext_custom_name(10, max_rows := 2);").ToList();
         data.Should().HaveCount(2);
