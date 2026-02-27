@@ -377,6 +377,57 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         results[100].Should().Be(300);
     }
 
+    [Fact]
+    public void SimplifiedScalarFunctionAnyOneParam()
+    {
+        Connection.RegisterScalarFunction<object, string>("net_type_name", value => value.GetType().Name);
+
+        Connection.Query<string>("SELECT net_type_name(42)").Single().Should().Be("Int32");
+        Connection.Query<string>("SELECT net_type_name(42::BIGINT)").Single().Should().Be("Int64");
+        Connection.Query<string>("SELECT net_type_name('hello')").Single().Should().Be("String");
+        Connection.Query<string>("SELECT net_type_name('2024-01-01'::DATE)").Single().Should().Be("DateOnly");
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionAnyTwoParams()
+    {
+        Connection.RegisterScalarFunction<object, string, string>("format_net",
+            (object value, string format) => value is IFormattable f
+                ? f.ToString(format, CultureInfo.InvariantCulture)
+                : value?.ToString() ?? "");
+
+        Connection.Query<string>("SELECT format_net(255, 'X')").Single().Should().Be("FF");
+        Connection.Query<string>("SELECT format_net(0.15, 'P')").Single().Should().Be("15.00 %");
+        Connection.Query<string>("SELECT format_net('2024-11-06'::DATE, 'yyyy/MM/dd')").Single().Should().Be("2024/11/06");
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionAnyThreeParams()
+    {
+        Connection.RegisterScalarFunction<object, string, string, string>("format_net_culture",
+            (object value, string format, string culture) => value is IFormattable f
+                ? f.ToString(format, CultureInfo.GetCultureInfo(culture))
+                : value?.ToString() ?? "");
+
+        var deResult = Connection.Query<string>("SELECT format_net_culture(1234.5, 'N2', 'de-DE')").Single();
+        deResult.Should().Be(1234.5.ToString("N2", CultureInfo.GetCultureInfo("de-DE")));
+
+        var usResult = Connection.Query<string>("SELECT format_net_culture(1234.5, 'N2', 'en-US')").Single();
+        usResult.Should().Be("1,234.50");
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionVarargsAny()
+    {
+        Connection.RegisterScalarFunction<object, string>("concat_any",
+            (object[] args) => string.Join(", ", args));
+
+        Connection.Query<string>("SELECT concat_any(42, 'hello', true)").Single().Should().Be("42, hello, True");
+        Connection.Query<string>("SELECT concat_any(true, '2024-01-01'::DATE)").Single()
+            .Should().Be($"True, {new DateOnly(2024, 1, 1)}");
+        Connection.Query<string>("SELECT concat_any('only')").Single().Should().Be("only");
+    }
+
     private static bool IsPrime(int value)
     {
         for (int i = 2; i <= Math.Sqrt(value); i++)

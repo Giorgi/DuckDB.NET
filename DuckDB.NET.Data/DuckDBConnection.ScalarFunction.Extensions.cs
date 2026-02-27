@@ -1,5 +1,6 @@
 using DuckDB.NET.Data.DataChunk.Reader;
 using DuckDB.NET.Data.DataChunk.Writer;
+using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Data;
 
@@ -21,7 +22,7 @@ public static class DuckDBConnectionScalarFunctionExtensions
         public void RegisterScalarFunction<T, TResult>(string name, Func<T, TResult> func, bool isPureFunction = true)
         {
             connection.RegisterScalarFunction<T, TResult>(name, WrapScalarFunction<TResult>((readers, index) =>
-                func(readers[0].GetValue<T>(index))), isPureFunction);
+                func(ReadValue<T>(readers[0], index))), isPureFunction);
         }
 
         public void RegisterScalarFunction<T, TResult>(string name, Func<T[], TResult> func, bool isPureFunction = true)
@@ -32,22 +33,26 @@ public static class DuckDBConnectionScalarFunctionExtensions
         public void RegisterScalarFunction<T1, T2, TResult>(string name, Func<T1, T2, TResult> func, bool isPureFunction = true)
         {
             connection.RegisterScalarFunction<T1, T2, TResult>(name, WrapScalarFunction<TResult>((readers, index) =>
-                func(readers[0].GetValue<T1>(index), readers[1].GetValue<T2>(index))), isPureFunction);
+                func(ReadValue<T1>(readers[0], index), ReadValue<T2>(readers[1], index))), isPureFunction);
         }
 
         public void RegisterScalarFunction<T1, T2, T3, TResult>(string name, Func<T1, T2, T3, TResult> func, bool isPureFunction = true)
         {
             connection.RegisterScalarFunction<T1, T2, T3, TResult>(name, WrapScalarFunction<TResult>((readers, index) =>
-                func(readers[0].GetValue<T1>(index), readers[1].GetValue<T2>(index), readers[2].GetValue<T3>(index))), isPureFunction);
+                func(ReadValue<T1>(readers[0], index), ReadValue<T2>(readers[1], index), ReadValue<T3>(readers[2], index))), isPureFunction);
         }
 
         public void RegisterScalarFunction<T1, T2, T3, T4, TResult>(string name, Func<T1, T2, T3, T4, TResult> func, bool isPureFunction = true)
         {
             connection.RegisterScalarFunction<T1, T2, T3, T4, TResult>(name, WrapScalarFunction<TResult>((readers, index) =>
-                func(readers[0].GetValue<T1>(index), readers[1].GetValue<T2>(index),
-                    readers[2].GetValue<T3>(index), readers[3].GetValue<T4>(index))), isPureFunction);
+                func(ReadValue<T1>(readers[0], index), ReadValue<T2>(readers[1], index),
+                    ReadValue<T3>(readers[2], index), ReadValue<T4>(readers[3], index))), isPureFunction);
         }
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static T ReadValue<T>(IDuckDBDataReader reader, ulong index)
+        => typeof(T) == typeof(object) ? (T)reader.GetValue(index) : reader.GetValue<T>(index);
 
     private static Action<IReadOnlyList<IDuckDBDataReader>, IDuckDBDataWriter, ulong> WrapScalarFunction<TResult>(Func<IReadOnlyList<IDuckDBDataReader>, ulong, TResult> perRowFunc)
     {
@@ -72,7 +77,7 @@ public static class DuckDBConnectionScalarFunctionExtensions
             {
                 for (int r = 0; r < readers.Count; r++)
                 {
-                    args[r] = readers[r].GetValue<T>(index);
+                    args[r] = ReadValue<T>(readers[r], index);
                 }
 
                 writer.WriteValue(func(args), index);
