@@ -9,11 +9,9 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
 {
     private unsafe ulong* validityMaskPointer;
 
-    private Type? clrType;
-    public Type ClrType => clrType ??= GetColumnType();
+    public Type ClrType => field ??= GetColumnType();
 
-    private Type? providerSpecificClrType;
-    public Type ProviderSpecificClrType => providerSpecificClrType ??= GetColumnProviderSpecificType();
+    public Type ProviderSpecificClrType => field ??= GetColumnProviderSpecificType();
 
 
     public string ColumnName { get; }

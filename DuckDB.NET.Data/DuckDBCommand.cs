@@ -28,19 +28,17 @@ public class DuckDBCommand : DbCommand
     /// </remarks>
     public bool UseStreamingMode { get; set; } = false;
 
-    private string commandText = string.Empty;
-
     [AllowNull]
     [DefaultValue("")]
     public override string CommandText
     {
-        get => commandText;
+        get;
         set
         {
             // TODO: We shouldn't be able to change the CommandText when the command is in execution (requires CommandState implementation)
-            commandText = value ?? string.Empty;
+            field = value ?? string.Empty;
         }
-    }
+    } = string.Empty;
 
     protected override DbConnection? DbConnection
     {
