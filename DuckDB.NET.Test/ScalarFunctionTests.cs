@@ -33,7 +33,7 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
                 values.Add(value);
             }
-        }, false, true);
+        }, new() { IsPureFunction = false }, @params: true);
 
         Command.CommandText = "CREATE TABLE big_table_1 AS SELECT (greatest(random(), 0.1) * 10000)::BIGINT i FROM range(10000) t(i);";
         Command.ExecuteNonQuery();
@@ -89,7 +89,7 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
                 values.Add(value);
             }
-        }, false);
+        }, new() { IsPureFunction = false });
 
         Command.CommandText = "CREATE TABLE big_table_3 AS SELECT (greatest(random(), 0.1) * 10000)::BIGINT i FROM range(100) t(i);";
         Command.ExecuteNonQuery();
@@ -346,7 +346,7 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
             values.Add(value);
             return value;
-        }, isPureFunction: false);
+        }, options: new() { IsPureFunction = false });
 
         Command.CommandText = "CREATE TABLE varargs_table AS SELECT (greatest(random(), 0.1) * 10000)::BIGINT i FROM range(10000) t(i);";
         Command.ExecuteNonQuery();
@@ -391,7 +391,7 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void SimplifiedScalarFunctionAnyTwoParams()
     {
-        Connection.RegisterScalarFunction<object, string, string>("format_net",
+        Connection.RegisterScalarFunction("format_net",
             (object value, string format) => value is IFormattable f
                 ? f.ToString(format, CultureInfo.InvariantCulture)
                 : value?.ToString() ?? "");
@@ -404,7 +404,7 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void SimplifiedScalarFunctionAnyThreeParams()
     {
-        Connection.RegisterScalarFunction<object, string, string, string>("format_net_culture",
+        Connection.RegisterScalarFunction("format_net_culture",
             (object value, string format, string culture) => value is IFormattable f
                 ? f.ToString(format, CultureInfo.GetCultureInfo(culture))
                 : value?.ToString() ?? "");
@@ -419,13 +419,116 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void SimplifiedScalarFunctionVarargsAny()
     {
-        Connection.RegisterScalarFunction<object, string>("concat_any",
-            (object[] args) => string.Join(", ", args));
+        Connection.RegisterScalarFunction("concat_any", (object[] args) => string.Join(", ", args));
 
         Connection.Query<string>("SELECT concat_any(42, 'hello', true)").Single().Should().Be("42, hello, True");
         Connection.Query<string>("SELECT concat_any(true, '2024-01-01'::DATE)").Single()
             .Should().Be($"True, {new DateOnly(2024, 1, 1)}");
         Connection.Query<string>("SELECT concat_any('only')").Single().Should().Be("only");
+    }
+
+    [Fact]
+    public void ScalarFunctionHandlesNulls_LowLevel()
+    {
+        Connection.RegisterScalarFunction<int, string>("null_or_val", (readers, writer, rowCount) =>
+        {
+            for (ulong i = 0; i < rowCount; i++)
+            {
+                if (!readers[0].IsValid(i))
+                    writer.WriteValue("was_null", i);
+                else
+                    writer.WriteValue(readers[0].GetValue<int>(i).ToString(), i);
+            }
+        }, new() { HandlesNulls = true });
+
+        Command.CommandText = "SELECT null_or_val(NULL::INT)";
+        var result = Command.ExecuteScalar();
+        result.Should().Be("was_null");
+
+        Command.CommandText = "SELECT null_or_val(1234)";
+        result = Command.ExecuteScalar();
+        result.Should().Be("1234");
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionHandlesNulls_NullableParam()
+    {
+        Connection.RegisterScalarFunction<int?, string>("describe_val",
+            x => x.HasValue ? x.Value.ToString() : "nothing",
+            new() { HandlesNulls = true });
+
+        Command.CommandText = "SELECT describe_val(NULL::INT)";
+        var result = Command.ExecuteScalar();
+        result.Should().Be("nothing");
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionHandlesNulls_MixedParams()
+    {
+        Connection.RegisterScalarFunction<int?, int, string>("coalesce_add",
+            (a, b) => a.HasValue ? (a.Value + b).ToString() : b.ToString(),
+            new() { HandlesNulls = true });
+
+        Command.CommandText = "SELECT coalesce_add(NULL::INT, 5)";
+        var result = Command.ExecuteScalar();
+        result.Should().Be("5");
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionHandlesNulls_AllNonNullable_Throws()
+    {
+        var act = () => Connection.RegisterScalarFunction("bad",
+            (Func<int, string>)(x => x.ToString()), new() { HandlesNulls = true });
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionHandlesNulls_NonNullableReceivesNull_Throws()
+    {
+        Connection.RegisterScalarFunction<int?, int, string>("bad_mix",
+            (a, b) => $"{a},{b}",
+            new() { HandlesNulls = true });
+
+        Command.CommandText = "SELECT bad_mix(1, NULL::INT)";
+        var act = () => Command.ExecuteScalar();
+        act.Should().Throw<DuckDBException>().WithMessage("*received NULL*");
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionHandlesNulls_StringParam()
+    {
+        Connection.RegisterScalarFunction<string, string>("echo_or_default",
+            s => s ?? "was_null",
+            new() { HandlesNulls = true });
+
+        Command.CommandText = "SELECT echo_or_default(NULL::VARCHAR)";
+        var result = Command.ExecuteScalar();
+        result.Should().Be("was_null");
+
+        Command.CommandText = "SELECT echo_or_default('hello')";
+        result = Command.ExecuteScalar();
+        result.Should().Be("hello");
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionHandlesNulls_Varargs()
+    {
+        Connection.RegisterScalarFunction<int?, string>("sum_or_null",
+            args =>
+            {
+                if (args.Any(a => !a.HasValue)) return "has_null";
+                return args.Sum(a => a!.Value).ToString();
+            },
+            new() { HandlesNulls = true });
+
+        Command.CommandText = "SELECT sum_or_null(1, NULL::INT, 3)";
+        var result = Command.ExecuteScalar();
+        result.Should().Be("has_null");
+
+        Command.CommandText = "SELECT sum_or_null(1, 2, 3)";
+        result = Command.ExecuteScalar();
+        result.Should().Be("6");
     }
 
     private static bool IsPrime(int value)

@@ -29,6 +29,11 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial void DuckDBScalarFunctionSetVolatile(IntPtr scalarFunction);
 
+        [SuppressGCTransition]
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_set_special_handling")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial void DuckDBScalarFunctionSetSpecialHandling(IntPtr scalarFunction);
+
         // Maybe [SuppressGCTransition]: copies LogicalType + vector push — small allocation
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_add_parameter")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
