@@ -117,7 +117,7 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
 
         try
         {
-            if (isPositive) return CastTo<T>(new BigInteger(source, isUnsigned: true, isBigEndian: true));
+            if (isPositive) return ConvertNumeric<BigInteger, T>(new BigInteger(source, isUnsigned: true, isBigEndian: true));
 
             // Negative values need byte complementing — use stack for small payloads, pool for large.
             Span<byte> payload = source.Length <= 128
@@ -129,7 +129,7 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
                 payload[i] = (byte)~source[i];
             }
 
-            return CastTo<T>(-new BigInteger(payload, isUnsigned: true, isBigEndian: true));
+            return ConvertNumeric<BigInteger, T>(-new BigInteger(payload, isUnsigned: true, isBigEndian: true));
         }
         catch (OverflowException)
         {
@@ -150,7 +150,7 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
 
         try
         {
-            return CastTo<T>(bigInteger);
+            return ConvertNumeric<BigInteger, T>(bigInteger);
         }
         catch (OverflowException)
         {
@@ -158,102 +158,35 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
         }
     }
 
-    private static T CastTo<T>(BigInteger bigInteger)
+    private TResult GetUnmanagedTypeValue<TQuery, TResult>(ulong offset) where TQuery : unmanaged, INumberBase<TQuery>
     {
-        if (typeof(T) == typeof(byte))
-        {
-            return (T)(object)(byte)bigInteger;
-        }
-
-        if (typeof(T) == typeof(sbyte))
-        {
-            return (T)(object)(sbyte)bigInteger;
-        }
-
-        if (typeof(T) == typeof(short))
-        {
-            return (T)(object)(short)bigInteger;
-        }
-
-        if (typeof(T) == typeof(ushort))
-        {
-            return (T)(object)(ushort)bigInteger;
-        }
-
-        if (typeof(T) == typeof(int))
-        {
-            return (T)(object)(int)bigInteger;
-        }
-
-        if (typeof(T) == typeof(uint))
-        {
-            return (T)(object)(uint)bigInteger;
-        }
-
-        if (typeof(T) == typeof(long))
-        {
-            return (T)(object)(long)bigInteger;
-        }
-
-        if (typeof(T) == typeof(ulong))
-        {
-            return (T)(object)(ulong)bigInteger;
-        }
-
-        return (T)(object)bigInteger;
-    }
-
-    private TResult GetUnmanagedTypeValue<TQuery, TResult>(ulong offset) where TQuery : unmanaged
-        , INumberBase<TQuery>
-    {
-        var resultType = typeof(TResult);
         var value = GetFieldData<TQuery>(offset);
-
-        if (typeof(TQuery) == resultType)
-        {
-            return Unsafe.As<TQuery, TResult>(ref value);
-        }
 
         try
         {
-            if (resultType == typeof(byte))
-            {
-                return (TResult)(object)byte.CreateChecked(value);
-            }
-            if (resultType == typeof(sbyte))
-            {
-                return (TResult)(object)sbyte.CreateChecked(value);
-            }
-            if (resultType == typeof(short))
-            {
-                return (TResult)(object)short.CreateChecked(value);
-            }
-            if (resultType == typeof(ushort))
-            {
-                return (TResult)(object)ushort.CreateChecked(value);
-            }
-            if (resultType == typeof(int))
-            {
-                return (TResult)(object)int.CreateChecked(value);
-            }
-            if (resultType == typeof(uint))
-            {
-                return (TResult)(object)uint.CreateChecked(value);
-            }
-            if (resultType == typeof(long))
-            {
-                return (TResult)(object)long.CreateChecked(value);
-            }
-            if (resultType == typeof(ulong))
-            {
-                return (TResult)(object)ulong.CreateChecked(value);
-            }
-
-            return (TResult)Convert.ChangeType(value, resultType);
+            return ConvertNumeric<TQuery, TResult>(value);
         }
         catch (OverflowException)
         {
-            throw new InvalidCastException($"Cannot cast from {value.GetType().Name} to {resultType.Name} in column {ColumnName}");
+            throw new InvalidCastException($"Cannot cast from {typeof(TQuery).Name} to {typeof(TResult).Name} in column {ColumnName}");
         }
+    }
+
+    private static TResult ConvertNumeric<TSource, TResult>(TSource value) where TSource : INumberBase<TSource>
+    {
+        if (typeof(TSource) == typeof(TResult))
+            return Unsafe.As<TSource, TResult>(ref value);
+
+        if (typeof(TResult) == typeof(byte))       return (TResult)(object)byte.CreateChecked(value);
+        if (typeof(TResult) == typeof(sbyte))      return (TResult)(object)sbyte.CreateChecked(value);
+        if (typeof(TResult) == typeof(short))      return (TResult)(object)short.CreateChecked(value);
+        if (typeof(TResult) == typeof(ushort))     return (TResult)(object)ushort.CreateChecked(value);
+        if (typeof(TResult) == typeof(int))        return (TResult)(object)int.CreateChecked(value);
+        if (typeof(TResult) == typeof(uint))       return (TResult)(object)uint.CreateChecked(value);
+        if (typeof(TResult) == typeof(long))       return (TResult)(object)long.CreateChecked(value);
+        if (typeof(TResult) == typeof(ulong))      return (TResult)(object)ulong.CreateChecked(value);
+        if (typeof(TResult) == typeof(BigInteger)) return (TResult)(object)BigInteger.CreateChecked(value);
+
+        throw new InvalidCastException($"Cannot convert {typeof(TSource).Name} to {typeof(TResult).Name}");
     }
 }
