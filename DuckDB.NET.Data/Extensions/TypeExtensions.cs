@@ -47,15 +47,6 @@ internal static class TypeExtensions
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Type UnderlyingTypeOrSelf(this Type type) => Nullable.GetUnderlyingType(type) ?? type;
 
-    public static (bool isNullableValueType, Type type) IsNullableValueType<T>()
-    {
-        var targetType = typeof(T);
-
-        var isNullableValueType = default(T) is null && targetType.IsValueType;
-
-        return (isNullableValueType, targetType);
-    }
-
     public static bool IsFloatingNumericType<T>()
     {
         return FloatingNumericTypes.Contains(typeof(T));
