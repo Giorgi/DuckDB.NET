@@ -3,7 +3,6 @@
 internal sealed class IntervalVectorDataReader : VectorDataReaderBase
 {
     private static readonly Type TimeSpanType = typeof(TimeSpan);
-    private static readonly Type TimeSpanNullableType = typeof(TimeSpan?);
 
     internal unsafe IntervalVectorDataReader(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
@@ -15,7 +14,7 @@ internal sealed class IntervalVectorDataReader : VectorDataReaderBase
         {
             var interval = GetFieldData<DuckDBInterval>(offset);
 
-            if (targetType == TimeSpanType || targetType == TimeSpanNullableType)
+            if (targetType == TimeSpanType)
             {
                 var timeSpan = (TimeSpan)interval;
                 return (T)(object)timeSpan;

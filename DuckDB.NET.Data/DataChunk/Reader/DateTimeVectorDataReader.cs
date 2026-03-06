@@ -3,16 +3,9 @@
 internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
 {
     private static readonly Type DateTimeType = typeof(DateTime);
-    private static readonly Type DateTimeNullableType = typeof(DateTime?);
-
     private static readonly Type DateTimeOffsetType = typeof(DateTimeOffset);
-    private static readonly Type DateTimeOffsetNullableType = typeof(DateTimeOffset?);
-
     private static readonly Type DateOnlyType = typeof(DateOnly);
-    private static readonly Type DateOnlyNullableType = typeof(DateOnly?);
-
     private static readonly Type TimeOnlyType = typeof(TimeOnly);
-    private static readonly Type TimeOnlyNullableType = typeof(TimeOnly?);
 
     internal unsafe DateTimeVectorDataReader(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
@@ -26,12 +19,7 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
 
             if (!isFinite)
             {
-                if (targetType == DateTimeType || targetType == DateTimeNullableType)
-                {
-                    ThrowInfinityDateException();
-                }
-
-                if (targetType == DateOnlyType || targetType == DateOnlyNullableType)
+                if (targetType == DateTimeType || targetType == DateOnlyType)
                 {
                     ThrowInfinityDateException();
                 }
@@ -39,17 +27,16 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
                 return (T)(object)dateOnly;
             }
 
-            if (targetType == DateTimeType || targetType == DateTimeNullableType)
+            if (targetType == DateTimeType)
             {
-                var dateTime = (DateTime)dateOnly;
-                return (T)(object)dateTime;
+                return (T)(object)(DateTime)dateOnly;
             }
 
-            if (targetType == DateOnlyType || targetType == DateOnlyNullableType)
+            if (targetType == DateOnlyType)
             {
-                var dateTime = (DateOnly)dateOnly;
-                return (T)(object)dateTime;
+                return (T)(object)(DateOnly)dateOnly;
             }
+
             return (T)(object)dateOnly;
         }
 
@@ -57,17 +44,16 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
         {
             var timeOnly = GetTimeOnly(offset);
 
-            if (targetType == DateTimeType || targetType == DateTimeNullableType)
+            if (targetType == DateTimeType)
             {
-                var dateTime = (DateTime)timeOnly;
-                return (T)(object)dateTime;
+                return (T)(object)(DateTime)timeOnly;
             }
 
-            if (targetType == TimeOnlyType || targetType == TimeOnlyNullableType)
+            if (targetType == TimeOnlyType)
             {
-                var dateTime = (TimeOnly)timeOnly;
-                return (T)(object)dateTime;
+                return (T)(object)(TimeOnly)timeOnly;
             }
+
             return (T)(object)timeOnly;
         }
 
@@ -75,7 +61,7 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
         {
             var timeTz = GetTimeTz(offset);
 
-            if (targetType == DateTimeOffsetType || targetType == DateTimeOffsetNullableType)
+            if (targetType == DateTimeOffsetType)
             {
                 var dateTimeOffset = new DateTimeOffset(timeTz.Time.ToDateTime(), TimeSpan.FromSeconds(timeTz.Offset));
                 return (T)(object)dateTimeOffset;
@@ -99,33 +85,25 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
 
         if (!timestampStruct.IsFinite(DuckDBType))
         {
-            if (targetType == DateTimeType || targetType == DateTimeNullableType)
+            if (targetType == DateTimeType || targetType == DateTimeOffsetType)
             {
                 ThrowInfinityTimestampException();
             }
 
-            if (targetType == DateTimeOffsetType || targetType == DateTimeOffsetNullableType)
-            {
-                ThrowInfinityTimestampException();
-            }
-
-            var infinityTimestamp = DuckDBTimestamp.FromDuckDBTimestampStruct(timestampStruct);
-            return (T)(object)infinityTimestamp;
+            return (T)(object)DuckDBTimestamp.FromDuckDBTimestampStruct(timestampStruct);
         }
 
         var (timestamp, additionalTicks) = timestampStruct.ToDuckDBTimestamp(DuckDBType);
 
-        if (targetType == DateTimeType || targetType == DateTimeNullableType)
+        if (targetType == DateTimeType)
         {
-            var dateTime = timestamp.ToDateTime().AddTicks(additionalTicks);
-            return (T)(object)dateTime;
+            return (T)(object)timestamp.ToDateTime().AddTicks(additionalTicks);
         }
 
-        if (targetType == DateTimeOffsetType || targetType == DateTimeOffsetNullableType)
+        if (targetType == DateTimeOffsetType)
         {
             var dateTime = timestamp.ToDateTime().AddTicks(additionalTicks);
-            var dateTimeOffset = new DateTimeOffset(dateTime, TimeSpan.Zero);
-            return (T)(object)dateTimeOffset;
+            return (T)(object)new DateTimeOffset(dateTime, TimeSpan.Zero);
         }
 
         return (T)(object)timestamp;
@@ -170,12 +148,7 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
 
         if (!isFinite)
         {
-            if (targetType == DateTimeType)
-            {
-                ThrowInfinityDateException();
-            }
-
-            if (targetType == DateOnlyType)
+            if (targetType == DateTimeType || targetType == DateOnlyType)
             {
                 ThrowInfinityDateException();
             }
@@ -218,12 +191,7 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
 
         if (!timestampStruct.IsFinite(DuckDBType))
         {
-            if (targetType == typeof(DateTime))
-            {
-                ThrowInfinityTimestampException();
-            }
-
-            if (targetType == DateTimeOffsetType)
+            if (targetType == DateTimeType || targetType == DateTimeOffsetType)
             {
                 ThrowInfinityTimestampException();
             }
@@ -233,7 +201,7 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
 
         var (timestamp, additionalTicks) = timestampStruct.ToDuckDBTimestamp(DuckDBType);
 
-        if (targetType == typeof(DateTime))
+        if (targetType == DateTimeType)
         {
             var dateTime = timestamp.ToDateTime().AddTicks(additionalTicks);
 
@@ -253,7 +221,7 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
     {
         var timeTz = GetTimeTz(offset);
 
-        if (targetType == typeof(DateTimeOffset))
+        if (targetType == DateTimeOffsetType)
         {
             return new DateTimeOffset(timeTz.Time.ToDateTime(), TimeSpan.FromSeconds(timeTz.Offset));
         }
