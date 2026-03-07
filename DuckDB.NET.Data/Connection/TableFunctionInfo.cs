@@ -4,8 +4,8 @@ namespace DuckDB.NET.Data.Connection;
 
 class TableFunctionInfo(Func<IReadOnlyList<IDuckDBValueReader>, IReadOnlyDictionary<string, IDuckDBValueReader>, TableFunction> bind, Action<object?, VectorDataWriterBase[], ulong> mapper, string[] namedParameterNames)
 {
-    public Func<IReadOnlyList<IDuckDBValueReader>, IReadOnlyDictionary<string, IDuckDBValueReader>, TableFunction> Bind { get; private set; } = bind;
-    public Action<object?, VectorDataWriterBase[], ulong> Mapper { get; private set; } = mapper;
+    public Func<IReadOnlyList<IDuckDBValueReader>, IReadOnlyDictionary<string, IDuckDBValueReader>, TableFunction> Bind { get; } = bind;
+    public Action<object?, VectorDataWriterBase[], ulong> Mapper { get; } = mapper;
     public string[] NamedParameterNames { get; } = namedParameterNames;
 }
 

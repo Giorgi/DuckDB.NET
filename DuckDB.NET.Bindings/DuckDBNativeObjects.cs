@@ -184,10 +184,10 @@ public readonly struct DuckDBBlob : IDisposable
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public struct DuckDBListEntry(ulong offset, ulong length)
+public readonly struct DuckDBListEntry(ulong offset, ulong length)
 {
-    public ulong Offset { get; private set; } = offset;
-    public ulong Length { get; private set; } = length;
+    public ulong Offset { get; } = offset;
+    public ulong Length { get; } = length;
 }
 
 public struct DuckDBString
