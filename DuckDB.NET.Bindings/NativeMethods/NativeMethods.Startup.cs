@@ -1,8 +1,8 @@
-﻿namespace DuckDB.NET.Native;
+namespace DuckDB.NET.Native;
 
 public partial class NativeMethods
 {
-    //https://duckdb.org/docs/api/c/api#openconnect
+    //https://duckdb.org/docs/stable/clients/c/connect
     public static partial class Startup
     {
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_open", StringMarshalling = StringMarshalling.Utf8)]
@@ -21,10 +21,6 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBConnect(DuckDBDatabase database, out DuckDBNativeConnection connection);
 
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_disconnect")]
-        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial void DuckDBDisconnect(ref IntPtr connection);
-
         // Maybe [SuppressGCTransition]: likely sets an atomic flag, but may signal across threads
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_interrupt")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
@@ -34,6 +30,23 @@ public partial class NativeMethods
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_query_progress")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBQueryProgress DuckDBQueryProgress(DuckDBNativeConnection connection);
+
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_disconnect")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial void DuckDBDisconnect(ref IntPtr connection);
+
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_connection_get_client_context")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial void DuckDBConnectionGetClientContext(DuckDBNativeConnection connection, out DuckDBClientContext outContext);
+
+        [SuppressGCTransition]
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_client_context_get_connection_id")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial ulong DuckDBClientContextGetConnectionId(DuckDBClientContext context);
+
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_destroy_client_context")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial void DuckDBDestroyClientContext(ref IntPtr context);
 
         [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_library_version")]

@@ -11,10 +11,11 @@ class TableFunctionInfo(Func<IReadOnlyList<IDuckDBValueReader>, IReadOnlyDiction
 
 record NamedParameterDefinition(string Name, Type Type);
 
-class TableFunctionBindData(IReadOnlyList<ColumnInfo> columns, IEnumerator dataEnumerator) : IDisposable
+class TableFunctionBindData(IReadOnlyList<ColumnInfo> columns, IEnumerator dataEnumerator, ulong connectionId) : IDisposable
 {
     public IReadOnlyList<ColumnInfo> Columns { get; } = columns;
     public IEnumerator DataEnumerator { get; } = dataEnumerator;
+    public ulong ConnectionId { get; } = connectionId;
 
     public void Dispose()
     {

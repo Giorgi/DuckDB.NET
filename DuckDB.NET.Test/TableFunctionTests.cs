@@ -387,4 +387,39 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
         data.Should().BeEquivalentTo("success");
     }
+
+    [Fact]
+    public void TableFunctionBindError_PreservesInnerException()
+    {
+        var originalException = new InvalidOperationException("custom bind error");
+
+        Connection.RegisterTableFunction<string>("bind_inner_err", _ => throw originalException, (_, _, _) => { });
+
+        var act = () => Connection.Query<int>("SELECT * FROM bind_inner_err('')");
+        var ex = act.Should().Throw<DuckDBException>().Which;
+
+        ex.Message.Should().Contain("custom bind error");
+        ex.InnerException.Should().BeOfType<InvalidOperationException>();
+        ex.InnerException!.Message.Should().Be("custom bind error");
+        ex.InnerException.Should().BeSameAs(originalException);
+    }
+
+    [Fact]
+    public void TableFunctionMapError_PreservesInnerException()
+    {
+        var originalException = new NotSupportedException("custom map error");
+
+        Connection.RegisterTableFunction<string>("map_inner_err", _ =>
+        {
+            return new TableFunction([new ColumnInfo("col1", typeof(string))], new[] { "a" });
+        }, (_, _, _) => throw originalException);
+
+        var act = () => Connection.Query<int>("SELECT * FROM map_inner_err('')");
+        var ex = act.Should().Throw<DuckDBException>().Which;
+
+        ex.Message.Should().Contain("custom map error");
+        ex.InnerException.Should().BeOfType<NotSupportedException>();
+        ex.InnerException!.Message.Should().Be("custom map error");
+        ex.InnerException.Should().BeSameAs(originalException);
+    }
 }

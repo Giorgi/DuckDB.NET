@@ -1,6 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-
-namespace DuckDB.NET.Native;
+﻿namespace DuckDB.NET.Native;
 
 public class DuckDBDatabase() : SafeHandleZeroOrMinusOneIsInvalid(true)
 {
@@ -196,4 +194,15 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
         var timeTz = NativeMethods.DateTimeHelpers.DuckDBFromTimeTz(timeTzStruct);
         return new DateTimeOffset(timeTz.Time.ToDateTime(), TimeSpan.FromSeconds(timeTz.Offset));
     }
+}
+
+public class DuckDBClientContext() : SafeHandleZeroOrMinusOneIsInvalid(true)
+{
+    protected override bool ReleaseHandle()
+    {
+        NativeMethods.Startup.DuckDBDestroyClientContext(ref handle);
+        return true;
+    }
+
+    public ulong ConnectionId => NativeMethods.Startup.DuckDBClientContextGetConnectionId(this);
 }

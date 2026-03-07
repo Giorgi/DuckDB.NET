@@ -1,4 +1,5 @@
 using System.Linq;
+using DuckDB.NET.Data.Connection;
 
 namespace DuckDB.NET.Data.PreparedStatement;
 
@@ -30,19 +31,24 @@ internal sealed class PreparedStatement : IDisposable
                 if (status.IsSuccess())
                 {
                     using var preparedStatement = new PreparedStatement(statement);
-                    yield return preparedStatement.Execute(parameters, useStreamingMode);
+                    yield return preparedStatement.Execute(parameters, useStreamingMode, connection);
                 }
                 else
                 {
                     var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(statement);
 
-                    throw new DuckDBException(string.IsNullOrEmpty(errorMessage) ? "DuckDBQuery failed" : errorMessage);
+                    if (string.IsNullOrEmpty(errorMessage))
+                    {
+                        errorMessage = "DuckDBQuery failed";
+                    }
+
+                    throw new DuckDBException(errorMessage, UdfExceptionStore.Retrieve(connection));
                 }
             }
         }
     }
 
-    private DuckDBResult Execute(DuckDBParameterCollection parameterCollection, bool useStreamingMode)
+    private DuckDBResult Execute(DuckDBParameterCollection parameterCollection, bool useStreamingMode, DuckDBNativeConnection connection)
     {
         BindParameters(statement, parameterCollection);
 
@@ -66,7 +72,10 @@ internal sealed class PreparedStatement : IDisposable
                 throw new OperationCanceledException();
             }
 
-            throw new DuckDBException(errorMessage, errorType);
+            var innerException = UdfExceptionStore.Retrieve(connection);
+            throw innerException != null
+                ? new DuckDBException(errorMessage, innerException)
+                : new DuckDBException(errorMessage, errorType);
         }
 
         return queryResult;

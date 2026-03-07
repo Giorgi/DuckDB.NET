@@ -60,6 +60,10 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial IntPtr DuckDBBindGetExtraInfo(IntPtr info);
 
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_table_function_get_client_context")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial void DuckDBTableFunctionGetClientContext(IntPtr info, out DuckDBClientContext outContext);
+
         // Maybe [SuppressGCTransition]: strdup name + copies LogicalType — two small allocations
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_add_result_column", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]

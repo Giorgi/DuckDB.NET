@@ -142,12 +142,23 @@ partial class DuckDBConnection
                 NativeMethods.TableFunction.DuckDBBindAddResultColumn(info, columnInfo.Name, logicalType);
             }
 
-            var bindData = new TableFunctionBindData(tableFunctionData.Columns, tableFunctionData.Data.GetEnumerator());
+            var connectionId = UdfExceptionStore.GetBindConnectionId(info);
+            var bindData = new TableFunctionBindData(tableFunctionData.Columns, tableFunctionData.Data.GetEnumerator(), connectionId);
 
             NativeMethods.TableFunction.DuckDBBindSetBindData(info, bindData.ToHandle(), &DestroyExtraInfo);
         }
         catch (Exception ex)
         {
+            try
+            {
+                var connectionId = UdfExceptionStore.GetBindConnectionId(info);
+                UdfExceptionStore.Store(connectionId, ex);
+            }
+            catch
+            {
+                // If we can't get the connection ID, we still report the error message
+            }
+
             NativeMethods.TableFunction.DuckDBBindSetError(info, ex.Message);
         }
         finally
@@ -219,6 +230,19 @@ partial class DuckDBConnection
         }
         catch (Exception ex)
         {
+            try
+            {
+                var bindData = GCHandle.FromIntPtr(NativeMethods.TableFunction.DuckDBFunctionGetBindData(info));
+                if (bindData.Target is TableFunctionBindData tableFunctionBindData)
+                {
+                    UdfExceptionStore.Store(tableFunctionBindData.ConnectionId, ex);
+                }
+            }
+            catch
+            {
+                // If we can't get the connection ID, we still report the error message
+            }
+
             NativeMethods.TableFunction.DuckDBFunctionSetError(info, ex.Message);
         }
         finally

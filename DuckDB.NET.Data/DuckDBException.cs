@@ -14,4 +14,8 @@ public class DuckDBException : DbException
     }
 
     internal DuckDBException(string message, DuckDBErrorType errorType) : base(message, (int)errorType) => ErrorType = errorType;
+
+    internal DuckDBException(string message, Exception? innerException) : base(message, innerException)
+    {
+    }
 }
