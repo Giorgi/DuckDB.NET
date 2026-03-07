@@ -25,14 +25,14 @@ public partial class NativeMethods
         public static partial void DuckDBScalarFunctionSetVarargs(IntPtr scalarFunction, DuckDBLogicalType type);
 
         [SuppressGCTransition]
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_set_volatile")]
-        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial void DuckDBScalarFunctionSetVolatile(IntPtr scalarFunction);
-
-        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_set_special_handling")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial void DuckDBScalarFunctionSetSpecialHandling(IntPtr scalarFunction);
+
+        [SuppressGCTransition]
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_set_volatile")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial void DuckDBScalarFunctionSetVolatile(IntPtr scalarFunction);
 
         // Maybe [SuppressGCTransition]: copies LogicalType + vector push — small allocation
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_add_parameter")]
@@ -50,6 +50,16 @@ public partial class NativeMethods
         public static unsafe partial void DuckDBScalarFunctionSetExtraInfo(IntPtr scalarFunction, IntPtr extraInfo, delegate* unmanaged[Cdecl]<IntPtr, void> destroy);
 
         [SuppressGCTransition]
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_set_bind")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static unsafe partial void DuckDBScalarFunctionSetBind(IntPtr scalarFunction, delegate* unmanaged[Cdecl]<IntPtr, void> bind);
+
+        [SuppressGCTransition]
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_set_bind_data")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static unsafe partial void DuckDBScalarFunctionSetBindData(IntPtr info, IntPtr bindData, delegate* unmanaged[Cdecl]<IntPtr, void> destroy);
+
+        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_set_function")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static unsafe partial void DuckDBScalarFunctionSetFunction(IntPtr scalarFunction, delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, void> callback);
@@ -62,6 +72,20 @@ public partial class NativeMethods
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_get_extra_info")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial IntPtr DuckDBScalarFunctionGetExtraInfo(IntPtr scalarFunction);
+
+        [SuppressGCTransition]
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_bind_get_extra_info")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial IntPtr DuckDBScalarFunctionBindGetExtraInfo(IntPtr info);
+
+        [SuppressGCTransition]
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_get_bind_data")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial IntPtr DuckDBScalarFunctionGetBindData(IntPtr info);
+
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_get_client_context")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial void DuckDBScalarFunctionGetClientContext(IntPtr info, out DuckDBClientContext outContext);
 
         [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_set_error", StringMarshalling = StringMarshalling.Utf8)]

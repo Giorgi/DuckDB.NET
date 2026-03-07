@@ -24,9 +24,18 @@ internal static class UdfExceptionStore
         }
     }
 
-    internal static ulong GetBindConnectionId(IntPtr bindInfo)
+    internal static ulong GetTableFunctionBindConnectionId(IntPtr bindInfo)
     {
         NativeMethods.TableFunction.DuckDBTableFunctionGetClientContext(bindInfo, out var context);
+        using (context)
+        {
+            return context.ConnectionId;
+        }
+    }
+
+    internal static ulong GetScalarFunctionBindConnectionId(IntPtr bindInfo)
+    {
+        NativeMethods.ScalarFunction.DuckDBScalarFunctionGetClientContext(bindInfo, out var context);
         using (context)
         {
             return context.ConnectionId;

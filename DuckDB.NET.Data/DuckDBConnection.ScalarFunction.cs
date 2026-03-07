@@ -1,4 +1,4 @@
-﻿using DuckDB.NET.Data.Connection;
+using DuckDB.NET.Data.Connection;
 using DuckDB.NET.Data.DataChunk.Reader;
 using DuckDB.NET.Data.DataChunk.Writer;
 using System.Runtime.CompilerServices;
@@ -75,6 +75,7 @@ partial class DuckDBConnection
         }
 
         NativeMethods.ScalarFunction.DuckDBScalarFunctionSetReturnType(function, returnType);
+        NativeMethods.ScalarFunction.DuckDBScalarFunctionSetBind(function, &ScalarFunctionBind);
         NativeMethods.ScalarFunction.DuckDBScalarFunctionSetFunction(function, &ScalarFunctionCallback);
 
         var info = new ScalarFunctionInfo(returnType, action);
@@ -88,6 +89,20 @@ partial class DuckDBConnection
         if (!state.IsSuccess())
         {
             throw new InvalidOperationException($"Error registering user defined scalar function: {name}");
+        }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static unsafe void ScalarFunctionBind(IntPtr info)
+    {
+        try
+        {
+            var connectionId = UdfExceptionStore.GetScalarFunctionBindConnectionId(info);
+            NativeMethods.ScalarFunction.DuckDBScalarFunctionSetBindData(info, connectionId.ToHandle(), &DestroyExtraInfo);
+        }
+        catch
+        {
+            // If we can't get the connection ID, we still allow the function to proceed
         }
     }
 
@@ -124,6 +139,19 @@ partial class DuckDBConnection
         }
         catch (Exception ex)
         {
+            try
+            {
+                var bindDataHandle = GCHandle.FromIntPtr(NativeMethods.ScalarFunction.DuckDBScalarFunctionGetBindData(info));
+                if (bindDataHandle.Target is ulong connectionId)
+                {
+                    UdfExceptionStore.Store(connectionId, ex);
+                }
+            }
+            catch
+            {
+                // If we can't get the connection ID, we still report the error message
+            }
+
             NativeMethods.ScalarFunction.DuckDBScalarFunctionSetError(info, ex.Message);
         }
         finally

@@ -531,6 +531,25 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         result.Should().Be("6");
     }
 
+    [Fact]
+    public void ScalarFunctionError_PreservesInnerException()
+    {
+        var originalException = new InvalidOperationException("custom scalar error");
+
+        Connection.RegisterScalarFunction<long, long>("scalar_inner_err", (_, _, _) =>
+        {
+            throw originalException;
+        });
+
+        var act = () => Connection.Query<long>("SELECT scalar_inner_err(1)");
+        var ex = act.Should().Throw<DuckDBException>().Which;
+
+        ex.Message.Should().Contain("custom scalar error");
+        ex.InnerException.Should().BeOfType<InvalidOperationException>();
+        ex.InnerException!.Message.Should().Be("custom scalar error");
+        ex.InnerException.Should().BeSameAs(originalException);
+    }
+
     private static bool IsPrime(int value)
     {
         for (int i = 2; i <= Math.Sqrt(value); i++)
