@@ -715,7 +715,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         reader.GetInt32(2).Should().Be(30);
     }
 
-    [Fact(Skip = "Only available in DuckDB 1.5")]
+    [Fact]
     public void ClearAppender()
     {
         Command.CommandText = "CREATE OR REPLACE TABLE tbl_empty (i INT DEFAULT 4, j INT, k INT DEFAULT 30)";
@@ -737,7 +737,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
 
-    [Fact(Skip = "Only available in DuckDB 1.5")]
+    [Fact]
     public void ClearAppenderAddMoreData()
     {
         Command.CommandText = "CREATE OR REPLACE TABLE tbl_empty (i INT DEFAULT 4, j INT, k INT DEFAULT 30)";

@@ -45,15 +45,9 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
         return isValid;
     }
 
-    public T GetValue<T>(ulong offset)
-    {
-        return GetValue<T>(offset, strict: false);
-    }
+    public T GetValue<T>(ulong offset) => GetValue<T>(offset, strict: false);
 
-    internal T GetValueStrict<T>(ulong offset)
-    {
-        return GetValue<T>(offset, strict: true);
-    }
+    internal T GetValueStrict<T>(ulong offset) => GetValue<T>(offset, strict: true);
 
     internal T GetValue<T>(ulong offset, bool strict)
     {
@@ -85,10 +79,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
     /// <param name="offset">Position to read the data from</param>
     /// <param name="targetType">Type of the return value</param>
     /// <returns>Data at the specified offset</returns>
-    protected virtual T GetValidValue<T>(ulong offset, Type targetType)
-    {
-        return (T)GetValue(offset, targetType);
-    }
+    protected virtual T GetValidValue<T>(ulong offset, Type targetType) => (T)GetValue(offset, targetType);
 
     public object GetValue(ulong offset)
     {
@@ -105,10 +96,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
         };
     }
 
-    internal object GetProviderSpecificValue(ulong offset)
-    {
-        return GetValue(offset, ProviderSpecificClrType);
-    }
+    internal object GetProviderSpecificValue(ulong offset) => GetValue(offset, ProviderSpecificClrType);
 
     protected virtual Type GetColumnType()
     {
