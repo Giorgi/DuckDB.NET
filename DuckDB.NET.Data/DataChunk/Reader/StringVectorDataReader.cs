@@ -43,7 +43,7 @@ internal sealed class StringVectorDataReader : VectorDataReaderBase
             return (T)(object)GetBitStringAsBitArray(offset);
         }
 
-        return base.GetValue<T>(offset);
+        return GetValueStrict<T>(offset);
     }
 
     private string GetBitString(ulong offset)

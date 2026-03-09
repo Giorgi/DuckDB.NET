@@ -45,7 +45,17 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
         return isValid;
     }
 
-    public virtual T GetValue<T>(ulong offset)
+    public T GetValue<T>(ulong offset)
+    {
+        return GetValue<T>(offset, strict: false);
+    }
+
+    internal T GetValueStrict<T>(ulong offset)
+    {
+        return GetValue<T>(offset, strict: true);
+    }
+
+    internal T GetValue<T>(ulong offset, bool strict)
     {
         // When T is Nullable<TUnderlying> (e.g. int?), we can't call GetValidValue<int>() directly
         // because we only have T=int? at compile time. NullableHandler uses a pre-compiled expression
@@ -61,7 +71,11 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
             return GetValidValue<T>(offset, typeof(T));
         }
 
-        throw new InvalidCastException($"Column '{ColumnName}' value is null");
+        if (strict || !NullableHandler<T>.IsReferenceType)
+        {
+            throw new InvalidCastException($"Column '{ColumnName}' value is null");
+        }
+        return default!;
     }
 
     /// <summary>
@@ -78,6 +92,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
 
     public object GetValue(ulong offset)
     {
+        if (!IsValid(offset)) return null!;
         return GetValue(offset, ClrType);
     }
 
@@ -198,12 +213,15 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
         static NullableHandler()
         {
             type = typeof(T);
-            underlyingType = Nullable.GetUnderlyingType(type);
-            IsNullableValueType = underlyingType != null;
+
+            var allowsNullValue = type.AllowsNullValue(out IsNullableValueType, out underlyingType);
+
             Read = IsNullableValueType ? Compile() : null!;
+            IsReferenceType = allowsNullValue && !IsNullableValueType;
         }
 
         public static readonly bool IsNullableValueType;
+        public static readonly bool IsReferenceType;
         public static readonly Func<VectorDataReaderBase, ulong, T> Read;
 
         // For T = int?, builds a delegate equivalent to:

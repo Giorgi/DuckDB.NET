@@ -215,7 +215,7 @@ public class DuckDBDataReader : DbDataReader
     {
         CheckRowRead();
 
-        return vectorReaders[ordinal].GetValue<T>(rowsReadFromCurrentChunk - 1);
+        return vectorReaders[ordinal].GetValueStrict<T>(rowsReadFromCurrentChunk - 1);
     }
 
     public override object GetValue(int ordinal)

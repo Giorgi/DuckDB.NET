@@ -49,7 +49,7 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
     {
         var listType = returnType.GetGenericArguments()[0];
 
-        var allowNulls = listType.AllowsNullValue(out var _, out var nullableType);
+        var allowNulls = listType.AllowsNullValue(out _, out var nullableType);
 
         var list = Activator.CreateInstance(returnType) as IList
                    ?? throw new ArgumentException($"The type '{returnType.Name}' specified in parameter {nameof(returnType)} cannot be instantiated as an IList.");
@@ -75,7 +75,7 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
                 var childOffset = listOffset + i;
                 if (listDataReader.IsValid(childOffset))
                 {
-                    var item = listDataReader.GetValue<T>(childOffset);
+                    var item = listDataReader.GetValueStrict<T>(childOffset);
                     result.Add(item);
                 }
                 else

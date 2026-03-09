@@ -44,7 +44,7 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
 
         var arguments = targetType.GetGenericArguments();
 
-        var allowsNullValues = arguments.Length == 2 && arguments[1].AllowsNullValue(out var _, out var _);
+        var allowsNullValues = arguments.Length == 2 && arguments[1].AllowsNullValue(out _, out _);
 
         var listData = (DuckDBListEntry*)DataPointer + offset;
 
