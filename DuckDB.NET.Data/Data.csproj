@@ -3,9 +3,24 @@
   <PropertyGroup>
     <Description>DuckDB ADO.NET Provider for C#.</Description>
     <PackageReleaseNotes>
-	  Added DuckDBMappedAppender for a type-safe way to bulk load data
+- Updated to DuckDB v1.5.0
+- Dropped netstandard2.0 and net6.0 (now targets net8.0+)
 
-Updated to DuckDB v1.4.4
+New features:
+- High-level scalar function API
+- High-level table function API
+- Named parameters for table functions via [Named] attribute
+- NULL handling for scalar functions inferred from nullable parameter types (int?, string?)
+- Appender Clear() method to discard in-progress rows
+
+Performance:
+- Reuse vector readers across chunks instead of recreating per chunk
+- Migrated from DllImport to LibraryImport with source-generated P/Invoke
+- Cache enum dictionary lookups in EnumVectorDataReader
+- Expression tree-based nullable GetValue&lt;T&gt; to avoid boxing
+- SuppressGCTransition on trivial native calls
+- AggressiveInlining on hot-path methods
+- Appender value writes split by struct/class to avoid boxing
     </PackageReleaseNotes>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>

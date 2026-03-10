@@ -3,7 +3,11 @@
   <PropertyGroup>
     <Description>DuckDB Bindings for C#.</Description>
     <PackageReleaseNotes>
-Updated to DuckDB v1.4.4
+- Updated to DuckDB v1.5.0
+- Dropped netstandard2.0 and net6.0 (now targets net8.0+)
+- Migrated from DllImport to LibraryImport with source-generated P/Invoke
+- Custom string marshallers for correct DuckDB string ownership handling
+- SuppressGCTransition on trivial native calls
     </PackageReleaseNotes>
     <RootNamespace>DuckDB.NET.Native</RootNamespace>
     <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx</RuntimeIdentifiers>
