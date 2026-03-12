@@ -6,13 +6,13 @@ internal sealed class BooleanVectorDataReader : VectorDataReaderBase
     {
     }
 
-    protected override T GetValidValue<T>(ulong offset, Type targetType)
+    protected override T GetValidValue<T>(ulong offset)
     {
         if (DuckDBType != DuckDBType.Boolean)
         {
-            return base.GetValidValue<T>(offset, targetType);
+            return base.GetValidValue<T>(offset);
         }
-        
+
         var value = GetFieldData<bool>(offset);
         return (T)(object)value; //JIT will optimize the casts at least for not nullable T
     }

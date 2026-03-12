@@ -47,14 +47,20 @@ internal static class TypeExtensions
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Type UnderlyingTypeOrSelf(this Type type) => Nullable.GetUnderlyingType(type) ?? type;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsFloatingNumericType<T>()
     {
-        return FloatingNumericTypes.Contains(typeof(T));
+        return typeof(T) == typeof(decimal) || typeof(T) == typeof(float) || typeof(T) == typeof(double);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsIntegralNumericType<T>()
     {
-        return IntegralNumericTypes.Contains(typeof(T));
+        return typeof(T) == typeof(byte) || typeof(T) == typeof(sbyte) ||
+               typeof(T) == typeof(short) || typeof(T) == typeof(ushort) ||
+               typeof(T) == typeof(int) || typeof(T) == typeof(uint) ||
+               typeof(T) == typeof(long) || typeof(T) == typeof(ulong) ||
+               typeof(T) == typeof(BigInteger);
     }
 
     public static bool IsNumeric(this Type type)

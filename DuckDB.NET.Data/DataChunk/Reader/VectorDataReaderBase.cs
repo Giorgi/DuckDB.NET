@@ -45,10 +45,13 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
         return isValid;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public T GetValue<T>(ulong offset) => GetValue<T>(offset, strict: false);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal T GetValueStrict<T>(ulong offset) => GetValue<T>(offset, strict: true);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal T GetValue<T>(ulong offset, bool strict)
     {
         // When T is Nullable<TUnderlying> (e.g. int?), we can't call GetValidValue<int>() directly
@@ -62,7 +65,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
 
         if (IsValid(offset))
         {
-            return GetValidValue<T>(offset, typeof(T));
+            return GetValidValue<T>(offset);
         }
 
         if (strict || !NullableHandler<T>.IsReferenceType)
@@ -77,9 +80,8 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
     /// </summary>
     /// <typeparam name="T">Type of the return value</typeparam>
     /// <param name="offset">Position to read the data from</param>
-    /// <param name="targetType">Type of the return value</param>
     /// <returns>Data at the specified offset</returns>
-    protected virtual T GetValidValue<T>(ulong offset, Type targetType) => (T)GetValue(offset, targetType);
+    protected virtual T GetValidValue<T>(ulong offset) => (T)GetValue(offset, typeof(T));
 
     public object GetValue(ulong offset)
     {
@@ -215,7 +217,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
         // For T = int?, builds a delegate equivalent to:
         //   (VectorDataReaderBase reader, ulong offset) =>
         //       reader.IsValid(offset)
-        //           ? (int?)reader.GetValidValue<int>(offset, typeof(int))
+        //           ? (int?)reader.GetValidValue<int>(offset)
         //           : default(int?)
         private static Func<VectorDataReaderBase, ulong, T> Compile()
         {
@@ -229,7 +231,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
             var methodInfo = typeof(VectorDataReaderBase).GetMethod(nameof(GetValidValue), BindingFlags.Instance | BindingFlags.NonPublic)!;
             var genericGetValidValue = methodInfo.MakeGenericMethod(underlyingType);
 
-            var getValidValue = Expression.Call(reader, genericGetValidValue, offset, Expression.Constant(underlyingType));
+            var getValidValue = Expression.Call(reader, genericGetValidValue, offset);
 
             var body = Expression.Condition(isValid, Expression.Convert(getValidValue, type), Expression.Default(type));
 

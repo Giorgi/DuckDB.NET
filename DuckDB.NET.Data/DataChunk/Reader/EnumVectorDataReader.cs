@@ -14,11 +14,11 @@ internal sealed class EnumVectorDataReader : VectorDataReaderBase
         enumType = NativeMethods.LogicalType.DuckDBEnumInternalType(logicalType);
     }
 
-    protected override T GetValidValue<T>(ulong offset, Type targetType)
+    protected override T GetValidValue<T>(ulong offset)
     {
         if (DuckDBType != DuckDBType.Enum)
         {
-            return base.GetValidValue<T>(offset, targetType);
+            return base.GetValidValue<T>(offset);
         }
 
         switch (enumType)

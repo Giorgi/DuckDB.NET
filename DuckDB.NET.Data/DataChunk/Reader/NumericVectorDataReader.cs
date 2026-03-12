@@ -11,14 +11,14 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
     {
     }
 
-    protected override T GetValidValue<T>(ulong offset, Type targetType)
+    protected override T GetValidValue<T>(ulong offset)
     {
         var isFloatingNumericType = TypeExtensions.IsFloatingNumericType<T>();
         var isIntegralNumericType = TypeExtensions.IsIntegralNumericType<T>();
 
         if (!(isIntegralNumericType || isFloatingNumericType))
         {
-            return base.GetValidValue<T>(offset, targetType);
+            return base.GetValidValue<T>(offset);
         }
 
         //If T is integral type and column is also integral read the data and use Unsafe.As<> or Convert.ChangeType to change type
@@ -39,7 +39,7 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
                 DuckDBType.HugeInt => GetBigInteger<T>(offset, false),
                 DuckDBType.UnsignedHugeInt => GetBigInteger<T>(offset, true),
                 DuckDBType.VarInt => GetBigInteger<T>(offset),
-                _ => base.GetValidValue<T>(offset, targetType)
+                _ => base.GetValidValue<T>(offset)
             };
         }
 
@@ -47,7 +47,7 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
         {
             DuckDBType.Float => (T)(object)GetFieldData<float>(offset),
             DuckDBType.Double => (T)(object)GetFieldData<double>(offset),
-            _ => base.GetValidValue<T>(offset, targetType)
+            _ => base.GetValidValue<T>(offset)
         };
     }
 

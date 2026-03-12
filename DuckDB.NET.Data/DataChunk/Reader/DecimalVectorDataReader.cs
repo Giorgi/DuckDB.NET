@@ -27,11 +27,11 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
 
     internal byte Precision { get; }
 
-    protected override T GetValidValue<T>(ulong offset, Type targetType)
+    protected override T GetValidValue<T>(ulong offset)
     {
         if (DuckDBType != DuckDBType.Decimal)
         {
-            return base.GetValidValue<T>(offset, targetType);
+            return base.GetValidValue<T>(offset);
         }
 
         var value = GetDecimal(offset);

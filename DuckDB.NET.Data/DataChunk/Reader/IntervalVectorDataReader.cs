@@ -2,19 +2,17 @@
 
 internal sealed class IntervalVectorDataReader : VectorDataReaderBase
 {
-    private static readonly Type TimeSpanType = typeof(TimeSpan);
-
     internal unsafe IntervalVectorDataReader(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
     }
 
-    protected override T GetValidValue<T>(ulong offset, Type targetType)
+    protected override T GetValidValue<T>(ulong offset)
     {
         if (DuckDBType == DuckDBType.Interval)
         {
             var interval = GetFieldData<DuckDBInterval>(offset);
 
-            if (targetType == TimeSpanType)
+            if (typeof(T) == typeof(TimeSpan))
             {
                 var timeSpan = (TimeSpan)interval;
                 return (T)(object)timeSpan;
@@ -23,7 +21,7 @@ internal sealed class IntervalVectorDataReader : VectorDataReaderBase
             return (T)(object)interval;
         }
 
-        return base.GetValidValue<T>(offset, targetType);
+        return base.GetValidValue<T>(offset);
     }
 
     internal override object GetValue(ulong offset, Type targetType)
@@ -39,7 +37,7 @@ internal sealed class IntervalVectorDataReader : VectorDataReaderBase
     {
         var interval = GetFieldData<DuckDBInterval>(offset);
 
-        if (targetType == TimeSpanType)
+        if (targetType == typeof(TimeSpan))
         {
             return (TimeSpan)interval;
         }

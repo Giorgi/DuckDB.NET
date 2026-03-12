@@ -1,6 +1,7 @@
 ﻿using DuckDB.NET.Data.Common;
 using DuckDB.NET.Data.DataChunk.Reader;
 using System.IO;
+using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Data;
 
@@ -211,6 +212,7 @@ public class DuckDBDataReader : DbDataReader
         return GetFieldValue<string>(ordinal);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override T GetFieldValue<T>(int ordinal)
     {
         CheckRowRead();
@@ -222,21 +224,32 @@ public class DuckDBDataReader : DbDataReader
     {
         CheckRowRead();
 
-        return IsDBNull(ordinal) ? DBNull.Value : vectorReaders[ordinal].GetValue(rowsReadFromCurrentChunk - 1);
+        var offset = rowsReadFromCurrentChunk - 1;
+        var reader = vectorReaders[ordinal];
+
+        return reader.IsValid(offset) ? reader.GetValue(offset) : DBNull.Value;
     }
 
     public override object GetProviderSpecificValue(int ordinal)
     {
         CheckRowRead();
 
-        return IsDBNull(ordinal) ? DBNull.Value : vectorReaders[ordinal].GetProviderSpecificValue(rowsReadFromCurrentChunk - 1);
+        var offset = rowsReadFromCurrentChunk - 1;
+        var reader = vectorReaders[ordinal];
+
+        return reader.IsValid(offset) ? reader.GetProviderSpecificValue(offset) : DBNull.Value;
     }
 
     public override int GetValues(object[] values)
     {
+        CheckRowRead();
+
+        var offset = rowsReadFromCurrentChunk - 1;
+
         for (var i = 0; i < FieldCount; i++)
         {
-            values[i] = GetValue(i);
+            var reader = vectorReaders[i];
+            values[i] = reader.IsValid(offset) ? reader.GetValue(offset) : DBNull.Value;
         }
 
         return FieldCount;
@@ -363,11 +376,18 @@ public class DuckDBDataReader : DbDataReader
         resultEnumerator.Dispose();
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void CheckRowRead()
     {
         if (rowsReadFromCurrentChunk <= 0)
         {
-            throw new InvalidOperationException("No row has been read");
+            ThrowNoRowRead();
         }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void ThrowNoRowRead()
+    {
+        throw new InvalidOperationException("No row has been read");
     }
 }
