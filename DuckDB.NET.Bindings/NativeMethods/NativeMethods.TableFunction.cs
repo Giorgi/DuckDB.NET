@@ -89,6 +89,11 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static unsafe partial void DuckDBBindSetBindData(IntPtr info, IntPtr bindData, delegate* unmanaged[Cdecl]<IntPtr, void> destroy);
 
+        [SuppressGCTransition]
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_set_cardinality")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static unsafe partial void DuckDBBindSetCardinality(IntPtr info, ulong cardinality, [MarshalAs(UnmanagedType.I1)] bool isExact);
+
         // Maybe [SuppressGCTransition]: strdup error string — one small allocation
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_set_error", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]

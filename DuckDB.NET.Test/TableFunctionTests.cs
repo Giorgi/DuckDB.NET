@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Text.Json;
 using System.Threading;
 
 namespace DuckDB.NET.Test;
@@ -421,5 +422,49 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         ex.InnerException.Should().BeOfType<NotSupportedException>();
         ex.InnerException!.Message.Should().Be("custom map error");
         ex.InnerException.Should().BeSameAs(originalException);
+    }
+
+    [Fact]
+    public void RegisterTableFunctionWithEstimatedCardinality()
+    {
+        var expectedData = Enumerable.Range(0, 100).ToList();
+
+        Connection.RegisterTableFunction("cardinality_test", parameters =>
+        {
+            return new TableFunction(new List<ColumnInfo>
+            {
+                new("value", typeof(int)),
+            }, expectedData, EstimatedCardinality: 100);
+        }, (item, writers, rowIndex) =>
+        {
+            writers[0].WriteValue((int)item, rowIndex);
+        });
+
+        var data = Connection.Query<int>("SELECT * FROM cardinality_test();").ToList();
+        data.Should().BeEquivalentTo(expectedData);
+    }
+
+    [Fact]
+    public void RegisterTableFunctionWithEstimatedCardinality_AppearsInQueryPlan()
+    {
+        Connection.RegisterTableFunction("card_plan", _ =>
+        {
+            return new TableFunction(new List<ColumnInfo>
+            {
+                new("value", typeof(int)),
+            }, Enumerable.Range(0, 50), EstimatedCardinality: 42);
+        }, (item, writers, rowIndex) =>
+        {
+            writers[0].WriteValue((int)item, rowIndex);
+        });
+
+        var plan = Connection.Query<(string, string)>("EXPLAIN (FORMAT JSON) SELECT * FROM card_plan();").First();
+        var json = JsonDocument.Parse(plan.Item2);
+        var cardinality = json.RootElement[0]
+            .GetProperty("extra_info")
+            .GetProperty("Estimated Cardinality")
+            .GetString();
+
+        cardinality.Should().Be("42");
     }
 }
