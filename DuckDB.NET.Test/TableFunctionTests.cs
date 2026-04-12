@@ -424,47 +424,51 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         ex.InnerException.Should().BeSameAs(originalException);
     }
 
-    [Fact]
-    public void RegisterTableFunctionWithEstimatedCardinality()
+    [Theory]
+    [InlineData(100, false, "card_estimated")]
+    [InlineData(50, true, "card_exact")]
+    public void RegisterTableFunctionWithCardinality(int count, bool isExact, string funcName)
     {
-        var expectedData = Enumerable.Range(0, 100).ToList();
+        var expectedData = Enumerable.Range(0, count).ToList();
 
-        Connection.RegisterTableFunction("cardinality_test", parameters =>
+        Connection.RegisterTableFunction(funcName, parameters =>
         {
             return new TableFunction(new List<ColumnInfo>
             {
                 new("value", typeof(int)),
-            }, expectedData, EstimatedCardinality: 100);
+            }, expectedData, Cardinality: new CardinalityHint((ulong)count, IsExact: isExact));
         }, (item, writers, rowIndex) =>
         {
             writers[0].WriteValue((int)item, rowIndex);
         });
 
-        var data = Connection.Query<int>("SELECT * FROM cardinality_test();").ToList();
+        var data = Connection.Query<int>($"SELECT * FROM {funcName}();").ToList();
         data.Should().BeEquivalentTo(expectedData);
     }
 
-    [Fact]
-    public void RegisterTableFunctionWithEstimatedCardinality_AppearsInQueryPlan()
+    [Theory]
+    [InlineData(42, false, "plan_estimated")]
+    [InlineData(50, true, "plan_exact")]
+    public void RegisterTableFunctionWithCardinality_AppearsInQueryPlan(int cardinality, bool isExact, string funcName)
     {
-        Connection.RegisterTableFunction("card_plan", _ =>
+        Connection.RegisterTableFunction(funcName, _ =>
         {
             return new TableFunction(new List<ColumnInfo>
             {
                 new("value", typeof(int)),
-            }, Enumerable.Range(0, 50), EstimatedCardinality: 42);
+            }, Enumerable.Range(0, 50), Cardinality: new CardinalityHint((ulong)cardinality, IsExact: isExact));
         }, (item, writers, rowIndex) =>
         {
             writers[0].WriteValue((int)item, rowIndex);
         });
 
-        var plan = Connection.Query<(string, string)>("EXPLAIN (FORMAT JSON) SELECT * FROM card_plan();").First();
+        var plan = Connection.Query<(string, string)>($"EXPLAIN (FORMAT JSON) SELECT * FROM {funcName}();").First();
         var json = JsonDocument.Parse(plan.Item2);
-        var cardinality = json.RootElement[0]
+        var reported = json.RootElement[0]
             .GetProperty("extra_info")
             .GetProperty("Estimated Cardinality")
             .GetString();
 
-        cardinality.Should().Be("42");
+        reported.Should().Be(cardinality.ToString());
     }
 }
