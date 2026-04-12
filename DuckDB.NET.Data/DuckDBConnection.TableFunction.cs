@@ -8,7 +8,9 @@ namespace DuckDB.NET.Data;
 
 public record ColumnInfo(string Name, Type Type);
 
-public record TableFunction(IReadOnlyList<ColumnInfo> Columns, IEnumerable Data);
+public record CardinalityHint(ulong Value, bool IsExact = false);
+
+public record TableFunction(IReadOnlyList<ColumnInfo> Columns, IEnumerable Data, CardinalityHint? Cardinality = null);
 
 partial class DuckDBConnection
 {
@@ -140,6 +142,11 @@ partial class DuckDBConnection
             {
                 using var logicalType = columnInfo.Type.GetLogicalType();
                 NativeMethods.TableFunction.DuckDBBindAddResultColumn(info, columnInfo.Name, logicalType);
+            }
+
+            if (tableFunctionData.Cardinality is { } cardinality)
+            {
+                NativeMethods.TableFunction.DuckDBBindSetCardinality(info, cardinality.Value, isExact: cardinality.IsExact);
             }
 
             var connectionId = UdfExceptionStore.GetTableFunctionBindConnectionId(info);
