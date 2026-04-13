@@ -50,6 +50,11 @@ public partial class NativeMethods
 		public static partial DuckDBState DuckDBListVectorReserve(IntPtr vector, ulong requiredCapacity);
 
 		[SuppressGCTransition]
+		[LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_list_vector_set_size")]
+		[UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+		public static partial DuckDBState DuckDBListVectorSetSize(IntPtr vector, ulong size);
+
+		[SuppressGCTransition]
 		[LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_struct_vector_get_child")]
 		[UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
 		public static partial IntPtr DuckDBStructVectorGetChild(IntPtr vector, long index);
