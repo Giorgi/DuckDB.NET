@@ -89,6 +89,13 @@ internal static class TypeExtensions
             return NativeMethods.LogicalType.DuckDBCreateDecimalType(38, 18);
         }
 
+        if (type.IsAssignableTo(typeof(IList)) && type.IsGenericType)
+        {
+            var genericTypeParameter = type.GetGenericArguments()[0];
+            using var nestedType = genericTypeParameter.GetLogicalType();
+            return NativeMethods.LogicalType.DuckDBCreateListType(nestedType);
+        }
+
         if (ClrToDuckDBTypeMap.TryGetValue(type, out var duckDBType))
         {
             return NativeMethods.LogicalType.DuckDBCreateLogicalType(duckDBType);

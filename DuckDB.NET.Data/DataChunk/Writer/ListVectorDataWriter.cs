@@ -86,6 +86,11 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
 
         offset += count;
 
+        if (IsList)
+        {
+            NativeMethods.Vectors.DuckDBListVectorSetSize(Vector, offset);
+        }
+
         return result;
 
         int WriteItems<T>(IEnumerable<T> items)

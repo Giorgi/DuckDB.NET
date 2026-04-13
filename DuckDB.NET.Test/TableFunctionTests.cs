@@ -471,4 +471,107 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
         reported.Should().Be(cardinality.ToString());
     }
+
+    [Fact]
+    public void RegisterTableFunctionWithListColumn()
+    {
+        var sourceData = new List<List<int>>
+        {
+            new() { 1, 2, 3 },
+            new() { 4, 5 },
+            new() { },
+            null,
+        };
+
+        Connection.RegisterTableFunction("list_func", () =>
+        {
+            return new TableFunction(new List<ColumnInfo>
+            {
+                new("numbers", typeof(List<int>)),
+            }, sourceData);
+        }, (item, writers, rowIndex) =>
+        {
+            writers[0].WriteValue((List<int>)item, rowIndex);
+        });
+
+        using var command = Connection.CreateCommand();
+        command.CommandText = "SELECT numbers FROM list_func();";
+        using var reader = command.ExecuteReader();
+
+        reader.Read();
+        reader.GetFieldValue<List<int>>(0).Should().BeEquivalentTo(new List<int> { 1, 2, 3 });
+
+        reader.Read();
+        reader.GetFieldValue<List<int>>(0).Should().BeEquivalentTo(new List<int> { 4, 5 });
+
+        reader.Read();
+        reader.GetFieldValue<List<int>>(0).Should().BeEquivalentTo(new List<int>());
+
+        reader.Read();
+        reader.IsDBNull(0).Should().BeTrue();
+
+        reader.Read().Should().BeFalse();
+    }
+
+    [Fact]
+    public void RegisterTableFunctionWithListColumn_ListHasAny()
+    {
+        var sourceData = new List<List<int>>
+        {
+            new() { 1, 2, 3 },
+            new() { 4, 5 },
+            new() { 6, 7, 8, 9 },
+            new() { },
+        };
+
+        Connection.RegisterTableFunction("list_func_has_any", () =>
+        {
+            return new TableFunction(new List<ColumnInfo>
+            {
+                new("numbers", typeof(List<int>)),
+            }, sourceData);
+        }, (item, writers, rowIndex) =>
+        {
+            writers[0].WriteValue((List<int>)item, rowIndex);
+        });
+
+        var data = Connection.Query<bool>("SELECT list_has_any(numbers, [3]) FROM list_func_has_any();").ToList();
+        data.Should().BeEquivalentTo([true, false, false, false]);
+    }
+
+    [Fact]
+    public void RegisterTableFunctionWithNestedListColumn()
+    {
+        var sourceData = new List<List<List<int?>>>
+        {
+            new() { new() { 1, 2 }, new() { 3, null, 5 } },
+            new() { new() { 10 }, null, new() { 20, 30 }, new() { 40 } },
+        };
+
+        Connection.RegisterTableFunction("list_func_nested", () =>
+        {
+            return new TableFunction(new List<ColumnInfo>
+            {
+                new("nested", typeof(List<List<int?>>)),
+            }, sourceData);
+        }, (item, writers, rowIndex) =>
+        {
+            writers[0].WriteValue((List<List<int?>>)item, rowIndex);
+        });
+
+        // flatten reduces one level of nesting
+        using var command = Connection.CreateCommand();
+        command.CommandText = "SELECT flatten(nested) FROM list_func_nested();";
+        using var reader = command.ExecuteReader();
+
+        reader.Read();
+        reader.GetFieldValue<List<int?>>(0).Should().BeEquivalentTo([1, 2, 3, (int?)null, 5],
+            options => options.WithStrictOrdering());
+
+        reader.Read();
+        reader.GetFieldValue<List<int?>>(0).Should().BeEquivalentTo([10, 20, 30, 40],
+            options => options.WithStrictOrdering());
+
+        reader.Read().Should().BeFalse();
+    }
 }
