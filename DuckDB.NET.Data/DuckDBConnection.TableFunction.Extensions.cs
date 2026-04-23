@@ -7,10 +7,12 @@ namespace DuckDB.NET.Data;
 
 public static class DuckDBConnectionTableFunctionExtensions
 {
-    private record TableFunctionParameter(string? NamedAs, int? PositionalIndex, Type Type)
+    private record TableFunctionParameter(string? NamedAs, int? PositionalIndex, Type Type, bool IsProjection = false)
     {
         public bool IsNamed => NamedAs is not null;
     }
+
+    private static bool IsProjectionParameter(Type type) => type == typeof(IReadOnlyList<ProjectedColumn>);
 
     extension(DuckDBConnection connection)
     {
@@ -55,6 +57,11 @@ public static class DuckDBConnectionTableFunctionExtensions
         // 5. RegisterInternal registers with DuckDB:
         //      1 positional parameter (INTEGER)
         //      1 named parameter ("prefix", VARCHAR)
+        //
+        // Projection-aware variant: when parameters[0].Type is IReadOnlyList<ProjectedColumn>,
+        // step 2 is skipped for that slot, step 4 returns the DataFactory form of TableFunction
+        // (deferring dataFunc invocation to init time with the projected column list supplied),
+        // and step 5 omits the slot from DuckDB's parameter list entirely.
 
         public void RegisterTableFunction<T1, TData, TProjection>(
             string name,
@@ -63,6 +70,16 @@ public static class DuckDBConnectionTableFunctionExtensions
         {
             var (columns, mapper) = ParseProjection(projection);
             var parameters = AnalyzeParameters(dataFunc.Method.GetParameters());
+
+            if (parameters[0].IsProjection)
+            {
+                RegisterInternal(connection, name, parameters,
+                    (positional, named) => new TableFunction(columns, projected =>
+                        dataFunc((T1)(object)projected)),
+                    mapper);
+                return;
+            }
+
             var read1 = CompileValueReader<T1>(parameters[0], name);
 
             RegisterInternal(connection, name, parameters,
@@ -78,14 +95,28 @@ public static class DuckDBConnectionTableFunctionExtensions
         {
             var (columns, mapper) = ParseProjection(projection);
             var parameters = AnalyzeParameters(dataFunc.Method.GetParameters());
-            
-            var read1 = CompileValueReader<T1>(parameters[0], name);
-            var read2 = CompileValueReader<T2>(parameters[1], name);
+
+            if (parameters[0].IsProjection)
+            {
+                var read2 = CompileValueReader<T2>(parameters[1], name);
+                RegisterInternal(connection, name, parameters,
+                    (positional, named) =>
+                    {
+                        var arg2 = read2(Resolve(parameters[1], positional, named));
+                        return new TableFunction(columns, projected =>
+                            dataFunc((T1)(object)projected, arg2));
+                    },
+                    mapper);
+                return;
+            }
+
+            var readA = CompileValueReader<T1>(parameters[0], name);
+            var readB = CompileValueReader<T2>(parameters[1], name);
 
             RegisterInternal(connection, name, parameters,
                 (positional, named) => new TableFunction(columns, dataFunc(
-                    read1(Resolve(parameters[0], positional, named)),
-                    read2(Resolve(parameters[1], positional, named)))),
+                    readA(Resolve(parameters[0], positional, named)),
+                    readB(Resolve(parameters[1], positional, named)))),
                 mapper);
         }
 
@@ -96,16 +127,32 @@ public static class DuckDBConnectionTableFunctionExtensions
         {
             var (columns, mapper) = ParseProjection(projection);
             var parameters = AnalyzeParameters(dataFunc.Method.GetParameters());
-            
-            var read1 = CompileValueReader<T1>(parameters[0], name);
-            var read2 = CompileValueReader<T2>(parameters[1], name);
-            var read3 = CompileValueReader<T3>(parameters[2], name);
+
+            if (parameters[0].IsProjection)
+            {
+                var read2 = CompileValueReader<T2>(parameters[1], name);
+                var read3 = CompileValueReader<T3>(parameters[2], name);
+                RegisterInternal(connection, name, parameters,
+                    (positional, named) =>
+                    {
+                        var arg2 = read2(Resolve(parameters[1], positional, named));
+                        var arg3 = read3(Resolve(parameters[2], positional, named));
+                        return new TableFunction(columns, projected =>
+                            dataFunc((T1)(object)projected, arg2, arg3));
+                    },
+                    mapper);
+                return;
+            }
+
+            var readA = CompileValueReader<T1>(parameters[0], name);
+            var readB = CompileValueReader<T2>(parameters[1], name);
+            var readC = CompileValueReader<T3>(parameters[2], name);
 
             RegisterInternal(connection, name, parameters,
                 (positional, named) => new TableFunction(columns, dataFunc(
-                    read1(Resolve(parameters[0], positional, named)),
-                    read2(Resolve(parameters[1], positional, named)),
-                    read3(Resolve(parameters[2], positional, named)))),
+                    readA(Resolve(parameters[0], positional, named)),
+                    readB(Resolve(parameters[1], positional, named)),
+                    readC(Resolve(parameters[2], positional, named)))),
                 mapper);
         }
 
@@ -116,18 +163,36 @@ public static class DuckDBConnectionTableFunctionExtensions
         {
             var (columns, mapper) = ParseProjection(projection);
             var parameters = AnalyzeParameters(dataFunc.Method.GetParameters());
-            
-            var read1 = CompileValueReader<T1>(parameters[0], name);
-            var read2 = CompileValueReader<T2>(parameters[1], name);
-            var read3 = CompileValueReader<T3>(parameters[2], name);
-            var read4 = CompileValueReader<T4>(parameters[3], name);
+
+            if (parameters[0].IsProjection)
+            {
+                var read2 = CompileValueReader<T2>(parameters[1], name);
+                var read3 = CompileValueReader<T3>(parameters[2], name);
+                var read4 = CompileValueReader<T4>(parameters[3], name);
+                RegisterInternal(connection, name, parameters,
+                    (positional, named) =>
+                    {
+                        var arg2 = read2(Resolve(parameters[1], positional, named));
+                        var arg3 = read3(Resolve(parameters[2], positional, named));
+                        var arg4 = read4(Resolve(parameters[3], positional, named));
+                        return new TableFunction(columns, projected =>
+                            dataFunc((T1)(object)projected, arg2, arg3, arg4));
+                    },
+                    mapper);
+                return;
+            }
+
+            var readA = CompileValueReader<T1>(parameters[0], name);
+            var readB = CompileValueReader<T2>(parameters[1], name);
+            var readC = CompileValueReader<T3>(parameters[2], name);
+            var readD = CompileValueReader<T4>(parameters[3], name);
 
             RegisterInternal(connection, name, parameters,
                 (positional, named) => new TableFunction(columns, dataFunc(
-                    read1(Resolve(parameters[0], positional, named)),
-                    read2(Resolve(parameters[1], positional, named)),
-                    read3(Resolve(parameters[2], positional, named)),
-                    read4(Resolve(parameters[3], positional, named)))),
+                    readA(Resolve(parameters[0], positional, named)),
+                    readB(Resolve(parameters[1], positional, named)),
+                    readC(Resolve(parameters[2], positional, named)),
+                    readD(Resolve(parameters[3], positional, named)))),
                 mapper);
         }
     }
@@ -245,6 +310,8 @@ public static class DuckDBConnectionTableFunctionExtensions
 
         foreach (var param in parameters)
         {
+            if (param.IsProjection)
+                continue;
             if (param.IsNamed)
                 namedDefinitions.Add(new(param.NamedAs!, param.Type));
             else
@@ -259,12 +326,27 @@ public static class DuckDBConnectionTableFunctionExtensions
         var result = new TableFunctionParameter[methodParams.Length];
         int nextPositional = 0;
 
-        for (int i = 0; i < methodParams.Length; i++)
+        for (int parameterIndex = 0; parameterIndex < methodParams.Length; parameterIndex++)
         {
-            var attr = methodParams[i].GetCustomAttribute<NamedAttribute>();
-            result[i] = attr is not null
-                ? new(attr.Name ?? methodParams[i].Name!, null, methodParams[i].ParameterType)
-                : new(null, nextPositional++, methodParams[i].ParameterType);
+            if (IsProjectionParameter(methodParams[parameterIndex].ParameterType))
+            {
+                if (parameterIndex != 0)
+                {
+                    throw new InvalidOperationException("ProjectedColumn parameter must be the first parameter of the data callback.");
+                }
+                
+                if (methodParams[parameterIndex].GetCustomAttribute<NamedAttribute>() is not null)
+                {
+                    throw new InvalidOperationException("[Named] cannot be applied to a ProjectedColumn parameter.");
+                }
+                result[0] = new TableFunctionParameter(null, null, methodParams[0].ParameterType, IsProjection: true);
+                continue;
+            }
+
+            var attr = methodParams[parameterIndex].GetCustomAttribute<NamedAttribute>();
+            result[parameterIndex] = attr is not null
+                ? new(attr.Name ?? methodParams[parameterIndex].Name!, null, methodParams[parameterIndex].ParameterType)
+                : new(null, nextPositional++, methodParams[parameterIndex].ParameterType);
         }
 
         return result;

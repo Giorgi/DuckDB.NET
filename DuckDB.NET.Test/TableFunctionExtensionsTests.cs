@@ -261,4 +261,121 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
             .Should().Throw<DuckDBException>()
             .WithMessage("*named parameter 'limit' is NULL*non-nullable*");
     }
+
+    [Fact]
+    public void RegisterTableFunctionProjection_ZeroSqlParams()
+    {
+        IReadOnlyList<ProjectedColumn> captured = [];
+
+        Connection.RegisterTableFunction("ext_proj_zero",
+            (IReadOnlyList<ProjectedColumn> projected) =>
+            {
+                captured = projected;
+                return GetEmployees(3);
+            },
+            e => new { e.Id, e.Name, e.Salary });
+
+        var names = Connection.Query<string>("SELECT name FROM ext_proj_zero();").ToList();
+        names.Should().Equal("Employee1", "Employee2", "Employee3");
+
+        captured.Should().HaveCount(1);
+        captured[0].Index.Should().Be(1);
+        captured[0].Name.Should().Be("Name");
+        captured[0].Type.Should().Be(typeof(string));
+    }
+
+    [Fact]
+    public void RegisterTableFunctionProjection_OneSqlParam()
+    {
+        IReadOnlyList<ProjectedColumn> captured = [];
+
+        Connection.RegisterTableFunction("ext_proj_one",
+            (IReadOnlyList<ProjectedColumn> projected, int count) =>
+            {
+                captured = projected;
+                return GetEmployees(count);
+            },
+            e => new { e.Id, e.Name, e.Salary });
+
+        var ids = Connection.Query<int>("SELECT id FROM ext_proj_one(5);").ToList();
+        ids.Should().Equal(1, 2, 3, 4, 5);
+
+        captured.Select(p => p.Index).Should().Equal(0);
+        captured[0].Name.Should().Be("Id");
+    }
+
+    [Fact]
+    public void RegisterTableFunctionProjection_MixedPositionalAndNamed()
+    {
+        IReadOnlyList<ProjectedColumn> captured = [];
+
+        Connection.RegisterTableFunction("ext_proj_mixed",
+            (IReadOnlyList<ProjectedColumn> projected, int start, [Named] int? take) =>
+            {
+                captured = projected;
+                return Enumerable.Range(start, take ?? 3).Select(i => new Employee(i, $"E{i}", i * 100));
+            },
+            e => new { e.Id, e.Name, e.Salary });
+
+        var results = Connection.Query<(int, string)>("SELECT id, name FROM ext_proj_mixed(10, take => 2);").ToList();
+        results.Should().Equal((10, "E10"), (11, "E11"));
+
+        captured.Select(p => p.Index).Should().Equal(0, 1);
+    }
+
+    [Fact]
+    public void RegisterTableFunctionProjection_SourceSideNarrowing()
+    {
+        // Factory records which columns it fetched, simulating a narrow remote read.
+        var fetchLog = new List<string>();
+
+        Connection.RegisterTableFunction("ext_proj_narrow",
+            (IReadOnlyList<ProjectedColumn> projected, int count) =>
+            {
+                fetchLog.Add(string.Join(",", projected.Select(p => p.Name)));
+                return GetEmployees(count);
+            },
+            e => new { e.Id, e.Name, e.Salary });
+
+        Connection.Query<string>("SELECT name FROM ext_proj_narrow(3);").ToList();
+        Connection.Query<(int, double)>("SELECT id, salary FROM ext_proj_narrow(3);").ToList();
+        Connection.Query<(int, string, double)>("SELECT * FROM ext_proj_narrow(3);").ToList();
+
+        fetchLog.Should().Equal("Name", "Id,Salary", "Id,Name,Salary");
+    }
+
+    [Fact]
+    public void RegisterTableFunctionProjection_MisplacedRejected()
+    {
+        var act = () => Connection.RegisterTableFunction("ext_proj_misplaced",
+            (int count, IReadOnlyList<ProjectedColumn> projected) => GetEmployees(count),
+            e => new { e.Id, e.Name });
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*must be the first parameter*");
+    }
+
+    [Fact]
+    public void RegisterTableFunctionProjection_NamedOnProjectionRejected()
+    {
+        var act = () => Connection.RegisterTableFunction("ext_proj_named",
+            ([Named] IReadOnlyList<ProjectedColumn> projected, int count) => GetEmployees(count),
+            e => new { e.Id, e.Name });
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*[Named]*ProjectedColumn*");
+    }
+
+    [Fact]
+    public void RegisterTableFunctionProjection_FactoryThrows_InnerExceptionPreserved()
+    {
+        var originalException = new NotSupportedException("custom factory error");
+        Func<IReadOnlyList<ProjectedColumn>, int, IEnumerable<Employee>> dataFunc = (projected, count) => throw originalException;
+
+        Connection.RegisterTableFunction("ext_proj_throws", dataFunc, e => new { e.Id, e.Name });
+
+        var act = () => Connection.Query<int>("SELECT id FROM ext_proj_throws(1);").ToList();
+        var ex = act.Should().Throw<DuckDBException>().Which;
+
+        ex.Message.Should().Contain("custom factory error");
+        ex.InnerException.Should().BeSameAs(originalException);
+    }
 }
