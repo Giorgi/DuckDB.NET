@@ -342,7 +342,7 @@ partial class DuckDBConnection
         {
             foreach (var writer in writers)
             {
-                writer?.Dispose();
+                (writer as IDisposable)?.Dispose();
             }
 
             foreach (var logicalType in logicalTypes)

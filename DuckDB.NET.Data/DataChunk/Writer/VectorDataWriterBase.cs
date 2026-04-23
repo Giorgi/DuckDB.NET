@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Data.DataChunk.Writer;
 
-internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, DuckDBType columnType) : IDuckDBDataWriter
+internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, DuckDBType columnType) : IDuckDBDataWriter, IDisposable
 {
     private ulong* validity;
 
