@@ -40,6 +40,10 @@ Performance:
     <PackageReference Include="GitVersion.MsBuild" Version="6.4.0" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="DuckDB.NET.Test, PublicKey=0024000004800000940000000602000000240000525341310004000001000100852ebcffb69a0dfb906bc0377ec8608f4a00ba9af2e29300d1ed77dcb2583f08116b1a1006d202d53a48ec0561c1816738368378f7c5d335fec3daa63ba1b5413298153f886aafc75304e7653715f2395ad370fe3b2f4bc44a36a2f6b958fd500a2f7eea9a69c6ab5819e0933db962630c56c1610c7c87ed6a3c2b36e1ca4ed2" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\DuckDB.NET.Bindings\Bindings.csproj" />
   </ItemGroup>
 

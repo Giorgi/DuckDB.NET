@@ -26,7 +26,7 @@ public record TableFunction
         Cardinality = cardinality;
     }
 
-    public TableFunction(IReadOnlyList<ColumnInfo> columns, Func<IReadOnlyList<ProjectedColumn>, IEnumerable> dataFactory, CardinalityHint? cardinality = null)
+    internal TableFunction(IReadOnlyList<ColumnInfo> columns, Func<IReadOnlyList<ProjectedColumn>, IEnumerable> dataFactory, CardinalityHint? cardinality = null)
     {
         Columns = columns;
         DataFactory = dataFactory;
