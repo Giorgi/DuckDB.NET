@@ -377,7 +377,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
                           SELECT 1
                           UNION ALL
                           SELECT x+1 FROM cnt
-                           where x < 300000
+                           where x < 10000000
                     ) select * from cnt;";
 
         var source = new CancellationTokenSource(1000);
@@ -396,7 +396,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
                       SELECT 1
                       UNION ALL
                       SELECT x+1 FROM cnt
-                       where x < 300000
+                       where x < 10000000
                 ) select * from cnt;";
 
         using var source = new CancellationTokenSource(TimeSpan.FromMilliseconds(1000));
