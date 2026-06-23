@@ -1,6 +1,11 @@
 ﻿using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
+using Apache.Arrow;
+using Apache.Arrow.Ipc;
+using DuckDB.NET.Data.Arrow;
 
 namespace DuckDB.NET.Data;
 
@@ -107,6 +112,54 @@ public class DuckDBCommand : DbCommand
         var reader = new DuckDBDataReader(this, results, behavior);
 
         return reader;
+    }
+
+    /// <summary>
+    /// Executes the command and returns the first result set as an Apache Arrow
+    /// <see cref="IArrowArrayStream"/>. Each DuckDB data chunk is converted to an Arrow record batch
+    /// using DuckDB's Arrow C Data Interface, with no row-by-row marshaling.
+    /// The caller owns the returned stream and must dispose it.
+    /// </summary>
+    public IArrowArrayStream ExecuteArrowStream()
+    {
+        EnsureConnectionOpen();
+
+        var results = PreparedStatement.PreparedStatement.PrepareMultiple(connection!.NativeConnection, CommandText, parameters, useStreamingMode: false);
+
+        foreach (var result in results)
+        {
+            var current = result;
+
+            if (NativeMethods.Query.DuckDBResultReturnType(current) == DuckDBResultType.QueryResult)
+            {
+                return new DuckDBArrowArrayStream(current);
+            }
+
+            current.Close();
+        }
+
+        throw new InvalidOperationException("The command did not return a result set.");
+    }
+
+    /// <summary>
+    /// Executes the command and asynchronously streams the first result set as Apache Arrow
+    /// <see cref="RecordBatch"/> values. The batches are produced lazily, one per DuckDB data chunk.
+    /// </summary>
+    public async IAsyncEnumerable<RecordBatch> ExecuteArrowBatchesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var stream = ExecuteArrowStream();
+
+        try
+        {
+            while (await stream.ReadNextRecordBatchAsync(cancellationToken).ConfigureAwait(false) is { } batch)
+            {
+                yield return batch;
+            }
+        }
+        finally
+        {
+            stream.Dispose();
+        }
     }
 
     public override void Prepare() { }

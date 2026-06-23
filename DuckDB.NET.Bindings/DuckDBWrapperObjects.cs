@@ -68,6 +68,15 @@ public class DuckDBLogicalType() : SafeHandleZeroOrMinusOneIsInvalid(true)
     }
 }
 
+public class DuckDBArrowOptions() : SafeHandleZeroOrMinusOneIsInvalid(true)
+{
+    protected override bool ReleaseHandle()
+    {
+        NativeMethods.Arrow.DuckDBDestroyArrowOptions(ref handle);
+        return true;
+    }
+}
+
 public class DuckDBDataChunk : SafeHandleZeroOrMinusOneIsInvalid
 {
     public DuckDBDataChunk() : base(true)
