@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using Apache.Arrow;
 using Apache.Arrow.Types;
@@ -6,9 +7,12 @@ namespace DuckDB.NET.Test.Arrow;
 
 public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
-    [Fact]
-    public async Task ExecuteArrowBatches_ReturnsSchemaAndScalarValues()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExecuteArrowBatches_ReturnsSchemaAndScalarValues(bool useStreamingMode)
     {
+        Command.UseStreamingMode = useStreamingMode;
         Command.CommandText = "select 42 as answer, 'duckdb' as name, cast(3.5 as double) as ratio";
 
         var batches = await ReadAllAsync();
@@ -26,9 +30,12 @@ public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         DisposeBatches(batches);
     }
 
-    [Fact]
-    public async Task ExecuteArrowBatches_HandlesNullValues()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExecuteArrowBatches_HandlesNullValues(bool useStreamingMode)
     {
+        Command.UseStreamingMode = useStreamingMode;
         Command.CommandText = "select unnest([1, null, 3]) as value";
 
         var batches = await ReadAllAsync();
@@ -42,10 +49,13 @@ public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         DisposeBatches(batches);
     }
 
-    [Fact]
-    public async Task ExecuteArrowBatches_StreamsMultipleChunks()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExecuteArrowBatches_StreamsMultipleChunks(bool useStreamingMode)
     {
         const int rowCount = 5000;
+        Command.UseStreamingMode = useStreamingMode;
         Command.CommandText = $"select i from range({rowCount}) t(i)";
 
         var batches = await ReadAllAsync();
@@ -105,6 +115,44 @@ public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         var act = () => Command.ExecuteArrowStream();
 
         act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task ReadNextRecordBatchAsync_WithCanceledToken_ReturnsCanceledTask()
+    {
+        Command.CommandText = "select i from range(10) t(i)";
+
+        using var stream = Command.ExecuteArrowStream();
+
+        var act = async () => await stream.ReadNextRecordBatchAsync(new CancellationToken(canceled: true));
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task ReadNextRecordBatchAsync_AfterDispose_Throws()
+    {
+        Command.CommandText = "select i from range(10) t(i)";
+
+        var stream = Command.ExecuteArrowStream();
+        stream.Dispose();
+
+        var act = async () => await stream.ReadNextRecordBatchAsync(CancellationToken.None);
+
+        await act.Should().ThrowAsync<ObjectDisposedException>();
+    }
+
+    [Fact]
+    public void Dispose_CalledTwice_IsNoOp()
+    {
+        Command.CommandText = "select i from range(10) t(i)";
+
+        var stream = Command.ExecuteArrowStream();
+
+        stream.Dispose();
+        var act = () => stream.Dispose();
+
+        act.Should().NotThrow();
     }
 
     private async Task<List<RecordBatch>> ReadAllAsync()

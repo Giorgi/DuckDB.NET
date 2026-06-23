@@ -17,6 +17,7 @@ public sealed class DuckDBArrowArrayStream : IArrowArrayStream
 {
     private DuckDBResult result;
     private readonly DuckDBArrowOptions arrowOptions;
+    private readonly bool streaming;
     private bool disposed;
 
     public Schema Schema { get; }
@@ -32,7 +33,18 @@ public sealed class DuckDBArrowArrayStream : IArrowArrayStream
             throw new InvalidOperationException("Failed to obtain Arrow options from the DuckDB result.");
         }
 
-        Schema = BuildSchema();
+        streaming = NativeMethods.Types.DuckDBResultIsStreaming(this.result) > 0;
+
+        try
+        {
+            Schema = BuildSchema();
+        }
+        catch
+        {
+            arrowOptions.Dispose();
+            this.result.Close();
+            throw;
+        }
     }
 
     private unsafe Schema BuildSchema()
@@ -99,7 +111,9 @@ public sealed class DuckDBArrowArrayStream : IArrowArrayStream
             return new ValueTask<RecordBatch?>(Task.FromCanceled<RecordBatch?>(cancellationToken));
         }
 
-        var chunk = NativeMethods.Query.DuckDBFetchChunk(result);
+        var chunk = streaming
+            ? NativeMethods.StreamingResult.DuckDBStreamFetchChunk(result)
+            : NativeMethods.Query.DuckDBFetchChunk(result);
 
         if (chunk.IsInvalid)
         {

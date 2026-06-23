@@ -118,13 +118,15 @@ public class DuckDBCommand : DbCommand
     /// Executes the command and returns the first result set as an Apache Arrow
     /// <see cref="IArrowArrayStream"/>. Each DuckDB data chunk is converted to an Arrow record batch
     /// using DuckDB's Arrow C Data Interface, with no row-by-row marshaling.
+    /// When <see cref="UseStreamingMode"/> is enabled, record batches are produced lazily from a
+    /// streaming result (bounded memory), otherwise the result is materialized first.
     /// The caller owns the returned stream and must dispose it.
     /// </summary>
     public IArrowArrayStream ExecuteArrowStream()
     {
         EnsureConnectionOpen();
 
-        var results = PreparedStatement.PreparedStatement.PrepareMultiple(connection!.NativeConnection, CommandText, parameters, useStreamingMode: false);
+        var results = PreparedStatement.PreparedStatement.PrepareMultiple(connection!.NativeConnection, CommandText, parameters, UseStreamingMode);
 
         foreach (var result in results)
         {
@@ -144,6 +146,7 @@ public class DuckDBCommand : DbCommand
     /// <summary>
     /// Executes the command and asynchronously streams the first result set as Apache Arrow
     /// <see cref="RecordBatch"/> values. The batches are produced lazily, one per DuckDB data chunk.
+    /// Set <see cref="UseStreamingMode"/> to stream from a streaming result with bounded memory.
     /// </summary>
     public async IAsyncEnumerable<RecordBatch> ExecuteArrowBatchesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
