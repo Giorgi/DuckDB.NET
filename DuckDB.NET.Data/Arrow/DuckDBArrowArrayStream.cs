@@ -13,7 +13,7 @@ namespace DuckDB.NET.Data.Arrow;
 /// DuckDB's Arrow C Data Interface (<c>duckdb_to_arrow_schema</c> / <c>duckdb_data_chunk_to_arrow</c>).
 /// Each DuckDB data chunk is converted into one Arrow record batch and imported with no row-by-row marshaling.
 /// </summary>
-public sealed class DuckDBArrowArrayStream : IArrowArrayStream
+internal sealed class DuckDBArrowArrayStream : IArrowArrayStream
 {
     private DuckDBResult result;
     private readonly DuckDBArrowOptions arrowOptions;
@@ -75,7 +75,7 @@ public sealed class DuckDBArrowArrayStream : IArrowArrayStream
                 fixed (IntPtr* namesPointer = namePointers)
                 {
                     var error = NativeMethods.Arrow.DuckDBToArrowSchema(arrowOptions, (IntPtr)typesPointer, (IntPtr)namesPointer, columnCount, (IntPtr)cSchema);
-                    ThrowIfError(error, "Failed to convert the DuckDB result schema to an Arrow schema.");
+                    error.ThrowOnError("Failed to convert the DuckDB result schema to an Arrow schema.");
                 }
 
                 return CArrowSchemaImporter.ImportSchema(cSchema);
@@ -138,34 +138,13 @@ public sealed class DuckDBArrowArrayStream : IArrowArrayStream
         try
         {
             var error = NativeMethods.Arrow.DuckDBDataChunkToArrow(arrowOptions, chunk, (IntPtr)cArray);
-            ThrowIfError(error, "Failed to convert a DuckDB data chunk to an Arrow array.");
+            error.ThrowOnError("Failed to convert a DuckDB data chunk to an Arrow array.");
 
             return CArrowArrayImporter.ImportRecordBatch(cArray, Schema);
         }
         finally
         {
             CArrowArray.Free(cArray);
-        }
-    }
-
-    private static void ThrowIfError(IntPtr errorData, string message)
-    {
-        if (errorData == IntPtr.Zero)
-        {
-            return;
-        }
-
-        try
-        {
-            if (NativeMethods.Arrow.DuckDBErrorDataHasError(errorData))
-            {
-                var detail = NativeMethods.Arrow.DuckDBErrorDataMessage(errorData);
-                throw new InvalidOperationException($"{message} {detail}".TrimEnd());
-            }
-        }
-        finally
-        {
-            NativeMethods.Arrow.DuckDBDestroyErrorData(ref errorData);
         }
     }
 
