@@ -6,29 +6,14 @@ internal sealed unsafe class EnumVectorDataWriter(IntPtr vector, void* vectorDat
 
     private readonly uint enumDictionarySize = NativeMethods.LogicalType.DuckDBEnumDictionarySize(logicalType);
 
-    private readonly Dictionary<string, uint> enumValues = [];
+    private readonly Dictionary<string, uint> enumValues = new(StringComparer.OrdinalIgnoreCase);
 
     internal override bool AppendString(string value, ulong rowIndex)
     {
-        if (enumValues.Count == 0)
-        {
-            for (uint index = 0; index < enumDictionarySize; index++)
-            {
-                var enumValueName = NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType, index);
-                enumValues.Add(enumValueName, index);
-            }
-        }
-
+        EnsureEnumValuesInitialized();
         if (enumValues.TryGetValue(value, out var enumValue))
         {
-            // The following casts to byte and ushort are safe because we ensure in the constructor that the value enumDictionarySize is not too high.
-            return enumType switch
-            {
-                DuckDBType.UnsignedTinyInt => AppendValueInternal((byte)enumValue, rowIndex),
-                DuckDBType.UnsignedSmallInt => AppendValueInternal((ushort)enumValue, rowIndex),
-                DuckDBType.UnsignedInteger => AppendValueInternal(enumValue, rowIndex),
-                _ => throw new InvalidOperationException($"Failed to write Enum column because the internal enum type must be utinyint, usmallint, or uinteger."),
-            };
+            return AppendEnumDictionaryIndex(enumValue, rowIndex);
         }
 
         throw new InvalidOperationException($"Failed to write Enum column because the value \"{value}\" is not valid.");
@@ -36,36 +21,49 @@ internal sealed unsafe class EnumVectorDataWriter(IntPtr vector, void* vectorDat
 
     internal override bool AppendEnum<TEnum>(TEnum value, ulong rowIndex)
     {
-        var enumValue = ConvertEnumValueToUInt64(value);
-        if (enumValue < enumDictionarySize)
+        var enumValueType = value.GetType();
+        if (enumValueType.IsDefined(typeof(FlagsAttribute), false))
         {
-            // The following casts to byte, ushort and uint are safe because we ensure in the constructor that the value enumDictionarySize is not too high.
-            return enumType switch
-            {
-                DuckDBType.UnsignedTinyInt => AppendValueInternal((byte)enumValue, rowIndex),
-                DuckDBType.UnsignedSmallInt => AppendValueInternal((ushort)enumValue, rowIndex),
-                DuckDBType.UnsignedInteger => AppendValueInternal((uint)enumValue, rowIndex),
-                _ => throw new InvalidOperationException($"Failed to write Enum column because the internal enum type must be utinyint, usmallint, or uinteger."),
-            };
+            throw new InvalidOperationException("Failed to write Enum column because [Flags] enums are not supported.");
         }
 
-        throw new InvalidOperationException($"Failed to write Enum column because the value is outside the range (0-{enumDictionarySize - 1}).");
+        var enumName = Enum.GetName(enumValueType, value);
+        if (enumName is not null)
+        {
+            EnsureEnumValuesInitialized();
+            if (enumValues.TryGetValue(enumName, out var enumValue))
+            {
+                return AppendEnumDictionaryIndex(enumValue, rowIndex);
+            }
+        }
+
+        throw new InvalidOperationException($"Failed to write Enum column because the value \"{value}\" is not valid.");
     }
 
-    private static ulong ConvertEnumValueToUInt64<TEnum>(TEnum value) where TEnum : Enum
+    private bool AppendEnumDictionaryIndex(ulong dictionaryIndex, ulong rowIndex)
     {
-        return value.GetTypeCode() switch
+        // The following casts to byte and ushort are safe because we ensure in the constructor that the enumDictionarySize is not too high.
+        return enumType switch
         {
-            TypeCode.SByte => (ulong)Convert.ToSByte(value),
-            TypeCode.Byte => Convert.ToByte(value),
-            TypeCode.Int16 => (ulong)Convert.ToInt16(value),
-            TypeCode.UInt16 => Convert.ToUInt16(value),
-            TypeCode.Int32 => (ulong)Convert.ToInt32(value),
-            TypeCode.UInt32 => Convert.ToUInt32(value),
-            TypeCode.Int64 => (ulong)Convert.ToInt64(value),
-            TypeCode.UInt64 => Convert.ToUInt64(value),
-            _ => throw new InvalidOperationException($"Failed to convert the enum value {value} to ulong."),
+            DuckDBType.UnsignedTinyInt => AppendValueInternal((byte)dictionaryIndex, rowIndex),
+            DuckDBType.UnsignedSmallInt => AppendValueInternal((ushort)dictionaryIndex, rowIndex),
+            DuckDBType.UnsignedInteger => AppendValueInternal((uint)dictionaryIndex, rowIndex),
+            _ => throw new InvalidOperationException("Failed to write Enum column because the internal enum type must be utinyint, usmallint, or uinteger."),
         };
+    }
+
+    private void EnsureEnumValuesInitialized()
+    {
+        if (enumValues.Count != 0)
+        {
+            return;
+        }
+
+        for (uint index = 0; index < enumDictionarySize; index++)
+        {
+            var enumValueName = NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType, index);
+            enumValues.Add(enumValueName, index);
+        }
     }
 
 }

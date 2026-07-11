@@ -412,6 +412,54 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    public void EnumValuesWithNonConsecutiveUnderlyingValues()
+    {
+        var enumLabelsSql = string.Join(", ", Enum.GetNames<NonConsecutiveTestEnum>().Select(name => $"'{name}'"));
+        Command.CommandText = $"CREATE TYPE non_consecutive_test_enum AS ENUM ({enumLabelsSql});";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "CREATE TABLE managedAppenderNonConsecutiveEnum(a non_consecutive_test_enum, b non_consecutive_test_enum, c non_consecutive_test_enum);";
+        Command.ExecuteNonQuery();
+
+        using (var appender = Connection.CreateAppender("managedAppenderNonConsecutiveEnum"))
+        {
+            appender
+                .CreateRow()
+                .AppendValue(NonConsecutiveTestEnum.Happy)
+                .AppendValue(NonConsecutiveTestEnum.Sad)
+                .AppendValue(NonConsecutiveTestEnum.Neutral)
+                .EndRow();
+        }
+
+        Command.CommandText = "SELECT a, b, c FROM managedAppenderNonConsecutiveEnum";
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+        reader.GetFieldValue<NonConsecutiveTestEnum>(0).Should().Be(NonConsecutiveTestEnum.Happy);
+        reader.GetFieldValue<string>(1).Should().Be(nameof(NonConsecutiveTestEnum.Sad));
+        reader.GetFieldValue<NonConsecutiveTestEnum>(2).Should().Be(NonConsecutiveTestEnum.Neutral);
+    }
+
+    [Fact]
+    public void FlagsEnumValuesThrowException()
+    {
+        var enumLabelsSql = string.Join(", ", Enum.GetNames<FlagsTestEnum>().Select(name => $"'{name}'"));
+        Command.CommandText = $"CREATE TYPE flags_test_enum AS ENUM ({enumLabelsSql});";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "CREATE TABLE managedAppenderFlagsEnum(a flags_test_enum);";
+        Command.ExecuteNonQuery();
+
+        Connection.Invoking(dbConnection =>
+        {
+            using var appender = dbConnection.CreateAppender("managedAppenderFlagsEnum");
+            appender
+                .CreateRow()
+                .AppendValue(FlagsTestEnum.Happy)
+                .EndRow();
+        }).Should().Throw<InvalidOperationException>().Where(exception => exception.Message.Contains("Flags"));
+    }
+
+    [Fact]
     public void IncompleteRowThrowsException()
     {
         var table = "CREATE TABLE managedAppenderIncompleteTest(a BOOLEAN, b TINYINT, c INTEGER);";
@@ -850,5 +898,20 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     private enum EnumNotValidValueTestEnum
     {
         NotValid = 12345,
+    }
+
+    private enum NonConsecutiveTestEnum : byte
+    {
+        Happy = 1,
+        Sad = 2,
+        Neutral = 4,
+    }
+
+    [Flags]
+    private enum FlagsTestEnum : byte
+    {
+        Happy = 1,
+        Sad = 2,
+        Neutral = 4,
     }
 }

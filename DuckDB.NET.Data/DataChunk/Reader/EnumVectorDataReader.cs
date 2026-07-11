@@ -46,14 +46,14 @@ internal sealed class EnumVectorDataReader : VectorDataReaderBase
         {
             if (typeof(T) == typeof(string))
             {
-                var index = long.CreateChecked(enumValue);
-                if (!cachedNames.TryGetValue(index, out var name))
-                {
-                    cachedNames[index] = name = NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType, index);
-                }
-
-                return (T)(object)name;
+                return (T)(object)GetEnumName(long.CreateChecked(enumValue));
             }
+
+            if (typeof(T).IsEnum)
+            {
+                return (T)ConvertToTargetEnum(long.CreateChecked(enumValue), typeof(T));
+            }
+
             return Unsafe.As<TSource, T>(ref enumValue);
         }
     }
@@ -72,12 +72,12 @@ internal sealed class EnumVectorDataReader : VectorDataReaderBase
 
             if (targetType == typeof(string))
             {
-                if (!cachedNames.TryGetValue(enumValue, out var name))
-                {
-                    cachedNames[enumValue] = name = NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType, enumValue);
-                }
+                return GetEnumName(enumValue);
+            }
 
-                return name;
+            if (targetType.IsEnum)
+            {
+                return ConvertToTargetEnum(enumValue, targetType);
             }
 
             return Enum.ToObject(targetType, enumValue);
@@ -90,5 +90,26 @@ internal sealed class EnumVectorDataReader : VectorDataReaderBase
     {
         logicalType.Dispose();
         base.Dispose();
+    }
+
+    private string GetEnumName(long enumValue)
+    {
+        if (!cachedNames.TryGetValue(enumValue, out var name))
+        {
+            cachedNames[enumValue] = name = NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType, enumValue);
+        }
+
+        return name;
+    }
+
+    private object ConvertToTargetEnum(long enumValue, Type targetType)
+    {
+        var enumName = GetEnumName(enumValue);
+        if (Enum.TryParse(targetType, enumName, true, out var parsedEnum))
+        {
+            return parsedEnum;
+        }
+
+        throw new InvalidCastException($"Cannot convert DuckDB enum value \"{enumName}\" to {targetType.Name}.");
     }
 }
