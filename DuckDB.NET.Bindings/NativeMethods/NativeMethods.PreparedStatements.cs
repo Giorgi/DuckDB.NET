@@ -110,6 +110,12 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBBindNull(DuckDBPreparedStatement preparedStatement, long index);
 
+        // Clears values from a reusable prepared statement before rebinding it. This prevents a
+        // parameter omitted by a later named collection from retaining its previous value.
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_clear_bindings")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBState DuckDBClearBindings(DuckDBPreparedStatement preparedStatement);
+
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_execute_prepared")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBExecutePrepared(DuckDBPreparedStatement preparedStatement, out DuckDBResult result);

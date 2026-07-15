@@ -12,7 +12,8 @@ public partial class DuckDBConnection : DbConnection
     private DuckDBConnectionString? parsedConnection;
     private ConnectionReference? connectionReference;
     private bool inMemoryDuplication = false;
-    
+    private List<WeakReference<DuckDBCommand>>? preparedCommands;
+
     private static readonly StateChangeEventArgs FromClosedToOpenEventArgs = new(ConnectionState.Closed, ConnectionState.Open);
     private static readonly StateChangeEventArgs FromOpenToClosedEventArgs = new(ConnectionState.Open, ConnectionState.Closed);
 
@@ -88,6 +89,8 @@ public partial class DuckDBConnection : DbConnection
             throw new InvalidOperationException("Connection is already closed.");
         }
 
+        InvalidatePreparedCommands();
+
         if (connectionReference is not null) //Should always be the case
         {
             connectionManager.ReturnConnectionReference(connectionReference);
@@ -95,6 +98,68 @@ public partial class DuckDBConnection : DbConnection
 
         connectionState = ConnectionState.Closed;
         OnStateChange(FromOpenToClosedEventArgs);
+    }
+
+    internal void RegisterPreparedCommand(DuckDBCommand command)
+    {
+        preparedCommands ??= [];
+
+        for (var index = preparedCommands.Count - 1; index >= 0; index--)
+        {
+            if (!preparedCommands[index].TryGetTarget(out var preparedCommand))
+            {
+                preparedCommands.RemoveAt(index);
+                continue;
+            }
+
+            if (ReferenceEquals(preparedCommand, command))
+            {
+                return;
+            }
+        }
+
+        preparedCommands.Add(new WeakReference<DuckDBCommand>(command));
+    }
+
+    internal void UnregisterPreparedCommand(DuckDBCommand command)
+    {
+        if (preparedCommands is null)
+        {
+            return;
+        }
+
+        for (var index = preparedCommands.Count - 1; index >= 0; index--)
+        {
+            if (!preparedCommands[index].TryGetTarget(out var preparedCommand) || ReferenceEquals(preparedCommand, command))
+            {
+                preparedCommands.RemoveAt(index);
+            }
+        }
+
+        if (preparedCommands.Count == 0)
+        {
+            preparedCommands = null;
+        }
+    }
+
+    private void InvalidatePreparedCommands()
+    {
+        if (preparedCommands is not { Count: > 0 })
+        {
+            return;
+        }
+
+        var commands = new WeakReference<DuckDBCommand>[preparedCommands.Count];
+        preparedCommands.CopyTo(commands);
+        preparedCommands = null;
+
+        foreach (var commandReference in commands)
+        {
+            if (commandReference.TryGetTarget(out var command))
+            {
+                command.OnConnectionClosing(this);
+            }
+        }
     }
 
     public override void Open()

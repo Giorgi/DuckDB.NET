@@ -46,10 +46,10 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
-    public void PrepareCommandNoOperationTest()
+    public void PrepareInvalidCommandThrows()
     {
         Command.CommandText = "SELECT ? FROM nowhere";
-        Command.Invoking(dbCommand => dbCommand.Prepare()).Should().NotThrow();
+        Command.Invoking(dbCommand => dbCommand.Prepare()).Should().Throw<DuckDBException>();
     }
 
     [Fact]
