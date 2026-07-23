@@ -846,7 +846,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    public void AppendRowFailureFlushesCompletedRowsAndFaultsAppender()
+    public void AppendRowFailureDiscardsFailedRowAndCommitsCompletedRowsOnClose()
     {
         Command.CommandText = "CREATE TABLE managedAppenderThrownScopedRow(a INTEGER, b INTEGER[])";
         Command.ExecuteNonQuery();
@@ -881,9 +881,9 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
                 .Should().Throw<InvalidOperationException>()
                 .WithMessage("*cannot be reused*");
 
-            appender.Invoking(value => value.Close())
-                .Should().Throw<InvalidOperationException>()
-                .WithMessage("*cannot be reused*");
+            // Close is still allowed on a faulted appender: it commits the rows completed before
+            // the failure (the failed row was discarded).
+            appender.Invoking(value => value.Close()).Should().NotThrow();
         }
 
         Command.CommandText = "SELECT a, b FROM managedAppenderThrownScopedRow ORDER BY a";
@@ -895,7 +895,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    public void AppendRowFailureAggregatesFinalizationFailureAndCanBeDisposed()
+    public void AppendRowFailureSurfacesCompletedRowCommitErrorAtClose()
     {
         Command.CommandText = "CREATE TABLE managedAppenderFailedFinalization(a INTEGER UNIQUE)";
         Command.ExecuteNonQuery();
@@ -903,22 +903,27 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         Command.ExecuteNonQuery();
 
         using var appender = Connection.CreateAppender("managedAppenderFailedFinalization");
+
+        // This completed row duplicates the existing key; it stays buffered (uncommitted).
         appender.AppendRow(row => row.AppendValue((int?)1));
 
-        var exception = appender.Invoking(value => value.AppendRow(row =>
+        // The failing row is dropped and the appender faults. The callback exception propagates
+        // on its own - the failure itself does not commit anything.
+        appender.Invoking(value => value.AppendRow(row =>
             {
                 row.AppendValue((int?)2);
                 throw new InvalidOperationException("callback failed");
             }))
-            .Should().Throw<AggregateException>().Which;
+            .Should().Throw<InvalidOperationException>()
+            .WithMessage("callback failed");
 
-        exception.InnerExceptions.Should().HaveCount(2);
-        exception.InnerExceptions[0].Should().BeOfType<InvalidOperationException>()
-            .Which.Message.Should().Be("callback failed");
-        exception.InnerExceptions[1].Should().BeOfType<DuckDBException>()
+        // Committing the completed row happens at Close, and that is where the constraint
+        // violation surfaces.
+        appender.Invoking(value => value.Close())
+            .Should().Throw<DuckDBException>()
             .Which.ErrorType.Should().Be(DuckDBErrorType.Constraint);
 
-        appender.Invoking(value => value.Dispose()).Should().NotThrow();
+        // Close already tore the appender down, so the using-block dispose is a no-op.
         appender.Invoking(value => value.Dispose()).Should().NotThrow();
 
         Command.CommandText = "SELECT count(*) FROM managedAppenderFailedFinalization";

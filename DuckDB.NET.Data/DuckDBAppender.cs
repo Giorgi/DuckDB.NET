@@ -68,8 +68,16 @@ public class DuckDBAppender : IDisposable
     /// <remarks>
     /// The row is valid only during the callback and must not be retained. The callback must not
     /// call other methods on this appender. If the callback or automatic
-    /// <see cref="IDuckDBAppenderRow.EndRow"/> fails, all previously completed rows are flushed,
-    /// the failed row is discarded, and the appender cannot be reused.
+    /// <see cref="IDuckDBAppenderRow.EndRow"/> fails, the failed row is discarded and no more rows
+    /// can be appended; the rows completed before the failure are still written when the appender
+    /// is closed or disposed. Wrap the append in a transaction if you need all-or-nothing.
+    /// <para>
+    /// For large or hot-path loads, prefer the
+    /// <see cref="AppendRow{TState}(TState, Action{IDuckDBAppenderRow, TState})"/> overload with a
+    /// <see langword="static"/> callback. A callback passed here that captures variables allocates a
+    /// closure on every call; passing the captured data as the <c>state</c> argument to that overload
+    /// keeps the append allocation-free.
+    /// </para>
     /// </remarks>
     public void AppendRow(Action<IDuckDBAppenderRow> writeRow)
     {
@@ -90,8 +98,14 @@ public class DuckDBAppender : IDisposable
     /// <see cref="IDuckDBAppenderRow.EndRow"/> after the callback returns.</param>
     /// <remarks>
     /// The callback must not call other methods on this appender. If the callback or automatic
-    /// <see cref="IDuckDBAppenderRow.EndRow"/> fails, all previously completed rows are flushed,
-    /// the failed row is discarded, and the appender cannot be reused.
+    /// <see cref="IDuckDBAppenderRow.EndRow"/> fails, the failed row is discarded and no more rows
+    /// can be appended; the rows completed before the failure are still written when the appender
+    /// is closed or disposed. Wrap the append in a transaction if you need all-or-nothing.
+    /// <para>
+    /// This overload is the allocation-free choice for hot paths: use a <see langword="static"/>
+    /// callback and pass any per-row data through <paramref name="state"/> so the callback captures
+    /// nothing and no closure is allocated per row.
+    /// </para>
     /// </remarks>
     public void AppendRow<TState>(TState state, Action<IDuckDBAppenderRow, TState> writeRow)
     {
@@ -107,21 +121,11 @@ public class DuckDBAppender : IDisposable
             writeRow(row, state);
             row.EndRow();
         }
-        catch (Exception appendException)
+        catch
         {
             if (row is not null)
             {
-                try
-                {
-                    FinalizeFailedAppendRow(row);
-                }
-                catch (Exception finalizationException)
-                {
-                    throw new AggregateException(
-                        "Appending the row failed and the previously completed rows could not be finalized",
-                        appendException,
-                        finalizationException);
-                }
+                DiscardFailedAppendRow(row);
             }
 
             throw;
@@ -184,7 +188,15 @@ public class DuckDBAppender : IDisposable
 
     public void Close()
     {
-        EnsureUsable();
+        // A faulted appender can still be closed so the rows completed before the failure are
+        // written; only further appends are rejected (see EnsureUsable).
+        EnsureNotAppendingRow();
+
+        if (closed)
+        {
+            throw new InvalidOperationException("Appender is already closed");
+        }
+
         CloseCore();
     }
 
@@ -262,14 +274,15 @@ public class DuckDBAppender : IDisposable
         NativeMethods.DataChunks.DuckDBDataChunkReset(dataChunk);
     }
 
-    private void FinalizeFailedAppendRow(DuckDBAppenderRow row)
+    private void DiscardFailedAppendRow(DuckDBAppenderRow row)
     {
-        // The row index is also the number of completed rows before the failed row in this chunk.
+        // The row index is also the number of completed rows before the failed row in this chunk,
+        // so resetting rowCount drops the partial row without touching the completed ones. The
+        // completed rows stay buffered and are written only when the caller closes or disposes the
+        // appender; the failure itself never commits.
         rowCount = row.ChunkRowIndex;
         row.Invalidate();
         isFaulted = true;
-
-        CloseCore();
     }
 
     private void EnsureNotAppendingRow()
