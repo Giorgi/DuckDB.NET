@@ -54,6 +54,12 @@ public class DuckDBAppender : IDisposable
     /// Creates an independent row. The caller must append every column and call
     /// <see cref="IDuckDBAppenderRow.EndRow"/>.
     /// </summary>
+    /// <remarks>
+    /// A new row instance is allocated on every call. Prefer
+    /// <see cref="AppendRow{TState}(TState, Action{IDuckDBAppenderRow, TState})"/>, which reuses a
+    /// single row instance and avoids the per-row allocation; use this method only when you need an
+    /// independent row instance whose lifetime you control.
+    /// </remarks>
     public IDuckDBAppenderRow CreateRow()
     {
         EnsureUsable();
