@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Description>DuckDB ADO.NET Provider for C#.</Description>
     <PackageReleaseNotes>
-- Updated to DuckDB v1.5.3
+- Updated to DuckDB v1.5.5
 
 New features:
 - Improved support for binding ICollection parameters (#326)
