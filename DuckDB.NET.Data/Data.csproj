@@ -6,10 +6,15 @@
 - Updated to DuckDB v1.5.5
 
 New features:
-- Improved support for binding ICollection parameters (#326)
+- Apache Arrow result streaming via DuckDBCommand.ExecuteArrowStream and ExecuteArrowBatchesAsync (#26)
+- New allocation-free DuckDBAppender.AppendRow API with reusable rows
+- Support for byte[] columns in DuckDBAppenderMap
 
 Fixes:
-- Fixed ObjectDisposedException in enum appender (#327)
+- Fixed IndexOutOfRangeException when accessing reader metadata after exhausting the result set (#332)
+
+Performance:
+- Reduced allocations in parameter binding and same-type object reads
     </PackageReleaseNotes>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
