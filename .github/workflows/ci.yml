@@ -70,6 +70,10 @@ jobs:
         CoverletOutputFormat: lcov
       run: dotnet test --configuration Release --verbosity normal --logger GitHubActions /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:BuildType=Full /p:DoesNotReturnAttribute="DoesNotReturnAttribute"
 
+    - name: Trust Coveralls Homebrew tap (Homebrew 6 requirement)
+      if: runner.os == 'macOS'
+      run: brew trust coverallsapp/coveralls
+
     - name: Upload coverage reports to Coveralls Parallel
       uses: coverallsapp/github-action@v2
       if: github.event_name != 'schedule'
