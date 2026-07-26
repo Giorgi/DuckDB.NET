@@ -6,8 +6,12 @@ jobs:
   publish:
     name: Publish Packages
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write # enable GitHub OIDC token issuance for trusted publishing
+      actions: read
+      contents: read
     steps:
-    
+
     - name: Download Artifacts
       uses: dawidd6/action-download-artifact@v21
       with:
@@ -20,5 +24,11 @@ jobs:
     - name: Display structure of downloaded files
       run: ls -R
 
+    - name: NuGet login (OIDC → temp API key)
+      uses: NuGet/login@v1
+      id: login
+      with:
+        user: Giorgi
+
     - name: Push package to NuGet.org
-      run: dotnet nuget push "**/*.nupkg" -k ${{ secrets.NUGET }}  -s https://api.nuget.org/v3/index.json
+      run: dotnet nuget push "**/*.nupkg" -k ${{ steps.login.outputs.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json
