@@ -73,7 +73,6 @@ jobs:
     - name: Trust Coveralls Homebrew tap (Homebrew 6 requirement)
       if: runner.os == 'macOS'
       run: brew trust coverallsapp/coveralls
-    - uses: coverallsapp/github-action@v2
 
     - name: Upload coverage reports to Coveralls Parallel
       uses: coverallsapp/github-action@v2
