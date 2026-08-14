@@ -365,6 +365,28 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    public void RegisterTableFunctionSimplifiedRecursiveCte()
+    {
+        // Regression test for https://github.com/Giorgi/DuckDB.NET/issues/348
+        // A recursive CTE re-initializes the table function scan on every iteration
+        // without re-binding, so each scan must enumerate the data from the beginning.
+        Connection.RegisterTableFunction("ext_recursive",
+            () => GetEmployees(5),
+            e => new { e.Id });
+
+        var data = Connection.Query<int>("""
+            WITH RECURSIVE r AS (
+                SELECT 1 AS x
+                UNION ALL
+                SELECT n.Id FROM r JOIN ext_recursive() n ON n.Id = r.x + 1
+            )
+            SELECT x FROM r ORDER BY x;
+            """).ToList();
+
+        data.Should().Equal(1, 2, 3, 4, 5);
+    }
+
+    [Fact]
     public void RegisterTableFunctionProjection_FactoryThrows_InnerExceptionPreserved()
     {
         var originalException = new NotSupportedException("custom factory error");
