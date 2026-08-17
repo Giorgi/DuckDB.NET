@@ -54,6 +54,32 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
+    public void ReadMapWithWiderValueTypeUsesCompatibleFallback()
+    {
+        Command.CommandText = "SELECT MAP { 'key1': 1, 'key2': 5, 'key3': 7 }";
+        var reader = Command.ExecuteReader();
+
+        reader.Read();
+        var value = reader.GetFieldValue<Dictionary<string, object>>(0);
+
+        var expectation = new Dictionary<string, object>() { { "key1", 1 }, { "key2", 5 }, { "key3", 7 } };
+        value.Should().BeEquivalentTo(expectation);
+    }
+
+    [Fact]
+    public void ReadMapIntoDerivedDictionaryUsesCompatibleFallback()
+    {
+        Command.CommandText = "SELECT MAP { 'key1': 1, 'key2': 5, 'key3': 7 }";
+        var reader = Command.ExecuteReader();
+
+        reader.Read();
+        var value = reader.GetFieldValue<CustomDictionary<string, int>>(0);
+
+        var expectation = new Dictionary<string, int>() { { "key1", 1 }, { "key2", 5 }, { "key3", 7 } };
+        value.Should().BeEquivalentTo(expectation);
+    }
+
+    [Fact]
     public void ReadMapWithNullInNullableDictionary()
     {
         Command.CommandText = "SELECT MAP { 'key1': 1, 'key2': NULL, 'key3': 7 }";
@@ -146,5 +172,9 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
         {
             return string.Join(",", obj).GetHashCode();
         }
+    }
+
+    private sealed class CustomDictionary<TKey, TValue> : Dictionary<TKey, TValue> where TKey : notnull
+    {
     }
 }
