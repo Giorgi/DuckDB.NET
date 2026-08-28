@@ -62,6 +62,10 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBBindHugeInt(DuckDBPreparedStatement preparedStatement, long index, DuckDBHugeInt val);
 
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_decimal")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBState DuckDBBindDecimal(DuckDBPreparedStatement preparedStatement, long index, DuckDBDecimal val);
+
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_uint8")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBBindUInt8(DuckDBPreparedStatement preparedStatement, long index, byte val);
@@ -97,6 +101,14 @@ public partial class NativeMethods
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_timestamp")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBBindTimestamp(DuckDBPreparedStatement preparedStatement, long index, DuckDBTimestampStruct val);
+
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_timestamp_tz")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBState DuckDBBindTimestampTz(DuckDBPreparedStatement preparedStatement, long index, DuckDBTimestampStruct val);
+
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_interval")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBState DuckDBBindInterval(DuckDBPreparedStatement preparedStatement, long index, DuckDBInterval val);
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_varchar", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
