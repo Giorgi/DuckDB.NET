@@ -44,7 +44,19 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
 
         var arguments = targetType.GetGenericArguments();
 
-        var allowsNullValues = arguments.Length == 2 && arguments[1].AllowsNullValue(out _, out _);
+        var keyTargetType = keyReader.ClrType;
+        var valueTargetType = valueReader.ClrType;
+        var allowsNullValues = false;
+
+        if (arguments.Length == 2)
+        {
+            // A Dictionary<..., object> expresses no element-type preference: keep the child's natural ClrType.
+            arguments[0].AllowsNullValue(out _, out var underlyingKeyType);
+            keyTargetType = underlyingKeyType ?? (arguments[0] == typeof(object) ? keyReader.ClrType : arguments[0]);
+
+            allowsNullValues = arguments[1].AllowsNullValue(out _, out var underlyingValueType);
+            valueTargetType = underlyingValueType ?? (arguments[1] == typeof(object) ? valueReader.ClrType : arguments[1]);
+        }
 
         var listData = (DuckDBListEntry*)DataPointer + offset;
 
@@ -52,8 +64,8 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
         {
             var childOffset = i + listData->Offset;
 
-            var key = keyReader.GetValue(childOffset);
-            var value = valueReader.IsValid(childOffset) ? valueReader.GetValue(childOffset) : null;
+            var key = keyReader.IsValid(childOffset) ? keyReader.GetValue(childOffset, keyTargetType) : null!;
+            var value = valueReader.IsValid(childOffset) ? valueReader.GetValue(childOffset, valueTargetType) : null;
 
             if (allowsNullValues || value != null)
             {

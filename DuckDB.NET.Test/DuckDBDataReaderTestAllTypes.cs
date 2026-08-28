@@ -275,25 +275,25 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadDecimal1()
     {
-        VerifyDataStruct("dec_4_1", 22, new List<decimal> { -999.9m, 999.9m });
+        VerifyDataStruct("dec_4_1", 22, new List<decimal> { -999.9m, 999.9m }, typeof(DuckDBDecimal));
     }
 
     [Fact]
     public void ReadDecimal2()
     {
-        VerifyDataStruct("dec_9_4", 23, new List<decimal> { -99999.9999m, 99999.9999m });
+        VerifyDataStruct("dec_9_4", 23, new List<decimal> { -99999.9999m, 99999.9999m }, typeof(DuckDBDecimal));
     }
 
     [Fact]
     public void ReadDecimal3()
     {
-        VerifyDataStruct("dec_18_6", 24, new List<decimal> { -999999999999.999999m, 999999999999.999999m });
+        VerifyDataStruct("dec_18_6", 24, new List<decimal> { -999999999999.999999m, 999999999999.999999m }, typeof(DuckDBDecimal));
     }
 
     [Fact]
     public void ReadDecimal4()
     {
-        VerifyDataStruct("dec38_10", 25, new List<decimal> { -9999999999999999999999999999.9999999999m, 9999999999999999999999999999.9999999999m });
+        VerifyDataStruct("dec38_10", 25, new List<decimal> { -9999999999999999999999999999.9999999999m, 9999999999999999999999999999.9999999999m }, typeof(DuckDBDecimal));
     }
 
     [Fact]

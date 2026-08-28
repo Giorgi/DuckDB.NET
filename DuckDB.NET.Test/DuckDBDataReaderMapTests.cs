@@ -54,6 +54,31 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
+    public void ReadMapAsObjectDictionary()
+    {
+        Command.CommandText = "SELECT MAP { 'key1': 1, 'key2': 5, 'key3': 7 }";
+        var reader = Command.ExecuteReader();
+
+        reader.Read();
+        var value = reader.GetFieldValue<Dictionary<string, object>>(0);
+
+        var expectation = new Dictionary<string, object>() { { "key1", 1 }, { "key2", 5 }, { "key3", 7 } };
+        value.Should().BeEquivalentTo(expectation);
+    }
+
+    [Fact]
+    public void ReadMapOfTimestampsAsProviderSpecificValue()
+    {
+        Command.CommandText = "SELECT MAP { 'key1': TIMESTAMP '2024-05-05 12:00:30' }";
+        var reader = Command.ExecuteReader();
+
+        reader.Read();
+        var value = reader.GetProviderSpecificValue(0).Should().BeOfType<Dictionary<string, DuckDBTimestamp>>().Subject;
+
+        value["key1"].ToDateTime().Should().Be(new DateTime(2024, 5, 5, 12, 0, 30));
+    }
+
+    [Fact]
     public void ReadMapWithNullInNullableDictionary()
     {
         Command.CommandText = "SELECT MAP { 'key1': 1, 'key2': NULL, 'key3': 7 }";

@@ -252,4 +252,136 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
             result.Should().BeOfType<bool>().Subject.Should().Be(expectedResult);
         }
     }
+
+    [Theory]
+    // One case per internal storage type: SmallInt, Integer, BigInt, HugeInt
+    [InlineData("SELECT 1234::DECIMAL(4, 0)", "1234")]
+    [InlineData("SELECT -123456789::DECIMAL(9, 0)", "-123456789")]
+    [InlineData("SELECT 123456789012345678::DECIMAL(18, 0)", "123456789012345678")]
+    [InlineData("SELECT '99999999999999999999999999999999999999'::DECIMAL(38, 0)", "99999999999999999999999999999999999999")]
+    [InlineData("SELECT '-99999999999999999999999999999999999999'::DECIMAL(38, 0)", "-99999999999999999999999999999999999999")]
+    // Scale > 0 converts when the fractional part is zero
+    [InlineData("SELECT 123.00::DECIMAL(38, 2)", "123")]
+    [InlineData("SELECT -42.000::DECIMAL(9, 3)", "-42")]
+    [InlineData("SELECT '0'::DECIMAL(38, 38)", "0")]
+    public void ReadDecimalAsBigInteger(string query, string expected)
+    {
+        Command.CommandText = query;
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetFieldValue<BigInteger>(0).Should().Be(BigInteger.Parse(expected));
+        reader.GetFieldValue<BigInteger?>(0).Should().Be(BigInteger.Parse(expected));
+    }
+
+    [Theory]
+    [InlineData("SELECT 123.45::DECIMAL(38, 2)")]
+    [InlineData("SELECT 1.5::DECIMAL(4, 2)")]
+    public void ReadDecimalWithFractionalPartAsBigIntegerThrows(string query)
+    {
+        Command.CommandText = query;
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.Invoking(r => r.GetFieldValue<BigInteger>(0)).Should().Throw<InvalidCastException>();
+    }
+
+    [Fact]
+    public void ReadWideDecimalAsDecimalThrowsOverflow()
+    {
+        Command.CommandText = "SELECT '99999999999999999999999999999999999999'::DECIMAL(38, 0)";
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.Invoking(r => r.GetDecimal(0)).Should().Throw<OverflowException>();
+        reader.Invoking(r => r.GetValue(0)).Should().Throw<OverflowException>();
+
+        reader.GetFieldValue<BigInteger>(0).Should().Be(BigInteger.Parse("99999999999999999999999999999999999999"));
+    }
+
+    [Theory]
+    // One case per internal storage type: SmallInt, Integer, BigInt, HugeInt
+    [InlineData("SELECT 9.9::DECIMAL(2, 1)", 2, 1, "99")]
+    [InlineData("SELECT -12345.6789::DECIMAL(9, 4)", 9, 4, "-123456789")]
+    [InlineData("SELECT 123456789012.345678::DECIMAL(18, 6)", 18, 6, "123456789012345678")]
+    [InlineData("SELECT -123456789012.345678::DECIMAL(18, 6)", 18, 6, "-123456789012345678")]
+    [InlineData("SELECT '-99999999999999999999999999999999999.999'::DECIMAL(38, 3)", 38, 3, "-99999999999999999999999999999999999999")]
+    // Scale above decimal's 28-digit limit (bigIntRemainderShift regime)
+    [InlineData("SELECT '-0.99999999999999999999999999999999999999'::DECIMAL(38, 38)", 38, 38, "-99999999999999999999999999999999999999")]
+    public void ReadDecimalAsDuckDBDecimal(string query, int width, int scale, string unscaledValue)
+    {
+        Command.CommandText = query;
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetProviderSpecificFieldType(0).Should().Be(typeof(DuckDBDecimal));
+
+        var value = reader.GetFieldValue<DuckDBDecimal>(0);
+        value.Width.Should().Be((byte)width);
+        value.Scale.Should().Be((byte)scale);
+        value.Value.ToBigInteger().Should().Be(BigInteger.Parse(unscaledValue));
+
+        reader.GetProviderSpecificValue(0).Should().Be(value);
+    }
+
+    [Fact]
+    public void ReadDecimalJustAboveDecimalMaxValueThrowsOverflow()
+    {
+        // Quotient is exactly decimal.MaxValue; adding the 0.5 fraction rounds up and overflows.
+        Command.CommandText = "SELECT '79228162514264337593543950335.5'::DECIMAL(38, 1)";
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.Invoking(r => r.GetDecimal(0)).Should().Throw<OverflowException>();
+        reader.GetFieldValue<DuckDBDecimal>(0).Value.ToBigInteger().Should().Be(BigInteger.Parse("792281625142643375935439503355"));
+    }
+
+    [Fact]
+    public void ReadMapOfDecimalValues()
+    {
+        Command.CommandText = "SELECT MAP {'a': 1.5::DECIMAL(4, 2), 'b': 2.25::DECIMAL(4, 2)}";
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetValue(0).Should().BeOfType<Dictionary<string, decimal>>()
+              .Subject.Should().BeEquivalentTo(new Dictionary<string, decimal> { ["a"] = 1.5m, ["b"] = 2.25m });
+
+        var providerValue = reader.GetProviderSpecificValue(0).Should().BeOfType<Dictionary<string, DuckDBDecimal>>().Subject;
+        providerValue["a"].Scale.Should().Be(2);
+        providerValue["a"].Value.ToBigInteger().Should().Be(150);
+        providerValue["b"].Value.ToBigInteger().Should().Be(225);
+    }
+
+    [Fact]
+    public void ReadListOfDecimalValues()
+    {
+        Command.CommandText = "SELECT [1.5::DECIMAL(4, 2), 2.25::DECIMAL(4, 2)]";
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetValue(0).Should().BeOfType<List<decimal>>().Subject.Should().Equal(1.5m, 2.25m);
+
+        var providerValue = reader.GetProviderSpecificValue(0).Should().BeOfType<List<DuckDBDecimal>>().Subject;
+        providerValue.Select(v => v.Value.ToBigInteger()).Should().Equal(new BigInteger(150), new BigInteger(225));
+    }
+
+    [Fact]
+    public void ReadNullDecimalAsBigIntegerAndDuckDBDecimal()
+    {
+        Command.CommandText = "SELECT NULL::DECIMAL(38, 0)";
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetFieldValue<BigInteger?>(0).Should().BeNull();
+        reader.GetFieldValue<DuckDBDecimal?>(0).Should().BeNull();
+        reader.GetProviderSpecificValue(0).Should().Be(DBNull.Value);
+    }
 }
