@@ -214,6 +214,11 @@ public class DuckDBDataReader : DbDataReader
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override T GetFieldValue<T>(int ordinal)
     {
+        if (typeof(T) == typeof(object))
+        {
+            return (T)GetValue(ordinal);
+        }
+
         CheckRowRead();
 
         return vectorReaders[ordinal].GetValueStrict<T>(rowsReadFromCurrentChunk - 1);

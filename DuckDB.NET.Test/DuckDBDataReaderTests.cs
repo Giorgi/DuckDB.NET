@@ -4,6 +4,42 @@ namespace DuckDB.NET.Test;
 
 public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
+    [Theory]
+    [InlineData("SELECT 1")]
+    [InlineData("SELECT 1::HUGEINT")]
+    [InlineData("SELECT 'a'")]
+    [InlineData("SELECT 1.5::DECIMAL(4, 2)")]
+    [InlineData("SELECT TIMESTAMP '2024-05-05 12:00:30'")]
+    [InlineData("SELECT DATE '2024-05-05'")]
+    [InlineData("SELECT true")]
+    [InlineData("SELECT uuid()")]
+    [InlineData("SELECT 'a'::ENUM('a', 'b')")]
+    [InlineData("SELECT {'x': 1}")]
+    [InlineData("SELECT [1, 2]")]
+    [InlineData("SELECT MAP {'k': 1}")]
+    public void GetFieldValueOfObjectMatchesGetValue(string query)
+    {
+        Command.CommandText = query;
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        var expected = reader.GetValue(0);
+        var value = reader.GetFieldValue<object>(0);
+
+        value.Should().BeOfType(expected.GetType());
+        value.Should().BeEquivalentTo(expected);
+    }
+
+    [Fact]
+    public void GetFieldValueOfObjectReturnsDBNullForNull()
+    {
+        Command.CommandText = "SELECT NULL::INTEGER";
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetFieldValue<object>(0).Should().Be(DBNull.Value);
+    }
+
     [Fact]
     public void GetOrdinalReturnsColumnIndex()
     {
