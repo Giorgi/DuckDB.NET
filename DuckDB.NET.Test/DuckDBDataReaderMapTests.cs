@@ -54,16 +54,14 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
-    public void ReadMapAsObjectDictionary()
+    public void ReadMapAsObjectDictionaryIsNotSupported()
     {
         Command.CommandText = "SELECT MAP { 'key1': 1, 'key2': 5, 'key3': 7 }";
         var reader = Command.ExecuteReader();
 
         reader.Read();
-        var value = reader.GetFieldValue<Dictionary<string, object>>(0);
-
-        var expectation = new Dictionary<string, object>() { { "key1", 1 }, { "key2", 5 }, { "key3", 7 } };
-        value.Should().BeEquivalentTo(expectation);
+        reader.Invoking(r => r.GetFieldValue<Dictionary<string, object>>(0)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetFieldValue<Dictionary<object, int>>(0)).Should().Throw<InvalidCastException>();
     }
 
     [Fact]

@@ -50,12 +50,16 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
 
         if (arguments.Length == 2)
         {
-            // A Dictionary<..., object> expresses no element-type preference: keep the child's natural ClrType.
+            if (arguments[0] == typeof(object) || arguments[1] == typeof(object))
+            {
+                throw new InvalidCastException($"Cannot read Map column {ColumnName} as a dictionary with object keys or values. Use a dictionary with concrete key and value types, or GetValue().");
+            }
+
             arguments[0].AllowsNullValue(out _, out var underlyingKeyType);
-            keyTargetType = underlyingKeyType ?? (arguments[0] == typeof(object) ? keyReader.ClrType : arguments[0]);
+            keyTargetType = underlyingKeyType ?? arguments[0];
 
             allowsNullValues = arguments[1].AllowsNullValue(out _, out var underlyingValueType);
-            valueTargetType = underlyingValueType ?? (arguments[1] == typeof(object) ? valueReader.ClrType : arguments[1]);
+            valueTargetType = underlyingValueType ?? arguments[1];
         }
 
         var listData = (DuckDBListEntry*)DataPointer + offset;

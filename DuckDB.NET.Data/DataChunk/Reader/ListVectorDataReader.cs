@@ -47,7 +47,17 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
 
     private object GetList(Type returnType, ulong listOffset, ulong length)
     {
+        if (!returnType.IsGenericType)
+        {
+            throw new InvalidCastException($"Cannot read column {ColumnName} as {returnType.Name}. Use a generic list with a concrete element type, or GetValue().");
+        }
+
         var listType = returnType.GetGenericArguments()[0];
+
+        if (listType == typeof(object))
+        {
+            throw new InvalidCastException($"Cannot read column {ColumnName} as a list of object. Use a list with a concrete element type, or GetValue().");
+        }
 
         var allowNulls = listType.AllowsNullValue(out _, out var nullableType);
 
