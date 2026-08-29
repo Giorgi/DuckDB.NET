@@ -3,6 +3,19 @@
 public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
+    public void PreSizesListResults()
+    {
+        Command.CommandText = "SELECT range(17)::INTEGER[];";
+        using var reader = Command.ExecuteReader();
+
+        reader.Read();
+        var list = reader.GetFieldValue<List<int>>(0);
+
+        list.Should().HaveCount(17);
+        list.Capacity.Should().Be(17);
+    }
+
+    [Fact]
     public void ReadListOfIntegers()
     {
         Command.CommandText = "SELECT [1, 2, 3];";
