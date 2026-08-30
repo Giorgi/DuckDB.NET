@@ -68,6 +68,12 @@ private static void PrintQueryResults(DbDataReader queryResult)
 }
 ```
 
+### Parameters
+
+A `DuckDBParameter` binds to a named statement parameter through its `ParameterName`. The name can
+carry the `$` prefix, the comparison is case-sensitive, and a declared parameter that no
+`DuckDBParameter` supplies throws an `InvalidOperationException`.
+
 ### MotherDuck
 
 To connect to [MotherDuck](https://motherduck.com):

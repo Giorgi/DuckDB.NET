@@ -105,14 +105,19 @@ internal sealed class PreparedStatement : IDisposable
 
         if (hasNamedParameters)
         {
-            for (var i = 0; i < count; i++)
+            // A named statement declares its parameters densely at indices 1..duckdb_nparams and
+            // every declared name is non-empty, so a miss is a missing value, never a gap.
+            for (long index = 1; index <= expectedParameters; index++)
             {
-                var param = parameterCollection[i];
-                var state = NativeMethods.PreparedStatements.DuckDBBindParameterIndex(preparedStatement, out var index, param.ParameterName);
-                if (state.IsSuccess())
+                var name = NativeMethods.PreparedStatements.DuckDBParameterName(preparedStatement, index);
+
+                var match = IndexOfParameter(parameterCollection, name);
+                if (match < 0)
                 {
-                    BindParameter(preparedStatement, index, param);
+                    throw new InvalidOperationException($"No value supplied for parameter '{name}'.");
                 }
+
+                BindParameter(preparedStatement, index, parameterCollection[match]);
             }
         }
         else
@@ -124,6 +129,36 @@ internal sealed class PreparedStatement : IDisposable
             }
         }
     }
+
+    private static int IndexOfParameter(DuckDBParameterCollection parameters, string name)
+    {
+        // A quoted parameter name may itself start with '$', so the exact pass must cover the
+        // whole collection before any prefix is stripped.
+        for (var i = 0; i < parameters.Count; i++)
+        {
+            if (string.Equals(parameters[i].ParameterName, name, StringComparison.Ordinal))
+            {
+                return i;
+            }
+        }
+
+        for (var i = 0; i < parameters.Count; i++)
+        {
+            if (MatchesWithoutPrefix(parameters[i].ParameterName, name))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    // '$' is the only prefix DuckDB can produce. '@' parses as the unary absolute-value operator,
+    // so no declared name can ever come from it: SELECT @foo binds abs(foo), a column reference.
+    private static bool MatchesWithoutPrefix(string? parameterName, string name)
+        => parameterName is { Length: > 1 }
+           && parameterName[0] is '$'
+           && parameterName.AsSpan(1).SequenceEqual(name);
 
     private static void BindParameter(DuckDBPreparedStatement preparedStatement, long index, DuckDBParameter parameter)
     {
