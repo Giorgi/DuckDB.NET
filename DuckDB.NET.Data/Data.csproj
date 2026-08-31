@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Description>DuckDB ADO.NET Provider for C#.</Description>
     <PackageReleaseNotes>
-- Updated to DuckDB v1.5.5
+- Updated to DuckDB v$(DuckDbVersion)
 
 New features:
 - Apache Arrow result streaming via DuckDBCommand.ExecuteArrowStream and ExecuteArrowBatchesAsync (#26)

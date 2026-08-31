@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Description>DuckDB Bindings for C#.</Description>
     <PackageReleaseNotes>
-- Updated to DuckDB v1.5.5
+- Updated to DuckDB v$(DuckDbVersion)
 
 New features:
 - Added bindings for the Arrow C Data Interface (duckdb_to_arrow_schema, duckdb_data_chunk_to_arrow, duckdb_result_get_arrow_options)
@@ -11,7 +11,7 @@ New features:
     </PackageReleaseNotes>
     <RootNamespace>DuckDB.NET.Native</RootNamespace>
     <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx</RuntimeIdentifiers>
-    <DuckDbArtifactRoot Condition=" '$(DuckDbArtifactRoot)' == '' ">https://github.com/duckdb/duckdb/releases/download/v1.5.5</DuckDbArtifactRoot>
+    <DuckDbArtifactRoot Condition=" '$(DuckDbArtifactRoot)' == '' ">https://github.com/duckdb/duckdb/releases/download/v$(DuckDbVersion)</DuckDbArtifactRoot>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -23,7 +23,16 @@ New features:
   </PropertyGroup>
   
   <!-- Download and include the native libraries into the NuGet package-->
-  <Target Name="DownloadNativeLibs" BeforeTargets="GenerateAdditionalSources" Condition="'$(BuildType)' == 'Full' AND '$(TargetFramework)' == '$([System.String]::Copy($(TargetFrameworks)).Split(%27;%27)[0])'">
+  <!-- Outer build only. The inner per-framework builds would otherwise race each other for the same
+       zip, and DispatchToInnerBuilds below makes the outer finish downloading before they start. -->
+  <PropertyGroup>
+    <!-- Only the Full package ships the engine, but every project that runs needs it beside the
+         assembly, so the copy is unconditional and only packing is gated. -->
+    <_PackDuckDbNatives Condition="'$(BuildType)' == 'Full' ">true</_PackDuckDbNatives>
+    <_PackDuckDbNatives Condition="'$(_PackDuckDbNatives)' == ''">false</_PackDuckDbNatives>
+  </PropertyGroup>
+
+  <Target Name="DownloadNativeLibs" Condition="'$(TargetFramework)' == '' ">
     <ItemGroup Condition="'$(NightlyBuild)' != 'true'">
       <_NativeLib Include="win-x64" LibUrl="$(DuckDbArtifactRoot)/libduckdb-windows-amd64.zip" />
       <_NativeLib Include="win-arm64" LibUrl="$(DuckDbArtifactRoot)/libduckdb-windows-arm64.zip" />
@@ -36,20 +45,29 @@ New features:
       <_NativeLib Include="linux-x64" LibUrl="$(DuckDbArtifactRoot)/duckdb-binaries-linux-amd64.zip" InnerZipName="libduckdb-linux-amd64.zip" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
       <_NativeLib Include="osx" LibUrl="$(DuckDbArtifactRoot)/duckdb-binaries-osx.zip" InnerZipName="libduckdb-osx-universal.zip" Condition="$([MSBuild]::IsOSPlatform('OSX'))" />
     </ItemGroup>
-    <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=%(_NativeLib.Identity);LibUrl=%(_NativeLib.LibUrl);InnerZipName=%(_NativeLib.InnerZipName)" />
+    <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=%(_NativeLib.Identity);LibUrl=%(_NativeLib.LibUrl);InnerZipName=%(_NativeLib.InnerZipName);DuckDbVersion=$(DuckDbVersion);DuckDbNativeRoot=$(DuckDbNativeRoot)" />
   </Target>
   <Target Name="CleanNativeLibs" BeforeTargets="Clean" Condition="'$(BuildType)' == 'Full' ">
-    <RemoveDir Directories="obj\runtimes" />
+    <RemoveDir Directories="$(DuckDbNativeRoot)" />
   </Target>
-  <ItemGroup Condition="'$(BuildType)' == 'Full' ">
-    <None Include="obj\runtimes\**\*.dll;obj\runtimes\**\*.so;obj\runtimes\**\*.dylib;">
+  <!-- Content, not None, and in the project body rather than a target: Content items flow across a
+       ProjectReference, so every consumer gets the engine from its reference alone. The glob works
+       here only because DuckDbNativeRoot sits outside obj, which DefaultItemExcludes would hide. -->
+  <ItemGroup>
+    <Content Include="$(DuckDbNativeRoot)**\*.dll;$(DuckDbNativeRoot)**\*.so;$(DuckDbNativeRoot)**\*.dylib">
       <Visible>false</Visible>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Pack>true</Pack>
+      <Pack>$(_PackDuckDbNatives)</Pack>
       <PackagePath>\runtimes</PackagePath>
-      <Link>runtimes\%(RecursiveDir)\%(FileName)%(Extension)</Link>
-    </None>
+      <Link>runtimes\%(RecursiveDir)%(FileName)%(Extension)</Link>
+    </Content>
   </ItemGroup>
+
+  <!-- Restore is the only phase before evaluation, and the glob above expands during evaluation.
+       NuGet runs this target once per project for a solution restore and a single-project restore
+       alike; the public Restore target only runs on the project the command names. -->
+  <Target Name="EnsureDuckDbNativeLibs" AfterTargets="_GenerateRestoreGraphProjectEntry"
+          DependsOnTargets="DownloadNativeLibs" />
   <ItemGroup Condition="'$(CI)' == 'true'">
     <PackageReference Include="GitVersion.MsBuild" Version="6.4.0" PrivateAssets="all" />
   </ItemGroup>
