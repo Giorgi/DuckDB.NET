@@ -166,9 +166,10 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
         Command.ExecuteNonQuery();
 
         Command.CommandText = queryStatement;
+        // Named entries matching nothing the statement declares now fail before execution.
         Command.Parameters.Add(new DuckDBParameter("param1", 42));
         Command.Parameters.Add(new DuckDBParameter("param2", "hello"));
-        Command.Invoking(cmd => cmd.ExecuteNonQuery()).Should().ThrowExactly<DuckDBException>();
+        Command.Invoking(cmd => cmd.ExecuteNonQuery()).Should().ThrowExactly<InvalidOperationException>();
 
         Command.Parameters.Clear();
         Command.Parameters.Add(new DuckDBParameter(42));

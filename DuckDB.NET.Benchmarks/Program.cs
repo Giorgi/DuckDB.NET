@@ -11,5 +11,5 @@ var config = DefaultConfig.Instance
     .AddJob(Job.Default.WithToolchain(InProcessEmitToolchain.Instance));
 
 BenchmarkSwitcher
-    .FromTypes([typeof(AppenderBenchmark), typeof(MappedAppenderBenchmark)])
+    .FromTypes([typeof(AppenderBenchmark), typeof(MappedAppenderBenchmark), typeof(ParameterBindingBenchmark)])
     .Run(args, config);

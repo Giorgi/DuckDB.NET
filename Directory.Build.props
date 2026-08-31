@@ -39,7 +39,12 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <BuildType>ManagedOnly</BuildType>
+    <BuildType Condition="'$(BuildType)' == ''">ManagedOnly</BuildType>
+    <DuckDbVersion Condition="'$(DuckDbVersion)' == ''">1.5.5</DuckDbVersion>
+    <!-- Outside obj, because the SDK puts obj\** in DefaultItemExcludes and an item glob under it
+         silently matches nothing. The version in the path makes the directory the cache key, so a
+         bump lands in a fresh folder and cannot pick up the previous engine. -->
+    <DuckDbNativeRoot Condition="'$(DuckDbNativeRoot)' == ''">$(MSBuildThisFileDirectory)artifacts\natives\$(DuckDbVersion)\</DuckDbNativeRoot>
     <NoNativeText>This package does not include a copy of the native DuckDB library.</NoNativeText>
   </PropertyGroup>
   <PropertyGroup Condition="'$(BuildType)' == 'Full' ">

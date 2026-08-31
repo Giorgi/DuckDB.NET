@@ -68,6 +68,12 @@ private static void PrintQueryResults(DbDataReader queryResult)
 }
 ```
 
+### Parameters
+
+A `DuckDBParameter` binds to a named statement parameter through its `ParameterName`. The name can
+carry the `$` prefix, the comparison is case-sensitive, and a declared parameter that no
+`DuckDBParameter` supplies throws an `InvalidOperationException`.
+
 ### MotherDuck
 
 To connect to [MotherDuck](https://motherduck.com):
@@ -79,6 +85,18 @@ using var duckDBConnection = new DuckDBConnection("DataSource=md:{your_database}
 ## DuckDB Extensions (C#)
 
 If you want to build DuckDB extensions with C#, see [Giorgi/DuckDB.ExtensionKit](https://github.com/Giorgi/DuckDB.ExtensionKit).
+
+## Updating the DuckDB version
+
+Set `DuckDbVersion` in `Directory.Build.props`:
+
+```xml
+<DuckDbVersion Condition="'$(DuckDbVersion)' == ''">1.5.5</DuckDbVersion>
+```
+
+That property drives the download URL, the staging path, the download cache, and the release notes in both packages. Build once and the new engine downloads.
+
+Each version is staged in its own folder under `artifacts/natives/`, so a previous version stays on disk and switching back downloads nothing. To try a version without editing the file, pass `-p:DuckDbVersion=1.4.1` to `dotnet build`.
 
 ## Known Issues
 

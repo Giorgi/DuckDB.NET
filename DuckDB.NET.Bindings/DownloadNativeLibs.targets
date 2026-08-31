@@ -1,47 +1,77 @@
-﻿<Project DefaultTargets="DownloadReleaseNatives;DownloadNightlyNatives">
+<Project DefaultTargets="DownloadNatives">
 
-  <!-- Release: download lib zip directly -->
-  <Target Name="DownloadReleaseNatives"
-          Condition="!Exists('$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native') AND '$(InnerZipName)' == ''">
-    <PropertyGroup>
-      <NativeZipPath>$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native.zip</NativeZipPath>
-    </PropertyGroup>
-    <MakeDir Directories="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native" />
-    <Delete Files="$(NativeZipPath)"
-            Condition="Exists('$(NativeZipPath)')"
-            ContinueOnError="true"/>
-    <DownloadFile
-            DestinationFolder="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)"
-            SourceUrl="$(LibUrl)"
-            Retries="5"
-            RetryDelayMilliseconds="1000"
-            DestinationFileName="native.zip"/>
-    <Unzip DestinationFolder="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native"
-           SourceFiles="$(NativeZipPath)"/>
-    <Delete Files="$(NativeZipPath)"/>
+  <PropertyGroup>
+    <RidDir>$(DuckDbNativeRoot)$(Rid)</RidDir>
+    <NativeDir>$(RidDir)\native</NativeDir>
+    <NativeZipPath>$(RidDir)\native.zip</NativeZipPath>
+    <TempExtractPath>$(RidDir)\temp</TempExtractPath>
+    <NativeInputsCacheFile>$(RidDir)\duckdb.inputs.cache</NativeInputsCacheFile>
+    <NativeDownloadCacheFile>$(RidDir)\duckdb.download.cache</NativeDownloadCacheFile>
+  </PropertyGroup>
+
+  <!-- This file is invoked as a project, not imported, and it carries no Sdk attribute, so it never
+       auto-imports Directory.Build.props. Every property below arrives from the caller, and an unset
+       DuckDbVersion would key the cache stamp on an empty string. -->
+  <Target Name="_ValidateNativeDownloadInputs">
+    <Error Text="Rid and LibUrl must be supplied by the caller."
+           Condition="'$(Rid)' == '' OR '$(LibUrl)' == ''" />
+    <Error Text="DuckDbVersion must be supplied by the caller so the cache stamp is keyed on a version."
+           Condition="('$(DuckDbVersion)' == '' OR '$(DuckDbNativeRoot)' == '') AND '$(InnerZipName)' == ''" />
   </Target>
 
-  <!-- Nightly: download outer zip, extract inner lib zip -->
-  <Target Name="DownloadNightlyNatives"
-          Condition="!Exists('$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native') AND '$(InnerZipName)' != ''">
-    <PropertyGroup>
-      <NativeZipPath>$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native.zip</NativeZipPath>
-      <TempExtractPath>$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\temp</TempExtractPath>
-    </PropertyGroup>
-    <MakeDir Directories="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native" />
-    <Delete Files="$(NativeZipPath)" Condition="Exists('$(NativeZipPath)')" ContinueOnError="true"/>
-    <DownloadFile
-            DestinationFolder="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)"
-            SourceUrl="$(LibUrl)"
-            Retries="5"
-            RetryDelayMilliseconds="1000"
-            DestinationFileName="native.zip"/>
-    <Unzip DestinationFolder="$(TempExtractPath)"
-           SourceFiles="$(NativeZipPath)"/>
-    <Unzip DestinationFolder="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native"
-           SourceFiles="$(TempExtractPath)\$(InnerZipName)"/>
-    <RemoveDir Directories="$(TempExtractPath)" />
-    <Delete Files="$(NativeZipPath)"/>
+  <!-- The URL carries the version, so writing it to a cache file makes a version change move that
+       file's timestamp and nothing else does. WriteOnlyWhenDifferent is what holds the timestamp
+       still when the version has not moved. This is how the SDK lets a value, rather than a source
+       file, drive incrementality: see CreateGeneratedAssemblyInfoInputsCacheFile in
+       Microsoft.NET.GenerateAssemblyInfo.targets. -->
+  <Target Name="_CreateNativeInputsCacheFile" DependsOnTargets="_ValidateNativeDownloadInputs">
+    <MakeDir Directories="$(RidDir)" />
+    <WriteLinesToFile Lines="$(LibUrl)"
+                      File="$(NativeInputsCacheFile)"
+                      Overwrite="true"
+                      WriteOnlyWhenDifferent="true" />
+  </Target>
+
+  <!-- A release artifact is a zip holding the library. A nightly artifact is a zip holding one
+       per-platform zip that holds the library, which is the only difference between the two. -->
+  <Target Name="DownloadNatives"
+          DependsOnTargets="_CreateNativeInputsCacheFile"
+          Inputs="$(NativeInputsCacheFile)"
+          Outputs="$(NativeDownloadCacheFile)">
+    <Delete Files="$(NativeZipPath)" Condition="Exists('$(NativeZipPath)')" ContinueOnError="true" />
+
+    <!-- Fetch before touching the installed payload. Clearing first would leave the build with no
+         native library at all whenever the download fails. -->
+    <DownloadFile DestinationFolder="$(RidDir)"
+                  SourceUrl="$(LibUrl)"
+                  Retries="5"
+                  RetryDelayMilliseconds="1000"
+                  DestinationFileName="native.zip" />
+
+    <!-- The archive is in hand, so the superseded payload can go. Unzipping over the old files
+         would keep whatever the new release no longer ships. -->
+    <RemoveDir Directories="$(NativeDir)" />
+    <MakeDir Directories="$(NativeDir)" />
+
+    <Unzip DestinationFolder="$(NativeDir)" SourceFiles="$(NativeZipPath)"
+           Condition="'$(InnerZipName)' == ''" />
+
+    <Unzip DestinationFolder="$(TempExtractPath)" SourceFiles="$(NativeZipPath)"
+           Condition="'$(InnerZipName)' != ''" />
+    <Unzip DestinationFolder="$(NativeDir)" SourceFiles="$(TempExtractPath)\$(InnerZipName)"
+           Condition="'$(InnerZipName)' != ''" />
+    <RemoveDir Directories="$(TempExtractPath)" Condition="'$(InnerZipName)' != ''" />
+
+    <Delete Files="$(NativeZipPath)" />
+
+    <!-- Written last. A failure anywhere above leaves this file absent or older than the inputs
+         cache, so the next build retries instead of treating a half-populated directory as a
+         complete one. -->
+    <WriteLinesToFile File="$(NativeDownloadCacheFile)" Lines="$(LibUrl)" Overwrite="true" />
+
+    <ItemGroup>
+      <FileWrites Include="$(NativeInputsCacheFile);$(NativeDownloadCacheFile)" />
+    </ItemGroup>
   </Target>
 
 </Project>

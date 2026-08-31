@@ -70,7 +70,18 @@ public class DuckDBParameterCollection : DbParameterCollection
     }
 
     public override int IndexOf(string parameterName)
-        => parameters.FindIndex(p => p.ParameterName.Equals(parameterName, StringComparison.Ordinal));
+    {
+        var exact = parameters.FindIndex(p => string.Equals(p.ParameterName, parameterName, StringComparison.Ordinal));
+
+        return exact >= 0
+            ? exact
+            : parameters.FindIndex(p => string.Equals(StripParameterPrefix(p.ParameterName), parameterName, StringComparison.Ordinal));
+    }
+
+    internal static string StripParameterPrefix(string? name)
+        => name is { Length: > 1 } && name[0] is '$'
+            ? name.Substring(1)
+            : name ?? string.Empty;
 
     public override bool Contains(string value)
         => IndexOf(value) != -1;

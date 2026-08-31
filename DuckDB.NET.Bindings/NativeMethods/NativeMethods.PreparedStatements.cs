@@ -26,6 +26,11 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial long DuckDBParams(DuckDBPreparedStatement preparedStatement);
 
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_parameter_name")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        [return: MarshalUsing(typeof(DuckDBCallerOwnedStringMarshaller))]
+        public static partial string DuckDBParameterName(DuckDBPreparedStatement preparedStatement, long index);
+
         // Maybe [SuppressGCTransition]: map insertion with small node allocation
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_value")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
