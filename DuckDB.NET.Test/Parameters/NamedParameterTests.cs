@@ -125,22 +125,13 @@ public class NamedParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             .Should().Equal(24, 42);
     }
 
-    [Fact] // EC11 — the defect being fixed: this used to bind nothing and report nothing
-    public void ThrowsWhenNoEntryMatchesADeclaredName()
+    [Theory]
+    [InlineData("other")] // EC11 — the defect being fixed: this used to bind nothing and report nothing
+    [InlineData("Name")]  // EC12 — the only candidate differs in case
+    public void ThrowsWhenNoEntryMatchesTheDeclaredNameExactly(string parameterName)
     {
         Command.CommandText = "SELECT $name::INT";
-        Command.Parameters.Add(new DuckDBParameter("other", 42));
-
-        Command.Invoking(command => command.ExecuteScalar())
-            .Should().Throw<InvalidOperationException>()
-            .WithMessage("*name*");
-    }
-
-    [Fact] // EC12
-    public void ThrowsWhenTheOnlyCandidateDiffersInCase()
-    {
-        Command.CommandText = "SELECT $name::INT";
-        Command.Parameters.Add(new DuckDBParameter("Name", 42));
+        Command.Parameters.Add(new DuckDBParameter(parameterName, 42));
 
         Command.Invoking(command => command.ExecuteScalar())
             .Should().Throw<InvalidOperationException>()
@@ -190,12 +181,15 @@ public class NamedParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Command.ExecuteScalar().Should().Be(42);
     }
 
-    [Fact]
-    public void IndexOfFindsAPrefixedEntryByItsBareName()
+    [Theory]
+    [InlineData("$id", "id", 0)]     // '$' is stripped before matching
+    [InlineData("@id", "id", -1)]    // '@' never is
+    [InlineData("$id", "other", -1)] // no candidate under either form
+    public void IndexOfMatchesABareNameOnlyAfterADollarIsStripped(string entryName, string lookupName, int expectedIndex)
     {
-        var parameters = new DuckDBParameterCollection { new DuckDBParameter("$id", 42) };
+        var parameters = new DuckDBParameterCollection { new DuckDBParameter(entryName, 42) };
 
-        parameters.IndexOf("id").Should().Be(0);
+        parameters.IndexOf(lookupName).Should().Be(expectedIndex);
     }
 
     [Fact]
@@ -208,22 +202,6 @@ public class NamedParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         };
 
         parameters.IndexOf("id").Should().Be(1);
-    }
-
-    [Fact]
-    public void IndexOfDoesNotFindAnAtPrefixedEntryByItsBareName()
-    {
-        var parameters = new DuckDBParameterCollection { new DuckDBParameter("@id", 42) };
-
-        parameters.IndexOf("id").Should().Be(-1);
-    }
-
-    [Fact]
-    public void IndexOfReturnsMinusOneWhenNeitherFormIsPresent()
-    {
-        var parameters = new DuckDBParameterCollection { new DuckDBParameter("$id", 42) };
-
-        parameters.IndexOf("other").Should().Be(-1);
     }
 
     // Contains, RemoveAt(string) and this[string] all resolve through IndexOf, so each inherits the
