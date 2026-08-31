@@ -1,5 +1,4 @@
 ﻿using System.Runtime.CompilerServices;
-using DuckDB.NET.Test.Helpers;
 
 #nullable enable
 namespace DuckDB.NET.Test;
@@ -8,7 +7,6 @@ public static class ModuleInit
     [ModuleInitializer]
     public static void Init()
     {
-        NativeLibraryHelper.TryLoad();
 
         AssertionOptions.AssertEquivalencyUsing(options => options.Using<DateTimeOffset>(new DateTimeOffsetTimeComparer()));
     }
