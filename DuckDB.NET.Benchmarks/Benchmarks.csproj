@@ -20,14 +20,4 @@
     <ProjectReference Include="..\DuckDB.NET.Bindings\Bindings.csproj" />
   </ItemGroup>
 
-  <!-- Copy the already-downloaded native DuckDB library into the benchmark output so it can be
-       loaded via runtimes/{rid}/native/. -->
-  <ItemGroup>
-    <None Include="..\DuckDB.NET.Bindings\obj\runtimes\**\*.dll;..\DuckDB.NET.Bindings\obj\runtimes\**\*.so;..\DuckDB.NET.Bindings\obj\runtimes\**\*.dylib;">
-      <Visible>false</Visible>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>runtimes\%(RecursiveDir)\%(FileName)%(Extension)</Link>
-    </None>
-  </ItemGroup>
-
 </Project>

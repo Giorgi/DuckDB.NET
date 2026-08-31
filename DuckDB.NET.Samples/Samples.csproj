@@ -9,10 +9,6 @@
   <PropertyGroup>
     <BuildType>Full</BuildType>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Compile Include="..\DuckDB.NET.Test\Helpers\NativeLibraryHelper.cs" Link="Helpers\NativeLibraryHelper.cs" />
-  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Dapper" Version="2.1.24" />
   </ItemGroup>

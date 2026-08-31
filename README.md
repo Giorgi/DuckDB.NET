@@ -80,6 +80,18 @@ using var duckDBConnection = new DuckDBConnection("DataSource=md:{your_database}
 
 If you want to build DuckDB extensions with C#, see [Giorgi/DuckDB.ExtensionKit](https://github.com/Giorgi/DuckDB.ExtensionKit).
 
+## Updating the DuckDB version
+
+Set `DuckDbVersion` in `Directory.Build.props`:
+
+```xml
+<DuckDbVersion Condition="'$(DuckDbVersion)' == ''">1.5.5</DuckDbVersion>
+```
+
+That property drives the download URL, the staging path, the download cache, and the release notes in both packages. Build once and the new engine downloads.
+
+Each version is staged in its own folder under `artifacts/natives/`, so a previous version stays on disk and switching back downloads nothing. To try a version without editing the file, pass `-p:DuckDbVersion=1.4.1` to `dotnet build`.
+
 ## Known Issues
 
 When debugging your project that uses DuckDB.NET library, you may get the following error: **System.AccessViolationException: Attempted to read or write protected memory. This is often an indication that other memory is corrupt**. The error happens due to debugger interaction with the native memory. For a workaround check out [Debugger Options mess up debugging session during Marshalling
