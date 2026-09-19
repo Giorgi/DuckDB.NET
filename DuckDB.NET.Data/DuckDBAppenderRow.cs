@@ -7,9 +7,11 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
     private int columnIndex = 0;
     private readonly string qualifiedTableName;
     private readonly VectorDataWriterBase[] vectorWriters;
-    private readonly ulong rowIndex;
+    private ulong rowIndex;
     private readonly DuckDBDataChunk dataChunk;
     private readonly Native.DuckDBAppender nativeAppender;
+
+    internal ulong ChunkRowIndex => rowIndex;
 
     internal DuckDBAppenderRow(string qualifiedTableName, VectorDataWriterBase[] vectorWriters,
                                ulong rowIndex, DuckDBDataChunk dataChunk, Native.DuckDBAppender nativeAppender)
@@ -19,6 +21,23 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
         this.rowIndex = rowIndex;
         this.dataChunk = dataChunk;
         this.nativeAppender = nativeAppender;
+    }
+
+    /// <summary>
+    /// Re-targets this row instance at a new row index so the appender can reuse a single
+    /// <see cref="DuckDBAppenderRow"/> instead of allocating one per row. The table name, vector
+    /// writers, data chunk and native appender are stable for the lifetime of the appender, so only
+    /// the row index and column cursor need to be reset.
+    /// </summary>
+    internal void Reset(ulong rowIndex)
+    {
+        this.rowIndex = rowIndex;
+        columnIndex = 0;
+    }
+
+    internal void Invalidate()
+    {
+        columnIndex = vectorWriters.Length;
     }
 
     public void EndRow()
@@ -135,7 +154,7 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
 
         if (state == DuckDBState.Error)
         {
-            DuckDBAppender.ThrowLastError(nativeAppender);
+            NativeMethods.Appender.DuckDBAppenderErrorData(nativeAppender).ThrowOnError();
         }
 
         columnIndex++;

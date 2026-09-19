@@ -1,4 +1,3 @@
-using System.Linq;
 using DuckDB.NET.Data.Connection;
 
 namespace DuckDB.NET.Data.PreparedStatement;
@@ -89,10 +88,26 @@ internal sealed class PreparedStatement : IDisposable
             throw new InvalidOperationException($"Invalid number of parameters. Expected {expectedParameters}, got {parameterCollection.Count}");
         }
 
-        if (parameterCollection.OfType<DuckDBParameter>().Any(p => !string.IsNullOrEmpty(p.ParameterName)))
+        // Index-based iteration over the typed collection avoids the per-execution allocations of
+        // OfType<>().Any(...) and of the boxed List enumerator that `foreach (DuckDBParameter ...)`
+        // over the non-generic collection would produce. BindParameters runs on every execution.
+        var count = parameterCollection.Count;
+
+        var hasNamedParameters = false;
+        for (var i = 0; i < count; i++)
         {
-            foreach (DuckDBParameter param in parameterCollection)
+            if (!string.IsNullOrEmpty(parameterCollection[i].ParameterName))
             {
+                hasNamedParameters = true;
+                break;
+            }
+        }
+
+        if (hasNamedParameters)
+        {
+            for (var i = 0; i < count; i++)
+            {
+                var param = parameterCollection[i];
                 var state = NativeMethods.PreparedStatements.DuckDBBindParameterIndex(preparedStatement, out var index, param.ParameterName);
                 if (state.IsSuccess())
                 {

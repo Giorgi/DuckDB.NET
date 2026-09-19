@@ -44,7 +44,23 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
 
         var arguments = targetType.GetGenericArguments();
 
-        var allowsNullValues = arguments.Length == 2 && arguments[1].AllowsNullValue(out _, out _);
+        var keyTargetType = keyReader.ClrType;
+        var valueTargetType = valueReader.ClrType;
+        var allowsNullValues = false;
+
+        if (arguments.Length == 2)
+        {
+            if (arguments[0] == typeof(object) || arguments[1] == typeof(object))
+            {
+                throw new InvalidCastException($"Cannot read Map column {ColumnName} as a dictionary with object keys or values. Use a dictionary with concrete key and value types, or GetValue().");
+            }
+
+            arguments[0].AllowsNullValue(out _, out var underlyingKeyType);
+            keyTargetType = underlyingKeyType ?? arguments[0];
+
+            allowsNullValues = arguments[1].AllowsNullValue(out _, out var underlyingValueType);
+            valueTargetType = underlyingValueType ?? arguments[1];
+        }
 
         var listData = (DuckDBListEntry*)DataPointer + offset;
 
@@ -52,8 +68,8 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
         {
             var childOffset = i + listData->Offset;
 
-            var key = keyReader.GetValue(childOffset);
-            var value = valueReader.IsValid(childOffset) ? valueReader.GetValue(childOffset) : null;
+            var key = keyReader.IsValid(childOffset) ? keyReader.GetValue(childOffset, keyTargetType) : null!;
+            var value = valueReader.IsValid(childOffset) ? valueReader.GetValue(childOffset, valueTargetType) : null;
 
             if (allowsNullValues || value != null)
             {

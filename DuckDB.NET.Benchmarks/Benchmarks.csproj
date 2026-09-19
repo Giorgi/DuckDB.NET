@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net10.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Optimize>true</Optimize>
+    <BuildType>Full</BuildType>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="0.15.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DuckDB.NET.Data\Data.csproj" />
+    <ProjectReference Include="..\DuckDB.NET.Bindings\Bindings.csproj" />
+  </ItemGroup>
+
+  <!-- Copy the already-downloaded native DuckDB library into the benchmark output so it can be
+       loaded via runtimes/{rid}/native/. -->
+  <ItemGroup>
+    <None Include="..\DuckDB.NET.Bindings\obj\runtimes\**\*.dll;..\DuckDB.NET.Bindings\obj\runtimes\**\*.so;..\DuckDB.NET.Bindings\obj\runtimes\**\*.dylib;">
+      <Visible>false</Visible>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>runtimes\%(RecursiveDir)\%(FileName)%(Extension)</Link>
+    </None>
+  </ItemGroup>
+
+</Project>

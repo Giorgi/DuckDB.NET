@@ -173,9 +173,7 @@ partial class DuckDBConnection
             }
 
             var connectionId = UdfExceptionStore.GetTableFunctionBindConnectionId(info);
-            // ReSharper disable once GenericEnumeratorNotDisposed This is disposed in TableFunctionBindData.Dispose
-            var eagerEnumerator = tableFunctionData.Data?.GetEnumerator();
-            var bindData = new TableFunctionBindData(tableFunctionData.Columns, eagerEnumerator, tableFunctionData.DataFactory, connectionId);
+            var bindData = new TableFunctionBindData(tableFunctionData.Columns, tableFunctionData.Data, tableFunctionData.DataFactory, connectionId);
 
             NativeMethods.TableFunction.DuckDBBindSetBindData(info, bindData.ToHandle(), &DestroyExtraInfo);
         }
@@ -227,7 +225,10 @@ partial class DuckDBConnection
                 projected[i] = (int)NativeMethods.TableFunction.DuckDBInitGetColumnIndex(info, (ulong)i);
             }
 
-            IEnumerator? factoryEnumerator = null;
+            // The enumerator must be created per init, not per bind: DuckDB re-initializes a scan
+            // without re-binding when it re-executes a pipeline (e.g. on every iteration of a
+            // recursive CTE), and each scan must enumerate the data from the beginning.
+            IEnumerator? enumerator;
             if (bindData.DataFactory is { } factory)
             {
                 var projectedColumns = new ProjectedColumn[count];
@@ -237,10 +238,15 @@ partial class DuckDBConnection
                     projectedColumns[i] = new ProjectedColumn(projected[i], column.Name, column.Type);
                 }
                 // ReSharper disable once GenericEnumeratorNotDisposed This is disposed in TableFunctionInitData.Dispose
-                factoryEnumerator = factory(projectedColumns).GetEnumerator();
+                enumerator = factory(projectedColumns).GetEnumerator();
+            }
+            else
+            {
+                // ReSharper disable once GenericEnumeratorNotDisposed This is disposed in TableFunctionInitData.Dispose
+                enumerator = bindData.Data?.GetEnumerator();
             }
 
-            var initData = new TableFunctionInitData(projected, factoryEnumerator);
+            var initData = new TableFunctionInitData(projected, enumerator);
             NativeMethods.TableFunction.DuckDBInitSetInitData(info, initData.ToHandle(), &DestroyExtraInfo);
         }
         catch (Exception ex)
@@ -299,8 +305,7 @@ partial class DuckDBConnection
                 writers[originalColumnIndex] = VectorDataWriterFactory.CreateWriter(vector, logicalTypes[columnIndex]);
             }
 
-            var enumerator = tableFunctionInitData.FactoryEnumerator ?? tableFunctionBindData.DataEnumerator;
-            if (enumerator is null)
+            if (tableFunctionInitData.Enumerator is null)
             {
                 throw new InvalidOperationException("User defined table function failed. No data source available");
             }
@@ -309,9 +314,9 @@ partial class DuckDBConnection
 
             for (; size < DuckDBGlobalData.VectorSize; size++)
             {
-                if (enumerator.MoveNext())
+                if (tableFunctionInitData.Enumerator.MoveNext())
                 {
-                    tableFunctionInfo.Mapper(enumerator.Current, writers, size);
+                    tableFunctionInfo.Mapper(tableFunctionInitData.Enumerator.Current, writers, size);
                 }
                 else
                 {

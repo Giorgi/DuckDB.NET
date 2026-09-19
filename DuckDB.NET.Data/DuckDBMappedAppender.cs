@@ -76,14 +76,14 @@ public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBAppe
             throw new ArgumentNullException(nameof(record));
         }
 
-        var row = appender.CreateRow();
-
-        foreach (var mapping in mappings)
+        // Pass both values as state so the callback does not capture per record.
+        appender.AppendRow((Record: record, Mappings: mappings), static (row, state) =>
         {
-            row = mapping.AppendToRow(row, record);
-        }
-
-        row.EndRow();
+            foreach (var mapping in state.Mappings)
+            {
+                mapping.AppendToRow(row, state.Record);
+            }
+        });
     }
 
     private static DuckDBType GetExpectedDuckDBType(Type type)

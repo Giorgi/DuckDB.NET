@@ -1,5 +1,4 @@
-﻿using DuckDB.NET.Data.Common;
-using DuckDB.NET.Data.DataChunk.Reader;
+﻿using DuckDB.NET.Data.DataChunk.Reader;
 using System.IO;
 using System.Runtime.CompilerServices;
 
@@ -215,6 +214,11 @@ public class DuckDBDataReader : DbDataReader
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override T GetFieldValue<T>(int ordinal)
     {
+        if (typeof(T) == typeof(object))
+        {
+            return (T)GetValue(ordinal);
+        }
+
         CheckRowRead();
 
         return vectorReaders[ordinal].GetValueStrict<T>(rowsReadFromCurrentChunk - 1);

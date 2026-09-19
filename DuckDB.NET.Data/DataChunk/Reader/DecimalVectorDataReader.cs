@@ -34,6 +34,16 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
             return base.GetValidValue<T>(offset);
         }
 
+        if (typeof(T) == typeof(BigInteger))
+        {
+            return (T)(object)GetBigInteger(offset);
+        }
+
+        if (typeof(T) == typeof(DuckDBDecimal))
+        {
+            return (T)(object)GetDuckDBDecimal(offset);
+        }
+
         var value = GetDecimal(offset);
         return (T)(object)value; //JIT will optimize the casts at least for not nullable T
     }
@@ -43,6 +53,16 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
         if (DuckDBType != DuckDBType.Decimal)
         {
             return base.GetValue(offset, targetType);
+        }
+
+        if (targetType == typeof(BigInteger))
+        {
+            return GetBigInteger(offset);
+        }
+
+        if (targetType == typeof(DuckDBDecimal))
+        {
+            return GetDuckDBDecimal(offset);
         }
 
         return GetDecimal(offset);
@@ -72,25 +92,78 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
                 {
                     var hugeInt = numericVectorDataReader.GetBigInteger(offset, false);
 
-                    var result = (decimal)BigInteger.DivRem(hugeInt, DecimalExtensions.BigIntPowersOfTen[Scale], out var remainder);
+                    var quotient = BigInteger.DivRem(hugeInt, DecimalExtensions.BigIntPowersOfTen[Scale], out var remainder);
 
-                    if (Scale <= DecimalExtensions.MaxDecimalScale)
+                    try
                     {
-                        result += decimal.Divide((decimal)remainder, DecimalExtensions.PowersOfTen[Scale]);
-                    }
-                    else
-                    {
-                        // Scale > 28: remainder can exceed decimal range.
-                        // Shift it down to fit, losing digits beyond decimal's 28-29 digit precision.
-                        var shiftedRemainder = remainder / bigIntRemainderShift;
-                        result += (decimal)shiftedRemainder / DecimalExtensions.PowersOfTen[DecimalExtensions.MaxDecimalScale];
-                    }
+                        var result = (decimal)quotient;
 
-                    return result;
+                        if (Scale <= DecimalExtensions.MaxDecimalScale)
+                        {
+                            result += decimal.Divide((decimal)remainder, DecimalExtensions.PowersOfTen[Scale]);
+                        }
+                        else
+                        {
+                            // Scale > 28: remainder can exceed decimal range.
+                            // Shift it down to fit, losing digits beyond decimal's 28-29 digit precision.
+                            var shiftedRemainder = remainder / bigIntRemainderShift;
+                            result += (decimal)shiftedRemainder / DecimalExtensions.PowersOfTen[DecimalExtensions.MaxDecimalScale];
+                        }
+
+                        return result;
+                    }
+                    catch (OverflowException exception)
+                    {
+                        throw new OverflowException($"Value in column {ColumnName} exceeds the range of System.Decimal. Use GetFieldValue<BigInteger>() or GetFieldValue<DuckDBDecimal>() to read it.", exception);
+                    }
                 }
-            default: throw new DuckDBException($"Invalid type {DuckDBType} ({(int)DuckDBType}) for column {ColumnName}");
+            default: throw new DuckDBException($"Invalid storage type {decimalType} ({(int)decimalType}) for decimal column {ColumnName}");
         }
     }
+
+    private BigInteger GetBigInteger(ulong offset)
+    {
+        var unscaledValue = GetUnscaledValue(offset);
+
+        if (Scale == 0)
+        {
+            return unscaledValue;
+        }
+
+        var quotient = BigInteger.DivRem(unscaledValue, DecimalExtensions.BigIntPowersOfTen[Scale], out var remainder);
+
+        if (!remainder.IsZero)
+        {
+            throw new InvalidCastException($"Cannot cast a value with a non-zero fractional part to {nameof(BigInteger)} in column {ColumnName}");
+        }
+
+        return quotient;
+    }
+
+    private DuckDBDecimal GetDuckDBDecimal(ulong offset)
+    {
+        var value = decimalType switch
+        {
+            DuckDBType.SmallInt => ToHugeInt(GetFieldData<short>(offset)),
+            DuckDBType.Integer => ToHugeInt(GetFieldData<int>(offset)),
+            DuckDBType.BigInt => ToHugeInt(GetFieldData<long>(offset)),
+            DuckDBType.HugeInt => GetFieldData<DuckDBHugeInt>(offset),
+            _ => throw new DuckDBException($"Invalid storage type {decimalType} ({(int)decimalType}) for decimal column {ColumnName}")
+        };
+
+        return new DuckDBDecimal(Precision, Scale, value);
+    }
+
+    private BigInteger GetUnscaledValue(ulong offset) => decimalType switch
+    {
+        DuckDBType.SmallInt => GetFieldData<short>(offset),
+        DuckDBType.Integer => GetFieldData<int>(offset),
+        DuckDBType.BigInt => GetFieldData<long>(offset),
+        DuckDBType.HugeInt => numericVectorDataReader.GetBigInteger(offset, false),
+        _ => throw new DuckDBException($"Invalid storage type {decimalType} ({(int)decimalType}) for decimal column {ColumnName}")
+    };
+
+    private static DuckDBHugeInt ToHugeInt(long value) => new(unchecked((ulong)value), value < 0 ? -1 : 0);
 
     internal override void Reset(IntPtr vector)
     {

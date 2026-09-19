@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using DuckDB.NET.Data.Common;
 using FluentAssertions.Common;
 
 namespace DuckDB.NET.Test;
@@ -483,23 +484,28 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    public void ClosedAdapterThrowException()
+    public void ClosedAppenderRejectsFurtherOperations()
     {
         var table = "CREATE TABLE managedAppenderClosedAdapterTest(a BOOLEAN, c Date, b TINYINT);";
         Command.CommandText = table;
         Command.ExecuteNonQuery();
 
-        Connection.Invoking(dbConnection =>
-        {
-            using var appender = dbConnection.CreateAppender("managedAppenderClosedAdapterTest");
-            appender.Close();
-            var row = appender.CreateRow();
-            row
-                .AppendValue(false)
-                .AppendValue((byte)1)
-                .AppendValue((short?)1)
-                .EndRow();
-        }).Should().Throw<InvalidOperationException>();
+        using var appender = Connection.CreateAppender("managedAppenderClosedAdapterTest");
+        appender.Close();
+
+        appender.Invoking(value => value.CreateRow())
+            .Should().Throw<InvalidOperationException>()
+            .WithMessage("Appender is already closed");
+        appender.Invoking(value => value.AppendRow(row => row.AppendValue(false).AppendNullValue().AppendNullValue()))
+            .Should().Throw<InvalidOperationException>()
+            .WithMessage("Appender is already closed");
+        appender.Invoking(value => value.Clear())
+            .Should().Throw<InvalidOperationException>()
+            .WithMessage("Appender is already closed");
+        appender.Invoking(value => value.Close())
+            .Should().Throw<InvalidOperationException>()
+            .WithMessage("Appender is already closed");
+        appender.Invoking(value => value.Dispose()).Should().NotThrow();
     }
 
     [Fact]
@@ -713,6 +719,327 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
 
         reader.GetInt32(0).Should().Be(4);
         reader.GetInt32(2).Should().Be(30);
+    }
+
+    [Fact]
+    public void CreateRowReturnsIndependentRows()
+    {
+        Command.CommandText = "CREATE TABLE managedAppenderRowLifetime(a INTEGER, b INTEGER)";
+        Command.ExecuteNonQuery();
+
+        using (var appender = Connection.CreateAppender("managedAppenderRowLifetime"))
+        {
+            var completed = appender.CreateRow();
+            completed.AppendValue((int?)10).AppendValue((int?)11).EndRow();
+
+            var current = appender.CreateRow();
+
+            completed.Should().NotBeSameAs(current);
+            completed.Invoking(row => row.AppendValue((int?)99)).Should().Throw<IndexOutOfRangeException>();
+            current.AppendValue((int?)20).AppendValue((int?)21).EndRow();
+        }
+
+        Command.CommandText = "SELECT a, b FROM managedAppenderRowLifetime ORDER BY a";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+        reader.GetInt32(0).Should().Be(10);
+        reader.GetInt32(1).Should().Be(11);
+        reader.Read().Should().BeTrue();
+        reader.GetInt32(0).Should().Be(20);
+        reader.GetInt32(1).Should().Be(21);
+        reader.Read().Should().BeFalse();
+    }
+
+    [Fact]
+    public void AppendRowStateOverloadWritesRows()
+    {
+        Command.CommandText = "CREATE TABLE managedAppenderScopedRow(a INTEGER, b VARCHAR)";
+        Command.ExecuteNonQuery();
+
+        using (var appender = Connection.CreateAppender("managedAppenderScopedRow"))
+        {
+            for (var i = 0; i < 3; i++)
+            {
+                appender.AppendRow((Id: i, Name: $"row-{i}"), static (row, value) =>
+                {
+                    row.AppendValue(value.Id).AppendValue(value.Name);
+                });
+            }
+        }
+
+        Command.CommandText = "SELECT a, b FROM managedAppenderScopedRow ORDER BY a";
+        using var reader = Command.ExecuteReader();
+        for (var i = 0; i < 3; i++)
+        {
+            reader.Read().Should().BeTrue();
+            reader.GetInt32(0).Should().Be(i);
+            reader.GetString(1).Should().Be($"row-{i}");
+        }
+
+        reader.Read().Should().BeFalse();
+    }
+
+    [Fact]
+    public void AppendRowActionOverloadWritesCompleteRow()
+    {
+        Command.CommandText = "CREATE TABLE managedAppenderActionRow(a INTEGER, b VARCHAR)";
+        Command.ExecuteNonQuery();
+
+        using (var appender = Connection.CreateAppender("managedAppenderActionRow"))
+        {
+            appender.AppendRow(row => row.AppendValue((int?)42).AppendValue("answer"));
+        }
+
+        Command.CommandText = "SELECT a, b FROM managedAppenderActionRow";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+        reader.GetInt32(0).Should().Be(42);
+        reader.GetString(1).Should().Be("answer");
+        reader.Read().Should().BeFalse();
+    }
+
+    [Fact]
+    public void AppendRowActionOverloadRejectsNullCallback()
+    {
+        Command.CommandText = "CREATE TABLE managedAppenderNullAction(a INTEGER)";
+        Command.ExecuteNonQuery();
+
+        using var appender = Connection.CreateAppender("managedAppenderNullAction");
+        appender.Invoking(value => value.AppendRow((Action<IDuckDBAppenderRow>)null!))
+            .Should().Throw<ArgumentNullException>()
+            .WithParameterName("writeRow");
+    }
+
+    [Fact]
+    public void AppendRowStateOverloadRejectsNullCallback()
+    {
+        Command.CommandText = "CREATE TABLE managedAppenderNullStateAction(a INTEGER)";
+        Command.ExecuteNonQuery();
+
+        using var appender = Connection.CreateAppender("managedAppenderNullStateAction");
+        appender.Invoking(value => value.AppendRow(1, (Action<IDuckDBAppenderRow, int>)null!))
+            .Should().Throw<ArgumentNullException>()
+            .WithParameterName("writeRow");
+    }
+
+    [Fact]
+    public void IncompleteAppendRowDiscardsFailedRowAndFaultsAppender()
+    {
+        Command.CommandText = "CREATE TABLE managedAppenderIncompleteScopedRow(a INTEGER, b INTEGER)";
+        Command.ExecuteNonQuery();
+
+        using (var appender = Connection.CreateAppender("managedAppenderIncompleteScopedRow"))
+        {
+            appender.Invoking(value => value.AppendRow(1, static (row, state) => row.AppendValue(state)))
+                .Should().Throw<InvalidOperationException>()
+                .WithMessage("*specified only 1 values");
+
+            appender.Invoking(value => value.AppendRow((2, 3), static (row, state) =>
+                    row.AppendValue(state.Item1).AppendValue(state.Item2)))
+                .Should().Throw<InvalidOperationException>()
+                .WithMessage("*cannot be reused*");
+        }
+
+        Command.CommandText = "SELECT a, b FROM managedAppenderIncompleteScopedRow";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeFalse();
+    }
+
+    [Fact]
+    public void AppendRowFailureDiscardsFailedRowAndCommitsCompletedRowsOnClose()
+    {
+        Command.CommandText = "CREATE TABLE managedAppenderThrownScopedRow(a INTEGER, b INTEGER[])";
+        Command.ExecuteNonQuery();
+
+        IDuckDBAppenderRow failedRow = null!;
+
+        using (var appender = Connection.CreateAppender("managedAppenderThrownScopedRow"))
+        {
+            appender.AppendRow(row => row.AppendValue((int?)1).AppendValue(new[] { 1, 2 }));
+
+            appender.Invoking(value => value.AppendRow(row =>
+                {
+                    failedRow = row;
+                    row.AppendValue((int?)2).AppendValue(new[] { 3, 4 });
+                    throw new InvalidOperationException("callback failed");
+                }))
+                .Should().Throw<InvalidOperationException>()
+                .WithMessage("callback failed");
+
+            failedRow.Should().NotBeNull();
+            failedRow.Invoking(row => row.AppendValue((int?)99)).Should().Throw<IndexOutOfRangeException>();
+
+            appender.Invoking(value => value.AppendRow(row => row.AppendValue((int?)3).AppendValue(new[] { 5, 6 })))
+                .Should().Throw<InvalidOperationException>()
+                .WithMessage("*cannot be reused*");
+
+            appender.Invoking(value => value.CreateRow())
+                .Should().Throw<InvalidOperationException>()
+                .WithMessage("*cannot be reused*");
+
+            appender.Invoking(value => value.Clear())
+                .Should().Throw<InvalidOperationException>()
+                .WithMessage("*cannot be reused*");
+
+            // Close is still allowed on a faulted appender: it commits the rows completed before
+            // the failure (the failed row was discarded).
+            appender.Invoking(value => value.Close()).Should().NotThrow();
+        }
+
+        Command.CommandText = "SELECT a, b FROM managedAppenderThrownScopedRow ORDER BY a";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+        reader.GetInt32(0).Should().Be(1);
+        reader.GetFieldValue<List<int>>(1).Should().Equal(1, 2);
+        reader.Read().Should().BeFalse();
+    }
+
+    [Fact]
+    public void AppendRowFailureSurfacesCompletedRowCommitErrorAtClose()
+    {
+        Command.CommandText = "CREATE TABLE managedAppenderFailedFinalization(a INTEGER UNIQUE)";
+        Command.ExecuteNonQuery();
+        Command.CommandText = "INSERT INTO managedAppenderFailedFinalization VALUES (1)";
+        Command.ExecuteNonQuery();
+
+        using var appender = Connection.CreateAppender("managedAppenderFailedFinalization");
+
+        // This completed row duplicates the existing key; it stays buffered (uncommitted).
+        appender.AppendRow(row => row.AppendValue((int?)1));
+
+        // The failing row is dropped and the appender faults. The callback exception propagates
+        // on its own - the failure itself does not commit anything.
+        appender.Invoking(value => value.AppendRow(row =>
+            {
+                row.AppendValue((int?)2);
+                throw new InvalidOperationException("callback failed");
+            }))
+            .Should().Throw<InvalidOperationException>()
+            .WithMessage("callback failed");
+
+        // Committing the completed row happens at Close, and that is where the constraint
+        // violation surfaces.
+        appender.Invoking(value => value.Close())
+            .Should().Throw<DuckDBException>()
+            .Which.ErrorType.Should().Be(DuckDBErrorType.Constraint);
+
+        // Close already tore the appender down, so the using-block dispose is a no-op.
+        appender.Invoking(value => value.Dispose()).Should().NotThrow();
+
+        Command.CommandText = "SELECT count(*) FROM managedAppenderFailedFinalization";
+        Command.ExecuteScalar().Should().Be(1);
+    }
+
+    [Fact]
+    public void AppendRowFailureFlushesCompletedRowsAcrossDataChunks()
+    {
+        Command.CommandText = "CREATE TABLE managedAppenderFailedAcrossChunks(a INTEGER)";
+        Command.ExecuteNonQuery();
+
+        var completedRowCount = checked((int)DuckDBGlobalData.VectorSize + 3);
+
+        using (var appender = Connection.CreateAppender("managedAppenderFailedAcrossChunks"))
+        {
+            for (var i = 0; i < completedRowCount; i++)
+            {
+                appender.AppendRow(i, static (row, value) => row.AppendValue(value));
+            }
+
+            appender.Invoking(value => value.AppendRow(completedRowCount, static (row, failedValue) =>
+                {
+                    row.AppendValue(failedValue);
+                    throw new InvalidOperationException("callback failed");
+                }))
+                .Should().Throw<InvalidOperationException>()
+                .WithMessage("callback failed");
+        }
+
+        Command.CommandText = """
+                              SELECT count(*)::BIGINT, min(a), max(a), sum(a)::BIGINT
+                              FROM managedAppenderFailedAcrossChunks
+                              """;
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+        reader.GetInt64(0).Should().Be(completedRowCount);
+        reader.GetInt32(1).Should().Be(0);
+        reader.GetInt32(2).Should().Be(completedRowCount - 1);
+        reader.GetInt64(3).Should().Be((long)(completedRowCount - 1) * completedRowCount / 2);
+    }
+
+    [Fact]
+    public void AppendRowFailureLeavesCompletedRowsInCallerTransaction()
+    {
+        Command.CommandText = "CREATE TABLE managedAppenderFailedTransaction(a INTEGER)";
+        Command.ExecuteNonQuery();
+
+        using (var transaction = Connection.BeginTransaction())
+        {
+            using (var appender = Connection.CreateAppender("managedAppenderFailedTransaction"))
+            {
+                appender.AppendRow(row => row.AppendValue((int?)1));
+
+                appender.Invoking(value => value.AppendRow(row =>
+                    {
+                        row.AppendValue((int?)2);
+                        throw new InvalidOperationException("callback failed");
+                    }))
+                    .Should().Throw<InvalidOperationException>()
+                    .WithMessage("callback failed");
+            }
+
+            Command.CommandText = "SELECT count(*) FROM managedAppenderFailedTransaction";
+            Command.ExecuteScalar().Should().Be(1);
+
+            transaction.Rollback();
+        }
+
+        Command.CommandText = "SELECT count(*) FROM managedAppenderFailedTransaction";
+        Command.ExecuteScalar().Should().Be(0);
+    }
+
+    [Fact]
+    public void AppendRowWritesListValue()
+    {
+        Command.CommandText = "CREATE TABLE managedAppenderScopedListRow(a INTEGER, b INTEGER[])";
+        Command.ExecuteNonQuery();
+
+        using (var appender = Connection.CreateAppender("managedAppenderScopedListRow"))
+        {
+            appender.AppendRow(row => row.AppendValue((int?)1).AppendValue(new[] { 1, 2 }));
+        }
+
+        Command.CommandText = "SELECT a, b FROM managedAppenderScopedListRow";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+        reader.GetInt32(0).Should().Be(1);
+        reader.GetFieldValue<List<int>>(1).Should().Equal(1, 2);
+        reader.Read().Should().BeFalse();
+    }
+
+    [Fact]
+    public void AppendRowRejectsReentrantAppenderUseAndFaultsAppender()
+    {
+        Command.CommandText = "CREATE TABLE managedAppenderReentrantScopedRow(a INTEGER)";
+        Command.ExecuteNonQuery();
+
+        using (var appender = Connection.CreateAppender("managedAppenderReentrantScopedRow"))
+        {
+            appender.Invoking(value => value.AppendRow(row =>
+                {
+                    row.AppendValue((int?)1);
+                    value.AppendRow(nested => nested.AppendValue((int?)2));
+                }))
+                .Should().Throw<InvalidOperationException>()
+                .WithMessage("*inside an AppendRow callback");
+
+            appender.Invoking(value => value.AppendRow(row => row.AppendValue((int?)3)))
+                .Should().Throw<InvalidOperationException>()
+                .WithMessage("*cannot be reused*");
+        }
+
+        Command.CommandText = "SELECT a FROM managedAppenderReentrantScopedRow";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeFalse();
     }
 
     [Fact]

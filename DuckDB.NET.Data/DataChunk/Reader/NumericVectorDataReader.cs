@@ -71,6 +71,15 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
             _ => base.GetValue(offset, targetType)
         };
 
+        // Fast path: when the boxed value already has the requested type (the common case for
+        // GetValue(ordinal)/this[ordinal], which read using the column's natural ClrType), skip the
+        // Convert.ChangeType machinery entirely. ChangeType does not early-out on same-type for
+        // IConvertible values — it re-boxes via ToXxx() — so this also removes a redundant box.
+        if (value.GetType() == targetType)
+        {
+            return value;
+        }
+
         if (targetType.IsNumeric())
         {
             try

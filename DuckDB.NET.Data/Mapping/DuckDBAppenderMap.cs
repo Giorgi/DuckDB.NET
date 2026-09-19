@@ -68,7 +68,7 @@ internal interface IPropertyMapping<T>
 {
     Type PropertyType { get; }
     PropertyMappingType MappingType { get; }
-    IDuckDBAppenderRow AppendToRow(IDuckDBAppenderRow row, T record);
+    void AppendToRow(IDuckDBAppenderRow row, T record);
 }
 
 internal sealed class PropertyMapping<T, TProperty> : IPropertyMapping<T>
@@ -77,16 +77,17 @@ internal sealed class PropertyMapping<T, TProperty> : IPropertyMapping<T>
     public Func<T, TProperty> Getter { get; set; } = _ => default!;
     public PropertyMappingType MappingType { get; set; }
 
-    public IDuckDBAppenderRow AppendToRow(IDuckDBAppenderRow row, T record)
+    public void AppendToRow(IDuckDBAppenderRow row, T record)
     {
         var value = Getter(record);
 
         if (value is null)
         {
-            return row.AppendNullValue();
+            row.AppendNullValue();
+            return;
         }
 
-        return value switch
+        _ = value switch
         {
             // Reference types
             string v => row.AppendValue(v),
@@ -125,9 +126,9 @@ internal sealed class DefaultValueMapping<T> : IPropertyMapping<T>
     public Type PropertyType { get; set; } = typeof(object);
     public PropertyMappingType MappingType { get; set; }
 
-    public IDuckDBAppenderRow AppendToRow(IDuckDBAppenderRow row, T record)
+    public void AppendToRow(IDuckDBAppenderRow row, T record)
     {
-        return row.AppendDefault();
+        row.AppendDefault();
     }
 }
 
@@ -136,8 +137,8 @@ internal sealed class NullValueMapping<T> : IPropertyMapping<T>
     public Type PropertyType { get; set; } = typeof(object);
     public PropertyMappingType MappingType { get; set; }
 
-    public IDuckDBAppenderRow AppendToRow(IDuckDBAppenderRow row, T record)
+    public void AppendToRow(IDuckDBAppenderRow row, T record)
     {
-        return row.AppendNullValue();
+        row.AppendNullValue();
     }
 }

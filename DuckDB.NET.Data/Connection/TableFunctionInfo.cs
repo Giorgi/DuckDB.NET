@@ -11,26 +11,21 @@ class TableFunctionInfo(Func<IReadOnlyList<IDuckDBValueReader>, IReadOnlyDiction
 
 record NamedParameterDefinition(string Name, Type Type);
 
-class TableFunctionBindData(IReadOnlyList<ColumnInfo> columns, IEnumerator? dataEnumerator, Func<IReadOnlyList<ProjectedColumn>, IEnumerable>? dataFactory, ulong connectionId) : IDisposable
+class TableFunctionBindData(IReadOnlyList<ColumnInfo> columns, IEnumerable? data, Func<IReadOnlyList<ProjectedColumn>, IEnumerable>? dataFactory, ulong connectionId)
 {
     public IReadOnlyList<ColumnInfo> Columns { get; } = columns;
-    public IEnumerator? DataEnumerator { get; } = dataEnumerator;
+    public IEnumerable? Data { get; } = data;
     public Func<IReadOnlyList<ProjectedColumn>, IEnumerable>? DataFactory { get; } = dataFactory;
     public ulong ConnectionId { get; } = connectionId;
-
-    public void Dispose()
-    {
-        (DataEnumerator as IDisposable)?.Dispose();
-    }
 }
 
-class TableFunctionInitData(int[] projected, IEnumerator? factoryEnumerator) : IDisposable
+class TableFunctionInitData(int[] projected, IEnumerator? enumerator) : IDisposable
 {
     public int[] Projected { get; } = projected;
-    public IEnumerator? FactoryEnumerator { get; } = factoryEnumerator;
+    public IEnumerator? Enumerator { get; } = enumerator;
 
     public void Dispose()
     {
-        (FactoryEnumerator as IDisposable)?.Dispose();
+        (Enumerator as IDisposable)?.Dispose();
     }
 }

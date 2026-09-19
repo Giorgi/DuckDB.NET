@@ -23,11 +23,9 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBLogicalType DuckDBAppenderColumnType(DuckDBAppender appender, ulong index);
 
-        [SuppressGCTransition]
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_appender_error")]
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_appender_error_data")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        [return: MarshalUsing(typeof(DuckDBOwnedStringMarshaller))]
-        public static partial string DuckDBAppenderError(DuckDBAppender appender);
+        public static partial DuckDBErrorData DuckDBAppenderErrorData(DuckDBAppender appender);
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_appender_flush")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
