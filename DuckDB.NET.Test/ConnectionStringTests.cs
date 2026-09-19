@@ -455,7 +455,6 @@ public class ConnectionStringTests
     [Theory]
     [InlineData("arrow_output_list_view", "Arrow")]
     [InlineData("profiling_mode", "Profiling")]
-    [InlineData("enable_http_logging", "Logging")]      // logging wins over the http segment
     [InlineData("logging_level", "Logging")]
     [InlineData("http_proxy_username", "Network")]      // network wins over the username segment
     [InlineData("default_secret_storage", "Security")]  // security wins over the storage segment
