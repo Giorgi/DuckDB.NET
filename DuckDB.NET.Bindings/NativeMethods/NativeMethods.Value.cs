@@ -61,6 +61,11 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBValue DuckDBCreateUHugeInt(DuckDBUHugeInt value);
 
+        // Maybe [SuppressGCTransition]: new Value + data copy — bounded by input size
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_bignum")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateBignum(DuckDBBignum value);
+
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_decimal")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBValue DuckDBCreateDecimal(DuckDBDecimal value);

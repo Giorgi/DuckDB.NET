@@ -72,6 +72,7 @@ internal static class ClrToDuckDBConverter
 
             (DuckDBType.Decimal, decimal value) => DecimalToDuckDBValue(value),
             (DuckDBType.HugeInt, BigInteger value) => NativeMethods.Value.DuckDBCreateHugeInt(new DuckDBHugeInt(value)),
+            (DuckDBType.VarInt, BigInteger value) => BigIntegerToDuckDBValue(value),
 
             (DuckDBType.Varchar, string value) => NativeMethods.Value.DuckDBCreateVarchar(value),
             (DuckDBType.Uuid, Guid value) => NativeMethods.Value.DuckDBCreateUuid(value.ToHugeInt(false)),
@@ -157,6 +158,20 @@ internal static class ClrToDuckDBConverter
         }
 
         return values;
+    }
+
+    private static unsafe DuckDBValue BigIntegerToDuckDBValue(BigInteger value)
+    {
+        // A BIGNUM is built from the magnitude bytes and a sign, which keeps values of any size exact.
+        // Going through HUGEINT instead would cap the value at 128 bits.
+        var isNegative = value.Sign < 0;
+        var magnitude = isNegative ? -value : value;
+        var bytes = magnitude.ToByteArray(isUnsigned: true, isBigEndian: true);
+
+        fixed (byte* data = bytes)
+        {
+            return NativeMethods.Value.DuckDBCreateBignum(new DuckDBBignum((IntPtr)data, (ulong)bytes.Length, isNegative ? (byte)1 : (byte)0));
+        }
     }
 
     private static DuckDBValue DecimalToDuckDBValue(decimal value)

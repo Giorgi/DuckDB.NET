@@ -164,6 +164,49 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
         TestSimple<BigInteger>("VARINT", expectedValue, r => r.GetFieldValue<BigInteger>(0));
     }
 
+    [Theory]
+    [InlineData("170141183460469231731687303715884105728")]    // 2^127, one past HUGEINT
+    [InlineData("1361129467683753853853498429727072845824")]   // 2^130
+    [InlineData("-1361129467683753853853498429727072845824")]
+    public void VarintParameterBeyondHugeIntTest(string value)
+    {
+        var expectedValue = BigInteger.Parse(value);
+
+        Command.CommandText = "CREATE TABLE varint_parameter_test (a VARINT);";
+        Command.ExecuteNonQuery();
+
+        try
+        {
+            Command.CommandText = "INSERT INTO varint_parameter_test (a) VALUES (?);";
+            Command.Parameters.Add(new DuckDBParameter(expectedValue));
+            Command.ExecuteNonQuery();
+            Command.Parameters.Clear();
+
+            Command.CommandText = "SELECT a FROM varint_parameter_test;";
+            Command.ExecuteScalar().Should().Be(expectedValue);
+        }
+        finally
+        {
+            Command.Parameters.Clear();
+            Command.CommandText = "DROP TABLE varint_parameter_test;";
+            Command.ExecuteNonQuery();
+        }
+    }
+
+    [Theory]
+    [InlineData("72057594037927936")]                          // 2^56
+    [InlineData("72057594037927937")]
+    [InlineData("-72057594037927936")]
+    [InlineData("1329227995784915872903807060280344576")]      // 2^120
+    [InlineData("-1329227995784915872903807060280344577")]
+    public void VarintParameterAroundDuckDBCastBugTest(string value)
+    {
+        // DuckDB drops the top byte when it casts an integer to VARINT around 2^56 and 2^120
+        // (SELECT 72057594037927936::BIGINT::VARINT returns 0). Binding the value as a VARINT
+        // avoids that cast, so these must survive even on engines that still have the bug.
+        VarintParameterBeyondHugeIntTest(value);
+    }
+
     public static IEnumerable<object[]> GetBigIntegers()
     {
         for (int i = 0; i < 1024 * 1 + 10; i++)
