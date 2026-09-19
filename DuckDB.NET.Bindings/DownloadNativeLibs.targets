@@ -2,7 +2,7 @@
 
   <!-- Release: download lib zip directly -->
   <Target Name="DownloadReleaseNatives"
-          Condition="!Exists('$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native') AND '$(InnerZipName)' == ''">
+          Condition="!Exists('$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native') AND '$(NightlyBuild)' != 'true'">
     <PropertyGroup>
       <NativeZipPath>$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native.zip</NativeZipPath>
     </PropertyGroup>
@@ -21,27 +21,24 @@
     <Delete Files="$(NativeZipPath)"/>
   </Target>
 
-  <!-- Nightly: download outer zip, extract inner lib zip -->
+  <!-- Nightly: download shared-libs tarball, extract it -->
   <Target Name="DownloadNightlyNatives"
-          Condition="!Exists('$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native') AND '$(InnerZipName)' != ''">
+          Condition="!Exists('$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native') AND '$(NightlyBuild)' == 'true'">
     <PropertyGroup>
-      <NativeZipPath>$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native.zip</NativeZipPath>
-      <TempExtractPath>$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\temp</TempExtractPath>
+      <RidDirectory>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', 'obj', 'runtimes', '$(Rid)'))</RidDirectory>
+      <NativeTarPath>$(RidDirectory)native.tar.gz</NativeTarPath>
     </PropertyGroup>
-    <MakeDir Directories="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native" />
-    <Delete Files="$(NativeZipPath)" Condition="Exists('$(NativeZipPath)')" ContinueOnError="true"/>
+    <MakeDir Directories="$(RidDirectory)native" />
+    <Delete Files="$(NativeTarPath)" Condition="Exists('$(NativeTarPath)')" ContinueOnError="true"/>
     <DownloadFile
-            DestinationFolder="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)"
+            DestinationFolder="$(RidDirectory)"
             SourceUrl="$(LibUrl)"
             Retries="5"
             RetryDelayMilliseconds="1000"
-            DestinationFileName="native.zip"/>
-    <Unzip DestinationFolder="$(TempExtractPath)"
-           SourceFiles="$(NativeZipPath)"/>
-    <Unzip DestinationFolder="$(MSBuildProjectDirectory)\obj\runtimes\$(Rid)\native"
-           SourceFiles="$(TempExtractPath)\$(InnerZipName)"/>
-    <RemoveDir Directories="$(TempExtractPath)" />
-    <Delete Files="$(NativeZipPath)"/>
+            DestinationFileName="native.tar.gz"/>
+    <!-- Relative paths: GNU tar (e.g. Git for Windows) reads "C:\..." as a remote host -->
+    <Exec Command="tar -xzf native.tar.gz -C native" WorkingDirectory="$(RidDirectory)" />
+    <Delete Files="$(NativeTarPath)"/>
   </Target>
 
 </Project>

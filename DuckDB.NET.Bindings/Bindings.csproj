@@ -32,11 +32,11 @@ New features:
       <_NativeLib Include="osx" LibUrl="$(DuckDbArtifactRoot)/libduckdb-osx-universal.zip" />
     </ItemGroup>
     <ItemGroup Condition="'$(NightlyBuild)' == 'true'">
-      <_NativeLib Include="win-x64" LibUrl="$(DuckDbArtifactRoot)/duckdb-binaries-windows.zip" InnerZipName="libduckdb-windows-amd64.zip" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
-      <_NativeLib Include="linux-x64" LibUrl="$(DuckDbArtifactRoot)/duckdb-binaries-linux-amd64.zip" InnerZipName="libduckdb-linux-amd64.zip" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
-      <_NativeLib Include="osx" LibUrl="$(DuckDbArtifactRoot)/duckdb-binaries-osx.zip" InnerZipName="libduckdb-osx-universal.zip" Condition="$([MSBuild]::IsOSPlatform('OSX'))" />
+      <_NativeLib Include="win-x64" LibUrl="$(DuckDbArtifactRoot)/duckdb-shared-libs-windows-amd64.tar.gz" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
+      <_NativeLib Include="linux-x64" LibUrl="$(DuckDbArtifactRoot)/duckdb-shared-libs-linux-amd64.tar.gz" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
+      <_NativeLib Include="osx" LibUrl="$(DuckDbArtifactRoot)/duckdb-shared-libs-osx-universal.tar.gz" Condition="$([MSBuild]::IsOSPlatform('OSX'))" />
     </ItemGroup>
-    <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=%(_NativeLib.Identity);LibUrl=%(_NativeLib.LibUrl);InnerZipName=%(_NativeLib.InnerZipName)" />
+    <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=%(_NativeLib.Identity);LibUrl=%(_NativeLib.LibUrl);NightlyBuild=$(NightlyBuild)" />
   </Target>
   <Target Name="CleanNativeLibs" BeforeTargets="Clean" Condition="'$(BuildType)' == 'Full' ">
     <RemoveDir Directories="obj\runtimes" />
