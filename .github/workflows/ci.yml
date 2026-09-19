@@ -65,7 +65,24 @@ jobs:
         dotnet pack DuckDB.NET.Bindings/Bindings.csproj   --configuration Release /p:BuildType=Full
         dotnet pack DuckDB.NET.Data/Data.csproj  --configuration Release /p:BuildType=Full
 
-    - name: Run tests
+    - name: Get DuckDB version
+      shell: pwsh
+      run: |
+        $rid = @{ Linux = 'linux-x64'; Windows = 'win-x64'; macOS = 'osx' }['${{ runner.os }}']
+        $library = Get-ChildItem "DuckDB.NET.Bindings/obj/runtimes/$rid/native/*" -Include *.so, *.dll, *.dylib | Select-Object -First 1
+        Add-Type -TypeDefinition @"
+        using System;
+        using System.Runtime.InteropServices;
+        public static class DuckDBLibrary
+        {
+            [DllImport(@"$($library.FullName)")]
+            private static extern IntPtr duckdb_library_version();
+            public static string Version => Marshal.PtrToStringUTF8(duckdb_library_version());
+        }
+        "@
+        "DuckDBVersion=$([DuckDBLibrary]::Version)" >> $env:GITHUB_ENV
+
+    - name: Run tests (DuckDB ${{ env.DuckDBVersion }})
       env:
         CoverletOutputFormat: lcov
       run: dotnet test --configuration Release --verbosity normal --logger GitHubActions /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:BuildType=Full /p:DoesNotReturnAttribute="DoesNotReturnAttribute"
