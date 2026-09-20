@@ -166,32 +166,45 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
 
     public static IEnumerable<object[]> GetBigIntegers()
     {
-        for (int i = 0; i < 1024 * 1 + 10; i++)
+        // A set, because xUnit skips theory rows with duplicate arguments
+        var values = new HashSet<BigInteger>
         {
-            yield return new object[] { new BigInteger(i) };
-            yield return new object[] { new BigInteger(-i) };
+            // https://github.com/duckdb/duckdb/issues/13239
+            BigInteger.Parse("85070591730234614260976917445211069672")
+        };
 
-            yield return new object[] { new BigInteger(int.MaxValue - i) };
-            yield return new object[] { new BigInteger(int.MaxValue + i) };
+        // Both sides of the int and long limits. The arithmetic is done in BigInteger so it does not wrap around.
+        for (int i = 0; i < 64; i++)
+        {
+            values.Add(i);
+            values.Add(-i);
 
-            yield return new object[] { new BigInteger(int.MinValue + i) };
-            yield return new object[] { new BigInteger(int.MinValue - i) };
+            foreach (BigInteger limit in new long[] { int.MaxValue, int.MinValue, long.MaxValue, long.MinValue })
+            {
+                values.Add(limit - i);
+                values.Add(limit + i);
+            }
+        }
 
-            yield return new object[] { new BigInteger(long.MaxValue - i) };
-            yield return new object[] { new BigInteger(long.MaxValue + i) };
+        // Every point where the value needs one more bit, which includes every point where a VARINT needs one more byte
+        for (int bits = 0; bits <= 256; bits++)
+        {
+            var power = BigInteger.Pow(2, bits);
 
-            yield return new object[] { new BigInteger(long.MinValue + i) };
-            yield return new object[] { new BigInteger(long.MinValue - i) };
+            foreach (var value in new[] { power - 1, power, power + 1 })
+            {
+                values.Add(value);
+                values.Add(-value);
+            }
         }
 
         var faker = new Faker();
         var left = Enumerable.Range(0, 50).Select(i => faker.Random.Long(long.MaxValue - 100)).ToList();
         var right = Enumerable.Range(0, 50).Select(i => faker.Random.Long(long.MaxValue - 100)).ToList();
 
-        foreach (var bigInteger in left.Zip(right, (l, r) => new BigInteger(l) * new BigInteger(r)))
-        {
-            yield return new object[] { bigInteger };
-        }
+        values.UnionWith(left.Zip(right, (l, r) => new BigInteger(l) * new BigInteger(r)));
+
+        return values.Select(value => new object[] { value });
     }
 
     [Fact]
