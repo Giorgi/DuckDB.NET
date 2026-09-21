@@ -4,6 +4,8 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
 {
     private readonly ulong arraySize;
     private readonly VectorDataReaderBase listDataReader;
+    private Type? cachedListType;
+    private IListFactory? cachedListFactory;
 
     public bool IsList => DuckDBType == DuckDBType.List;
 
@@ -61,8 +63,7 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
 
         var allowNulls = listType.AllowsNullValue(out _, out var nullableType);
 
-        var list = Activator.CreateInstance(returnType) as IList
-                   ?? throw new ArgumentException($"The type '{returnType.Name}' specified in parameter {nameof(returnType)} cannot be instantiated as an IList.");
+        var list = CreateList(returnType, length);
 
         //Special case for specific types to avoid boxing
         return list switch
@@ -115,6 +116,31 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
         }
     }
 
+    private IList CreateList(Type returnType, ulong length)
+    {
+        if (returnType != cachedListType)
+        {
+            cachedListType = returnType;
+            cachedListFactory = returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(List<>)
+                ? CreateListFactory(returnType)
+                : null;
+        }
+
+        if (cachedListFactory != null)
+        {
+            return cachedListFactory.Create(checked((int)length));
+        }
+
+        return Activator.CreateInstance(returnType) as IList
+               ?? throw new ArgumentException($"The type '{returnType.Name}' specified in parameter {nameof(returnType)} cannot be instantiated as an IList.");
+    }
+
+    private static IListFactory CreateListFactory(Type returnType)
+    {
+        var factoryType = typeof(ListFactory<>).MakeGenericType(returnType.GetGenericArguments()[0]);
+        return (IListFactory)Activator.CreateInstance(factoryType)!;
+    }
+
     internal override void Reset(IntPtr vector)
     {
         base.Reset(vector);
@@ -128,5 +154,15 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
     {
         listDataReader.Dispose();
         base.Dispose();
+    }
+
+    private interface IListFactory
+    {
+        IList Create(int capacity);
+    }
+
+    private sealed class ListFactory<T> : IListFactory
+    {
+        public IList Create(int capacity) => new List<T>(capacity);
     }
 }
