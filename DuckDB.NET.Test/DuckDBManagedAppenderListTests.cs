@@ -1,4 +1,6 @@
-﻿namespace DuckDB.NET.Test;
+﻿using DuckDB.NET.Data.Common;
+
+namespace DuckDB.NET.Test;
 
 public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
@@ -197,6 +199,122 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     public void ArrayValuesInt()
     {
         ListValuesInternal("Integer", faker => faker.Random.Int(), 5);
+    }
+
+    // Array items used to be placed at a running offset that a NULL array did not advance, so every
+    // array after a NULL landed one row early and the last row read uninitialised memory. The same
+    // happened wherever an ARRAY was involved, at any nesting level.
+
+    [Fact]
+    public void ArrayValuesAfterNullArrayStayAligned()
+    {
+        VerifyArrayRowsAfterNull("managedAppenderArrayAfterNull", "INTEGER[2]",
+            [[10, 11], null, [30, 31], [40, 41]]);
+    }
+
+    [Fact]
+    public void VarcharArrayValuesAfterNullArrayStayAligned()
+    {
+        VerifyArrayRowsAfterNull("managedAppenderVarcharArrayAfterNull", "VARCHAR[2]",
+            [["a", "b"], null, ["c", "d"], ["e", "f"]]);
+    }
+
+    [Fact]
+    public void ListOfArraysAfterNullArrayStayAligned()
+    {
+        VerifyArrayRowsAfterNull<List<int>?>("managedAppenderListOfArraysAfterNull", "INTEGER[2][]",
+            [[[1, 2], [3, 4]], [[5, 6], null, [7, 8]], [[9, 10]]]);
+    }
+
+    // The only test here that needs ListVectorDataWriter's WriteNull override. Without it the list
+    // headers under the NULL row stay unmarked and DuckDB reads them, but that fails only when the
+    // leftover memory is bad, so a pass without the override proves nothing.
+    [Fact]
+    public void ArrayOfListsAfterNullArrayStayAligned()
+    {
+        VerifyArrayRowsAfterNull<List<int>?>("managedAppenderArrayOfListsAfterNull", "INTEGER[][2]",
+            [[[1], [2, 3]], null, [[4], [5]], [[6, 7], [8]], [[9], null]]);
+    }
+
+    [Fact]
+    public void ArrayOfArraysAfterNullArrayStayAligned()
+    {
+        VerifyArrayRowsAfterNull<List<int>>("managedAppenderArrayOfArraysAfterNull", "INTEGER[2][2]",
+            [[[1, 2], [3, 4]], null, [[5, 6], [7, 8]], [[9, 10], [11, 12]]]);
+    }
+
+    [Fact]
+    public void ArrayValuesWithNullItemsAfterNullArrayStayAligned()
+    {
+        VerifyArrayRowsAfterNull<int?>("managedAppenderArrayNullItemsAfterNull", "INTEGER[2]",
+            [[1, null], null, [null, 4], [5, 6]]);
+    }
+
+    [Fact]
+    public void VarcharArrayValuesWithNullItemsAfterNullArrayStayAligned()
+    {
+        VerifyArrayRowsAfterNull<string?>("managedAppenderVarcharArrayNullItemsAfterNull", "VARCHAR[2]",
+            [["a", null], null, [null, "d"], ["e", "f"]]);
+    }
+
+    // The appender sends a batch every VectorSize rows and starts the next one with fresh writers, so
+    // array positions have to restart there. The NULL at batchSize - 3 is followed by a value in the same
+    // batch, so a shift would show before the boundary; the last row of the first batch and the first
+    // row of the next are NULL too.
+    [Fact]
+    public void ArrayValuesAroundNullArraysAtBatchBoundaryStayAligned()
+    {
+        var batchSize = (int)DuckDBGlobalData.VectorSize;
+
+        var rows = Enumerable.Range(0, batchSize + 4)
+            .Select(i => i == batchSize - 3 || i == batchSize - 1 || i == batchSize ? null : new List<int> { i, -i })
+            .ToArray();
+
+        VerifyArrayRowsAfterNull("managedAppenderArrayNullAtBatchBoundary", "INTEGER[2]", rows);
+    }
+
+    private void VerifyArrayRowsAfterNull<T>(string table, string columnType, List<T>?[] rows)
+    {
+        Command.CommandText = $"CREATE TABLE {table} (a INTEGER, b {columnType});";
+        Command.ExecuteNonQuery();
+
+        using (var appender = Connection.CreateAppender(table))
+        {
+            for (var i = 0; i < rows.Length; i++)
+            {
+                var row = appender.CreateRow().AppendValue(i);
+
+                if (rows[i] is { } value)
+                {
+                    row.AppendValue(value);
+                }
+                else
+                {
+                    row.AppendNullValue();
+                }
+
+                row.EndRow();
+            }
+        }
+
+        Command.CommandText = $"SELECT a, b FROM {table} ORDER BY a";
+        using var reader = Command.ExecuteReader();
+
+        foreach (var expected in rows)
+        {
+            reader.Read().Should().BeTrue();
+
+            if (expected is null)
+            {
+                reader.IsDBNull(1).Should().BeTrue();
+            }
+            else
+            {
+                reader.GetFieldValue<List<T>>(1).Should().BeEquivalentTo(expected, options => options.WithStrictOrdering());
+            }
+        }
+
+        reader.Read().Should().BeFalse();
     }
 
     [Fact]

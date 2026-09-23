@@ -27,6 +27,11 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
 
         ResizeVector(rowIndex % DuckDBGlobalData.VectorSize, count);
 
+        // A LIST records where its items start, so it can use the running offset. An ARRAY records
+        // nothing: DuckDB reads row r's items at r * arraySize, so the position must come from the
+        // row. A running offset would fall behind after a NULL array, which never reaches this method.
+        var start = IsList ? offset : rowIndex * arraySize;
+
         _ = value switch
         {
             IEnumerable<bool> items => WriteItems(items),
@@ -81,15 +86,15 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
             _ => WriteItemsFallback(value),
         };
 
-        var duckDBListEntry = new DuckDBListEntry(offset, count);
-        var result = !IsList || AppendValueInternal(duckDBListEntry, rowIndex);
+        if (!IsList)
+        {
+            return true;
+        }
+
+        var result = AppendValueInternal(new DuckDBListEntry(start, count), rowIndex);
 
         offset += count;
-
-        if (IsList)
-        {
-            NativeMethods.Vectors.DuckDBListVectorSetSize(Vector, offset);
-        }
+        NativeMethods.Vectors.DuckDBListVectorSetSize(Vector, offset);
 
         return result;
 
@@ -104,7 +109,7 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
 
             foreach (var item in items)
             {
-                listItemWriter.WriteValue(item, offset + (index++));
+                listItemWriter.WriteValue(item, start + (index++));
             }
 
             return 0;
@@ -121,10 +126,31 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
 
             foreach (var item in items)
             {
-                listItemWriter.WriteValue(item, offset + (index++));
+                listItemWriter.WriteValue(item, start + (index++));
             }
 
             return 0;
+        }
+    }
+
+    public override void WriteNull(ulong rowIndex)
+    {
+        base.WriteNull(rowIndex);
+
+        if (IsList)
+        {
+            return;
+        }
+
+        // DuckDB's appender hides a NULL array's items only in its own copy of the validity. For LIST
+        // items it reads the list headers through the vector's own validity
+        // (ListVector::GetConsecutiveChildListInfo), so unmarked items would hand it garbage offsets and
+        // lengths. Marking every item NULL, recursively for nested arrays, keeps them skipped.
+        var start = rowIndex * arraySize;
+
+        for (ulong index = 0; index < arraySize; index++)
+        {
+            listItemWriter.WriteNull(start + index);
         }
     }
 

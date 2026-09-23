@@ -9,7 +9,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
     internal IntPtr Vector => vector;
     internal DuckDBType ColumnType => columnType;
 
-    public void WriteNull(ulong rowIndex)
+    public virtual void WriteNull(ulong rowIndex)
     {
         if (validity == default)
         {
