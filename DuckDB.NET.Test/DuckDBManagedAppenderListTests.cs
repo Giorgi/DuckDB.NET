@@ -226,7 +226,7 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
             [[[1, 2], [3, 4]], [[5, 6], null, [7, 8]], [[9, 10]]]);
     }
 
-    // The only test here that needs ListVectorDataWriter's WriteNull override. Without it the list
+    // The only test here that needs ArrayVectorDataWriter's WriteNull override. Without it the list
     // headers under the NULL row stay unmarked and DuckDB reads them, but that fails only when the
     // leftover memory is bad, so a pass without the override proves nothing.
     [Fact]
@@ -291,6 +291,52 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
         }).ToArray();
 
         VerifyArrayRowsAfterNull("managedAppenderListOfArraysAfterGrowth", "INTEGER[2][]", rows);
+    }
+
+    // With arrays nested in arrays, DuckDB moves every array level below the list when it grows, so the
+    // refresh has to carry on through each of them.
+    [Fact]
+    public void ListOfNestedArraysKeepValuesAfterListGrows()
+    {
+        var batchSize = (int)DuckDBGlobalData.VectorSize;
+
+        // Three items per row take the list past its initial VectorSize items a third of the way in.
+        var rows = Enumerable.Range(0, batchSize).Select(List<List<List<int?>?>?>? (i) =>
+        {
+            var x = i * 10;
+
+            return i switch
+            {
+                1000 => null,
+                1500 => [[[x, null], null], null, [[x + 4, -(x + 4)], [x + 5, -(x + 5)]]],
+                _ => [[[x, -x], [x + 1, -(x + 1)]], [[x + 2, -(x + 2)], [x + 3, -(x + 3)]], [[x + 4, -(x + 4)], [x + 5, -(x + 5)]]],
+            };
+        }).ToArray();
+
+        VerifyArrayRowsAfterNull("managedAppenderListOfNestedArraysAfterGrowth", "INTEGER[2][2][]", rows);
+    }
+
+    // With a list inside the array, the outer list growing moves the inner lists' entries but not their
+    // items, so the refresh has to stop at the inner list. The inner lists also grow on their own here.
+    [Fact]
+    public void ListOfArraysOfListsKeepValuesAfterListGrows()
+    {
+        var batchSize = (int)DuckDBGlobalData.VectorSize;
+
+        // Three items per row take the outer list past its initial VectorSize items a third of the way in.
+        var rows = Enumerable.Range(0, batchSize).Select(List<List<List<int?>?>?>? (i) =>
+        {
+            var x = i * 10;
+
+            return i switch
+            {
+                1000 => null,
+                1500 => [[[x, null], null], null, [[x + 4], [x + 5, -(x + 5)]]],
+                _ => [[[x], [x + 1, -(x + 1)]], [[x + 2], [x + 3, -(x + 3)]], [[x + 4], [x + 5, -(x + 5)]]],
+            };
+        }).ToArray();
+
+        VerifyArrayRowsAfterNull("managedAppenderListOfArraysOfListsAfterGrowth", "INTEGER[][2][]", rows);
     }
 
     private void VerifyArrayRowsAfterNull<T>(string table, string columnType, List<T>?[] rows)
