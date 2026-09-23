@@ -154,6 +154,14 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
         }
     }
 
+    // When a list grows, DuckDB moves the items of any ARRAY inside it too (Vector::Resize walks into
+    // array children), so refresh every level below this one, not just this writer's own pointers.
+    internal override void InitializeWriter()
+    {
+        base.InitializeWriter();
+        listItemWriter.InitializeWriter();
+    }
+
     private void ResizeVector(ulong rowIndex, ulong count)
     {
         //If writing to a list column we need to make sure that enough space is allocated. Not needed for Arrays as DuckDB does it for us.

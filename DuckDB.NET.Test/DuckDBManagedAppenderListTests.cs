@@ -273,6 +273,26 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
         VerifyArrayRowsAfterNull("managedAppenderArrayNullAtBatchBoundary", "INTEGER[2]", rows);
     }
 
+    // When a list outgrows its space in a batch, DuckDB reallocates it and moves the items of any ARRAY
+    // inside it as well. Only the list's direct item writer was pointed at the new buffers, so the
+    // array's own item writer kept writing to the old one, and every array written after the list
+    // grew was lost, along with any NULL written into it.
+    [Fact]
+    public void ListOfArraysKeepValuesAfterListGrows()
+    {
+        var batchSize = (int)DuckDBGlobalData.VectorSize;
+
+        // Three arrays per row take the list past its initial VectorSize items a third of the way in.
+        var rows = Enumerable.Range(0, batchSize).Select(List<List<int?>?>? (i) => i switch
+        {
+            1000 => null,
+            1500 => [[i * 10, null], null, [i * 10 + 2, -(i * 10 + 2)]],
+            _ => [[i * 10, -(i * 10)], [i * 10 + 1, -(i * 10 + 1)], [i * 10 + 2, -(i * 10 + 2)]],
+        }).ToArray();
+
+        VerifyArrayRowsAfterNull("managedAppenderListOfArraysAfterGrowth", "INTEGER[2][]", rows);
+    }
+
     private void VerifyArrayRowsAfterNull<T>(string table, string columnType, List<T>?[] rows)
     {
         Command.CommandText = $"CREATE TABLE {table} (a INTEGER, b {columnType});";
