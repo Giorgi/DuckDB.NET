@@ -15,15 +15,17 @@ namespace DuckDB.NET.Data.Arrow;
 internal sealed class DuckDBArrowArrayStream : IArrowArrayStream
 {
     private DuckDBResult result;
+    private readonly DuckDBNativeConnection connection;
     private readonly DuckDBArrowOptions arrowOptions;
     private readonly bool streaming;
     private bool disposed;
 
     public Schema Schema { get; }
 
-    internal DuckDBArrowArrayStream(DuckDBResult result)
+    internal DuckDBArrowArrayStream(DuckDBResult result, DuckDBNativeConnection connection)
     {
         this.result = result;
+        this.connection = connection;
 
         arrowOptions = NativeMethods.Arrow.DuckDBResultGetArrowOptions(ref this.result);
         if (arrowOptions.IsInvalid)
@@ -117,6 +119,12 @@ internal sealed class DuckDBArrowArrayStream : IArrowArrayStream
         if (chunk.IsInvalid)
         {
             chunk.Dispose();
+
+            if (streaming)
+            {
+                result.ThrowOnError(connection);
+            }
+
             return new ValueTask<RecordBatch?>((RecordBatch?)null);
         }
 

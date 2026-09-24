@@ -111,6 +111,41 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    public void RegisterScalarFunctionCallbackThrowsInLaterStreamingChunk()
+    {
+        Connection.RegisterScalarFunction<long, long>("throwing_late_scalar",
+            x => x < 500_000 ? x : throw new InvalidOperationException("Scalar callback failed late"));
+
+        Command.UseStreamingMode = true;
+        Command.CommandText = "SELECT throwing_late_scalar(i) FROM range(1000000) t(i)";
+
+        using (var reader = Command.ExecuteReader())
+        {
+            var rows = 0;
+            var act = () =>
+            {
+                while (reader.Read())
+                {
+                    rows++;
+                }
+            };
+
+            act.Should().Throw<DuckDBException>()
+               .WithInnerException<InvalidOperationException>()
+               .WithMessage("Scalar callback failed late");
+            rows.Should().BeGreaterThan(0);
+        }
+
+        // The stored callback exception was consumed, so it must not leak into the next error on this connection.
+        Command.UseStreamingMode = false;
+        Command.CommandText = "SELECT CAST('not a number' AS INTEGER)";
+
+        Command.Invoking(command => command.ExecuteScalar())
+               .Should().Throw<DuckDBException>()
+               .Where(e => e.InnerException == null);
+    }
+
+    [Fact]
     public void RegisterScalarFunctionIsPrime()
     {
         Connection.RegisterScalarFunction<int, bool>("is_prime", (readers, writer, rowCount) =>

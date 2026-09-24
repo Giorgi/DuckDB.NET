@@ -57,24 +57,14 @@ internal sealed class PreparedStatement : IDisposable
 
         if (!status.IsSuccess())
         {
-            var errorMessage = NativeMethods.Query.DuckDBResultError(ref queryResult);
-            var errorType = NativeMethods.Query.DuckDBResultErrorType(ref queryResult);
-            queryResult.Close();
-
-            if (string.IsNullOrEmpty(errorMessage))
+            try
             {
-                errorMessage = "DuckDB execution failed";
+                queryResult.ThrowOnError(connection, "DuckDB execution failed");
             }
-
-            if (errorType == DuckDBErrorType.Interrupt)
+            finally
             {
-                throw new OperationCanceledException();
+                queryResult.Close();
             }
-
-            var innerException = UdfExceptionStore.Retrieve(connection);
-            throw innerException != null
-                ? new DuckDBException(errorMessage, innerException)
-                : new DuckDBException(errorMessage, errorType);
         }
 
         return queryResult;

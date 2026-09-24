@@ -86,6 +86,46 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         Connection.State.Should().Be(ConnectionState.Closed);
     }
 
+    [Theory]
+    [InlineData("SELEC 1", CommandBehavior.CloseConnection, ConnectionState.Closed, false)]
+    [InlineData("SELEC 1", CommandBehavior.Default, ConnectionState.Open, false)]
+    [InlineData("SELECT CAST('not a number' AS INTEGER)", CommandBehavior.CloseConnection, ConnectionState.Closed, false)]
+    [InlineData("SELECT CAST('not a number' AS INTEGER)", CommandBehavior.Default, ConnectionState.Open, false)]
+    [InlineData("SELECT CAST('not a number' AS INTEGER)", CommandBehavior.CloseConnection, ConnectionState.Closed, true)]
+    [InlineData("SELECT CAST('not a number' AS INTEGER)", CommandBehavior.Default, ConnectionState.Open, true)]
+    public void FailedExecuteReaderClosesConnectionOnlyWithCloseConnection(string sql, CommandBehavior behavior, ConnectionState expectedState, bool useStreamingMode)
+    {
+        // Matches Npgsql: the caller handed the connection to a reader it never received.
+        using var connection = new DuckDBConnection("DataSource=:memory:");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        command.UseStreamingMode = useStreamingMode;
+
+        command.Invoking(c => c.ExecuteReader(behavior)).Should().Throw<DuckDBException>();
+
+        connection.State.Should().Be(expectedState);
+    }
+
+    [Fact]
+    public void StreamingReadFailureClosesConnectionOnlyWhenReaderIsDisposed()
+    {
+        // Matches Npgsql: a failed Read() leaves the connection open, and disposing the reader closes it.
+        using var connection = new DuckDBConnection("DataSource=:memory:");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.UseStreamingMode = true;
+        command.CommandText = "SELECT CAST(CASE WHEN i < 500000 THEN CAST(i AS VARCHAR) ELSE 'not a number' END AS INTEGER) FROM range(1000000) t(i)";
+
+        var reader = command.ExecuteReader(CommandBehavior.CloseConnection);
+
+        reader.Invoking(r => { while (r.Read()) { } }).Should().Throw<DuckDBException>();
+        connection.State.Should().Be(ConnectionState.Open);
+
+        reader.Dispose();
+        connection.State.Should().Be(ConnectionState.Closed);
+    }
+
     [Fact]
     public void ReadValueBeforeReadThrowsException()
     {
@@ -344,6 +384,32 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    public void StreamingReadThrowsWhenLaterChunkFails()
+    {
+        // The first chunks convert fine; the error is raised only while producing a later chunk.
+        Command.UseStreamingMode = true;
+        Command.CommandText = "SELECT CAST(CASE WHEN i < 500000 THEN CAST(i AS VARCHAR) ELSE 'not a number' END AS INTEGER) FROM range(1000000) t(i)";
+
+        using var reader = Command.ExecuteReader();
+
+        var rows = 0;
+        var act = () =>
+        {
+            while (reader.Read())
+            {
+                rows++;
+            }
+        };
+
+        act.Should().Throw<DuckDBException>().Where(e => e.ErrorType == DuckDBErrorType.Conversion);
+        rows.Should().BeGreaterThan(0);
+
+        // The failed fetch freed the previous chunk, so the reader must not serve values from it.
+        reader.Invoking(r => r.GetInt32(0)).Should().Throw<InvalidOperationException>();
+        reader.Invoking(r => r.Read()).Should().Throw<DuckDBException>();
+    }
+
+    [Fact]
     public void ReadInsertReturningClause()
     {
         Command.CommandText = "CREATE TABLE t2 (i INT, j INT);";
@@ -478,6 +544,32 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
             }
 
         }).Should().Throw<OperationCanceledException>();
+    }
+
+    [Fact]
+    public void CancelDuringStreamingReadThrowsOperationCanceledException()
+    {
+        const long totalRows = 10_000_000;
+
+        Command.UseStreamingMode = true;
+        Command.CommandText = $"SELECT i FROM range({totalRows}) t(i)";
+
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        // Cancel after ExecuteReader has returned, so the interrupt surfaces from a later fetch rather than from execute.
+        Command.Cancel();
+
+        var rows = 1L;
+        reader.Invoking(r =>
+        {
+            while (r.Read())
+            {
+                rows++;
+            }
+        }).Should().Throw<OperationCanceledException>();
+
+        rows.Should().BeLessThan(totalRows);
     }
 
     [Fact]
