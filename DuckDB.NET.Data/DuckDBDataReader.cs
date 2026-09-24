@@ -53,12 +53,18 @@ public class DuckDBDataReader : DbDataReader
             var result = resultEnumerator.Current;
             if (NativeMethods.Query.DuckDBResultReturnType(result) == DuckDBResultType.QueryResult)
             {
+                // Release the previous result set before replacing it: nothing else holds it, and a materialized
+                // result keeps all its rows. Its chunk points into the result's memory, so dispose the chunk first.
                 foreach (var reader in vectorReaders)
                 {
                     reader?.Dispose();
                 }
 
                 vectorReaders = [];
+
+                currentChunk?.Dispose();
+                currentChunk = null;
+                currentResult.Close();
 
                 currentChunkIndex = 0;
                 currentResult = result;
