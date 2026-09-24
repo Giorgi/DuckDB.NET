@@ -13,6 +13,10 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
 
     internal ulong ChunkRowIndex => rowIndex;
 
+    internal bool IsComplete => columnIndex == vectorWriters.Length;
+
+    internal int ValueCount => columnIndex;
+
     internal DuckDBAppenderRow(string qualifiedTableName, VectorDataWriterBase[] vectorWriters,
                                ulong rowIndex, DuckDBDataChunk dataChunk, Native.DuckDBAppender nativeAppender)
     {

@@ -525,13 +525,18 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
         //Test for appending an array with wrong length
         if (length.HasValue)
         {
-            var appender = Connection.CreateAppender(table);
+            // A failed row faults the appender, so each check needs its own.
+            using (var appender = Connection.CreateAppender(table))
+            {
+                appender.Invoking(app => app.CreateRow().AppendValue(0).AppendValue(GetRandomList(generator, length + 1)))
+                    .Should().Throw<InvalidOperationException>().Where(exception => exception.Message.Contains(length.ToString()));
+            }
 
-            appender.Invoking(app => app.CreateRow().AppendValue(0).AppendValue(GetRandomList(generator, length + 1)))
-                .Should().Throw<InvalidOperationException>().Where(exception => exception.Message.Contains(length.ToString()));
-
-            appender.Invoking(app => app.CreateRow().AppendValue(0).AppendValue(GetRandomList(generator, length - 1)))
-                .Should().Throw<InvalidOperationException>().Where(exception => exception.Message.Contains(length.ToString()));
+            using (var appender = Connection.CreateAppender(table))
+            {
+                appender.Invoking(app => app.CreateRow().AppendValue(0).AppendValue(GetRandomList(generator, length - 1)))
+                    .Should().Throw<InvalidOperationException>().Where(exception => exception.Message.Contains(length.ToString()));
+            }
         }
     }
 
