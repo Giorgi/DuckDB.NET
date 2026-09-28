@@ -935,7 +935,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         using (var appender = Connection.CreateAppender(table))
         {
             var row = appender.CreateRow();
-            row.Invoking(r => r.AppendValue(new List<object?> { null, "bad" })).Should().Throw<InvalidOperationException>();
+            row.Invoking(r => r.AppendValue(new List<object> { null, "bad" })).Should().Throw<InvalidOperationException>();
 
             row.AppendValue(new List<int> { 1, 2 }).AppendValue("retried").EndRow();
         }
@@ -961,7 +961,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         using (var appender = Connection.CreateAppender(table))
         {
             var row = appender.CreateRow();
-            row.Invoking(r => r.AppendValue(new List<object?> { null, "bad" })).Should().Throw<InvalidOperationException>();
+            row.Invoking(r => r.AppendValue(new List<object> { null, "bad" })).Should().Throw<InvalidOperationException>();
 
             row.AppendValue(new List<List<int>> { new() { 1, 2 }, new() { 3, 4 } }).AppendValue("retried").EndRow();
         }
@@ -988,7 +988,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         using (var appender = Connection.CreateAppender("managedAppenderListRetryGrows"))
         {
             var row = appender.CreateRow();
-            row.Invoking(r => r.AppendValue(new List<object?> { null, "bad" })).Should().Throw<InvalidOperationException>();
+            row.Invoking(r => r.AppendValue(new List<object> { null, "bad" })).Should().Throw<InvalidOperationException>();
 
             row.AppendValue(items).AppendValue("retried").EndRow();
         }
@@ -1013,7 +1013,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         using (var appender = Connection.CreateAppender("managedAppenderListOfArraysRetryGrows"))
         {
             var row = appender.CreateRow();
-            row.Invoking(r => r.AppendValue(new List<object?> { null, "bad" })).Should().Throw<InvalidOperationException>();
+            row.Invoking(r => r.AppendValue(new List<object> { null, "bad" })).Should().Throw<InvalidOperationException>();
 
             row.AppendValue(items).AppendValue("retried").EndRow();
         }
@@ -1188,7 +1188,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
             appender.CreateRow().AppendValue(new List<int> { 1 }).AppendValue("completed").EndRow();
 
             var row = appender.CreateRow();
-            row.Invoking(r => r.AppendValue(new List<object?> { 5, "bad" })).Should().Throw<InvalidOperationException>();
+            row.Invoking(r => r.AppendValue(new List<object> { 5, "bad" })).Should().Throw<InvalidOperationException>();
         }
 
         Command.CommandText = "SELECT a, b FROM managedAppenderIncompleteList";
@@ -1210,7 +1210,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
             appender.CreateRow().AppendValue(new List<int> { 1, 2 }).AppendValue("completed").EndRow();
 
             var row = appender.CreateRow();
-            row.Invoking(r => r.AppendValue(new List<object?> { null, "bad" })).Should().Throw<InvalidOperationException>();
+            row.Invoking(r => r.AppendValue(new List<object> { null, "bad" })).Should().Throw<InvalidOperationException>();
         }
 
         Command.CommandText = "SELECT a, b FROM managedAppenderIncompleteArray";

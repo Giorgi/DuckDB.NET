@@ -222,7 +222,7 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     [Fact]
     public void ListOfArraysAfterNullArrayStayAligned()
     {
-        VerifyArrayRowsAfterNull<List<int>?>("managedAppenderListOfArraysAfterNull", "INTEGER[2][]",
+        VerifyArrayRowsAfterNull<List<int>>("managedAppenderListOfArraysAfterNull", "INTEGER[2][]",
             [[[1, 2], [3, 4]], [[5, 6], null, [7, 8]], [[9, 10]]]);
     }
 
@@ -232,7 +232,7 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     [Fact]
     public void ArrayOfListsAfterNullArrayStayAligned()
     {
-        VerifyArrayRowsAfterNull<List<int>?>("managedAppenderArrayOfListsAfterNull", "INTEGER[][2]",
+        VerifyArrayRowsAfterNull<List<int>>("managedAppenderArrayOfListsAfterNull", "INTEGER[][2]",
             [[[1], [2, 3]], null, [[4], [5]], [[6, 7], [8]], [[9], null]]);
     }
 
@@ -253,7 +253,7 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     [Fact]
     public void VarcharArrayValuesWithNullItemsAfterNullArrayStayAligned()
     {
-        VerifyArrayRowsAfterNull<string?>("managedAppenderVarcharArrayNullItemsAfterNull", "VARCHAR[2]",
+        VerifyArrayRowsAfterNull<string>("managedAppenderVarcharArrayNullItemsAfterNull", "VARCHAR[2]",
             [["a", null], null, [null, "d"], ["e", "f"]]);
     }
 
@@ -283,7 +283,7 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
         var batchSize = (int)DuckDBGlobalData.VectorSize;
 
         // Three arrays per row take the list past its initial VectorSize items a third of the way in.
-        var rows = Enumerable.Range(0, batchSize).Select(List<List<int?>?>? (i) => i switch
+        var rows = Enumerable.Range(0, batchSize).Select(List<List<int?>> (i) => i switch
         {
             1000 => null,
             1500 => [[i * 10, null], null, [i * 10 + 2, -(i * 10 + 2)]],
@@ -301,7 +301,7 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
         var batchSize = (int)DuckDBGlobalData.VectorSize;
 
         // Three items per row take the list past its initial VectorSize items a third of the way in.
-        var rows = Enumerable.Range(0, batchSize).Select(List<List<List<int?>?>?>? (i) =>
+        var rows = Enumerable.Range(0, batchSize).Select(List<List<List<int?>>> (i) =>
         {
             var x = i * 10;
 
@@ -324,7 +324,7 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
         var batchSize = (int)DuckDBGlobalData.VectorSize;
 
         // Three items per row take the outer list past its initial VectorSize items a third of the way in.
-        var rows = Enumerable.Range(0, batchSize).Select(List<List<List<int?>?>?>? (i) =>
+        var rows = Enumerable.Range(0, batchSize).Select(List<List<List<int?>>> (i) =>
         {
             var x = i * 10;
 
@@ -339,7 +339,7 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
         VerifyArrayRowsAfterNull("managedAppenderListOfArraysOfListsAfterGrowth", "INTEGER[][2][]", rows);
     }
 
-    private void VerifyArrayRowsAfterNull<T>(string table, string columnType, List<T>?[] rows)
+    private void VerifyArrayRowsAfterNull<T>(string table, string columnType, List<T>[] rows)
     {
         Command.CommandText = $"CREATE TABLE {table} (a INTEGER, b {columnType});";
         Command.ExecuteNonQuery();
