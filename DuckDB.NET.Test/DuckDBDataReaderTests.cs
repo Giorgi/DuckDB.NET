@@ -87,33 +87,74 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    public void CloseConnectionClosesReaderBeforeConnection()
+    public void CloseConnectionReleasesTheDatabaseBeforeTheConnectionReportsClosed()
     {
-        // With CommandBehavior.CloseConnection the connection must be closed last: when it is the
-        // database file's last open connection, closing it closes the database, so the reader must
-        // already have released its native objects.
-        Command.CommandText = "CREATE TABLE CloseConnectionOrderTests (key INTEGER)";
-        Command.ExecuteNonQuery();
-        Command.CommandText = "INSERT INTO CloseConnectionOrderTests VALUES (1), (2)";
-        Command.ExecuteNonQuery();
+        // With CommandBehavior.CloseConnection the reader must release its statements before closing the
+        // connection. When that connection is the file's last one, closing it closes the database; if the
+        // reader's statements are still alive they keep the native instance alive, and a connection opened
+        // meanwhile gets a second instance on the same file. On Linux both instances then write the file
+        // and committed rows are lost; on Windows the second open is refused.
+        // Opening a connection from the reader connection's Closed event lands in exactly that window.
+        var file = Path.Combine(Path.GetTempPath(), $"closeconnection-{Guid.NewGuid():N}.db");
+        var connectionString = $"Data Source={file}";
 
-        Command.CommandText = "select * from CloseConnectionOrderTests";
-        var reader = Command.ExecuteReader(CommandBehavior.CloseConnection);
-        while (reader.Read()) { }
-
-        bool? readerClosedWhenConnectionClosed = null;
-        Connection.StateChange += (_, e) =>
+        void Execute(DuckDBConnection connection, string sql)
         {
-            if (e.CurrentState == ConnectionState.Closed)
+            using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            command.ExecuteNonQuery();
+        }
+
+        try
+        {
+            using (var setup = new DuckDBConnection(connectionString))
             {
-                readerClosedWhenConnectionClosed = reader.IsClosed;
+                setup.Open();
+                Execute(setup, "CREATE TABLE CloseConnectionRelease (id INTEGER)");
             }
-        };
 
-        reader.Close();
+            using var connection = new DuckDBConnection(connectionString);
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT id FROM CloseConnectionRelease";
+            var reader = command.ExecuteReader(CommandBehavior.CloseConnection);
 
-        Connection.State.Should().Be(ConnectionState.Closed);
-        readerClosedWhenConnectionClosed.Should().BeTrue();
+            // A committed write through the same database, so there is something to lose.
+            using (var writer = new DuckDBConnection(connectionString))
+            {
+                writer.Open();
+                Execute(writer, "INSERT INTO CloseConnectionRelease VALUES (1)");
+            }
+
+            while (reader.Read())
+            {
+            }
+
+            connection.StateChange += (_, e) =>
+            {
+                if (e.CurrentState != ConnectionState.Closed)
+                {
+                    return;
+                }
+
+                using var other = new DuckDBConnection(connectionString);
+                other.Open();
+                Execute(other, "INSERT INTO CloseConnectionRelease VALUES (2)");
+            };
+
+            reader.Dispose();
+
+            using var verify = new DuckDBConnection(connectionString);
+            verify.Open();
+            using var count = verify.CreateCommand();
+            count.CommandText = "SELECT count(*) FROM CloseConnectionRelease";
+            Convert.ToInt32(count.ExecuteScalar()).Should().Be(2);
+        }
+        finally
+        {
+            File.Delete(file);
+            File.Delete(file + ".wal");
+        }
     }
 
     [Theory]
