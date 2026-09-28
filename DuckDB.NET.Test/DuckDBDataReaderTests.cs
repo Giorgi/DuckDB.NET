@@ -86,6 +86,36 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         Connection.State.Should().Be(ConnectionState.Closed);
     }
 
+    [Fact]
+    public void CloseConnectionClosesReaderBeforeConnection()
+    {
+        // With CommandBehavior.CloseConnection the connection must be closed last: when it is the
+        // database file's last open connection, closing it closes the database, so the reader must
+        // already have released its native objects.
+        Command.CommandText = "CREATE TABLE CloseConnectionOrderTests (key INTEGER)";
+        Command.ExecuteNonQuery();
+        Command.CommandText = "INSERT INTO CloseConnectionOrderTests VALUES (1), (2)";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "select * from CloseConnectionOrderTests";
+        var reader = Command.ExecuteReader(CommandBehavior.CloseConnection);
+        while (reader.Read()) { }
+
+        bool? readerClosedWhenConnectionClosed = null;
+        Connection.StateChange += (_, e) =>
+        {
+            if (e.CurrentState == ConnectionState.Closed)
+            {
+                readerClosedWhenConnectionClosed = reader.IsClosed;
+            }
+        };
+
+        reader.Close();
+
+        Connection.State.Should().Be(ConnectionState.Closed);
+        readerClosedWhenConnectionClosed.Should().BeTrue();
+    }
+
     [Theory]
     [InlineData("SELEC 1", CommandBehavior.CloseConnection, ConnectionState.Closed, false)]
     [InlineData("SELEC 1", CommandBehavior.Default, ConnectionState.Open, false)]
