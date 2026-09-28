@@ -1,4 +1,6 @@
 ﻿using DuckDB.NET.Data.DataChunk.Writer;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace DuckDB.NET.Data;
 
@@ -194,7 +196,9 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
 
     private unsafe IDuckDBAppenderRow AppendSpan(Span<byte> val)
     {
-        if (val == null)
+        // A null byte[] or a default span has no memory at all and writes NULL. An empty array still has memory and is
+        // an empty BLOB, so IsEmpty would be wrong here.
+        if (Unsafe.IsNullRef(ref MemoryMarshal.GetReference(val)))
         {
             return AppendNullValue();
         }

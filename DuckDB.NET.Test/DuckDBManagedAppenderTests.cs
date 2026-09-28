@@ -147,6 +147,25 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    public void EmptyByteArrayIsEmptyBlobAndDefaultSpanIsNull()
+    {
+        Command.CommandText = "CREATE TABLE blobAppenderEmptyTest(a Integer, b blob)";
+        Command.ExecuteNonQuery();
+
+        using (var appender = Connection.CreateAppender("blobAppenderEmptyTest"))
+        {
+            appender.CreateRow().AppendValue(1).AppendValue(Array.Empty<byte>()).EndRow();
+            appender.CreateRow().AppendValue(2).AppendValue(new Span<byte>(Array.Empty<byte>())).EndRow();
+            appender.CreateRow().AppendValue(3).AppendValue(default(Span<byte>)).EndRow();
+        }
+
+        var results = Connection.Query<(bool IsNull, long? Length)>(
+            "SELECT b IS NULL, octet_length(b) FROM blobAppenderEmptyTest ORDER BY a").ToList();
+
+        results.Should().Equal((false, 0L), (false, 0L), (true, null));
+    }
+
+    [Fact]
     public void Decimals()
     {
         Command.CommandText = "CREATE TABLE managedAppenderDecimals(a INTEGER, b decimal(3, 1), c decimal (9, 4), d decimal (18, 6), e decimal(38, 12));";
