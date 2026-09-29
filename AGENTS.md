@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to coding agents working with code in this repository.
 
 DuckDB.NET is an ADO.NET provider and low-level bindings for DuckDB. The solution (`DuckDB.NET.slnx`) has five
 projects: `Bindings` (P/Invoke over the DuckDB C API), `Data` (the ADO.NET provider), `Test` (xUnit),
@@ -129,6 +129,21 @@ dotnet run -c Release --project DuckDB.NET.Benchmarks
   (`DuckDBConnection.TableFunction*.cs`) are registered through generic overloads for different parameter counts.
   Callbacks are pinned with `GCHandle`. A table function creates its data enumerator per scan init, not per bind,
   because DuckDB re-initializes scans without re-binding, for example in recursive CTEs.
+
+## Coding style
+
+There is no `.editorconfig`, so match the surrounding code:
+- **Layout:** file-scoped namespaces (`namespace DuckDB.NET.Data;`) and 4-space indentation.
+- **Naming:** `PascalCase` for types, methods and properties; `camelCase` for locals and fields, with no underscore
+  prefix.
+- **Language features:** `LangVersion` is `latest`. Use `var` when the type is obvious. Primary constructors and
+  collection expressions (`[]`) are already used.
+- **Nullable reference types:** enabled in `Bindings`, `Data` and `Benchmarks`, but **disabled in the test
+  project**. Don't put `?` on reference types in tests (`string?`, `List<object?>`); it produces CS8632 warnings.
+  `int?` and other nullable value types are fine.
+- **Files:** files are UTF-8, and about half start with a byte-order mark. The checkout uses CRLF line endings
+  (`core.autocrlf`). Edits made with scripts must keep the file's byte-order mark as it is and keep CRLF throughout:
+  no stray LF, no doubled CR, and no lone CR at the end of a file. Otherwise git can treat the file as binary.
 
 ## Tests
 
