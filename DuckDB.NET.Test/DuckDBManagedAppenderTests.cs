@@ -149,18 +149,20 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     [Fact]
     public void EmptyByteArrayIsEmptyBlobAndDefaultSpanIsNull()
     {
-        Command.CommandText = "CREATE TABLE blobAppenderEmptyTest(a Integer, b blob)";
+        // Only a BLOB column, ordered by rowid: an integer literal such as AppendValue(1) binds to the byte? overload,
+        // which the low-level appender would write into one byte of an INTEGER slot.
+        Command.CommandText = "CREATE TABLE blobAppenderEmptyTest(b blob)";
         Command.ExecuteNonQuery();
 
         using (var appender = Connection.CreateAppender("blobAppenderEmptyTest"))
         {
-            appender.CreateRow().AppendValue(1).AppendValue(Array.Empty<byte>()).EndRow();
-            appender.CreateRow().AppendValue(2).AppendValue(new Span<byte>(Array.Empty<byte>())).EndRow();
-            appender.CreateRow().AppendValue(3).AppendValue(default(Span<byte>)).EndRow();
+            appender.CreateRow().AppendValue(Array.Empty<byte>()).EndRow();
+            appender.CreateRow().AppendValue(new Span<byte>(Array.Empty<byte>())).EndRow();
+            appender.CreateRow().AppendValue(default(Span<byte>)).EndRow();
         }
 
         var results = Connection.Query<(bool IsNull, long? Length)>(
-            "SELECT b IS NULL, octet_length(b) FROM blobAppenderEmptyTest ORDER BY a").ToList();
+            "SELECT b IS NULL, octet_length(b) FROM blobAppenderEmptyTest ORDER BY rowid").ToList();
 
         results.Should().Equal((false, 0L), (false, 0L), (true, null));
     }
