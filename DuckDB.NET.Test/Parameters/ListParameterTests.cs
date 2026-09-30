@@ -78,6 +78,22 @@ public class ListParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         TestInsertSelect("UTinyInt", faker => faker.Random.Byte().OrNull(faker));
     }
 
+    [Theory]
+    [InlineData("UTINYINT[]")]
+    [InlineData("UTINYINT[3]")]
+    public void CanBindByteArrayAsCollection(string duckDbType)
+    {
+        byte[] expected = [1, 2, byte.MaxValue];
+
+        Command.CommandText = $"SELECT ?::{duckDbType};";
+        Command.Parameters.Add(new DuckDBParameter(expected));
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetFieldValue<List<byte>>(0).Should().Equal(expected);
+    }
+
     [Fact]
     public void CanBindUShortList()
     {
