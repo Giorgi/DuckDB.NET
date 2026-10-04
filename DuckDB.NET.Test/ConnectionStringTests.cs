@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 
 namespace DuckDB.NET.Test;
 
@@ -540,6 +541,95 @@ public class ConnectionStringTests
         connection.Open();
 
         connection.State.Should().Be(ConnectionState.Open);
+    }
+
+    [Fact]
+    public void ConfigurationOptionDescriptorsDescribeTheBuilder()
+    {
+        var builder = new DuckDBConnectionStringBuilder { DataSource = DuckDBConnectionStringBuilder.InMemoryDataSource };
+        var option = TypeDescriptor.GetProperties(builder).Find("zstd_min_string_length", false)!;
+
+        option.ComponentType.Should().Be(typeof(DuckDBConnectionStringBuilder));
+        option.IsReadOnly.Should().BeFalse();
+
+        option.CanResetValue(builder).Should().BeFalse();
+        option.SetValue(builder, 8192UL);
+        option.CanResetValue(builder).Should().BeTrue();
+
+        // A component that is not a connection string builder has no value to read.
+        option.GetValue(new object()).Should().BeNull();
+    }
+
+    // The connection string stores every value as text, so reading converts it back to the option's type. Text that
+    // does not fit the type reads as null instead of throwing out of a property grid.
+    [Theory]
+    [InlineData("arrow_large_buffer_size", "yes", true)]
+    [InlineData("arrow_large_buffer_size", "0", false)]
+    [InlineData("arrow_large_buffer_size", "maybe", null)]
+    [InlineData("geometry_minimum_shredding_size", "-123", -123L)]
+    [InlineData("geometry_minimum_shredding_size", "abc", null)]
+    [InlineData("zstd_min_string_length", "8192", 8192UL)]
+    [InlineData("zstd_min_string_length", "-1", null)]
+    [InlineData("index_scan_percentage", "0.001", 0.001)]
+    [InlineData("index_scan_percentage", "abc", null)]
+    [InlineData("default_secret_storage", "local_file", "local_file")]
+    public void ConfigurationOptionDescriptorsConvertTextToTheOptionType(string optionName, string text, object expected)
+    {
+        var builder = new DuckDBConnectionStringBuilder { DataSource = DuckDBConnectionStringBuilder.InMemoryDataSource };
+        var option = TypeDescriptor.GetProperties(builder).Find(optionName, false)!;
+
+        builder[optionName] = text;
+
+        option.GetValue(builder).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("default_secret_storage", "")]
+    [InlineData("zstd_min_string_length", null)]
+    public void ConfigurationOptionDescriptorsReadEmptyTextAsEmptyOrNull(string optionName, string expected)
+    {
+        var builder = new DuckDBConnectionStringBuilder { DataSource = DuckDBConnectionStringBuilder.InMemoryDataSource };
+        var option = TypeDescriptor.GetProperties(builder).Find(optionName, false)!;
+
+        builder[optionName] = "";
+
+        // Only a text option can hold an empty value; for any other type it means "not set".
+        option.GetValue(builder).Should().Be(expected);
+    }
+
+    [Fact]
+    public void ConfigurationOptionDescriptorsWriteInvariantText()
+    {
+        var builder = new DuckDBConnectionStringBuilder { DataSource = DuckDBConnectionStringBuilder.InMemoryDataSource };
+        var properties = TypeDescriptor.GetProperties(builder);
+        var previousCulture = CultureInfo.CurrentCulture;
+
+        try
+        {
+            // German formats 0.001 as "0,001", which DuckDB would reject.
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("de-DE");
+
+            properties.Find("index_scan_percentage", false)!.SetValue(builder, 0.001);
+            properties.Find("arrow_large_buffer_size", false)!.SetValue(builder, false);
+            properties.Find("default_secret_storage", false)!.SetValue(builder, "local_file");
+
+            // Anything else is written with its ToString().
+            properties.Find("zstd_min_string_length", false)!.SetValue(builder, new StringBuilder("8192"));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = previousCulture;
+        }
+
+        builder["index_scan_percentage"].Should().Be("0.001");
+        builder["arrow_large_buffer_size"].Should().Be("false");
+        builder["default_secret_storage"].Should().Be("local_file");
+        builder["zstd_min_string_length"].Should().Be("8192");
+
+        // Writing null removes the option.
+        properties.Find("default_secret_storage", false)!.SetValue(builder, null);
+
+        builder.ContainsKey("default_secret_storage").Should().BeFalse();
     }
 
     [Fact]
