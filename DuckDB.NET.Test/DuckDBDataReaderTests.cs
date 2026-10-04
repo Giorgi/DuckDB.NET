@@ -182,8 +182,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     public void StreamingReadFailureClosesConnectionOnlyWhenReaderIsDisposed()
     {
         // Matches Npgsql: a failed Read() leaves the connection open, and disposing the reader closes it.
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
+        using var connection = OpenConnectionForLateStreamingErrors();
         using var command = connection.CreateCommand();
         command.UseStreamingMode = true;
         command.CommandText = "SELECT CAST(CASE WHEN i < 500000 THEN CAST(i AS VARCHAR) ELSE 'not a number' END AS INTEGER) FROM range(1000000) t(i)";
@@ -515,10 +514,12 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     public void StreamingReadThrowsWhenLaterChunkFails()
     {
         // The first chunks convert fine; the error is raised only while producing a later chunk.
-        Command.UseStreamingMode = true;
-        Command.CommandText = "SELECT CAST(CASE WHEN i < 500000 THEN CAST(i AS VARCHAR) ELSE 'not a number' END AS INTEGER) FROM range(1000000) t(i)";
+        using var connection = OpenConnectionForLateStreamingErrors();
+        using var command = connection.CreateCommand();
+        command.UseStreamingMode = true;
+        command.CommandText = "SELECT CAST(CASE WHEN i < 500000 THEN CAST(i AS VARCHAR) ELSE 'not a number' END AS INTEGER) FROM range(1000000) t(i)";
 
-        using var reader = Command.ExecuteReader();
+        using var reader = command.ExecuteReader();
 
         var rows = 0;
         var act = () =>
