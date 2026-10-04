@@ -19,6 +19,7 @@ internal sealed class DuckDBArrowArrayStream : IArrowArrayStream
     private readonly DuckDBArrowOptions arrowOptions;
     private readonly bool streaming;
     private bool disposed;
+    private bool ended;
 
     public Schema Schema { get; }
 
@@ -112,6 +113,13 @@ internal sealed class DuckDBArrowArrayStream : IArrowArrayStream
             return new ValueTask<RecordBatch?>(Task.FromCanceled<RecordBatch?>(cancellationToken));
         }
 
+        // DuckDB closes a streaming result when a fetch reaches its end, and every later fetch then fails with a
+        // "closed pending query result" error. Stop fetching after a clean end, so that error is not reported.
+        if (ended)
+        {
+            return new ValueTask<RecordBatch?>((RecordBatch?)null);
+        }
+
         var chunk = streaming
             ? NativeMethods.StreamingResult.DuckDBStreamFetchChunk(result)
             : NativeMethods.Query.DuckDBFetchChunk(result);
@@ -125,6 +133,7 @@ internal sealed class DuckDBArrowArrayStream : IArrowArrayStream
                 result.ThrowOnError(connection);
             }
 
+            ended = true;
             return new ValueTask<RecordBatch?>((RecordBatch?)null);
         }
 

@@ -454,6 +454,63 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.NextResult().Should().BeFalse();
     }
 
+    // Regression tests for https://github.com/Giorgi/DuckDB.NET/issues/358
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ReadAfterEndOfResultReturnsFalse(bool useStreamingMode)
+    {
+        Command.UseStreamingMode = useStreamingMode;
+        Command.CommandText = "SELECT i FROM range(5000) t(i)";
+
+        using var reader = Command.ExecuteReader();
+
+        var rows = 0;
+        while (reader.Read())
+        {
+            rows++;
+        }
+
+        rows.Should().Be(5000);
+        reader.Read().Should().BeFalse();
+        reader.Read().Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ReadOnEmptyResultReturnsFalse(bool useStreamingMode)
+    {
+        Command.UseStreamingMode = useStreamingMode;
+        Command.CommandText = "SELECT i FROM range(0) t(i)";
+
+        using var reader = Command.ExecuteReader();
+
+        reader.HasRows.Should().BeFalse();
+        reader.Read().Should().BeFalse();
+        reader.Read().Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void NextResultAfterReadingPastEndReturnsNextResultSet(bool useStreamingMode)
+    {
+        Command.UseStreamingMode = useStreamingMode;
+        Command.CommandText = "SELECT i FROM range(0) t(i); SELECT 42";
+
+        using var reader = Command.ExecuteReader();
+
+        reader.Read().Should().BeFalse();
+        reader.Read().Should().BeFalse();
+
+        reader.NextResult().Should().BeTrue();
+        reader.Read().Should().BeTrue();
+        reader.GetInt32(0).Should().Be(42);
+        reader.Read().Should().BeFalse();
+        reader.Read().Should().BeFalse();
+    }
+
     [Fact]
     public void StreamingReadThrowsWhenLaterChunkFails()
     {

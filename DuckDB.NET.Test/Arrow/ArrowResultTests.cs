@@ -130,6 +130,29 @@ public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         rows.Should().Be(10);
     }
 
+    // Regression test for https://github.com/Giorgi/DuckDB.NET/issues/358
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExecuteArrowStream_ReadAfterEndReturnsNull(bool useStreamingMode)
+    {
+        Command.UseStreamingMode = useStreamingMode;
+        Command.CommandText = "select i from range(5000) t(i)";
+
+        using var stream = Command.ExecuteArrowStream();
+
+        var rows = 0;
+        while (await stream.ReadNextRecordBatchAsync(CancellationToken.None) is { } batch)
+        {
+            rows += batch.Length;
+            batch.Dispose();
+        }
+
+        rows.Should().Be(5000);
+        (await stream.ReadNextRecordBatchAsync(CancellationToken.None)).Should().BeNull();
+        (await stream.ReadNextRecordBatchAsync(CancellationToken.None)).Should().BeNull();
+    }
+
     [Fact]
     public void ExecuteArrowStream_ThrowsWhenNoResultSet()
     {
