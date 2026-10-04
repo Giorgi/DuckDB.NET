@@ -3,18 +3,28 @@
   <PropertyGroup>
     <Description>DuckDB ADO.NET Provider for C#.</Description>
     <PackageReleaseNotes>
-- Updated to DuckDB v1.5.5
+- Updated to DuckDB v1.5.6
 
 New features:
-- Apache Arrow result streaming via DuckDBCommand.ExecuteArrowStream and ExecuteArrowBatchesAsync (#26)
-- New allocation-free DuckDBAppender.AppendRow API with reusable rows
-- Support for byte[] columns in DuckDBAppenderMap
+- Typed properties for 24 DuckDB configuration options on DuckDBConnectionStringBuilder
+- Read DECIMAL values that do not fit System.Decimal as BigInteger or DuckDBDecimal
+- Bind BigInteger parameters wider than 128 bits to VARINT columns
 
 Fixes:
-- Fixed IndexOutOfRangeException when accessing reader metadata after exhausting the result set (#332)
+- Fixed possible data loss on Linux and macOS when a reader opened with CommandBehavior.CloseConnection closed the last connection to a file database (#357)
+- Errors in later chunks of a streaming result are now thrown instead of silently ending the result, in DuckDBDataReader and the Arrow stream (#356)
+- Fixed a memory leak where results skipped with NextResult were never released
+- Fixed incomplete appender rows being written with uninitialized values (#355)
+- Fixed ARRAY values shifted by one row after a NULL array in the appender
+- Fixed the appender writing to freed memory when a list of arrays grows
+- Fixed table functions returning no rows after the first iteration of a recursive CTE (#348)
 
-Performance:
-- Reduced allocations in parameter binding and same-type object reads
+Behavior changes:
+- GetFieldValue&lt;object&gt; now returns the same value as GetValue
+- Reading a LIST or MAP into an untyped target (object, ArrayList, List&lt;object&gt;, or a Dictionary with object keys or values) throws InvalidCastException; use GetValue instead
+- A failed ExecuteReader with CommandBehavior.CloseConnection now closes the connection, as in Npgsql
+- Moving on from an incomplete appender row discards it and faults the appender: the next CreateRow or AppendRow throws, and rows completed before it are still written. Close, Dispose and Clear discard an incomplete row without an error
+- A blob Stream from GetStream is valid only until the reader moves to the next result set
     </PackageReleaseNotes>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>

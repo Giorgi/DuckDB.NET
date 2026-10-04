@@ -8,6 +8,7 @@ public class DuckDBDataReader : DbDataReader
 {
     private readonly DuckDBCommand command;
     private readonly CommandBehavior behavior;
+    private readonly DuckDBNativeConnection nativeConnection;
 
     private DuckDBResult currentResult;
     private DuckDBDataChunk? currentChunk;
@@ -20,6 +21,7 @@ public class DuckDBDataReader : DbDataReader
     private bool closed;
     private bool hasRows;
     private bool streamingResult;
+    private bool streamEnded;
     private long currentChunkIndex;
 
     private readonly IEnumerator<DuckDBResult> resultEnumerator;
@@ -30,9 +32,19 @@ public class DuckDBDataReader : DbDataReader
     {
         this.command = command;
         this.behavior = behavior;
+        nativeConnection = ((DuckDBConnection)command.Connection!).NativeConnection;
         resultEnumerator = queryResults.GetEnumerator();
 
-        InitNextReader();
+        // The caller gets no reader when this throws, so release the result and statements here.
+        try
+        {
+            InitNextReader();
+        }
+        catch
+        {
+            Close();
+            throw;
+        }
     }
 
     private bool InitNextReader()
@@ -42,6 +54,8 @@ public class DuckDBDataReader : DbDataReader
             var result = resultEnumerator.Current;
             if (NativeMethods.Query.DuckDBResultReturnType(result) == DuckDBResultType.QueryResult)
             {
+                // Release the previous result set before replacing it: nothing else holds it, and a materialized
+                // result keeps all its rows. Its chunk points into the result's memory, so dispose the chunk first.
                 foreach (var reader in vectorReaders)
                 {
                     reader?.Dispose();
@@ -49,14 +63,28 @@ public class DuckDBDataReader : DbDataReader
 
                 vectorReaders = [];
 
+                currentChunk?.Dispose();
+                currentChunk = null;
+                currentResult.Close();
+
                 currentChunkIndex = 0;
+                streamEnded = false;
                 currentResult = result;
 
                 columnMapping = [];
                 fieldCount = (int)NativeMethods.Query.DuckDBColumnCount(ref currentResult);
                 streamingResult = NativeMethods.Types.DuckDBResultIsStreaming(currentResult) > 0;
 
-                hasRows = InitChunkData();
+                try
+                {
+                    hasRows = InitChunkData();
+                }
+                catch
+                {
+                    // The readers for this result were never built, so report no columns rather than index into them.
+                    fieldCount = 0;
+                    throw;
+                }
 
                 return true;
             }
@@ -69,12 +97,29 @@ public class DuckDBDataReader : DbDataReader
 
     private bool InitChunkData()
     {
+        // DuckDB closes a streaming result when a fetch reaches its end, and every later fetch then fails with a
+        // "closed pending query result" error. Stop fetching after a clean end, so that error is not reported.
+        if (streamEnded)
+        {
+            return false;
+        }
+
         var canReuse = vectorReaders.Length > 0;
+
+        // Reset before fetching: if the fetch throws, the readers still point into the chunk freed here,
+        // and zero counters make CheckRowRead reject any value access instead of reading that memory.
+        rowsReadFromCurrentChunk = 0;
+        currentChunkRowCount = 0;
 
         currentChunk?.Dispose();
         currentChunk = streamingResult ? NativeMethods.StreamingResult.DuckDBStreamFetchChunk(currentResult) : NativeMethods.Types.DuckDBResultGetChunk(currentResult, currentChunkIndex);
 
-        rowsReadFromCurrentChunk = 0;
+        if (streamingResult && currentChunk.IsInvalid)
+        {
+            // No chunk and no error is the clean end of the stream; an error from producing the chunk still throws.
+            currentResult.ThrowOnError(nativeConnection);
+            streamEnded = true;
+        }
 
         currentChunkRowCount = NativeMethods.DataChunks.DuckDBDataChunkGetSize(currentChunk);
 
@@ -365,19 +410,20 @@ public class DuckDBDataReader : DbDataReader
 
         foreach (var reader in vectorReaders)
         {
-            reader.Dispose();
+            reader?.Dispose();
         }
 
         currentChunk?.Dispose();
         currentResult.Close();
 
+        // Finish the reader's own cleanup first, so an exception from closing the connection cannot skip it.
+        closed = true;
+        resultEnumerator.Dispose();
+
         if (behavior == CommandBehavior.CloseConnection)
         {
             command.CloseConnection();
         }
-
-        closed = true;
-        resultEnumerator.Dispose();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

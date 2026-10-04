@@ -24,6 +24,7 @@ public class DuckDBAppender : IDisposable
     private readonly DuckDBDataChunk dataChunk;
     private readonly VectorDataWriterBase[] vectorWriters;
     private DuckDBAppenderRow? reusableRow;
+    private DuckDBAppenderRow? currentRow;
 
     internal DuckDBAppender(Native.DuckDBAppender appender, string qualifiedTableName)
     {
@@ -55,15 +56,24 @@ public class DuckDBAppender : IDisposable
     /// <see cref="IDuckDBAppenderRow.EndRow"/>.
     /// </summary>
     /// <remarks>
+    /// A row is written once every column has a value. If appending a value throws, append the value
+    /// again to finish the row. A row left with missing values is discarded: creating the next row then
+    /// throws and no more rows can be appended, while the rows completed before it are still written
+    /// when the appender is closed or disposed. A row still incomplete when the appender is closed,
+    /// disposed or cleared is discarded without an error.
+    /// <para>
     /// A new row instance is allocated on every call. Prefer
     /// <see cref="AppendRow{TState}(TState, Action{IDuckDBAppenderRow, TState})"/>, which reuses a
     /// single row instance and avoids the per-row allocation; use this method only when you need an
     /// independent row instance whose lifetime you control.
+    /// </para>
     /// </remarks>
     public IDuckDBAppenderRow CreateRow()
     {
         EnsureUsable();
-        return new DuckDBAppenderRow(qualifiedTableName, vectorWriters, PrepareRow(), dataChunk, nativeAppender);
+        EnsurePreviousRowComplete();
+        currentRow = new DuckDBAppenderRow(qualifiedTableName, vectorWriters, PrepareRow(), dataChunk, nativeAppender);
+        return currentRow;
     }
 
     /// <summary>
@@ -117,6 +127,7 @@ public class DuckDBAppender : IDisposable
     {
         ArgumentNullException.ThrowIfNull(writeRow);
         EnsureUsable();
+        EnsurePreviousRowComplete();
 
         DuckDBAppenderRow? row = null;
         isAppendingRow = true;
@@ -159,6 +170,7 @@ public class DuckDBAppender : IDisposable
             reusableRow.Reset(rowIndex);
         }
 
+        currentRow = reusableRow;
         return reusableRow;
     }
 
@@ -187,6 +199,8 @@ public class DuckDBAppender : IDisposable
             NativeMethods.Appender.DuckDBAppenderErrorData(nativeAppender).ThrowOnError();
         }
 
+        DiscardIncompleteRow();
+
         rowCount = 0;
         NativeMethods.DataChunks.DuckDBDataChunkReset(dataChunk);
         InitVectorWriters();
@@ -212,6 +226,7 @@ public class DuckDBAppender : IDisposable
 
         try
         {
+            DiscardIncompleteRow();
             AppendDataChunk();
 
             var state = NativeMethods.Appender.DuckDBAppenderClose(nativeAppender);
@@ -282,13 +297,49 @@ public class DuckDBAppender : IDisposable
 
     private void DiscardFailedAppendRow(DuckDBAppenderRow row)
     {
-        // The row index is also the number of completed rows before the failed row in this chunk,
-        // so resetting rowCount drops the partial row without touching the completed ones. The
-        // completed rows stay buffered and are written only when the caller closes or disposes the
-        // appender; the failure itself never commits.
+        // The completed rows stay buffered and are written only when the caller closes or disposes
+        // the appender; the failure itself never commits.
+        DiscardRow(row);
+        isFaulted = true;
+    }
+
+    // https://github.com/Giorgi/DuckDB.NET/issues/355
+    // A row counts toward the chunk as soon as it is created, so a row left with missing values would
+    // be written with its unwritten slots holding garbage: a crash for strings and lists, a junk value
+    // otherwise. Moving on from such a row faults the appender, as a failed AppendRow does, so the
+    // incomplete row is always the last one and its slot is never reused.
+    private void EnsurePreviousRowComplete()
+    {
+        if (currentRow is not { IsComplete: false } row)
+        {
+            return;
+        }
+
+        var message = $"The previous row has only {row.ValueCount} of {vectorWriters.Length} values, so it was discarded. The appender cannot be reused after a row is left incomplete";
+
+        DiscardRow(row);
+        isFaulted = true;
+
+        throw new InvalidOperationException(message);
+    }
+
+    private void DiscardIncompleteRow()
+    {
+        if (currentRow is { IsComplete: false })
+        {
+            DiscardRow(currentRow);
+        }
+
+        currentRow = null;
+    }
+
+    private void DiscardRow(DuckDBAppenderRow row)
+    {
+        // The row index is also the number of completed rows before this row in the chunk, so
+        // resetting rowCount drops the row without touching the completed ones.
         rowCount = row.ChunkRowIndex;
         row.Invalidate();
-        isFaulted = true;
+        currentRow = null;
     }
 
     private void EnsureNotAppendingRow()
@@ -305,7 +356,7 @@ public class DuckDBAppender : IDisposable
 
         if (isFaulted)
         {
-            throw new InvalidOperationException("The appender cannot be reused after an AppendRow callback failed");
+            throw new InvalidOperationException("The appender cannot be reused after a row failed");
         }
 
         if (closed)

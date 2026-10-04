@@ -87,6 +87,117 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    public void CloseConnectionReleasesTheDatabaseBeforeTheConnectionReportsClosed()
+    {
+        // With CommandBehavior.CloseConnection the reader must release its statements before closing the
+        // connection. When that connection is the file's last one, closing it closes the database; if the
+        // reader's statements are still alive they keep the native instance alive, and a connection opened
+        // meanwhile gets a second instance on the same file. On Linux both instances then write the file
+        // and committed rows are lost; on Windows the second open is refused.
+        // Opening a connection from the reader connection's Closed event lands in exactly that window.
+        var file = Path.Combine(Path.GetTempPath(), $"closeconnection-{Guid.NewGuid():N}.db");
+        var connectionString = $"Data Source={file}";
+
+        void Execute(DuckDBConnection connection, string sql)
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            command.ExecuteNonQuery();
+        }
+
+        try
+        {
+            using (var setup = new DuckDBConnection(connectionString))
+            {
+                setup.Open();
+                Execute(setup, "CREATE TABLE CloseConnectionRelease (id INTEGER)");
+            }
+
+            using var connection = new DuckDBConnection(connectionString);
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT id FROM CloseConnectionRelease";
+            var reader = command.ExecuteReader(CommandBehavior.CloseConnection);
+
+            // A committed write through the same database, so there is something to lose.
+            using (var writer = new DuckDBConnection(connectionString))
+            {
+                writer.Open();
+                Execute(writer, "INSERT INTO CloseConnectionRelease VALUES (1)");
+            }
+
+            while (reader.Read())
+            {
+            }
+
+            connection.StateChange += (_, e) =>
+            {
+                if (e.CurrentState != ConnectionState.Closed)
+                {
+                    return;
+                }
+
+                using var other = new DuckDBConnection(connectionString);
+                other.Open();
+                Execute(other, "INSERT INTO CloseConnectionRelease VALUES (2)");
+            };
+
+            reader.Dispose();
+
+            using var verify = new DuckDBConnection(connectionString);
+            verify.Open();
+            using var count = verify.CreateCommand();
+            count.CommandText = "SELECT count(*) FROM CloseConnectionRelease";
+            Convert.ToInt32(count.ExecuteScalar()).Should().Be(2);
+        }
+        finally
+        {
+            File.Delete(file);
+            File.Delete(file + ".wal");
+        }
+    }
+
+    [Theory]
+    [InlineData("SELEC 1", CommandBehavior.CloseConnection, ConnectionState.Closed, false)]
+    [InlineData("SELEC 1", CommandBehavior.Default, ConnectionState.Open, false)]
+    [InlineData("SELECT CAST('not a number' AS INTEGER)", CommandBehavior.CloseConnection, ConnectionState.Closed, false)]
+    [InlineData("SELECT CAST('not a number' AS INTEGER)", CommandBehavior.Default, ConnectionState.Open, false)]
+    [InlineData("SELECT CAST('not a number' AS INTEGER)", CommandBehavior.CloseConnection, ConnectionState.Closed, true)]
+    [InlineData("SELECT CAST('not a number' AS INTEGER)", CommandBehavior.Default, ConnectionState.Open, true)]
+    public void FailedExecuteReaderClosesConnectionOnlyWithCloseConnection(string sql, CommandBehavior behavior, ConnectionState expectedState, bool useStreamingMode)
+    {
+        // Matches Npgsql: the caller handed the connection to a reader it never received.
+        using var connection = new DuckDBConnection("DataSource=:memory:");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        command.UseStreamingMode = useStreamingMode;
+
+        command.Invoking(c => c.ExecuteReader(behavior)).Should().Throw<DuckDBException>();
+
+        connection.State.Should().Be(expectedState);
+    }
+
+    [Fact]
+    public void StreamingReadFailureClosesConnectionOnlyWhenReaderIsDisposed()
+    {
+        // Matches Npgsql: a failed Read() leaves the connection open, and disposing the reader closes it.
+        using var connection = new DuckDBConnection("DataSource=:memory:");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.UseStreamingMode = true;
+        command.CommandText = "SELECT CAST(CASE WHEN i < 500000 THEN CAST(i AS VARCHAR) ELSE 'not a number' END AS INTEGER) FROM range(1000000) t(i)";
+
+        var reader = command.ExecuteReader(CommandBehavior.CloseConnection);
+
+        reader.Invoking(r => { while (r.Read()) { } }).Should().Throw<DuckDBException>();
+        connection.State.Should().Be(ConnectionState.Open);
+
+        reader.Dispose();
+        connection.State.Should().Be(ConnectionState.Closed);
+    }
+
+    [Fact]
     public void ReadValueBeforeReadThrowsException()
     {
         Command.CommandText = "select 24";
@@ -343,6 +454,89 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.NextResult().Should().BeFalse();
     }
 
+    // Regression tests for https://github.com/Giorgi/DuckDB.NET/issues/358
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ReadAfterEndOfResultReturnsFalse(bool useStreamingMode)
+    {
+        Command.UseStreamingMode = useStreamingMode;
+        Command.CommandText = "SELECT i FROM range(5000) t(i)";
+
+        using var reader = Command.ExecuteReader();
+
+        var rows = 0;
+        while (reader.Read())
+        {
+            rows++;
+        }
+
+        rows.Should().Be(5000);
+        reader.Read().Should().BeFalse();
+        reader.Read().Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ReadOnEmptyResultReturnsFalse(bool useStreamingMode)
+    {
+        Command.UseStreamingMode = useStreamingMode;
+        Command.CommandText = "SELECT i FROM range(0) t(i)";
+
+        using var reader = Command.ExecuteReader();
+
+        reader.HasRows.Should().BeFalse();
+        reader.Read().Should().BeFalse();
+        reader.Read().Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void NextResultAfterReadingPastEndReturnsNextResultSet(bool useStreamingMode)
+    {
+        Command.UseStreamingMode = useStreamingMode;
+        Command.CommandText = "SELECT i FROM range(0) t(i); SELECT 42";
+
+        using var reader = Command.ExecuteReader();
+
+        reader.Read().Should().BeFalse();
+        reader.Read().Should().BeFalse();
+
+        reader.NextResult().Should().BeTrue();
+        reader.Read().Should().BeTrue();
+        reader.GetInt32(0).Should().Be(42);
+        reader.Read().Should().BeFalse();
+        reader.Read().Should().BeFalse();
+    }
+
+    [Fact]
+    public void StreamingReadThrowsWhenLaterChunkFails()
+    {
+        // The first chunks convert fine; the error is raised only while producing a later chunk.
+        Command.UseStreamingMode = true;
+        Command.CommandText = "SELECT CAST(CASE WHEN i < 500000 THEN CAST(i AS VARCHAR) ELSE 'not a number' END AS INTEGER) FROM range(1000000) t(i)";
+
+        using var reader = Command.ExecuteReader();
+
+        var rows = 0;
+        var act = () =>
+        {
+            while (reader.Read())
+            {
+                rows++;
+            }
+        };
+
+        act.Should().Throw<DuckDBException>().Where(e => e.ErrorType == DuckDBErrorType.Conversion);
+        rows.Should().BeGreaterThan(0);
+
+        // The failed fetch freed the previous chunk, so the reader must not serve values from it.
+        reader.Invoking(r => r.GetInt32(0)).Should().Throw<InvalidOperationException>();
+        reader.Invoking(r => r.Read()).Should().Throw<DuckDBException>();
+    }
+
     [Fact]
     public void ReadInsertReturningClause()
     {
@@ -478,6 +672,32 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
             }
 
         }).Should().Throw<OperationCanceledException>();
+    }
+
+    [Fact]
+    public void CancelDuringStreamingReadThrowsOperationCanceledException()
+    {
+        const long totalRows = 10_000_000;
+
+        Command.UseStreamingMode = true;
+        Command.CommandText = $"SELECT i FROM range({totalRows}) t(i)";
+
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        // Cancel after ExecuteReader has returned, so the interrupt surfaces from a later fetch rather than from execute.
+        Command.Cancel();
+
+        var rows = 1L;
+        reader.Invoking(r =>
+        {
+            while (r.Read())
+            {
+                rows++;
+            }
+        }).Should().Throw<OperationCanceledException>();
+
+        rows.Should().BeLessThan(totalRows);
     }
 
     [Fact]

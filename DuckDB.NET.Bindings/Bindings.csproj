@@ -3,15 +3,14 @@
   <PropertyGroup>
     <Description>DuckDB Bindings for C#.</Description>
     <PackageReleaseNotes>
-- Updated to DuckDB v1.5.5
+- Updated to DuckDB v1.5.6
 
 New features:
-- Added bindings for the Arrow C Data Interface (duckdb_to_arrow_schema, duckdb_data_chunk_to_arrow, duckdb_result_get_arrow_options)
-- Added bindings for error data (duckdb_appender_error_data, duckdb_error_data_error_type)
+- Added binding for duckdb_create_bignum and the DuckDBBignum struct
     </PackageReleaseNotes>
     <RootNamespace>DuckDB.NET.Native</RootNamespace>
     <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx</RuntimeIdentifiers>
-    <DuckDbArtifactRoot Condition=" '$(DuckDbArtifactRoot)' == '' ">https://github.com/duckdb/duckdb/releases/download/v1.5.5</DuckDbArtifactRoot>
+    <DuckDbArtifactRoot Condition=" '$(DuckDbArtifactRoot)' == '' ">https://github.com/duckdb/duckdb/releases/download/v1.5.6</DuckDbArtifactRoot>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

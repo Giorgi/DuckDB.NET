@@ -9,7 +9,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
     internal IntPtr Vector => vector;
     internal DuckDBType ColumnType => columnType;
 
-    public void WriteNull(ulong rowIndex)
+    public virtual void WriteNull(ulong rowIndex)
     {
         if (validity == default)
         {
@@ -62,6 +62,13 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
             ICollection val => AppendCollection(val, rowIndex),
             _ => ThrowException<T>()
         };
+
+        // A value can land where a NULL was written before: a collection that failed part way can have
+        // marked some of its items NULL, and retrying it writes the same items again.
+        if (validity != default)
+        {
+            validity[rowIndex / 64] |= 1UL << (int)(rowIndex % 64);
+        }
     }
 
     internal virtual bool AppendBool(bool value, ulong rowIndex) => ThrowException<bool>();
@@ -108,9 +115,11 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
         return true;
     }
 
-    internal void InitializeWriter()
+    internal virtual void InitializeWriter()
     {
-        validity = default;
+        // Fetched again rather than cleared: when a list grows, DuckDB keeps the NULLs already marked in
+        // its items, and a retried row must still be able to mark them valid. Null when nothing is NULL.
+        validity = NativeMethods.Vectors.DuckDBVectorGetValidity(Vector);
         vectorData = NativeMethods.Vectors.DuckDBVectorGetData(Vector);
     }
 

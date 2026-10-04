@@ -2,23 +2,17 @@
 
 namespace DuckDB.NET.Data.DataChunk.Writer;
 
-internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
+// No InitializeWriter override, unlike ArrayVectorDataWriter: when a list around this one grows, DuckDB
+// moves this list's entries but not its items (Vector::FindResizeInfos stops at list buffers), and
+// ResizeVector refreshes ItemWriter itself when this list's own items move.
+internal sealed class ListVectorDataWriter : CollectionVectorDataWriter
 {
     private ulong offset = 0;
-    private readonly ulong arraySize;
-    private readonly DuckDBLogicalType childType;
-    private readonly VectorDataWriterBase listItemWriter;
-
-    private bool IsList => ColumnType == DuckDBType.List;
     private ulong vectorReservedSize = DuckDBGlobalData.VectorSize;
 
-    public ListVectorDataWriter(IntPtr vector, void* vectorData, DuckDBType columnType, DuckDBLogicalType logicalType) : base(vector, vectorData, columnType)
+    public unsafe ListVectorDataWriter(IntPtr vector, void* vectorData, DuckDBType columnType, DuckDBLogicalType logicalType)
+        : base(vector, vectorData, columnType, NativeMethods.Vectors.DuckDBListVectorGetChild(vector), NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType))
     {
-        childType = IsList ? NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType) : NativeMethods.LogicalType.DuckDBArrayTypeChildType(logicalType);
-        var childVector = IsList ? NativeMethods.Vectors.DuckDBListVectorGetChild(vector) : NativeMethods.Vectors.DuckDBArrayVectorGetChild(vector);
-
-        arraySize = IsList ? 0 : (ulong)NativeMethods.LogicalType.DuckDBArrayVectorGetSize(logicalType);
-        listItemWriter = VectorDataWriterFactory.CreateWriter(childVector, childType);
     }
 
     internal override bool AppendCollection(ICollection value, ulong rowIndex)
@@ -27,111 +21,23 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
 
         ResizeVector(rowIndex % DuckDBGlobalData.VectorSize, count);
 
-        _ = value switch
-        {
-            IEnumerable<bool> items => WriteItems(items),
-            IEnumerable<bool?> items => WriteItems(items),
+        // Each list entry records where its items start, so the items can go at the running offset.
+        var start = offset;
 
-            IEnumerable<sbyte> items => WriteItems(items),
-            IEnumerable<sbyte?> items => WriteItems(items),
-            IEnumerable<short> items => WriteItems(items),
-            IEnumerable<short?> items => WriteItems(items),
-            IEnumerable<int> items => WriteItems(items),
-            IEnumerable<int?> items => WriteItems(items),
-            IEnumerable<long> items => WriteItems(items),
-            IEnumerable<long?> items => WriteItems(items),
-            IEnumerable<byte> items => WriteItems(items),
-            IEnumerable<byte?> items => WriteItems(items),
-            IEnumerable<ushort> items => WriteItems(items),
-            IEnumerable<ushort?> items => WriteItems(items),
-            IEnumerable<uint> items => WriteItems(items),
-            IEnumerable<uint?> items => WriteItems(items),
-            IEnumerable<ulong> items => WriteItems(items),
-            IEnumerable<ulong?> items => WriteItems(items),
+        WriteCollection(value, start);
 
-            IEnumerable<float> items => WriteItems(items),
-            IEnumerable<float?> items => WriteItems(items),
-            IEnumerable<double> items => WriteItems(items),
-            IEnumerable<double?> items => WriteItems(items),
-
-            IEnumerable<decimal> items => WriteItems(items),
-            IEnumerable<decimal?> items => WriteItems(items),
-            IEnumerable<BigInteger> items => WriteItems(items),
-            IEnumerable<BigInteger?> items => WriteItems(items),
-
-            IEnumerable<string> items => WriteItems(items),
-            IEnumerable<Guid> items => WriteItems(items),
-            IEnumerable<Guid?> items => WriteItems(items),
-            IEnumerable<DateTime> items => WriteItems(items),
-            IEnumerable<DateTime?> items => WriteItems(items),
-            IEnumerable<TimeSpan> items => WriteItems(items),
-            IEnumerable<TimeSpan?> items => WriteItems(items),
-            IEnumerable<DuckDBDateOnly> items => WriteItems(items),
-            IEnumerable<DuckDBDateOnly?> items => WriteItems(items),
-            IEnumerable<DuckDBTimeOnly> items => WriteItems(items),
-            IEnumerable<DuckDBTimeOnly?> items => WriteItems(items),
-            IEnumerable<DateOnly> items => WriteItems(items),
-            IEnumerable<DateOnly?> items => WriteItems(items),
-            IEnumerable<TimeOnly> items => WriteItems(items),
-            IEnumerable<TimeOnly?> items => WriteItems(items),
-            IEnumerable<DateTimeOffset> items => WriteItems(items),
-            IEnumerable<DateTimeOffset?> items => WriteItems(items),
-            IEnumerable<object> items => WriteItems(items),
-
-            _ => WriteItemsFallback(value),
-        };
-
-        var duckDBListEntry = new DuckDBListEntry(offset, count);
-        var result = !IsList || AppendValueInternal(duckDBListEntry, rowIndex);
+        var result = AppendValueInternal(new DuckDBListEntry(start, count), rowIndex);
 
         offset += count;
-
-        if (IsList)
-        {
-            NativeMethods.Vectors.DuckDBListVectorSetSize(Vector, offset);
-        }
+        NativeMethods.Vectors.DuckDBListVectorSetSize(Vector, offset);
 
         return result;
-
-        int WriteItems<T>(IEnumerable<T> items)
-        {
-            if (IsList == false && count != arraySize)
-            {
-                throw new InvalidOperationException($"Column has Array size of {arraySize} but the specified value has size of {count}");
-            }
-
-            var index = 0ul;
-
-            foreach (var item in items)
-            {
-                listItemWriter.WriteValue(item, offset + (index++));
-            }
-
-            return 0;
-        }
-
-        int WriteItemsFallback(IEnumerable items)
-        {
-            if (IsList == false && count != arraySize)
-            {
-                throw new InvalidOperationException($"Column has Array size of {arraySize} but the specified value has size of {count}");
-            }
-
-            var index = 0ul;
-
-            foreach (var item in items)
-            {
-                listItemWriter.WriteValue(item, offset + (index++));
-            }
-
-            return 0;
-        }
     }
 
     private void ResizeVector(ulong rowIndex, ulong count)
     {
-        //If writing to a list column we need to make sure that enough space is allocated. Not needed for Arrays as DuckDB does it for us.
-        if (!IsList || offset + count <= vectorReservedSize) return;
+        //Make sure that enough space is allocated for the list's items. Arrays don't need this, as DuckDB sizes their items for us.
+        if (offset + count <= vectorReservedSize) return;
 
         var factor = 2d;
 
@@ -158,12 +64,6 @@ internal sealed unsafe class ListVectorDataWriter : VectorDataWriterBase
             throw new DuckDBException($"Failed to reserve {vectorReservedSize} for the list vector");
         }
 
-        listItemWriter.InitializeWriter();
-    }
-
-    public override void Dispose()
-    {
-        listItemWriter.Dispose();
-        childType.Dispose();
+        ItemWriter.InitializeWriter();
     }
 }
