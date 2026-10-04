@@ -35,12 +35,14 @@ jobs:
         echo "BuildBranch=nightly-builds" >> "$GITHUB_ENV"
         echo "BuildBranch=nightly-builds" >> $env:GITHUB_ENV
         
+    # Nightly native libraries: artifacts.duckdb.org/<branch>/, where 'latest' is DuckDB's main branch.
+    # Tracks the v2.0 release branch until DuckDB 2.0 ships; switch back to 'latest' after that.
     - name: Set Env
       if: startsWith(github.ref_name, 'nightly') || startsWith(env.BuildBranch, 'nightly')
       run: |
-        echo "DuckDbArtifactRoot=https://artifacts.duckdb.org/latest" >> "$GITHUB_ENV"
+        echo "DuckDbArtifactRoot=https://artifacts.duckdb.org/v2.0-cyanoptera" >> "$GITHUB_ENV"
         echo "NightlyBuild=true" >> "$GITHUB_ENV"
-        echo "DuckDbArtifactRoot=https://artifacts.duckdb.org/latest" >> $env:GITHUB_ENV
+        echo "DuckDbArtifactRoot=https://artifacts.duckdb.org/v2.0-cyanoptera" >> $env:GITHUB_ENV
         echo "NightlyBuild=true" >> $env:GITHUB_ENV
     
     - name: Checkout

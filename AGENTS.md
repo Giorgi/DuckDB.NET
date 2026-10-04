@@ -36,9 +36,10 @@ dotnet run -c Release --project DuckDB.NET.Benchmarks
   whatever `BuildType` is.
 - **The cache is version-blind:** a platform is downloaded only if its folder is missing. After changing the DuckDB
   version, delete `DuckDB.NET.Bindings/obj/runtimes`, rebuild, and confirm the version with `SELECT version()`.
-- **Nightly builds:** `/p:NightlyBuild=true /p:DuckDbArtifactRoot=https://artifacts.duckdb.org/latest` downloads
-  DuckDB's `duckdb-shared-libs-<platform>.tar.gz` instead. CI does this on the schedule, against the
-  `nightly-builds` branch.
+- **Nightly builds:** `/p:NightlyBuild=true /p:DuckDbArtifactRoot=https://artifacts.duckdb.org/<branch>` downloads
+  DuckDB's `duckdb-shared-libs-<platform>.tar.gz` instead. `<branch>` is a DuckDB branch name, and `latest` means
+  DuckDB's `main`. CI does this on the schedule: it uses the workflow file from `develop`, builds the code of the
+  `nightly-builds` branch, and currently tracks `v2.0-cyanoptera` until DuckDB 2.0 ships.
 
 ## DuckDB version and releases
 
