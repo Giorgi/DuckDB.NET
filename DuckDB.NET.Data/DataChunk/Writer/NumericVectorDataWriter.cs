@@ -4,5 +4,7 @@ internal sealed unsafe class NumericVectorDataWriter(IntPtr vector, void* vector
 {
     internal override bool AppendNumeric<T>(T value, ulong rowIndex) => AppendValueInternal(value, rowIndex);
 
-    internal override bool AppendBigInteger(BigInteger value, ulong rowIndex) => AppendValueInternal<DuckDBHugeInt>(new DuckDBHugeInt(value), rowIndex);
+    internal override bool AppendBigInteger(BigInteger value, ulong rowIndex) => ColumnType == DuckDBType.UnsignedHugeInt
+        ? AppendValueInternal(new DuckDBUHugeInt(value), rowIndex)
+        : AppendValueInternal(new DuckDBHugeInt(value), rowIndex);
 }

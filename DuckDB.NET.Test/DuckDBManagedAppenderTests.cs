@@ -168,6 +168,71 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    public void UnsignedHugeIntAboveSignedHugeIntRange()
+    {
+        // Only UHUGEINT columns, ordered by rowid: the low-level appender does no type checking.
+        Command.CommandText = "CREATE TABLE uhugeintAppenderTest(a UHUGEINT, b UHUGEINT[])";
+        Command.ExecuteNonQuery();
+
+        BigInteger?[] values =
+        [
+            BigInteger.Zero,
+            DuckDBHugeInt.HugeIntMaxValue,
+            BigInteger.Pow(2, 127) + 42,
+            DuckDBUHugeInt.HugeIntMaxValue,
+        ];
+
+        using (var appender = Connection.CreateAppender("uhugeintAppenderTest"))
+        {
+            foreach (var value in values)
+            {
+                appender.CreateRow().AppendValue(value).AppendValue(new List<BigInteger> { value.Value, value.Value }).EndRow();
+            }
+        }
+
+        Command.CommandText = "SELECT a, b, a::VARCHAR FROM uhugeintAppenderTest ORDER BY rowid";
+        using var reader = Command.ExecuteReader();
+
+        foreach (var value in values)
+        {
+            reader.Read().Should().BeTrue();
+            reader.GetFieldValue<BigInteger>(0).Should().Be(value.Value);
+            reader.GetFieldValue<List<BigInteger>>(1).Should().Equal(value.Value, value.Value);
+            reader.GetString(2).Should().Be(value.Value.ToString());
+        }
+
+        reader.Read().Should().BeFalse();
+    }
+
+    [Fact]
+    public void UnsignedHugeIntRejectsValuesOutOfRange()
+    {
+        Command.CommandText = "CREATE TABLE uhugeintAppenderRangeTest(a UHUGEINT)";
+        Command.ExecuteNonQuery();
+
+        BigInteger? negative = BigInteger.MinusOne;
+        BigInteger? tooLarge = DuckDBUHugeInt.HugeIntMaxValue + 1;
+        BigInteger? valid = BigInteger.Pow(2, 127);
+
+        using (var appender = Connection.CreateAppender("uhugeintAppenderRangeTest"))
+        {
+            var row = appender.CreateRow();
+
+            row.Invoking(r => r.AppendValue(negative)).Should().Throw<ArgumentOutOfRangeException>();
+            row.Invoking(r => r.AppendValue(tooLarge)).Should().Throw<ArgumentOutOfRangeException>();
+
+            row.AppendValue(valid).EndRow();
+        }
+
+        Command.CommandText = "SELECT a::VARCHAR FROM uhugeintAppenderRangeTest";
+        using var reader = Command.ExecuteReader();
+
+        reader.Read().Should().BeTrue();
+        reader.GetString(0).Should().Be(valid.Value.ToString());
+        reader.Read().Should().BeFalse();
+    }
+
+    [Fact]
     public void Decimals()
     {
         Command.CommandText = "CREATE TABLE managedAppenderDecimals(a INTEGER, b decimal(3, 1), c decimal (9, 4), d decimal (18, 6), e decimal(38, 12));";
