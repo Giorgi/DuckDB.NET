@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Globalization;
+using System.Reflection;
 
 namespace DuckDB.NET.Test;
 
@@ -348,6 +349,103 @@ public class ConnectionStringTests
 
         builder.Invoking(b => b.Threads).Should().Throw<InvalidOperationException>();
         builder.Invoking(b => b.AccessMode).Should().Throw<InvalidOperationException>();
+    }
+
+    // Every typed property, found by reflection, so a property added later is covered without a change here.
+    public static IEnumerable<object[]> TypedPropertyNames() =>
+        typeof(DuckDBConnectionStringBuilder)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Where(property => property.GetCustomAttribute<DisplayNameAttribute>() != null)
+            .Select(property => new object[] { property.Name });
+
+    [Theory]
+    [MemberData(nameof(TypedPropertyNames))]
+    public void EveryTypedPropertyRoundTripsAndClears(string propertyName)
+    {
+        var property = typeof(DuckDBConnectionStringBuilder).GetProperty(propertyName)!;
+        var keyword = property.GetCustomAttribute<DisplayNameAttribute>()!.DisplayName;
+        var type = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+
+        object[] samples;
+
+        if (type == typeof(string))
+        {
+            samples = ["sample"];
+        }
+        else if (type == typeof(bool))
+        {
+            samples = [true, false];
+        }
+        else if (type == typeof(int))
+        {
+            samples = [3];
+        }
+        else if (type.IsEnum)
+        {
+            samples = Enum.GetValues(type).Cast<object>().ToArray();
+        }
+        else
+        {
+            throw new NotSupportedException($"Add sample values for {type.Name}, the type of {propertyName}.");
+        }
+
+        foreach (var sample in samples)
+        {
+            var builder = new DuckDBConnectionStringBuilder();
+
+            property.SetValue(builder, sample);
+
+            builder.ContainsKey(keyword).Should().BeTrue($"setting {propertyName} should write '{keyword}'");
+            property.GetValue(builder).Should().Be(sample);
+
+            property.SetValue(builder, null);
+
+            builder.ContainsKey(keyword).Should().BeFalse($"setting {propertyName} to null should remove '{keyword}'");
+            property.GetValue(builder).Should().Be(type == typeof(string) ? "" : null);
+        }
+    }
+
+    [Theory]
+    [InlineData("asc", DuckDBSortOrder.Ascending)]
+    [InlineData("ASCENDING", DuckDBSortOrder.Ascending)]
+    [InlineData("desc", DuckDBSortOrder.Descending)]
+    [InlineData("Descending", DuckDBSortOrder.Descending)]
+    public void DefaultOrderAcceptsEverySpellingDuckDBAccepts(string value, DuckDBSortOrder expected)
+    {
+        var builder = new DuckDBConnectionStringBuilder { ConnectionString = $"DataSource=:memory:;default_order={value}" };
+
+        builder.DefaultOrder.Should().Be(expected);
+    }
+
+    [Fact]
+    public void SortOrderPropertiesThrowOnMalformedValues()
+    {
+        var builder = new DuckDBConnectionStringBuilder { ConnectionString = "DataSource=:memory:;default_order=sideways;default_null_order=middle" };
+
+        builder.Invoking(b => b.DefaultOrder).Should().Throw<InvalidOperationException>();
+        builder.Invoking(b => b.DefaultNullOrder).Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void EnumPropertiesRejectUndefinedValues()
+    {
+        var builder = new DuckDBConnectionStringBuilder();
+
+        builder.Invoking(b => b.AccessMode = (DuckDBAccessMode)999).Should().Throw<ArgumentOutOfRangeException>();
+        builder.Invoking(b => b.DefaultOrder = (DuckDBSortOrder)999).Should().Throw<ArgumentOutOfRangeException>();
+        builder.Invoking(b => b.DefaultNullOrder = (DuckDBNullOrder)999).Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void EmptyNumberAndBooleanOptionsReadAsNotSet()
+    {
+        var builder = new DuckDBConnectionStringBuilder { DataSource = DuckDBConnectionStringBuilder.InMemoryDataSource };
+
+        builder["threads"] = "";
+        builder["enable_external_access"] = "";
+
+        builder.Threads.Should().BeNull();
+        builder.EnableExternalAccess.Should().BeNull();
     }
 
     [Fact]
