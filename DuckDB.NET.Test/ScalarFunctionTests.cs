@@ -113,13 +113,15 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void RegisterScalarFunctionCallbackThrowsInLaterStreamingChunk()
     {
-        Connection.RegisterScalarFunction<long, long>("throwing_late_scalar",
+        using var connection = OpenConnectionForLateStreamingErrors();
+        connection.RegisterScalarFunction<long, long>("throwing_late_scalar",
             x => x < 500_000 ? x : throw new InvalidOperationException("Scalar callback failed late"));
 
-        Command.UseStreamingMode = true;
-        Command.CommandText = "SELECT throwing_late_scalar(i) FROM range(1000000) t(i)";
+        using var command = connection.CreateCommand();
+        command.UseStreamingMode = true;
+        command.CommandText = "SELECT throwing_late_scalar(i) FROM range(1000000) t(i)";
 
-        using (var reader = Command.ExecuteReader())
+        using (var reader = command.ExecuteReader())
         {
             var rows = 0;
             var act = () =>
@@ -137,10 +139,10 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         }
 
         // The stored callback exception was consumed, so it must not leak into the next error on this connection.
-        Command.UseStreamingMode = false;
-        Command.CommandText = "SELECT CAST('not a number' AS INTEGER)";
+        command.UseStreamingMode = false;
+        command.CommandText = "SELECT CAST('not a number' AS INTEGER)";
 
-        Command.Invoking(command => command.ExecuteScalar())
+        command.Invoking(c => c.ExecuteScalar())
                .Should().Throw<DuckDBException>()
                .Where(e => e.InnerException == null);
     }

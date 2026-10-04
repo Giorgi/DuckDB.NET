@@ -44,4 +44,24 @@ public class DuckDBTestBase : IDisposable, IClassFixture<DuckDBDatabaseFixture>
     {
         Command?.Dispose();
     }
+
+    /// <summary>
+    /// Opens a private in-memory database for tests where a streaming query must fail only after some rows were read.
+    /// One thread produces the chunks in order, and a small streaming buffer lets it get only a few chunks ahead of
+    /// the reader, so the rows before the failing one are read first. With the default settings DuckDB 2.0 buffers
+    /// past the failing row and reports the error on the first fetch, and DuckDB 1.5 can report such an error as an
+    /// interrupt when several threads are running.
+    /// </summary>
+    protected static DuckDBConnection OpenConnectionForLateStreamingErrors()
+    {
+        var connection = new DuckDBConnection("DataSource=:memory:;threads=1");
+        connection.Open();
+
+        // A per-connection setting, so it cannot go into the connection string.
+        using var command = connection.CreateCommand();
+        command.CommandText = "SET streaming_buffer_size = '100KB'";
+        command.ExecuteNonQuery();
+
+        return connection;
+    }
 }
