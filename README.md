@@ -101,6 +101,6 @@ If you encounter a bug with the library [Create an Issue](https://github.com/Gio
 
 A big thanks to [DuckLabs](https://ducklabs.com/) and [AWS Open Source Software Fund](https://github.com/aws/dotnet-foss) for sponsoring the project!
 
-[![DuckLabs](https://raw.githubusercontent.com/Giorgi/DuckDB.NET/main/.github/sponsors/duckdb-labs-logo.png)](https://ducklabs.com/)
+[![DuckLabs](https://raw.githubusercontent.com/Giorgi/DuckDB.NET/main/.github/sponsors/ducklabs-logo.png)](https://ducklabs.com/)
 
 [![AWS](https://raw.githubusercontent.com/Giorgi/DuckDB.NET/main/.github/sponsors/aws-logo-small.png)](https://github.com/aws/dotnet-foss)
