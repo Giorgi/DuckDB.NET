@@ -320,4 +320,70 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
         nullableReader.IsDBNull(0).Should().BeTrue();
         nullableReader.IsDBNull(1).Should().BeTrue();
     }
+    // The provider's own date and time types. DuckDBDateOnly can hold the infinite dates that DateOnly cannot.
+    public class DuckDBDateAndTime
+    {
+        public DuckDBDateOnly Date { get; set; }
+        public DuckDBTimeOnly Time { get; set; }
+        public DuckDBDateOnly? NullableDate { get; set; }
+        public DuckDBTimeOnly? NullableTime { get; set; }
+    }
+
+    public class DuckDBDateAndTimeMap : DuckDBAppenderMap<DuckDBDateAndTime>
+    {
+        public DuckDBDateAndTimeMap()
+        {
+            Map(x => x.Date);
+            Map(x => x.Time);
+            Map(x => x.NullableDate);
+            Map(x => x.NullableTime);
+        }
+    }
+
+    [Fact]
+    public void MappedAppender_SupportsDuckDBDateOnlyAndTimeOnly()
+    {
+        Command.CommandText = "CREATE TABLE mapped_duckdb_date_time(d DATE, t TIME, nullable_d DATE, nullable_t TIME);";
+        Command.ExecuteNonQuery();
+
+        var records = new[]
+        {
+            new DuckDBDateAndTime
+            {
+                Date = new DuckDBDateOnly(2024, 5, 17),
+                Time = new DuckDBTimeOnly(13, 45, 30, 123456),
+                NullableDate = new DuckDBDateOnly(2000, 1, 2),
+                NullableTime = new DuckDBTimeOnly(1, 2, 3),
+            },
+            new DuckDBDateAndTime { Date = DuckDBDateOnly.PositiveInfinity, Time = new DuckDBTimeOnly(0, 0, 0) },
+            new DuckDBDateAndTime { Date = DuckDBDateOnly.NegativeInfinity, Time = new DuckDBTimeOnly(23, 59, 59, 999999) },
+        };
+
+        using (var appender = Connection.CreateAppender<DuckDBDateAndTime, DuckDBDateAndTimeMap>("mapped_duckdb_date_time"))
+        {
+            appender.AppendRecords(records);
+        }
+
+        Command.CommandText = "SELECT d, t, nullable_d, nullable_t, d::VARCHAR FROM mapped_duckdb_date_time ORDER BY rowid";
+        using var reader = Command.ExecuteReader();
+
+        reader.Read().Should().BeTrue();
+        reader.GetFieldValue<DuckDBDateOnly>(0).Should().Be(records[0].Date);
+        reader.GetFieldValue<DuckDBTimeOnly>(1).Should().Be(records[0].Time);
+        reader.GetFieldValue<DuckDBDateOnly>(2).Should().Be(records[0].NullableDate.Value);
+        reader.GetFieldValue<DuckDBTimeOnly>(3).Should().Be(records[0].NullableTime.Value);
+        reader.GetString(4).Should().Be("2024-05-17");
+
+        reader.Read().Should().BeTrue();
+        reader.GetFieldValue<DuckDBDateOnly>(0).IsPositiveInfinity.Should().BeTrue();
+        reader.GetFieldValue<DuckDBTimeOnly>(1).Should().Be(records[1].Time);
+        reader.IsDBNull(2).Should().BeTrue();
+        reader.IsDBNull(3).Should().BeTrue();
+        reader.GetString(4).Should().Be("infinity");
+
+        reader.Read().Should().BeTrue();
+        reader.GetFieldValue<DuckDBDateOnly>(0).IsNegativeInfinity.Should().BeTrue();
+        reader.GetFieldValue<DuckDBTimeOnly>(1).Should().Be(records[2].Time);
+        reader.GetString(4).Should().Be("-infinity");
+    }
 }

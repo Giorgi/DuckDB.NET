@@ -148,6 +148,27 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    public void RegisterScalarFunctionWithDuckDBDateOnlyAndTimeOnly()
+    {
+        Connection.RegisterScalarFunction<DuckDBDateOnly, DuckDBDateOnly>("same_duckdb_date", date => date);
+        Connection.RegisterScalarFunction<DuckDBTimeOnly, DuckDBTimeOnly>("same_duckdb_time", time => time);
+
+        Command.CommandText = """
+                              SELECT same_duckdb_date(DATE '2024-05-17')::VARCHAR, same_duckdb_date('infinity'::DATE)::VARCHAR,
+                                     same_duckdb_time(TIME '13:45:30.123456')::VARCHAR,
+                                     typeof(same_duckdb_date(DATE '2024-05-17')), typeof(same_duckdb_time(TIME '13:45:30'))
+                              """;
+        using var reader = Command.ExecuteReader();
+
+        reader.Read().Should().BeTrue();
+        reader.GetString(0).Should().Be("2024-05-17");
+        reader.GetString(1).Should().Be("infinity");
+        reader.GetString(2).Should().Be("13:45:30.123456");
+        reader.GetString(3).Should().Be("DATE");
+        reader.GetString(4).Should().Be("TIME");
+    }
+
+    [Fact]
     public void RegisterScalarFunctionIsPrime()
     {
         Connection.RegisterScalarFunction<int, bool>("is_prime", (readers, writer, rowCount) =>

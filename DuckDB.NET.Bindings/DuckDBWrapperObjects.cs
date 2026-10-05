@@ -167,7 +167,11 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
 
             DuckDBType.Varchar => Cast(NativeMethods.Value.DuckDBGetVarchar(this)),
 
+            // DATE and TIME can be read as the .NET types or as the provider's own types. Cast reinterprets the value
+            // without a check, so the value has to be produced as exactly the requested type.
+            DuckDBType.Date when typeof(T) == typeof(DuckDBDateOnly) => Cast(DuckDBDateOnly.FromDuckDBDate(NativeMethods.Value.DuckDBGetDate(this))),
             DuckDBType.Date => Cast((DateOnly)DuckDBDateOnly.FromDuckDBDate(NativeMethods.Value.DuckDBGetDate(this))),
+            DuckDBType.Time when typeof(T) == typeof(DuckDBTimeOnly) => Cast(NativeMethods.DateTimeHelpers.DuckDBFromTime(NativeMethods.Value.DuckDBGetTime(this))),
             DuckDBType.Time => Cast((TimeOnly)NativeMethods.DateTimeHelpers.DuckDBFromTime(NativeMethods.Value.DuckDBGetTime(this))),
             DuckDBType.TimeTz => Cast(GetTimeTzValue()),
             DuckDBType.Interval => Cast((TimeSpan)NativeMethods.Value.DuckDBGetInterval(this)),

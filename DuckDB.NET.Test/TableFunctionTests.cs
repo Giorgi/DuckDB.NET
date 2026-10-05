@@ -306,6 +306,41 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    public void RegisterFunctionWithDuckDBDateOnlyTimeOnlyParametersAndColumns()
+    {
+        Connection.RegisterTableFunction<DuckDBDateOnly, DuckDBTimeOnly>("duckdb_date_time_rows", parameters =>
+        {
+            var date = parameters[0].GetValue<DuckDBDateOnly>();
+            var time = parameters[1].GetValue<DuckDBTimeOnly>();
+
+            return new TableFunction(new List<ColumnInfo>
+            {
+                new("d", typeof(DuckDBDateOnly)),
+                new("t", typeof(DuckDBTimeOnly)),
+            }, new[] { (date, time), (DuckDBDateOnly.PositiveInfinity, time) });
+        }, (item, writers, rowIndex) =>
+        {
+            var (date, time) = ((DuckDBDateOnly, DuckDBTimeOnly))item;
+
+            writers[0].WriteValue(date, rowIndex);
+            writers[1].WriteValue(time, rowIndex);
+        });
+
+        Command.CommandText = "SELECT d::VARCHAR, t::VARCHAR, typeof(d), typeof(t) FROM duckdb_date_time_rows(DATE '2024-11-06', TIME '10:30:24.123456')";
+        using var reader = Command.ExecuteReader();
+
+        reader.Read().Should().BeTrue();
+        reader.GetString(0).Should().Be("2024-11-06");
+        reader.GetString(1).Should().Be("10:30:24.123456");
+        reader.GetString(2).Should().Be("DATE");
+        reader.GetString(3).Should().Be("TIME");
+
+        reader.Read().Should().BeTrue();
+        reader.GetString(0).Should().Be("infinity");
+        reader.GetString(1).Should().Be("10:30:24.123456");
+    }
+
+    [Fact]
     public void RegisterTableFunctionWithExplicitTimestampTypes()
     {
         Connection.RegisterTableFunction("demo_explicit_timestamps",
