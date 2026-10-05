@@ -47,4 +47,18 @@ public class DuckDBClientFactoryTests
             
         Assert.Equal(42, value);
     }
+
+    [Fact]
+    public void FactoryReportsWhatItCannotCreate()
+    {
+        DbProviderFactory factory = DuckDBClientFactory.Instance;
+
+        // Generic data code asks these before creating anything, so they must answer, not throw.
+        Assert.False(factory.CanCreateDataAdapter);
+        Assert.False(factory.CanCreateCommandBuilder);
+        Assert.False(factory.CanCreateDataSourceEnumerator);
+
+        Assert.Null(factory.CreateDataAdapter());
+        Assert.Null(factory.CreateCommandBuilder());
+    }
 }
