@@ -42,12 +42,12 @@ public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBAppe
             }
 
             var columnType = NativeMethods.LogicalType.DuckDBGetTypeId(columnTypes[index]);
-            var expectedType = GetExpectedDuckDBType(mapping.PropertyType);
+            var acceptedTypes = GetAcceptedDuckDBTypes(mapping.PropertyType);
 
-            if (expectedType != columnType)
+            if (Array.IndexOf(acceptedTypes, columnType) < 0)
             {
                 throw new InvalidOperationException(
-                    $"Type mismatch at column index {index}: Mapped type is {mapping.PropertyType.Name} (expected DuckDB type: {expectedType}) but actual column type is {columnType}");
+                    $"Type mismatch at column index {index}: Mapped type is {mapping.PropertyType.UnderlyingTypeOrSelf().Name} (expected DuckDB type: {string.Join(" or ", acceptedTypes)}) but actual column type is {columnType}");
             }
         }
     }
@@ -86,14 +86,24 @@ public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBAppe
         });
     }
 
-    private static DuckDBType GetExpectedDuckDBType(Type type)
+    // The column types a property of the given type can be appended to.
+    private static DuckDBType[] GetAcceptedDuckDBTypes(Type type)
     {
-        var duckDBType = type.UnderlyingTypeOrSelf().GetDuckDBType();
+        var underlyingType = type.UnderlyingTypeOrSelf();
+
+        // BigInteger is the .NET type for both 128-bit integer columns. The writer stores the value signed or
+        // unsigned to match the column, and rejects a value outside the column's range when it is appended.
+        if (underlyingType == typeof(BigInteger))
+        {
+            return [DuckDBType.HugeInt, DuckDBType.UnsignedHugeInt];
+        }
+
+        var duckDBType = underlyingType.GetDuckDBType();
 
         return duckDBType switch
         {
             DuckDBType.Invalid => throw new NotSupportedException($"Type {type.Name} is not supported for mapping"),
-            _ => duckDBType
+            _ => [duckDBType]
         };
     }
 

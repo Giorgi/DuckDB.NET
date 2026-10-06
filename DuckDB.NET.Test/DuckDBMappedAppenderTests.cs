@@ -386,4 +386,151 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
         reader.GetFieldValue<DuckDBTimeOnly>(1).Should().Be(records[2].Time);
         reader.GetString(4).Should().Be("-infinity");
     }
+
+    public class BigNumbers
+    {
+        public BigInteger Signed { get; set; }
+        public BigInteger Unsigned { get; set; }
+    }
+
+    public class BigNumbersMap : DuckDBAppenderMap<BigNumbers>
+    {
+        public BigNumbersMap()
+        {
+            Map(x => x.Signed);
+            Map(x => x.Unsigned);
+        }
+    }
+
+    public class NullableBigNumbers
+    {
+        public BigInteger? Signed { get; set; }
+        public BigInteger? Unsigned { get; set; }
+    }
+
+    public class NullableBigNumbersMap : DuckDBAppenderMap<NullableBigNumbers>
+    {
+        public NullableBigNumbersMap()
+        {
+            Map(x => x.Signed);
+            Map(x => x.Unsigned);
+        }
+    }
+
+    [Fact]
+    public void MappedAppender_SupportsBigIntegerForUnsignedHugeInt()
+    {
+        Command.CommandText = "CREATE TABLE mapped_big_numbers(signed_value HUGEINT, unsigned_value UHUGEINT);";
+        Command.ExecuteNonQuery();
+
+        // The second and third unsigned values do not fit a signed HUGEINT.
+        var records = new[]
+        {
+            new BigNumbers { Signed = -5, Unsigned = 5 },
+            new BigNumbers { Signed = BigInteger.Pow(2, 126), Unsigned = BigInteger.Pow(2, 127) + 42 },
+            new BigNumbers { Signed = DuckDBHugeInt.HugeIntMinValue, Unsigned = BigInteger.Pow(2, 128) - 1 },
+            new BigNumbers { Signed = DuckDBHugeInt.HugeIntMaxValue, Unsigned = 0 },
+        };
+
+        using (var appender = Connection.CreateAppender<BigNumbers, BigNumbersMap>("mapped_big_numbers"))
+        {
+            appender.AppendRecords(records);
+        }
+
+        Command.CommandText = "SELECT signed_value::VARCHAR, unsigned_value::VARCHAR FROM mapped_big_numbers ORDER BY rowid";
+        using var reader = Command.ExecuteReader();
+
+        foreach (var record in records)
+        {
+            reader.Read().Should().BeTrue();
+            reader.GetString(0).Should().Be(record.Signed.ToString());
+            reader.GetString(1).Should().Be(record.Unsigned.ToString());
+        }
+    }
+
+    [Fact]
+    public void MappedAppender_RejectsNegativeBigIntegerForUnsignedHugeInt()
+    {
+        Command.CommandText = "CREATE TABLE mapped_big_numbers_negative(signed_value HUGEINT, unsigned_value UHUGEINT);";
+        Command.ExecuteNonQuery();
+
+        using var appender = Connection.CreateAppender<BigNumbers, BigNumbersMap>("mapped_big_numbers_negative");
+
+        appender.Invoking(a => a.AppendRecords(new[] { new BigNumbers { Signed = 1, Unsigned = -1 } }))
+                .Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void MappedAppender_RejectsBigIntegerAboveUnsignedHugeIntRange()
+    {
+        Command.CommandText = "CREATE TABLE mapped_big_numbers_too_big(signed_value HUGEINT, unsigned_value UHUGEINT);";
+        Command.ExecuteNonQuery();
+
+        using var appender = Connection.CreateAppender<BigNumbers, BigNumbersMap>("mapped_big_numbers_too_big");
+
+        appender.Invoking(a => a.AppendRecords(new[] { new BigNumbers { Signed = 1, Unsigned = BigInteger.Pow(2, 128) } }))
+                .Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void MappedAppender_SupportsNullableBigIntegerForUnsignedHugeInt()
+    {
+        Command.CommandText = "CREATE TABLE mapped_nullable_big_numbers(signed_value HUGEINT, unsigned_value UHUGEINT);";
+        Command.ExecuteNonQuery();
+
+        var records = new[]
+        {
+            new NullableBigNumbers { Signed = -5, Unsigned = BigInteger.Pow(2, 127) + 42 },
+            new NullableBigNumbers { Signed = null, Unsigned = null },
+            new NullableBigNumbers { Signed = null, Unsigned = BigInteger.Pow(2, 128) - 1 },
+        };
+
+        using (var appender = Connection.CreateAppender<NullableBigNumbers, NullableBigNumbersMap>("mapped_nullable_big_numbers"))
+        {
+            appender.AppendRecords(records);
+        }
+
+        Command.CommandText = "SELECT signed_value::VARCHAR, unsigned_value::VARCHAR FROM mapped_nullable_big_numbers ORDER BY rowid";
+        using var reader = Command.ExecuteReader();
+
+        foreach (var record in records)
+        {
+            reader.Read().Should().BeTrue();
+            reader.IsDBNull(0).Should().Be(record.Signed == null);
+            reader.IsDBNull(1).Should().Be(record.Unsigned == null);
+
+            if (record.Signed != null)
+            {
+                reader.GetString(0).Should().Be(record.Signed.ToString());
+            }
+
+            if (record.Unsigned != null)
+            {
+                reader.GetString(1).Should().Be(record.Unsigned.ToString());
+            }
+        }
+    }
+
+    [Fact]
+    public void MappedAppender_NamesBothColumnTypesAcceptedForBigInteger()
+    {
+        Command.CommandText = "CREATE TABLE mapped_big_numbers_mismatch(signed_value HUGEINT, unsigned_value VARCHAR);";
+        Command.ExecuteNonQuery();
+
+        Connection.Invoking(c => c.CreateAppender<BigNumbers, BigNumbersMap>("mapped_big_numbers_mismatch"))
+                  .Should().Throw<InvalidOperationException>()
+                  .WithMessage("*column index 1*BigInteger*HugeInt or UnsignedHugeInt*Varchar*");
+    }
+
+    // The appender has no writer for BIGNUM, so the column is rejected instead of being written with the wrong layout.
+    [Fact]
+    public void MappedAppender_RejectsBigIntegerForBigNumColumn()
+    {
+        Command.CommandText = "CREATE TABLE mapped_big_numbers_bignum(signed_value HUGEINT, unsigned_value BIGNUM);";
+        Command.ExecuteNonQuery();
+
+        Connection.Invoking(c => c.CreateAppender<NullableBigNumbers, NullableBigNumbersMap>("mapped_big_numbers_bignum"))
+                  .Should().Throw<InvalidOperationException>()
+                  .WithMessage("*column index 1*Mapped type is BigInteger *HugeInt or UnsignedHugeInt*");
+    }
 }
