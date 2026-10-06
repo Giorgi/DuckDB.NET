@@ -50,7 +50,8 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [Fact]
     public void SimpleNegativeHugeIntTest()
     {
-        Command.CommandText = $"SELECT {DuckDBHugeInt.HugeIntMinValue}::HUGEINT;";
+        // The parentheses matter: a cast binds tighter than the minus sign, and 2^127 itself is not a HUGEINT.
+        Command.CommandText = $"SELECT ({DuckDBHugeInt.HugeIntMinValue})::HUGEINT;";
         Command.ExecuteNonQuery();
 
         var scalar = Command.ExecuteScalar();
@@ -81,6 +82,46 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
         var receivedValue = reader.GetFieldValue<BigInteger>(1);
         receivedValue.Should().Be(value);
+    }
+
+    [Fact]
+    public void HugeIntMinimumAndMaximumRoundTrip()
+    {
+        // HUGEINT is a 128-bit two's complement integer: -2^127 to 2^127 - 1.
+        DuckDBHugeInt.HugeIntMinValue.Should().Be(-BigInteger.Pow(2, 127));
+        DuckDBHugeInt.HugeIntMaxValue.Should().Be(BigInteger.Pow(2, 127) - 1);
+
+        Command.CommandText = "CREATE OR REPLACE TABLE HugeIntRangeTests (value HUGEINT);";
+        Command.ExecuteNonQuery();
+
+        BigInteger? minimum = DuckDBHugeInt.HugeIntMinValue;
+        BigInteger? maximum = DuckDBHugeInt.HugeIntMaxValue;
+
+        // Once as parameters and once through the appender.
+        Command.CommandText = "INSERT INTO HugeIntRangeTests VALUES ($1), ($2);";
+        Command.Parameters.Add(new DuckDBParameter(minimum.Value));
+        Command.Parameters.Add(new DuckDBParameter(maximum.Value));
+        Command.ExecuteNonQuery();
+        Command.Parameters.Clear();
+
+        using (var appender = Connection.CreateAppender("HugeIntRangeTests"))
+        {
+            appender.CreateRow().AppendValue(minimum).EndRow();
+            appender.CreateRow().AppendValue(maximum).EndRow();
+        }
+
+        Command.CommandText = "SELECT value::VARCHAR FROM HugeIntRangeTests ORDER BY rowid;";
+        using var reader = Command.ExecuteReader();
+
+        foreach (var expected in new[] { minimum.Value, maximum.Value, minimum.Value, maximum.Value })
+        {
+            reader.Read().Should().BeTrue();
+            reader.GetString(0).Should().Be(expected.ToString());
+        }
+
+        // One step outside the range on either side is rejected.
+        FluentActions.Invoking(() => new DuckDBHugeInt(minimum.Value - 1)).Should().Throw<ArgumentOutOfRangeException>();
+        FluentActions.Invoking(() => new DuckDBHugeInt(maximum.Value + 1)).Should().Throw<ArgumentOutOfRangeException>();
     }
 
     [Fact]

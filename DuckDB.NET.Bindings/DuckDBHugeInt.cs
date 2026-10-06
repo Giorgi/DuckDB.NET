@@ -7,7 +7,8 @@ public readonly struct DuckDBHugeInt
 {
     private static readonly BigInteger Base = BigInteger.Pow(2, 64);
 
-    public static BigInteger HugeIntMinValue { get; } = BigInteger.Parse("-170141183460469231731687303715884105727");
+    // DuckDB's HUGEINT is a 128-bit two's complement integer: -2^127 to 2^127 - 1.
+    public static BigInteger HugeIntMinValue { get; } = BigInteger.Parse("-170141183460469231731687303715884105728");
     public static BigInteger HugeIntMaxValue { get; } = BigInteger.Parse("170141183460469231731687303715884105727");
 
     public DuckDBHugeInt(BigInteger value)
