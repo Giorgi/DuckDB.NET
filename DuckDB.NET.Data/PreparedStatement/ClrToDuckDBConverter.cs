@@ -72,6 +72,7 @@ internal static class ClrToDuckDBConverter
 
             (DuckDBType.Decimal, decimal value) => DecimalToDuckDBValue(value),
             (DuckDBType.HugeInt, BigInteger value) => NativeMethods.Value.DuckDBCreateHugeInt(new DuckDBHugeInt(value)),
+            (DuckDBType.UnsignedHugeInt, BigInteger value) => NativeMethods.Value.DuckDBCreateUHugeInt(new DuckDBUHugeInt(value)),
             (DuckDBType.VarInt, BigInteger value) => BigIntegerToDuckDBValue(value),
 
             (DuckDBType.Varchar, string value) => NativeMethods.Value.DuckDBCreateVarchar(value),

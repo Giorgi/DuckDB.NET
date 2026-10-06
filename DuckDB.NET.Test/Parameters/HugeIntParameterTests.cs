@@ -138,4 +138,46 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         result.Should().BeOfType<BigInteger>().Subject
               .Should().Be(value);
     }
+
+    // 2^127 + 42 and 2^128 - 1 fit UHUGEINT but not HUGEINT.
+    public static IEnumerable<object[]> UnsignedHugeIntValues() =>
+    [
+        [BigInteger.Zero],
+        [BigInteger.Pow(2, 127) + 42],
+        [BigInteger.Pow(2, 128) - 1],
+    ];
+
+    [Theory]
+    [MemberData(nameof(UnsignedHugeIntValues))]
+    public void BindBigIntegerToUnsignedHugeIntColumn(BigInteger value)
+    {
+        Command.CommandText = "CREATE OR REPLACE TABLE UHugeIntParameterTests (value UHUGEINT);";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "INSERT INTO UHugeIntParameterTests VALUES ($1);";
+        Command.Parameters.Add(new DuckDBParameter(value));
+        Command.ExecuteNonQuery();
+
+        // The parameter is compared with the UHUGEINT column, so DuckDB reports its type as UHUGEINT here too.
+        Command.CommandText = "SELECT value::VARCHAR FROM UHugeIntParameterTests WHERE value = $1;";
+
+        Command.ExecuteScalar().Should().Be(value.ToString());
+    }
+
+    [Fact]
+    public void BindOutOfRangeBigIntegerToUnsignedHugeIntColumnThrows()
+    {
+        Command.CommandText = "CREATE OR REPLACE TABLE UHugeIntParameterRangeTests (value UHUGEINT);";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "INSERT INTO UHugeIntParameterRangeTests VALUES ($1);";
+
+        foreach (var value in new[] { BigInteger.MinusOne, BigInteger.Pow(2, 128) })
+        {
+            Command.Parameters.Clear();
+            Command.Parameters.Add(new DuckDBParameter(value));
+
+            Command.Invoking(command => command.ExecuteNonQuery()).Should().Throw<ArgumentOutOfRangeException>();
+        }
+    }
 }
