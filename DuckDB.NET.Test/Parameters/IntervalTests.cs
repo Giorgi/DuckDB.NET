@@ -119,4 +119,53 @@ public class IntervalTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         reader.GetFieldValue<TimeOnly>(0).Should().Be(new TimeOnly(13, 45, 30, 125));
         reader.GetString(1).Should().Be("01:30:00");
     }
+
+    // As in Npgsql, a caller who wants a TimeSpan sent as a time declares DbType.Time: where DuckDB can't
+    // infer the type, an interval has no cast to TIME.
+    [Theory]
+    [InlineData(0, 0, 0, 0)]
+    [InlineData(13, 45, 30, 125)]
+    [InlineData(23, 59, 59, 999)]
+    public void InsertSelectTimeSpanDeclaredTime(int hours, int minutes, int seconds, int milliseconds)
+    {
+        var value = new TimeSpan(0, hours, minutes, seconds, milliseconds);
+
+        Command.CommandText = "CREATE OR REPLACE TABLE TimeSpanDeclaredTime (t TIME);";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "INSERT INTO TimeSpanDeclaredTime (t) SELECT ?;";
+        Command.Parameters.Add(new DuckDBParameter(DbType.Time, value));
+        Command.ExecuteNonQuery();
+        Command.Parameters.Clear();
+
+        Command.CommandText = "SELECT t FROM TimeSpanDeclaredTime;";
+        Command.ExecuteScalar().Should().Be(TimeOnly.FromTimeSpan(value));
+    }
+
+    [Fact]
+    public void SelectTimeSpanDeclaredTime()
+    {
+        Command.CommandText = "SELECT ?::TIME::VARCHAR, ? UNION ALL SELECT '', TIME '01:00';";
+        Command.Parameters.Add(new DuckDBParameter(DbType.Time, new TimeSpan(0, 1, 30, 0)));
+        Command.Parameters.Add(new DuckDBParameter(DbType.Time, new TimeSpan(0, 2, 0, 0)));
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetString(0).Should().Be("01:30:00");
+        reader.GetFieldValue<TimeOnly>(1).Should().Be(new TimeOnly(2, 0));
+    }
+
+    [Theory]
+    [InlineData(1, 0)]
+    [InlineData(0, -1)]
+    public void TimeSpanDeclaredTime_OutOfRange_Throws(int days, int seconds)
+    {
+        var value = new TimeSpan(days, 0, 0, seconds);
+
+        Command.CommandText = "SELECT ?;";
+        Command.Parameters.Add(new DuckDBParameter(DbType.Time, value));
+
+        Command.Invoking(c => c.ExecuteScalar()).Should().Throw<ArgumentOutOfRangeException>();
+    }
 }
