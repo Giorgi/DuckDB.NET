@@ -76,4 +76,47 @@ public class IntervalTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         reader.GetFieldValue<TimeSpan>(0).Should().Be(expected);
         reader.GetBoolean(1).Should().BeTrue();
     }
+
+    // A TimeSpan has no DbType, so where DuckDB can't infer the parameter's type (a bare "?") it was
+    // sent as TimeSpan.ToString(), which DuckDB can't parse as an interval once there are days
+    // ("1.01:01:01"), and which came back as a string.
+    [Theory]
+    [InlineData(90_061_000_001L)]
+    [InlineData(-90_061_000_001L)]
+    [InlineData(5_400_000_000L)]
+    public void BindTimeSpanWithoutTargetType(long micros)
+    {
+        var expected = TimeSpan.FromTicks(micros * 10);
+
+        Command.CommandText = "SELECT ?::INTERVAL, ?;";
+        Command.Parameters.Add(new DuckDBParameter(expected));
+        Command.Parameters.Add(new DuckDBParameter(expected));
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetFieldValue<TimeSpan>(0).Should().Be(expected);
+        reader.GetValue(1).Should().Be(expected);
+    }
+
+    // A TimeSpan bound where DuckDB knows the parameter's type keeps its existing behavior.
+    [Fact]
+    public void BindTimeSpanIntoTimeAndVarcharColumns()
+    {
+        Command.CommandText = "CREATE OR REPLACE TABLE TimeSpanTargets (t TIME, s VARCHAR);";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "INSERT INTO TimeSpanTargets (t, s) VALUES (?, ?);";
+        Command.Parameters.Add(new DuckDBParameter(new TimeSpan(0, 13, 45, 30, 125)));
+        Command.Parameters.Add(new DuckDBParameter(new TimeSpan(0, 1, 30, 0)));
+        Command.ExecuteNonQuery();
+        Command.Parameters.Clear();
+
+        Command.CommandText = "SELECT t, s FROM TimeSpanTargets;";
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetFieldValue<TimeOnly>(0).Should().Be(new TimeOnly(13, 45, 30, 125));
+        reader.GetString(1).Should().Be("01:30:00");
+    }
 }
