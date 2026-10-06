@@ -138,7 +138,6 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         result.Should().BeOfType<BigInteger>().Subject
               .Should().Be(value);
     }
-
     // 2^127 + 42 and 2^128 - 1 fit UHUGEINT but not HUGEINT.
     public static IEnumerable<object[]> UnsignedHugeIntValues() =>
     [
@@ -179,5 +178,40 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
             Command.Invoking(command => command.ExecuteNonQuery()).Should().Throw<ArgumentOutOfRangeException>();
         }
+    }
+
+    // With a cast or no context, DuckDB reports no parameter type and the value picks its own type.
+    [Theory]
+    [InlineData("SELECT ($1::UHUGEINT)::VARCHAR;")]
+    [InlineData("SELECT $1::VARCHAR;")]
+    public void BindBigIntegerAboveHugeIntRangeWithoutColumn(string query)
+    {
+        var value = BigInteger.Pow(2, 127) + 42;
+
+        Command.CommandText = query;
+        Command.Parameters.Add(new DuckDBParameter(value));
+
+        Command.ExecuteScalar().Should().Be(value.ToString());
+    }
+
+    [Theory]
+    [InlineData("170141183460469231731687303715884105727", "HUGEINT")]
+    [InlineData("-170141183460469231731687303715884105728", "HUGEINT")]
+    [InlineData("170141183460469231731687303715884105728", "UHUGEINT")]
+    [InlineData("340282366920938463463374607431768211455", "UHUGEINT")]
+    [InlineData("340282366920938463463374607431768211456", "BIGNUM")]
+    [InlineData("-170141183460469231731687303715884105729", "BIGNUM")]
+    public void BigIntegerWithoutColumnPicksTheSmallestTypeThatFits(string text, string expectedType)
+    {
+        var value = BigInteger.Parse(text);
+
+        Command.CommandText = "SELECT typeof($1), $1::VARCHAR;";
+        Command.Parameters.Add(new DuckDBParameter(value));
+
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        reader.GetString(0).Should().Be(expectedType);
+        reader.GetString(1).Should().Be(text);
     }
 }

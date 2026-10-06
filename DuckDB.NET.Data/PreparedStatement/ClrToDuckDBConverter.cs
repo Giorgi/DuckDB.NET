@@ -18,7 +18,7 @@ internal static class ClrToDuckDBConverter
         { DbType.Single, value => NativeMethods.Value.DuckDBCreateFloat((float)value) },
         { DbType.Double, value => NativeMethods.Value.DuckDBCreateDouble((double)value) },
         { DbType.String, value => NativeMethods.Value.DuckDBCreateVarchar((string?)value) },
-        { DbType.VarNumeric, value => NativeMethods.Value.DuckDBCreateHugeInt(new((BigInteger)value)) },
+        { DbType.VarNumeric, value => BigIntegerWithoutTargetType((BigInteger)value) },
         { DbType.Binary, value =>
             {
                 var bytes = (byte[])value;
@@ -159,6 +159,23 @@ internal static class ClrToDuckDBConverter
         }
 
         return values;
+    }
+
+    // DuckDB reported no type for the parameter, for example in "SELECT $1" or "$1::UHUGEINT", so pick the smallest
+    // type that holds the value exactly: HUGEINT, then UHUGEINT, then BIGNUM.
+    private static DuckDBValue BigIntegerWithoutTargetType(BigInteger value)
+    {
+        if (value >= DuckDBHugeInt.HugeIntMinValue && value <= DuckDBHugeInt.HugeIntMaxValue)
+        {
+            return NativeMethods.Value.DuckDBCreateHugeInt(new DuckDBHugeInt(value));
+        }
+
+        if (value >= DuckDBUHugeInt.HugeIntMinValue && value <= DuckDBUHugeInt.HugeIntMaxValue)
+        {
+            return NativeMethods.Value.DuckDBCreateUHugeInt(new DuckDBUHugeInt(value));
+        }
+
+        return BigIntegerToDuckDBValue(value);
     }
 
     private static unsafe DuckDBValue BigIntegerToDuckDBValue(BigInteger value)
