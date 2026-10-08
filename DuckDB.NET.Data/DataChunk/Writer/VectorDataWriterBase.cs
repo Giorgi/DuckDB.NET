@@ -95,7 +95,27 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
 
     internal virtual bool AppendDateTimeOffset(DateTimeOffset value, ulong rowIndex) => ThrowException<DateTimeOffset>();
 
-    internal virtual bool AppendNumeric<T>(T value, ulong rowIndex) where T : unmanaged => ThrowException<T>();
+    // One overload per numeric type instead of a generic virtual method: a generic virtual method is looked up
+    // at run time on every call, which costs several times more than storing the value.
+    internal virtual bool AppendNumeric(sbyte value, ulong rowIndex) => ThrowException<sbyte>();
+
+    internal virtual bool AppendNumeric(short value, ulong rowIndex) => ThrowException<short>();
+
+    internal virtual bool AppendNumeric(int value, ulong rowIndex) => ThrowException<int>();
+
+    internal virtual bool AppendNumeric(long value, ulong rowIndex) => ThrowException<long>();
+
+    internal virtual bool AppendNumeric(byte value, ulong rowIndex) => ThrowException<byte>();
+
+    internal virtual bool AppendNumeric(ushort value, ulong rowIndex) => ThrowException<ushort>();
+
+    internal virtual bool AppendNumeric(uint value, ulong rowIndex) => ThrowException<uint>();
+
+    internal virtual bool AppendNumeric(ulong value, ulong rowIndex) => ThrowException<ulong>();
+
+    internal virtual bool AppendNumeric(float value, ulong rowIndex) => ThrowException<float>();
+
+    internal virtual bool AppendNumeric(double value, ulong rowIndex) => ThrowException<double>();
 
     internal virtual bool AppendBigInteger(BigInteger value, ulong rowIndex) => ThrowException<BigInteger>();
 

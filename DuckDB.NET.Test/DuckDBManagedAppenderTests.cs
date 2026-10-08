@@ -956,6 +956,29 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    public void NumericValueForNonNumericColumnThrows()
+    {
+        Command.CommandText = "CREATE TABLE managedAppenderNumericToVarchar(a VARCHAR, b INTEGER)";
+        Command.ExecuteNonQuery();
+
+        using (var appender = Connection.CreateAppender("managedAppenderNumericToVarchar"))
+        {
+            appender.CreateRow().AppendValue("completed").AppendValue((int?)1).EndRow();
+
+            var row = appender.CreateRow();
+            row.Invoking(r => r.AppendValue((int?)5))
+                .Should().Throw<InvalidOperationException>()
+                .WithMessage("Cannot write Int32 to Varchar column");
+
+            row.Invoking(r => r.AppendValue((double?)5))
+                .Should().Throw<InvalidOperationException>()
+                .WithMessage("Cannot write Double to Varchar column");
+        }
+
+        VerifyOnlyCompletedRowWritten("managedAppenderNumericToVarchar");
+    }
+
+    [Fact]
     public void CreateRowWithoutValuesIsNotWrittenOnDispose()
     {
         Command.CommandText = "CREATE TABLE managedAppenderCreateRowNoValues(a VARCHAR, b INTEGER)";
