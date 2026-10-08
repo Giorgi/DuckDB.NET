@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace DuckDB.NET.Data.Mapping;
 
 /// <summary>
@@ -81,6 +83,14 @@ internal sealed class PropertyMapping<T, TProperty> : IPropertyMapping<T>
     {
         var value = Getter(record);
 
+        // Both conditions are constants for the JIT. A nullable value type must not reach the patterns below:
+        // testing it against a type boxes it, once for every pattern that is tried.
+        if (typeof(TProperty).IsValueType && default(TProperty) is null)
+        {
+            AppendNullable(row, ref value);
+            return;
+        }
+
         if (value is null)
         {
             row.AppendNullValue();
@@ -118,6 +128,34 @@ internal sealed class PropertyMapping<T, TProperty> : IPropertyMapping<T>
 
             _ => throw new NotSupportedException($"Type {typeof(TProperty).Name} is not supported for appending")
         };
+    }
+
+    // Every AppendValue overload takes a nullable, so the value is passed on as it is. typeof(TProperty) is a
+    // constant for the JIT, which keeps the one matching line.
+    private static void AppendNullable(IDuckDBAppenderRow row, ref TProperty value)
+    {
+        if (typeof(TProperty) == typeof(bool?)) row.AppendValue(Unsafe.As<TProperty, bool?>(ref value));
+        else if (typeof(TProperty) == typeof(sbyte?)) row.AppendValue(Unsafe.As<TProperty, sbyte?>(ref value));
+        else if (typeof(TProperty) == typeof(short?)) row.AppendValue(Unsafe.As<TProperty, short?>(ref value));
+        else if (typeof(TProperty) == typeof(int?)) row.AppendValue(Unsafe.As<TProperty, int?>(ref value));
+        else if (typeof(TProperty) == typeof(long?)) row.AppendValue(Unsafe.As<TProperty, long?>(ref value));
+        else if (typeof(TProperty) == typeof(byte?)) row.AppendValue(Unsafe.As<TProperty, byte?>(ref value));
+        else if (typeof(TProperty) == typeof(ushort?)) row.AppendValue(Unsafe.As<TProperty, ushort?>(ref value));
+        else if (typeof(TProperty) == typeof(uint?)) row.AppendValue(Unsafe.As<TProperty, uint?>(ref value));
+        else if (typeof(TProperty) == typeof(ulong?)) row.AppendValue(Unsafe.As<TProperty, ulong?>(ref value));
+        else if (typeof(TProperty) == typeof(float?)) row.AppendValue(Unsafe.As<TProperty, float?>(ref value));
+        else if (typeof(TProperty) == typeof(double?)) row.AppendValue(Unsafe.As<TProperty, double?>(ref value));
+        else if (typeof(TProperty) == typeof(decimal?)) row.AppendValue(Unsafe.As<TProperty, decimal?>(ref value));
+        else if (typeof(TProperty) == typeof(DateTime?)) row.AppendValue(Unsafe.As<TProperty, DateTime?>(ref value));
+        else if (typeof(TProperty) == typeof(DateTimeOffset?)) row.AppendValue(Unsafe.As<TProperty, DateTimeOffset?>(ref value));
+        else if (typeof(TProperty) == typeof(TimeSpan?)) row.AppendValue(Unsafe.As<TProperty, TimeSpan?>(ref value));
+        else if (typeof(TProperty) == typeof(Guid?)) row.AppendValue(Unsafe.As<TProperty, Guid?>(ref value));
+        else if (typeof(TProperty) == typeof(BigInteger?)) row.AppendValue(Unsafe.As<TProperty, BigInteger?>(ref value));
+        else if (typeof(TProperty) == typeof(DuckDBDateOnly?)) row.AppendValue(Unsafe.As<TProperty, DuckDBDateOnly?>(ref value));
+        else if (typeof(TProperty) == typeof(DuckDBTimeOnly?)) row.AppendValue(Unsafe.As<TProperty, DuckDBTimeOnly?>(ref value));
+        else if (typeof(TProperty) == typeof(DateOnly?)) row.AppendValue(Unsafe.As<TProperty, DateOnly?>(ref value));
+        else if (typeof(TProperty) == typeof(TimeOnly?)) row.AppendValue(Unsafe.As<TProperty, TimeOnly?>(ref value));
+        else throw new NotSupportedException($"Type {typeof(TProperty).Name} is not supported for appending");
     }
 }
 
