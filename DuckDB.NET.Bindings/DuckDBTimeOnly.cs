@@ -3,7 +3,7 @@ using DuckDB.NET.Native.Extensions;
 namespace DuckDB.NET.Native;
 
 [StructLayout(LayoutKind.Sequential)]
-public readonly struct DuckDBTimeOnly(byte hour, byte min, byte sec, int microsecond)
+public readonly struct DuckDBTimeOnly(byte hour, byte min, byte sec, int microsecond) : IEquatable<DuckDBTimeOnly>
 {
     public DuckDBTimeOnly(byte hour, byte min, byte sec) : this(hour, min, sec, 0)
     {
@@ -32,6 +32,12 @@ public readonly struct DuckDBTimeOnly(byte hour, byte min, byte sec, int microse
         var microsecond = timeOfDay.GetMicrosecond();
         return new DuckDBTimeOnly((byte)timeOfDay.Hours, (byte)timeOfDay.Minutes, (byte)timeOfDay.Seconds, microsecond);
     }
+
+    public bool Equals(DuckDBTimeOnly other) => Hour == other.Hour && Min == other.Min && Sec == other.Sec && Microsecond == other.Microsecond;
+
+    public override bool Equals(object? obj) => obj is DuckDBTimeOnly other && Equals(other);
+
+    public override int GetHashCode() => HashCode.Combine(Hour, Min, Sec, Microsecond);
 
     public static explicit operator DateTime(DuckDBTimeOnly timeOnly) => timeOnly.ToDateTime();
     public static explicit operator DuckDBTimeOnly(DateTime dateTime) => FromDateTime(dateTime);
