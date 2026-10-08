@@ -132,7 +132,13 @@ jobs:
     - name: Prep packages
       run: dotnet nuget add source --username Giorgi --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/Giorgi/index.json"
 
-    - name: Push package to GitHub packages
+    - name: Get package version
+      run: |
+        package=$(find . -name 'DuckDB.NET.Data.[0-9]*.nupkg' | head -n 1)
+        version=$(basename "$package" .nupkg)
+        echo "PackageVersion=${version#DuckDB.NET.Data.}" >> "$GITHUB_ENV"
+
+    - name: Push package to GitHub packages (${{ env.PackageVersion }})
       run: dotnet nuget push "**/*.nupkg" --api-key ${{ secrets.GITHUB_TOKEN }}  --source "github"
       
   Finish-Coveralls-Collection:
