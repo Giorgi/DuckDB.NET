@@ -35,14 +35,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
             return true;
         }
 
-        var validityMaskEntryIndex = offset / 64;
-        var validityBitIndex = (int)(offset % 64);
-
-        var validityMaskEntryPtr = validityMaskPointer + validityMaskEntryIndex;
-        var validityBit = 1ul << validityBitIndex;
-
-        var isValid = (*validityMaskEntryPtr & validityBit) != 0;
-        return isValid;
+        return ValidityMask.IsValid(validityMaskPointer, offset);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

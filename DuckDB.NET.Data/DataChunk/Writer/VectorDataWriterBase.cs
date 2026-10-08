@@ -17,7 +17,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
             validity = NativeMethods.Vectors.DuckDBVectorGetValidity(Vector);
         }
 
-        NativeMethods.ValidityMask.DuckDBValiditySetRowValidity(validity, rowIndex, false);
+        ValidityMask.SetInvalid(validity, rowIndex);
     }
 
     public void WriteValue<T>(T value, ulong rowIndex)
@@ -67,7 +67,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
         // marked some of its items NULL, and retrying it writes the same items again.
         if (validity != default)
         {
-            validity[rowIndex / 64] |= 1UL << (int)(rowIndex % 64);
+            ValidityMask.SetValid(validity, rowIndex);
         }
     }
 
