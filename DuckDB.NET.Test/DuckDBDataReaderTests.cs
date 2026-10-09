@@ -711,6 +711,27 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         var value = (BigInteger)reader.GetValue(0);
     }
 
+    // DuckDB keeps a string of up to 12 bytes inside the vector and points to a longer one.
+    [Fact]
+    public void ReadStringsOfDifferentLengths()
+    {
+        Command.CommandText = "SELECT '', 'a', repeat('x', 12), repeat('x', 13), repeat('y', 5000), 'ქართული 🦆', NULL::VARCHAR";
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetString(0).Should().BeEmpty();
+        reader.GetString(1).Should().Be("a");
+        reader.GetString(2).Should().Be(new string('x', 12));
+        reader.GetString(3).Should().Be(new string('x', 13));
+        reader.GetString(4).Should().Be(new string('y', 5000));
+        reader.GetString(5).Should().Be("ქართული 🦆");
+        reader.GetValue(0).Should().Be("");
+        reader.GetValue(5).Should().Be("ქართული 🦆");
+        reader.GetFieldValue<string>(3).Should().Be(new string('x', 13));
+        reader.IsDBNull(6).Should().BeTrue();
+    }
+
     [Fact]
     public void ReadHugeIntAsDuckDBHugeInt()
     {
