@@ -772,4 +772,31 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.GetFieldValue<BigInteger>(0).Should().Be(DuckDBHugeInt.HugeIntMaxValue);
         reader.GetFieldValue<BigInteger>(3).Should().Be(DuckDBUHugeInt.HugeIntMaxValue);
     }
+
+    // An integer column can be read as another integer type when the value fits it.
+    [Fact]
+    public void ReadIntegerAsAnotherIntegerType()
+    {
+        Command.CommandText = "SELECT 5000000000::BIGINT AS big, (-1)::INTEGER AS negative, 300::SMALLINT AS small, 42::BIGINT AS fits";
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        // Widening: every value of the column type fits.
+        reader.GetInt64(1).Should().Be(-1);
+        reader.GetInt64(2).Should().Be(300);
+        reader.GetInt32(2).Should().Be(300);
+        reader.GetFieldValue<BigInteger>(0).Should().Be(new BigInteger(5000000000));
+
+        // Narrowing, with a value that fits.
+        reader.GetInt32(3).Should().Be(42);
+        reader.GetFieldValue<byte>(3).Should().Be(42);
+        reader.GetFieldValue<ulong>(0).Should().Be(5000000000);
+
+        // Narrowing, with a value that does not fit.
+        reader.Invoking(r => r.GetInt32(0)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Int64 to Int32 in column big");
+        reader.Invoking(r => r.GetFieldValue<uint>(1)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Int32 to UInt32 in column negative");
+        reader.Invoking(r => r.GetFieldValue<ulong>(1)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Int32 to UInt64 in column negative");
+        reader.Invoking(r => r.GetFieldValue<byte>(2)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Int16 to Byte in column small");
+    }
 }
