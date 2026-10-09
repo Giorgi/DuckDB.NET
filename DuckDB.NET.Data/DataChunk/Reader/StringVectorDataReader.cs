@@ -90,7 +90,9 @@ internal sealed class StringVectorDataReader : VectorDataReaderBase
     {
         var data = (DuckDBString*)DataPointer + offset;
 
-        return new string(data->Data, 0, data->Length, Encoding.UTF8);
+        // The string constructor that takes an encoding validates more, wraps the pointer in a span and ends in the
+        // same decoder, so this is the shorter way to it.
+        return Encoding.UTF8.GetString((byte*)data->Data, data->Length);
     }
 
     private unsafe Stream GetStream(ulong offset)
