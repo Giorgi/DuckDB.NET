@@ -9,6 +9,20 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
 
     internal unsafe NumericVectorDataReader(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
+        StorageType = columnType switch
+        {
+            DuckDBType.TinyInt => typeof(sbyte),
+            DuckDBType.SmallInt => typeof(short),
+            DuckDBType.Integer => typeof(int),
+            DuckDBType.BigInt => typeof(long),
+            DuckDBType.UnsignedTinyInt => typeof(byte),
+            DuckDBType.UnsignedSmallInt => typeof(ushort),
+            DuckDBType.UnsignedInteger => typeof(uint),
+            DuckDBType.UnsignedBigInt => typeof(ulong),
+            DuckDBType.Float => typeof(float),
+            DuckDBType.Double => typeof(double),
+            _ => null
+        };
     }
 
     protected override T GetValidValue<T>(ulong offset)

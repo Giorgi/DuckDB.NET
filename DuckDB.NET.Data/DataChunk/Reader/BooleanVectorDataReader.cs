@@ -4,6 +4,10 @@ internal sealed class BooleanVectorDataReader : VectorDataReaderBase
 {
     internal unsafe BooleanVectorDataReader(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
+        if (columnType == DuckDBType.Boolean)
+        {
+            StorageType = typeof(bool);
+        }
     }
 
     protected override T GetValidValue<T>(ulong offset)

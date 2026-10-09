@@ -18,6 +18,11 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
     public DuckDBType DuckDBType { get; }
     private protected unsafe void* DataPointer { get; private set; }
 
+    // The .NET type whose memory layout is exactly what the vector holds, or null when every read needs a
+    // conversion. A reader sets it once, and a read of that type then skips GetValidValue, which is a generic
+    // virtual method and so is looked up at run time on every call.
+    private protected Type? StorageType { get; init; }
+
     internal unsafe VectorDataReaderBase(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName)
     {
         DataPointer = dataPointer;
@@ -58,7 +63,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
 
         if (IsValid(offset))
         {
-            return GetValidValue<T>(offset);
+            return ReadValidValue<T>(offset);
         }
 
         if (strict || !NullableHandler<T>.IsReferenceType)
@@ -75,6 +80,18 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
     /// <param name="offset">Position to read the data from</param>
     /// <returns>Data at the specified offset</returns>
     protected virtual T GetValidValue<T>(ulong offset) => (T)GetValue(offset, typeof(T));
+
+    // typeof(T).IsValueType is a constant for the JIT, so a reference type keeps only the call.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private unsafe T ReadValidValue<T>(ulong offset)
+    {
+        if (typeof(T).IsValueType && typeof(T) == StorageType)
+        {
+            return Unsafe.Read<T>((byte*)DataPointer + offset * (ulong)Unsafe.SizeOf<T>());
+        }
+
+        return GetValidValue<T>(offset);
+    }
 
     public object GetValue(ulong offset)
     {
@@ -210,7 +227,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
         // For T = int?, builds a delegate equivalent to:
         //   (VectorDataReaderBase reader, ulong offset) =>
         //       reader.IsValid(offset)
-        //           ? (int?)reader.GetValidValue<int>(offset)
+        //           ? (int?)reader.ReadValidValue<int>(offset)
         //           : default(int?)
         private static Func<VectorDataReaderBase, ulong, T> Compile()
         {
@@ -221,7 +238,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
 
             var isValid = Expression.Call(reader, typeof(VectorDataReaderBase).GetMethod(nameof(IsValid))!, offset);
 
-            var methodInfo = typeof(VectorDataReaderBase).GetMethod(nameof(GetValidValue), BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var methodInfo = typeof(VectorDataReaderBase).GetMethod(nameof(ReadValidValue), BindingFlags.Instance | BindingFlags.NonPublic)!;
             var genericGetValidValue = methodInfo.MakeGenericMethod(underlyingType);
 
             var getValidValue = Expression.Call(reader, genericGetValidValue, offset);
