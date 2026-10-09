@@ -711,6 +711,26 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         var value = (BigInteger)reader.GetValue(0);
     }
 
+    [Fact]
+    public void ReadBooleanAsObject()
+    {
+        Command.CommandText = "SELECT true, false, NULL::BOOLEAN, true";
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetValue(0).Should().Be(true);
+        reader.GetValue(1).Should().Be(false);
+        reader.GetValue(2).Should().Be(DBNull.Value);
+        reader[3].Should().Be(true);
+        reader.GetBoolean(0).Should().BeTrue();
+        reader.GetBoolean(1).Should().BeFalse();
+        reader.GetFieldValue<bool?>(2).Should().BeNull();
+
+        // The reader hands out the same two boxed values instead of allocating one per read.
+        reader.GetValue(0).Should().BeSameAs(reader.GetValue(3));
+    }
+
     // DuckDB keeps a string of up to 12 bytes inside the vector and points to a longer one.
     [Fact]
     public void ReadStringsOfDifferentLengths()

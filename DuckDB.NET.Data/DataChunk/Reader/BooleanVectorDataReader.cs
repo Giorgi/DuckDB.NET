@@ -2,6 +2,9 @@
 
 internal sealed class BooleanVectorDataReader : VectorDataReaderBase
 {
+    private static readonly object True = true;
+    private static readonly object False = false;
+
     internal unsafe BooleanVectorDataReader(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
         if (columnType == DuckDBType.Boolean)
@@ -28,6 +31,7 @@ internal sealed class BooleanVectorDataReader : VectorDataReaderBase
             return base.GetValue(offset, targetType);
         }
 
-        return GetFieldData<bool>(offset);
+        // A boolean has two values, so the two boxes are made once and shared.
+        return GetFieldData<bool>(offset) ? True : False;
     }
 }
