@@ -21,6 +21,8 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
             DuckDBType.UnsignedBigInt => typeof(ulong),
             DuckDBType.Float => typeof(float),
             DuckDBType.Double => typeof(double),
+            DuckDBType.HugeInt => typeof(DuckDBHugeInt),
+            DuckDBType.UnsignedHugeInt => typeof(DuckDBUHugeInt),
             _ => null
         };
     }
@@ -79,8 +81,9 @@ internal sealed class NumericVectorDataReader : VectorDataReaderBase
             DuckDBType.UnsignedBigInt => GetFieldData<ulong>(offset),
             DuckDBType.Float => GetFieldData<float>(offset),
             DuckDBType.Double => GetFieldData<double>(offset),
-            DuckDBType.HugeInt => GetBigInteger(offset, false),
-            DuckDBType.UnsignedHugeInt => GetBigInteger(offset, true),
+            // The provider-specific type of these two is the DuckDB struct, which is what the vector holds.
+            DuckDBType.HugeInt => targetType == typeof(DuckDBHugeInt) ? GetFieldData<DuckDBHugeInt>(offset) : GetBigInteger(offset, false),
+            DuckDBType.UnsignedHugeInt => targetType == typeof(DuckDBUHugeInt) ? GetFieldData<DuckDBUHugeInt>(offset) : GetBigInteger(offset, true),
             DuckDBType.VarInt => GetBigInteger<BigInteger>(offset),
             _ => base.GetValue(offset, targetType)
         };

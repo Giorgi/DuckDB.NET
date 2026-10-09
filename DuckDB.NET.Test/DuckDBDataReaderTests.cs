@@ -710,4 +710,45 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.Read();
         var value = (BigInteger)reader.GetValue(0);
     }
+
+    [Fact]
+    public void ReadHugeIntAsDuckDBHugeInt()
+    {
+        Command.CommandText = "SELECT 170141183460469231731687303715884105727::HUGEINT, (-170141183460469231731687303715884105728)::HUGEINT, (-5)::HUGEINT, " +
+                              "340282366920938463463374607431768211455::UHUGEINT, 42::UHUGEINT, NULL::HUGEINT";
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetFieldValue<DuckDBHugeInt>(0).ToBigInteger().Should().Be(DuckDBHugeInt.HugeIntMaxValue);
+        reader.GetFieldValue<DuckDBHugeInt>(1).ToBigInteger().Should().Be(DuckDBHugeInt.HugeIntMinValue);
+        reader.GetFieldValue<DuckDBHugeInt>(2).ToBigInteger().Should().Be(new BigInteger(-5));
+        reader.GetFieldValue<DuckDBHugeInt?>(2).Value.ToBigInteger().Should().Be(new BigInteger(-5));
+
+        reader.GetFieldValue<DuckDBUHugeInt>(3).ToBigInteger().Should().Be(DuckDBUHugeInt.HugeIntMaxValue);
+        reader.GetFieldValue<DuckDBUHugeInt>(4).ToBigInteger().Should().Be(new BigInteger(42));
+
+        reader.GetFieldValue<DuckDBHugeInt?>(5).Should().BeNull();
+        reader.Invoking(r => r.GetFieldValue<DuckDBHugeInt>(5)).Should().Throw<InvalidCastException>();
+
+        // The two structs are not interchangeable: the signed one cannot hold every unsigned value.
+        reader.Invoking(r => r.GetFieldValue<DuckDBUHugeInt>(2)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetFieldValue<DuckDBHugeInt>(4)).Should().Throw<InvalidCastException>();
+
+        // The reader names the structs as the provider-specific types, so it has to return them.
+        reader.GetProviderSpecificFieldType(0).Should().Be(typeof(DuckDBHugeInt));
+        reader.GetProviderSpecificValue(0).Should().BeOfType<DuckDBHugeInt>().Which.ToBigInteger().Should().Be(DuckDBHugeInt.HugeIntMaxValue);
+        reader.GetProviderSpecificValue(1).Should().BeOfType<DuckDBHugeInt>().Which.ToBigInteger().Should().Be(DuckDBHugeInt.HugeIntMinValue);
+        reader.GetProviderSpecificValue(2).Should().BeOfType<DuckDBHugeInt>().Which.ToBigInteger().Should().Be(new BigInteger(-5));
+        reader.GetProviderSpecificFieldType(3).Should().Be(typeof(DuckDBUHugeInt));
+        reader.GetProviderSpecificValue(3).Should().BeOfType<DuckDBUHugeInt>().Which.ToBigInteger().Should().Be(DuckDBUHugeInt.HugeIntMaxValue);
+        reader.GetProviderSpecificValue(4).Should().BeOfType<DuckDBUHugeInt>().Which.ToBigInteger().Should().Be(new BigInteger(42));
+        reader.GetProviderSpecificValue(5).Should().Be(DBNull.Value);
+
+        // Reading as BigInteger is unchanged.
+        reader.GetValue(0).Should().Be(DuckDBHugeInt.HugeIntMaxValue);
+        reader.GetValue(3).Should().Be(DuckDBUHugeInt.HugeIntMaxValue);
+        reader.GetFieldValue<BigInteger>(0).Should().Be(DuckDBHugeInt.HugeIntMaxValue);
+        reader.GetFieldValue<BigInteger>(3).Should().Be(DuckDBUHugeInt.HugeIntMaxValue);
+    }
 }
