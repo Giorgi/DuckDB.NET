@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Data;
 
-public class DuckDBDataReader : DbDataReader
+public sealed class DuckDBDataReader : DbDataReader
 {
     private readonly DuckDBCommand command;
     private readonly CommandBehavior behavior;
