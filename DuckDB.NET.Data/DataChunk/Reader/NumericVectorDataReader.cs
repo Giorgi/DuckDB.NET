@@ -29,13 +29,25 @@ internal sealed class NumericVectorDataReader<TStorage> : VectorDataReaderBase w
                 return Unsafe.As<TStorage, T>(ref value);
             }
 
-            if (isFloatingNumericType)
+            if (typeof(TStorage) == typeof(float) && typeof(T) == typeof(double))
             {
-                throw CannotCast(typeof(TStorage), typeof(T));
+                return (T)(object)(double)Unsafe.As<TStorage, float>(ref value);
+            }
+
+            //A DOUBLE is narrowed like the C# cast: digits are lost, and a value too large for float is infinity
+            if (typeof(TStorage) == typeof(double) && typeof(T) == typeof(float))
+            {
+                return (T)(object)(float)Unsafe.As<TStorage, double>(ref value);
             }
 
             //A floating point value read as an integer is rounded, which the non-generic path does
-            return base.GetValidValue<T>(offset);
+            if (isIntegralNumericType)
+            {
+                return base.GetValidValue<T>(offset);
+            }
+
+            //What is left is decimal, which the checked conversion below handles: NaN, infinity and a value
+            //out of range are refused
         }
 
         try

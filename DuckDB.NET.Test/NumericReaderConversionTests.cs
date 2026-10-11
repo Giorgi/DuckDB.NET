@@ -5,7 +5,7 @@ namespace DuckDB.NET.Test;
 
 // Pins how each numeric column type reads as each numeric .NET type: the value when the read is supported and
 // the value fits, InvalidCastException otherwise. The rules below describe the reader as it is, including the
-// reads it refuses, such as a FLOAT column read as double.
+// reads it refuses, such as a HUGEINT column read as double.
 public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     private static readonly string[] IntegerColumns = ["TINYINT", "SMALLINT", "INTEGER", "BIGINT", "UTINYINT", "USMALLINT", "UINTEGER", "UBIGINT"];
@@ -142,11 +142,13 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         reader.GetFieldValue<float?>(0).Should().Be(1.5f);
         reader.GetFieldValue<double?>(1).Should().Be(1.5);
 
-        // Neither reads as the other, and neither reads as decimal.
-        reader.Invoking(r => r.GetDouble(0)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Single to Double in column *");
-        reader.Invoking(r => r.GetFloat(1)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Double to Single in column *");
-        reader.Invoking(r => r.GetDecimal(0)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Single to Decimal in column *");
-        reader.Invoking(r => r.GetDecimal(1)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Double to Decimal in column *");
+        // A FLOAT widens to double, a DOUBLE narrows to float, and both read as decimal.
+        reader.GetDouble(0).Should().Be(1.5);
+        reader.GetFieldValue<double?>(0).Should().Be(1.5);
+        reader.GetFloat(1).Should().Be(1.5f);
+        reader.GetFieldValue<float?>(1).Should().Be(1.5f);
+        reader.GetDecimal(0).Should().Be(1.5m);
+        reader.GetDecimal(1).Should().Be(1.5m);
 
         // Read as an integer, a fraction is rounded to the nearest even number.
         reader.GetInt32(0).Should().Be(2);
@@ -257,8 +259,8 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         reader.GetFieldValue<List<int>>(3).Should().Equal(1, 2);
 
         reader.GetFieldValue<List<double>>(4).Should().Equal(1.5, 2.5);
-        reader.Invoking(r => r.GetFieldValue<List<float>>(4)).Should().Throw<InvalidCastException>();
-        reader.Invoking(r => r.GetFieldValue<List<decimal>>(4)).Should().Throw<InvalidCastException>();
+        reader.GetFieldValue<List<decimal>>(4).Should().Equal(1.5m, 2.5m);
+        reader.GetFieldValue<List<float>>(4).Should().Equal(1.5f, 2.5f);
 
         reader.GetFieldValue<List<bool>>(5).Should().Equal(true, false);
         reader.GetFieldValue<List<bool?>>(5).Should().Equal(true, false);
@@ -272,8 +274,8 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         reader.GetFieldValue<List<List<long>>>(7)[0].Should().Equal(1L, 2L);
 
         reader.GetFieldValue<List<float>>(8).Should().Equal(1.5f, 2.5f);
-        reader.Invoking(r => r.GetFieldValue<List<double>>(8)).Should().Throw<InvalidCastException>();
-        reader.Invoking(r => r.GetFieldValue<List<decimal>>(8)).Should().Throw<InvalidCastException>();
+        reader.GetFieldValue<List<double>>(8).Should().Equal(1.5, 2.5);
+        reader.GetFieldValue<List<decimal>>(8).Should().Equal(1.5m, 2.5m);
     }
 
     [Fact]
@@ -290,6 +292,36 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         var fields = reader.GetFieldValue<Dictionary<string, object>>(1);
         fields["a"].Should().Be(1);
         fields["b"].Should().Be(2L);
+    }
+
+    // The values of a map and the fields of a struct are converted on another path than a column is.
+    // FLOAT, DOUBLE and decimal convert the same way on both.
+    [Fact]
+    public void MapsAndStructsConvertFloatingPointLikeColumns()
+    {
+        Command.CommandText = "SELECT MAP {1::INTEGER: 1.5::DOUBLE} AS doubles, MAP {1::INTEGER: 2.5::FLOAT} AS floats, " +
+                              "{'single': 2.5::FLOAT, 'double': 1.5::DOUBLE} AS fields";
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetFieldValue<Dictionary<int, decimal>>(0).Should().Equal(new Dictionary<int, decimal> { [1] = 1.5m });
+        reader.GetFieldValue<Dictionary<int, float>>(0).Should().Equal(new Dictionary<int, float> { [1] = 1.5f });
+        reader.GetFieldValue<Dictionary<int, decimal>>(1).Should().Equal(new Dictionary<int, decimal> { [1] = 2.5m });
+        reader.GetFieldValue<Dictionary<int, double>>(1).Should().Equal(new Dictionary<int, double> { [1] = 2.5 });
+
+        var asDecimals = reader.GetFieldValue<FloatingFields<decimal, decimal>>(2);
+        asDecimals.Single.Should().Be(2.5m);
+        asDecimals.Double.Should().Be(1.5m);
+
+        var swapped = reader.GetFieldValue<FloatingFields<double, float>>(2);
+        swapped.Single.Should().Be(2.5);
+        swapped.Double.Should().Be(1.5f);
+    }
+
+    private class FloatingFields<TSingle, TDouble>
+    {
+        public TSingle Single { get; set; }
+        public TDouble Double { get; set; }
     }
 
     // Integers that float or double cannot hold exactly, each with the result of the C# cast of the same value.
@@ -336,6 +368,60 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         reader.GetDecimal(0).Should().Be(asDecimal);
         reader.GetFieldValue<decimal>(0).Should().Be(asDecimal);
         reader.GetFieldValue<decimal?>(0).Should().Be(asDecimal);
+    }
+
+    [Fact]
+    public void FloatReadAsDoubleIsAPlainWidening()
+    {
+        Command.CommandText = "SELECT 0.1::FLOAT, 'NaN'::FLOAT, 'Infinity'::FLOAT, '-Infinity'::FLOAT, '-0.0'::FLOAT, [0.1, 0.7]::FLOAT[]";
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        // The double nearest to the float 0.1, which is not the double 0.1.
+        reader.GetDouble(0).Should().Be((double)0.1f).And.Be(0.10000000149011612).And.NotBe(0.1);
+        reader.GetFieldValue<double>(0).Should().Be((double)0.1f);
+        reader.GetFieldValue<double?>(0).Should().Be((double)0.1f);
+
+        double.IsNaN(reader.GetDouble(1)).Should().BeTrue();
+        double.IsNaN(reader.GetFieldValue<double?>(1).Value).Should().BeTrue();
+        reader.GetDouble(2).Should().Be(double.PositiveInfinity);
+        reader.GetFieldValue<double?>(2).Should().Be(double.PositiveInfinity);
+        reader.GetDouble(3).Should().Be(double.NegativeInfinity);
+        reader.GetFieldValue<double?>(3).Should().Be(double.NegativeInfinity);
+
+        reader.GetDouble(4).Should().Be(0d);
+        double.IsNegative(reader.GetDouble(4)).Should().BeTrue();
+        double.IsNegative(reader.GetFieldValue<double?>(4).Value).Should().BeTrue();
+
+        reader.GetFieldValue<List<double>>(5).Should().Equal((double)0.1f, (double)0.7f);
+    }
+
+    // The C# cast, with no check: digits beyond what a float holds are lost, and a value too large for a float
+    // reads as infinity. Npgsql does the same.
+    [Fact]
+    public void DoubleReadAsFloatIsAPlainNarrowing()
+    {
+        Command.CommandText = "SELECT 0.1::DOUBLE, 123456789.123456789::DOUBLE, 1e300::DOUBLE, (-1e300)::DOUBLE, 1e-300::DOUBLE, " +
+                              "'NaN'::DOUBLE, 'Infinity'::DOUBLE, '-0.0'::DOUBLE, [0.1, 1e300]::DOUBLE[]";
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetFloat(0).Should().Be(0.1f);
+        reader.GetFieldValue<float>(0).Should().Be(0.1f);
+        reader.GetFieldValue<float?>(0).Should().Be(0.1f);
+
+        reader.GetFloat(1).Should().Be((float)123456789.123456789d).And.Be(123456792f);
+
+        reader.GetFloat(2).Should().Be(float.PositiveInfinity);
+        reader.GetFieldValue<float?>(2).Should().Be(float.PositiveInfinity);
+        reader.GetFloat(3).Should().Be(float.NegativeInfinity);
+        reader.GetFloat(4).Should().Be(0f);
+
+        float.IsNaN(reader.GetFloat(5)).Should().BeTrue();
+        reader.GetFloat(6).Should().Be(float.PositiveInfinity);
+        float.IsNegative(reader.GetFloat(7)).Should().BeTrue();
+
+        reader.GetFieldValue<List<float>>(8).Should().Equal(0.1f, float.PositiveInfinity);
     }
 
     [Theory]
@@ -420,6 +506,36 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         }
     }
 
+    // The conversion is the C# cast: a float keeps 7 significant digits and a double 15, so 0.1 reads as 0.1.
+    [Theory]
+    [InlineData("FLOAT", "Single")]
+    [InlineData("DOUBLE", "Double")]
+    public void FloatingPointColumnReadAsDecimal(string column, string clrName)
+    {
+        Command.CommandText = $"SELECT 1.5::{column}, 0.1::{column}, (-123.456)::{column}, 1e20::{column}, " +
+                              $"'NaN'::{column} AS nan, 'Infinity'::{column} AS inf, '-Infinity'::{column} AS neginf, 1e30::{column} AS big";
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetDecimal(0).Should().Be(1.5m);
+        reader.GetDecimal(1).Should().Be(0.1m);
+        reader.GetDecimal(2).Should().Be(-123.456m);
+        reader.GetDecimal(3).Should().Be(100000000000000000000m);
+        reader.GetFieldValue<decimal>(1).Should().Be(0.1m);
+        reader.GetFieldValue<decimal?>(1).Should().Be(0.1m);
+
+        // A decimal has no NaN and no infinity, and holds nothing above about 7.9e28.
+        foreach (var name in new[] { "nan", "inf", "neginf", "big" })
+        {
+            var ordinal = reader.GetOrdinal(name);
+            var message = $"Cannot cast from {clrName} to Decimal in column {name}";
+
+            reader.Invoking(r => r.GetDecimal(ordinal)).Should().Throw<InvalidCastException>().WithMessage(message);
+            reader.Invoking(r => r.GetFieldValue<decimal>(ordinal)).Should().Throw<InvalidCastException>().WithMessage(message);
+            reader.Invoking(r => r.GetFieldValue<decimal?>(ordinal)).Should().Throw<InvalidCastException>().WithMessage(message);
+        }
+    }
+
     // A UNION column has no reader. The query runs, and every read of a non-null value says so.
     [Fact]
     public void ColumnTypeWithoutAReaderThrows()
@@ -478,13 +594,13 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
             int? whole = row % 7 == 0 ? null : row - 2500;
             decimal? unsigned = row % 11 == 0 ? null : (decimal)((ulong)row * 3600000000000000UL);
-            float? fraction = row % 3 == 0 ? null : (row - 2500) / 8f;
+            double? fraction = row % 3 == 0 ? null : (double)((row - 2500) / 8f);
             decimal? d = row % 5 == 0 ? null : (row - 2500) * step;
 
             reader.GetFieldValue<long?>(1).Should().Be(whole, $"row {row}");
             reader.GetFieldValue<double?>(1).Should().Be(whole, $"row {row}");
             reader.GetFieldValue<decimal?>(2).Should().Be(unsigned, $"row {row}");
-            reader.GetFieldValue<float?>(3).Should().Be(fraction, $"row {row}");
+            reader.GetFieldValue<double?>(3).Should().Be(fraction, $"row {row}");
             reader.GetFieldValue<decimal?>(4).Should().Be(d, $"row {row}");
 
             if (whole.HasValue)
@@ -500,7 +616,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
             if (fraction.HasValue)
             {
-                reader.GetFloat(3).Should().Be(fraction.Value, $"row {row}");
+                reader.GetDouble(3).Should().Be(fraction.Value, $"row {row}");
             }
 
             if (d.HasValue)
@@ -583,8 +699,8 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
             return target == typeof(BigInteger);
         }
 
-        // FLOAT and DOUBLE are read as themselves or as an integer, and as nothing else.
-        return ColumnClrTypes[column] == target;
+        // FLOAT and DOUBLE are read as an integer, as each other and as decimal, and not as BigInteger.
+        return target != typeof(BigInteger);
     }
 
     private static bool Fits(BigInteger value, Type target)
