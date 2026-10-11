@@ -191,12 +191,14 @@ not use profile data to guess the target as it does for a plain virtual call.
 
   | Read | Runtime | Expression tree | Static method | Instance method |
   |---|---|---|---|---|
-  | `int?` from INTEGER | .NET 10 | 1.07 | 1.18 | 0.82 to 0.84 |
-  | `int?` from INTEGER | .NET 8 | 0.97 | 0.96 | 0.34 to 0.35 |
-  | `long?` from INTEGER | .NET 10 | 0.69 | 0.57 | 0.35 to 0.36 |
-  | `long?` from INTEGER | .NET 8 | 0.59 | 0.53 | 0.35 to 0.36 |
+  | `int?` from INTEGER | .NET 10 | 1.07 | 1.18 | 0.80 to 0.84 |
+  | `int?` from INTEGER | .NET 8 | 0.97 | 0.96 | 0.31 to 0.35 |
+  | `long?` from INTEGER | .NET 10 | 0.69 | 0.57 | 0.35 to 0.38 |
+  | `long?` from INTEGER | .NET 8 | 0.59 | 0.53 | 0.35 to 0.37 |
 
-  The last column is two runs. Before this change a nullable read cost more than twice as much on .NET 8 as on
+  The last column is three runs: two of the form that finds the reader by reflection only, and one with the list of
+  known types. The committed form, which adds the check for dynamic code and the fallback, was not measured again.
+  Before this change a nullable read cost more than twice as much on .NET 8 as on
   .NET 10 (65 ms against 28 ms for 8,000,000 values); now both take about 23 ms. The compiled code shows that the
   old delegate called the read method on .NET 8 where the new method has it inlined, but one call does not account
   for the whole difference. The rest is not explained.
@@ -221,15 +223,35 @@ not use profile data to guess the target as it does for a plain virtual call.
   before, which was the type the reader happened to convert from.
 - **A `BigInteger` is made in one place:** `DuckDBHugeInt.ToBigInteger()` and `DuckDBUHugeInt.ToBigInteger()`, which
   convert from `Int128` and `UInt128` directly. They used to compute `Upper * 2^64 + Lower`. The reader calls them
-  when a `BigInteger` is asked for (`GetFieldValue<BigInteger>`, `GetValue`), and so does the decimal reader for a
-  DECIMAL stored as a HUGEINT. The two methods are public, so their results must not change:
+  when a `BigInteger` is asked for (`GetFieldValue<BigInteger>`, `GetValue`), and so does the decimal reader when a
+  DECIMAL stored as a HUGEINT is read as `BigInteger`. The two methods are public, so their results must not change:
   `HugeIntToBigIntegerGivesBackTheValue` and `UHugeIntToBigIntegerGivesBackTheValue` build a struct with the
-  constructor, which splits the value by division, and convert it back. **The speed of this part is not measured.**
+  constructor, which splits the value by division, and convert it back.
+- **A wide DECIMAL (more than 18 digits, stored as a HUGEINT) read as `decimal` is divided as an `Int128`:**
+  `Int128.DivRem` by a power of ten from `DecimalExtensions.Int128PowersOfTen`, then the same conversion of quotient
+  and remainder as before. It used `BigInteger.DivRem`, which allocates for the value, the quotient and the
+  remainder. The steps were kept on purpose, so the result has the same scale as before: `1.5` from a DECIMAL(38,4),
+  where a DECIMAL(18,4) gives `1.5000`. The old and the new conversion were compared on the bits of the result and
+  on whether they throw, for every scale from 0 to 38: 46,820,592 conversions on each runtime, none different.
 - **Not changed:** `GetValue` and `GetFieldValue<BigInteger>` return a `BigInteger`; a read as `float`, `double` or
   `decimal` is refused; VARINT is stored as a byte string and still goes through `BigInteger`.
-- **Measured** against the build with decision 5, 1,000,000 rows of four HUGEINT columns read with `GetInt64`, two
-  runs on each runtime: 134 ms to 30 ms on .NET 10, 130 ms to 33 ms on .NET 8. About 34 ns per value before, about
-  7.5 ns after.
+- **Measured** against the build with decision 3, 1,000,000 rows of four HUGEINT columns read with `GetInt64`, two
+  runs on each runtime: 146 and 150 ms to 30 ms on .NET 10 (0.20 to 0.21), 151 and 154 ms to 33 ms on .NET 8 (0.22).
+  The build with decision 5 measured 134 and 130 ms in an earlier, separate run. Per value, moving through the rows
+  included: about 37 ns before, 7.5 ns after on .NET 10 and 8.3 ns on .NET 8.
+- **Measured, the reads that make a `BigInteger` and the wide DECIMAL,** ratio to the build with decision 3,
+  4,000,000 values each. The machine was not quiet for any of these runs (standard deviation up to 10% of the
+  mean), so the .NET 10 column is the range over two runs, three for the wide DECIMAL, and .NET 8 is one run:
+
+  | Read | .NET 10 | .NET 8 | Allocated |
+  |---|---|---|---|
+  | HUGEINT with `GetValue` | 0.38 to 0.44 | 0.42 | 125 MB before and after (the box) |
+  | HUGEINT as `BigInteger`, values that fit 32 bits | 0.43 to 0.50 | 0.39 | none before or after |
+  | HUGEINT as `BigInteger`, larger values | 0.33 to 0.36 | 0.31 | 437 MB to 156 MB |
+  | DECIMAL(38,x) with `GetDecimal` | 0.46 to 0.69 | 0.69 | 107 MB to none |
+
+  The wide DECIMAL took 207 to 265 ms on .NET 10 where the earlier build took 381 to 505 ms, and 278 ms against
+  407 ms on .NET 8: 52 to 70 ns per value, moving through the rows included.
 - **Pinned by:** `HugeIntAtTheLimitsOfLongAndULong`, ten values just inside and just outside what `long` and `ulong`
   hold, for both column types; and `OverflowingHugeIntReadNamesTheColumnTypeAndTheColumn`.
 
@@ -258,9 +280,10 @@ not use profile data to guess the target as it does for a plain virtual call.
 - **TIMESTAMP and DATE are converted by a call into DuckDB per value:** 22.9 ns per timestamp and 12.5 ns per date,
   where the arithmetic alone measured under 1 ns. Moving it to C# needs correctness checks first (infinity, the
   limits of `DateTime`, values DuckDB itself rejects).
-- **A wide DECIMAL (stored as a HUGEINT) is still converted with `BigInteger` arithmetic** after
-  `ToBigInteger()`: a division by a power of ten and the conversion of the two parts. Not measured since
-  `ToBigInteger()` changed.
+- **A wide DECIMAL (stored as a HUGEINT) is still divided on every read:** 52 to 70 ns per value, where a
+  DECIMAL(18,4), which is built from the stored integer and the scale with no division, takes about 16 ns. A value
+  that fits 96 bits with a scale of at most 28 could be built the same way. That is not done because it changes what
+  the value looks like: `1.5000` where it is `1.5` today. Its speed is not measured.
 - **`GetValue` boxes every value** except booleans. It returns `object`; nothing can be done about it here.
 - **A user-defined function reads its inputs through `IDuckDBDataReader.GetValue<T>`,** a generic method on an
   interface, which is looked up at run time on every value. Decision 5 removed the second lookup behind it, not this
@@ -278,7 +301,10 @@ not use profile data to guess the target as it does for a plain virtual call.
 | DECIMAL | refused | refused | the value | the value if it has no fraction |
 | ENUM | its position in the list of names, if it fits | refused | refused | its position |
 
-- A refused read throws `InvalidCastException` that names both types and the column.
+- A refused read throws `InvalidCastException`. Where this code refuses it (an integer that does not fit, a DOUBLE
+  out of range, an ENUM), the message names both types and the column: `Cannot cast from Int32 to Byte in column x`.
+  Where the runtime refuses it (HUGEINT as `double`, DOUBLE as `BigInteger`, DECIMAL as an integer), the message is
+  the runtime's and has no column. A DECIMAL with a fraction read as `BigInteger` names the column but not the types.
 - An ENUM column also reads as `string` (the name) and as a C# enum type of any size. The enum reader converts a
   C# enum through the size of that enum: `Unsafe.As` reads as many bytes as the target type has, so giving it a
   smaller value reads past it. It once did, for every type but `string`.
