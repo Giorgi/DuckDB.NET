@@ -8,8 +8,9 @@ public readonly struct DuckDBHugeInt
     private static readonly BigInteger Base = BigInteger.Pow(2, 64);
 
     // DuckDB's HUGEINT is a 128-bit two's complement integer: -2^127 to 2^127 - 1.
-    public static BigInteger HugeIntMinValue { get; } = BigInteger.Parse("-170141183460469231731687303715884105728");
-    public static BigInteger HugeIntMaxValue { get; } = BigInteger.Parse("170141183460469231731687303715884105727");
+    // Parsed with the invariant culture: the current one may write the negative sign in another way.
+    public static BigInteger HugeIntMinValue { get; } = BigInteger.Parse("-170141183460469231731687303715884105728", CultureInfo.InvariantCulture);
+    public static BigInteger HugeIntMaxValue { get; } = BigInteger.Parse("170141183460469231731687303715884105727", CultureInfo.InvariantCulture);
 
     public DuckDBHugeInt(BigInteger value)
     {
@@ -51,7 +52,7 @@ public readonly struct DuckDBUHugeInt
     private static readonly BigInteger Base = BigInteger.Pow(2, 64);
 
     public static BigInteger HugeIntMinValue { get; } = BigInteger.Zero;
-    public static BigInteger HugeIntMaxValue { get; } = BigInteger.Parse("340282366920938463463374607431768211455");
+    public static BigInteger HugeIntMaxValue { get; } = BigInteger.Parse("340282366920938463463374607431768211455", CultureInfo.InvariantCulture);
 
     public DuckDBUHugeInt(BigInteger value)
     {
