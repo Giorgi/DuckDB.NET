@@ -40,9 +40,11 @@ public readonly struct DuckDBHugeInt
     public ulong Lower { get; }
     public long Upper { get; }
 
+    // A HUGEINT is a 128-bit integer, which is what Int128 is, and BigInteger converts from it directly.
+    // Upper * Base + Lower gives the same value through two conversions, a multiplication and an addition.
     public BigInteger ToBigInteger()
     {
-        return Upper * Base + Lower;
+        return new Int128((ulong)Upper, Lower);
     }
 }
 
@@ -78,6 +80,6 @@ public readonly struct DuckDBUHugeInt
 
     public BigInteger ToBigInteger()
     {
-        return Upper * Base + Lower;
+        return new UInt128(Upper, Lower);
     }
 }

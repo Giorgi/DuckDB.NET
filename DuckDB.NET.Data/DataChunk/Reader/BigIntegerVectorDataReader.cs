@@ -73,11 +73,17 @@ internal sealed class BigIntegerVectorDataReader : VectorDataReaderBase
     }
 
     // A HUGEINT is a 128-bit integer, which is what Int128 is, so an integer type is converted from that. The
-    // range check is then a few comparisons. A BigInteger is made only when a BigInteger is asked for.
+    // range check is then a few comparisons. A BigInteger is made only when a BigInteger is asked for, and then
+    // by ToBigInteger, like everywhere else.
     // The message of a refused read names the column type, which is what the caller knows from the schema.
     private T GetHugeInt<T>(ulong offset)
     {
         var value = GetFieldData<DuckDBHugeInt>(offset);
+
+        if (typeof(T) == typeof(BigInteger))
+        {
+            return (T)(object)value.ToBigInteger();
+        }
 
         try
         {
@@ -92,6 +98,11 @@ internal sealed class BigIntegerVectorDataReader : VectorDataReaderBase
     private T GetUnsignedHugeInt<T>(ulong offset)
     {
         var value = GetFieldData<DuckDBUHugeInt>(offset);
+
+        if (typeof(T) == typeof(BigInteger))
+        {
+            return (T)(object)value.ToBigInteger();
+        }
 
         try
         {
