@@ -1,6 +1,5 @@
-﻿using System.IO;
-using System.Linq.Expressions;
-using System.Reflection;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Data.DataChunk.Reader;
@@ -244,14 +243,21 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
     {
     }
 
+    private sealed class NullableReader<TValue> where TValue : struct
+    {
+        public TValue? Read(VectorDataReaderBase reader, ulong offset)
+        {
+            return reader.IsValid(offset) ? reader.ReadValidValue<TValue>(offset) : null;
+        }
+    }
+
     private static class NullableHandler<T>
     {
-        private static Type type;
-        private static Type? underlyingType;
+        private static readonly Type? underlyingType;
 
         static NullableHandler()
         {
-            type = typeof(T);
+            var type = typeof(T);
 
             var allowsNullValue = type.AllowsNullValue(out IsNullableValueType, out underlyingType);
 
@@ -263,28 +269,55 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
         public static readonly bool IsReferenceType;
         public static readonly Func<VectorDataReaderBase, ulong, T> Read;
 
-        // For T = int?, builds a delegate equivalent to:
-        //   (VectorDataReaderBase reader, ulong offset) =>
-        //       reader.IsValid(offset)
-        //           ? (int?)reader.ReadValidValue<int>(offset)
-        //           : default(int?)
+        // For T = int?, a delegate for the Read method of a NullableReader<int>. It is an ordinary method, so the
+        // JIT compiles it in tiers and with profile data like any other; a delegate compiled from an expression
+        // tree is compiled once. An instance method, because a delegate for a static method is slower to call.
+        //
+        // The reader is found in two ways, because of applications that are trimmed or compiled ahead of time:
+        // - The common types, and the structs of this library, are named below. That is code a compiler can see,
+        //   so an application compiled ahead of time has a NullableReader for each of them.
+        // - Any other type, such as an enum of the caller, is found through reflection. The attribute keeps the
+        //   trimmer from removing the constructor and the Read method, which nothing calls by name.
+        // - An application compiled ahead of time has no code for such a type and cannot make any. There the
+        //   value is read as an object and unboxed, which needs no code for the type. It is slower.
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods, typeof(NullableReader<>))]
         private static Func<VectorDataReaderBase, ulong, T> Compile()
         {
             if (underlyingType is null) return null!;
 
-            var reader = Expression.Parameter(typeof(VectorDataReaderBase));
-            var offset = Expression.Parameter(typeof(ulong));
+            var known = Known<bool>() ?? Known<byte>() ?? Known<sbyte>() ?? Known<short>() ?? Known<ushort>()
+                        ?? Known<int>() ?? Known<uint>() ?? Known<long>() ?? Known<ulong>()
+                        ?? Known<float>() ?? Known<double>() ?? Known<decimal>() ?? Known<BigInteger>()
+                        ?? Known<DateTime>() ?? Known<DateOnly>() ?? Known<TimeOnly>() ?? Known<TimeSpan>() ?? Known<DateTimeOffset>()
+                        ?? Known<Guid>()
+                        ?? Known<DuckDBDateOnly>() ?? Known<DuckDBTimeOnly>() ?? Known<DuckDBTimeTz>() ?? Known<DuckDBTimestamp>() ?? Known<DuckDBInterval>()
+                        ?? Known<DuckDBHugeInt>() ?? Known<DuckDBUHugeInt>() ?? Known<DuckDBDecimal>();
 
-            var isValid = Expression.Call(reader, typeof(VectorDataReaderBase).GetMethod(nameof(IsValid))!, offset);
+            if (known != null)
+            {
+                return known;
+            }
 
-            var methodInfo = typeof(VectorDataReaderBase).GetMethod(nameof(ReadValidValue), BindingFlags.Instance | BindingFlags.NonPublic)!;
-            var genericGetValidValue = methodInfo.MakeGenericMethod(underlyingType);
+            if (RuntimeFeature.IsDynamicCodeSupported)
+            {
+                var reader = Activator.CreateInstance(typeof(NullableReader<>).MakeGenericType(underlyingType))!;
 
-            var getValidValue = Expression.Call(reader, genericGetValidValue, offset);
+                return (Func<VectorDataReaderBase, ulong, T>)Delegate.CreateDelegate(typeof(Func<VectorDataReaderBase, ulong, T>), reader, nameof(NullableReader<int>.Read));
+            }
 
-            var body = Expression.Condition(isValid, Expression.Convert(getValidValue, type), Expression.Default(type));
+            var valueType = underlyingType;
 
-            return Expression.Lambda<Func<VectorDataReaderBase, ulong, T>>(body, reader, offset).Compile();
+            return (reader, offset) => reader.IsValid(offset) ? (T)reader.GetValue(offset, valueType) : default!;
+        }
+
+        private static Func<VectorDataReaderBase, ulong, T>? Known<TValue>() where TValue : struct
+        {
+            if (typeof(T) != typeof(TValue?))
+            {
+                return null;
+            }
+
+            return (Func<VectorDataReaderBase, ulong, T>)(object)new Func<VectorDataReaderBase, ulong, TValue?>(new NullableReader<TValue>().Read);
         }
     }
 }
