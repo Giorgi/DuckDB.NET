@@ -31,8 +31,8 @@ internal sealed class BigIntegerVectorDataReader : VectorDataReaderBase
 
         return DuckDBType switch
         {
-            DuckDBType.HugeInt => GetBigInteger<T>(offset, false),
-            DuckDBType.UnsignedHugeInt => GetBigInteger<T>(offset, true),
+            DuckDBType.HugeInt => GetHugeInt<T>(offset),
+            DuckDBType.UnsignedHugeInt => GetUnsignedHugeInt<T>(offset),
             _ => GetVarInt<T>(offset)
         };
     }
@@ -72,17 +72,34 @@ internal sealed class BigIntegerVectorDataReader : VectorDataReaderBase
         return unsigned ? GetFieldData<DuckDBUHugeInt>(offset).ToBigInteger() : GetFieldData<DuckDBHugeInt>(offset).ToBigInteger();
     }
 
-    private T GetBigInteger<T>(ulong offset, bool unsigned)
+    // A HUGEINT is a 128-bit integer, which is what Int128 is, so an integer type is converted from that. The
+    // range check is then a few comparisons. A BigInteger is made only when a BigInteger is asked for.
+    // The message of a refused read names the column type, which is what the caller knows from the schema.
+    private T GetHugeInt<T>(ulong offset)
     {
-        var bigInteger = GetBigInteger(offset, unsigned);
+        var value = GetFieldData<DuckDBHugeInt>(offset);
 
         try
         {
-            return NumericConverter.Convert<BigInteger, T>(bigInteger);
+            return NumericConverter.Convert<Int128, T>(new Int128((ulong)value.Upper, value.Lower));
         }
         catch (OverflowException)
         {
-            throw CannotCast(typeof(BigInteger), typeof(T));
+            throw CannotCast(DuckDBType.ToString(), typeof(T));
+        }
+    }
+
+    private T GetUnsignedHugeInt<T>(ulong offset)
+    {
+        var value = GetFieldData<DuckDBUHugeInt>(offset);
+
+        try
+        {
+            return NumericConverter.Convert<UInt128, T>(new UInt128(value.Upper, value.Lower));
+        }
+        catch (OverflowException)
+        {
+            throw CannotCast(DuckDBType.ToString(), typeof(T));
         }
     }
 
@@ -119,7 +136,7 @@ internal sealed class BigIntegerVectorDataReader : VectorDataReaderBase
         }
         catch (OverflowException)
         {
-            throw CannotCast(typeof(BigInteger), typeof(T));
+            throw CannotCast(DuckDBType.ToString(), typeof(T));
         }
         finally
         {

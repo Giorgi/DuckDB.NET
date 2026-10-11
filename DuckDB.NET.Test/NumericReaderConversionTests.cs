@@ -507,29 +507,83 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         }
     }
 
-    // HUGEINT, UHUGEINT and VARINT are named by the type they are read as, BigInteger, and not by the struct the
-    // vector holds.
-    [Fact]
-    public void OverflowingBigIntegerReadNamesBigIntegerAndTheColumn()
+    // HUGEINT, UHUGEINT and VARINT are named by their column type, which the caller knows from the schema, and not
+    // by the .NET type the reader happens to convert from.
+    [Theory]
+    [InlineData("huge", "HugeInt")]
+    [InlineData("unsigned", "UnsignedHugeInt")]
+    [InlineData("big", "VarInt")]
+    public void OverflowingHugeIntReadNamesTheColumnTypeAndTheColumn(string name, string columnType)
     {
         Command.CommandText = "SELECT 10000000000000000000000::HUGEINT AS huge, 10000000000000000000000::UHUGEINT AS unsigned, " +
-                              "10000000000000000000000::VARINT AS big, (-1)::HUGEINT AS negative";
+                              "10000000000000000000000::VARINT AS big";
         using var reader = Command.ExecuteReader();
         reader.Read();
 
-        foreach (var name in new[] { "huge", "unsigned", "big" })
-        {
-            var ordinal = reader.GetOrdinal(name);
-            var message = $"Cannot cast from BigInteger to Int64 in column {name}";
+        var ordinal = reader.GetOrdinal(name);
+        var message = $"Cannot cast from {columnType} to Int64 in column {name}";
 
-            reader.Invoking(r => r.GetInt64(ordinal)).Should().Throw<InvalidCastException>().WithMessage(message);
-            reader.Invoking(r => r.GetFieldValue<long>(ordinal)).Should().Throw<InvalidCastException>().WithMessage(message);
-            reader.Invoking(r => r.GetFieldValue<long?>(ordinal)).Should().Throw<InvalidCastException>().WithMessage(message);
-        }
+        reader.Invoking(r => r.GetInt64(ordinal)).Should().Throw<InvalidCastException>().WithMessage(message);
+        reader.Invoking(r => r.GetFieldValue<long>(ordinal)).Should().Throw<InvalidCastException>().WithMessage(message);
+        reader.Invoking(r => r.GetFieldValue<long?>(ordinal)).Should().Throw<InvalidCastException>().WithMessage(message);
+    }
 
-        var negative = reader.GetOrdinal("negative");
+    // The values just inside and just outside what long and ulong hold, where a range check goes wrong first.
+    [Fact]
+    public void HugeIntAtTheLimitsOfLongAndULong()
+    {
+        Command.CommandText = """
+            SELECT 9223372036854775807::HUGEINT AS long_max,
+                   9223372036854775808::HUGEINT AS above_long_max,
+                   (-9223372036854775808)::HUGEINT AS long_min,
+                   (-9223372036854775809)::HUGEINT AS below_long_min,
+                   18446744073709551615::HUGEINT AS ulong_max,
+                   18446744073709551616::HUGEINT AS above_ulong_max,
+                   (-1)::HUGEINT AS minus_one,
+                   18446744073709551615::UHUGEINT AS unsigned_ulong_max,
+                   18446744073709551616::UHUGEINT AS unsigned_above_ulong_max,
+                   9223372036854775808::UHUGEINT AS unsigned_above_long_max
+            """;
+        using var reader = Command.ExecuteReader();
+        reader.Read();
 
-        reader.Invoking(r => r.GetFieldValue<ulong>(negative)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from BigInteger to UInt64 in column negative");
+        var longMax = reader.GetOrdinal("long_max");
+        var aboveLongMax = reader.GetOrdinal("above_long_max");
+        var longMin = reader.GetOrdinal("long_min");
+        var belowLongMin = reader.GetOrdinal("below_long_min");
+        var ulongMax = reader.GetOrdinal("ulong_max");
+        var aboveULongMax = reader.GetOrdinal("above_ulong_max");
+        var minusOne = reader.GetOrdinal("minus_one");
+        var unsignedULongMax = reader.GetOrdinal("unsigned_ulong_max");
+        var unsignedAboveULongMax = reader.GetOrdinal("unsigned_above_ulong_max");
+        var unsignedAboveLongMax = reader.GetOrdinal("unsigned_above_long_max");
+
+        reader.GetInt64(longMax).Should().Be(long.MaxValue);
+        reader.GetInt64(longMin).Should().Be(long.MinValue);
+        reader.GetInt64(minusOne).Should().Be(-1);
+        reader.GetInt32(minusOne).Should().Be(-1);
+        reader.GetFieldValue<sbyte>(minusOne).Should().Be(-1);
+        reader.GetFieldValue<ulong>(longMax).Should().Be((ulong)long.MaxValue);
+        reader.GetFieldValue<ulong>(aboveLongMax).Should().Be(9223372036854775808UL);
+        reader.GetFieldValue<ulong>(ulongMax).Should().Be(ulong.MaxValue);
+        reader.GetFieldValue<ulong>(unsignedULongMax).Should().Be(ulong.MaxValue);
+        reader.GetFieldValue<ulong>(unsignedAboveLongMax).Should().Be(9223372036854775808UL);
+
+        reader.Invoking(r => r.GetInt64(aboveLongMax)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from HugeInt to Int64 in column above_long_max");
+        reader.Invoking(r => r.GetInt64(belowLongMin)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetInt64(ulongMax)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetInt32(longMax)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetFieldValue<ulong>(aboveULongMax)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetFieldValue<ulong>(minusOne)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from HugeInt to UInt64 in column minus_one");
+        reader.Invoking(r => r.GetFieldValue<ulong>(longMin)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetFieldValue<ulong>(unsignedAboveULongMax)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetInt64(unsignedAboveLongMax)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from UnsignedHugeInt to Int64 in column unsigned_above_long_max");
+
+        // A BigInteger holds all of them.
+        reader.GetFieldValue<BigInteger>(aboveULongMax).Should().Be(BigInteger.Pow(2, 64));
+        reader.GetFieldValue<BigInteger>(belowLongMin).Should().Be(new BigInteger(long.MinValue) - 1);
+        reader.GetFieldValue<BigInteger>(unsignedAboveULongMax).Should().Be(BigInteger.Pow(2, 64));
+        reader.GetFieldValue<BigInteger?>(minusOne).Should().Be(BigInteger.MinusOne);
     }
 
     [Fact]

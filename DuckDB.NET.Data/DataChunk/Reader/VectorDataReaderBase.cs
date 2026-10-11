@@ -225,7 +225,10 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
     // Kept out of the callers: building the message inline puts its buffers in the stack frame of a method
     // that almost never throws, and that frame is cleared on every call.
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private protected InvalidCastException CannotCast(Type from, Type to) => new($"Cannot cast from {from.Name} to {to.Name} in column {ColumnName}");
+    private protected InvalidCastException CannotCast(Type from, Type to) => CannotCast(from.Name, to);
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private protected InvalidCastException CannotCast(string from, Type to) => new($"Cannot cast from {from} to {to.Name} in column {ColumnName}");
 
     /// <summary>
     /// Updates the data and validity pointers for a new chunk without recreating the reader.
