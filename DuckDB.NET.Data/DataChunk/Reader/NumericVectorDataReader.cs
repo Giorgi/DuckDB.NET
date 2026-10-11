@@ -10,6 +10,14 @@ internal sealed class NumericVectorDataReader<TStorage> : VectorDataReaderBase w
         StorageType = typeof(TStorage);
     }
 
+    internal override byte ReadByte(ulong offset) => GetValidValue<byte>(offset);
+    internal override short ReadInt16(ulong offset) => GetValidValue<short>(offset);
+    internal override int ReadInt32(ulong offset) => GetValidValue<int>(offset);
+    internal override long ReadInt64(ulong offset) => GetValidValue<long>(offset);
+    internal override float ReadFloat(ulong offset) => GetValidValue<float>(offset);
+    internal override double ReadDouble(ulong offset) => GetValidValue<double>(offset);
+    internal override decimal ReadDecimal(ulong offset) => GetValidValue<decimal>(offset);
+
     protected override T GetValidValue<T>(ulong offset)
     {
         var isFloatingNumericType = TypeExtensions.IsFloatingNumericType<T>();

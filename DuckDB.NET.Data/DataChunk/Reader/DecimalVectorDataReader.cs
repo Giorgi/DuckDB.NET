@@ -24,6 +24,8 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
 
     internal byte Precision { get; }
 
+    internal override decimal ReadDecimal(ulong offset) => GetValidValue<decimal>(offset);
+
     protected override T GetValidValue<T>(ulong offset)
     {
         if (DuckDBType != DuckDBType.Decimal)

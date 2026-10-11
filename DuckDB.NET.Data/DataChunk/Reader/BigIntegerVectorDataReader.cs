@@ -17,6 +17,11 @@ internal sealed class BigIntegerVectorDataReader : VectorDataReaderBase
         };
     }
 
+    internal override byte ReadByte(ulong offset) => GetValidValue<byte>(offset);
+    internal override short ReadInt16(ulong offset) => GetValidValue<short>(offset);
+    internal override int ReadInt32(ulong offset) => GetValidValue<int>(offset);
+    internal override long ReadInt64(ulong offset) => GetValidValue<long>(offset);
+
     protected override T GetValidValue<T>(ulong offset)
     {
         if (!TypeExtensions.IsIntegralNumericType<T>())

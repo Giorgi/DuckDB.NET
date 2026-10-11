@@ -81,14 +81,45 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
     /// <returns>Data at the specified offset</returns>
     protected virtual T GetValidValue<T>(ulong offset) => (T)GetValue(offset, typeof(T));
 
-    // typeof(T).IsValueType is a constant for the JIT, so a reference type keeps only the call.
+    // One method for each type that DbDataReader has a getter for. GetValidValue is a generic virtual method, which
+    // is looked up at run time on every call. These are plain virtual methods, which are not, and ReadValidValue
+    // calls them for their types. A reader overrides the ones it produces, and an override calls GetValidValue of
+    // its own class, so a value is converted by the same code whichever way it is reached.
+    internal virtual bool ReadBoolean(ulong offset) => GetValidValue<bool>(offset);
+    internal virtual byte ReadByte(ulong offset) => GetValidValue<byte>(offset);
+    internal virtual short ReadInt16(ulong offset) => GetValidValue<short>(offset);
+    internal virtual int ReadInt32(ulong offset) => GetValidValue<int>(offset);
+    internal virtual long ReadInt64(ulong offset) => GetValidValue<long>(offset);
+    internal virtual float ReadFloat(ulong offset) => GetValidValue<float>(offset);
+    internal virtual double ReadDouble(ulong offset) => GetValidValue<double>(offset);
+    internal virtual decimal ReadDecimal(ulong offset) => GetValidValue<decimal>(offset);
+    internal virtual DateTime ReadDateTime(ulong offset) => GetValidValue<DateTime>(offset);
+    internal virtual Guid ReadGuid(ulong offset) => GetValidValue<Guid>(offset);
+    internal virtual string ReadString(ulong offset) => GetValidValue<string>(offset);
+    internal virtual Stream ReadStream(ulong offset) => GetValidValue<Stream>(offset);
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private unsafe T ReadValidValue<T>(ulong offset)
     {
+        // typeof(T).IsValueType is a constant for the JIT, so a reference type does not keep this test.
         if (typeof(T).IsValueType && typeof(T) == StorageType)
         {
             return Unsafe.Read<T>((byte*)DataPointer + offset * (ulong)Unsafe.SizeOf<T>());
         }
+
+        // A test of T against a type is a constant for the JIT too, so at most one of these lines is left.
+        if (typeof(T) == typeof(bool))     return (T)(object)ReadBoolean(offset);
+        if (typeof(T) == typeof(byte))     return (T)(object)ReadByte(offset);
+        if (typeof(T) == typeof(short))    return (T)(object)ReadInt16(offset);
+        if (typeof(T) == typeof(int))      return (T)(object)ReadInt32(offset);
+        if (typeof(T) == typeof(long))     return (T)(object)ReadInt64(offset);
+        if (typeof(T) == typeof(float))    return (T)(object)ReadFloat(offset);
+        if (typeof(T) == typeof(double))   return (T)(object)ReadDouble(offset);
+        if (typeof(T) == typeof(decimal))  return (T)(object)ReadDecimal(offset);
+        if (typeof(T) == typeof(DateTime)) return (T)(object)ReadDateTime(offset);
+        if (typeof(T) == typeof(Guid))     return (T)(object)ReadGuid(offset);
+        if (typeof(T) == typeof(string))   return (T)(object)ReadString(offset);
+        if (typeof(T) == typeof(Stream))   return (T)(object)ReadStream(offset);
 
         return GetValidValue<T>(offset);
     }

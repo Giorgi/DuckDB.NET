@@ -9,6 +9,9 @@ internal sealed class StringVectorDataReader : VectorDataReaderBase
     {
     }
 
+    internal override string ReadString(ulong offset) => GetValidValue<string>(offset);
+    internal override Stream ReadStream(ulong offset) => GetValidValue<Stream>(offset);
+
     protected override T GetValidValue<T>(ulong offset)
     {
         return DuckDBType switch

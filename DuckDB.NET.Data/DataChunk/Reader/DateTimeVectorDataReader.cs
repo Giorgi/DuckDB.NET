@@ -6,6 +6,8 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
     {
     }
 
+    internal override DateTime ReadDateTime(ulong offset) => GetValidValue<DateTime>(offset);
+
     protected override T GetValidValue<T>(ulong offset)
     {
         if (DuckDBType == DuckDBType.Date)
