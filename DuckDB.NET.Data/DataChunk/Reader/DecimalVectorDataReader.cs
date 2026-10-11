@@ -4,7 +4,6 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
 {
     private readonly BigInteger bigIntRemainderShift;
     private readonly DuckDBType decimalType;
-    private readonly NumericVectorDataReader numericVectorDataReader;
 
     internal unsafe DecimalVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
@@ -19,8 +18,6 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
             // Scale > 28: precompute the shift divisor for truncating the remainder to decimal range.
             bigIntRemainderShift = DecimalExtensions.BigIntPowersOfTen[Scale - DecimalExtensions.MaxDecimalScale];
         }
-
-        numericVectorDataReader = new NumericVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName);
     }
 
     internal byte Scale { get; }
@@ -90,7 +87,7 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
                 }
             case DuckDBType.HugeInt:
                 {
-                    var hugeInt = numericVectorDataReader.GetBigInteger(offset, false);
+                    var hugeInt = GetFieldData<DuckDBHugeInt>(offset).ToBigInteger();
 
                     var quotient = BigInteger.DivRem(hugeInt, DecimalExtensions.BigIntPowersOfTen[Scale], out var remainder);
 
@@ -159,21 +156,9 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
         DuckDBType.SmallInt => GetFieldData<short>(offset),
         DuckDBType.Integer => GetFieldData<int>(offset),
         DuckDBType.BigInt => GetFieldData<long>(offset),
-        DuckDBType.HugeInt => numericVectorDataReader.GetBigInteger(offset, false),
+        DuckDBType.HugeInt => GetFieldData<DuckDBHugeInt>(offset).ToBigInteger(),
         _ => throw new DuckDBException($"Invalid storage type {decimalType} ({(int)decimalType}) for decimal column {ColumnName}")
     };
 
     private static DuckDBHugeInt ToHugeInt(long value) => new(unchecked((ulong)value), value < 0 ? -1 : 0);
-
-    internal override void Reset(IntPtr vector)
-    {
-        base.Reset(vector);
-        numericVectorDataReader.Reset(vector);
-    }
-
-    public override void Dispose()
-    {
-        numericVectorDataReader.Dispose();
-        base.Dispose();
-    }
 }

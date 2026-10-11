@@ -191,6 +191,11 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected unsafe T GetFieldData<T>(ulong offset) where T : unmanaged => *((T*)DataPointer + offset);
 
+    // Kept out of the callers: building the message inline puts its buffers in the stack frame of a method
+    // that almost never throws, and that frame is cleared on every call.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private protected InvalidCastException CannotCast(Type from, Type to) => new($"Cannot cast from {from.Name} to {to.Name} in column {ColumnName}");
+
     /// <summary>
     /// Updates the data and validity pointers for a new chunk without recreating the reader.
     /// Composite readers (Struct, List, Map, Decimal) override this to also reset nested readers.
