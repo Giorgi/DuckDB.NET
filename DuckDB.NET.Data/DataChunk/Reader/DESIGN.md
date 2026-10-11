@@ -1,0 +1,311 @@
+# Design of the vector readers
+
+This file records why the readers in this folder are written the way they are. Each decision says what was done,
+why, what was measured, and what was tried and rejected. Read it before changing the read path: several things here
+look as if they could be simpler, and the simpler form was measured and lost.
+
+The numbers are a snapshot. They were measured on one machine in October 2026 with BenchmarkDotNet, each build in
+its own process, against the previous build as the baseline. A ratio below 1 means faster. Measure again before
+relying on them; the ratios should hold, the absolute times will not.
+
+## How a typed read works
+
+`DuckDBDataReader` holds one reader per column in a `VectorDataReaderBase[]`. `reader.GetInt64(0)` goes:
+
+```
+DuckDBDataReader.GetInt64(ordinal)
+  -> GetFieldValue<long>(ordinal)
+    -> VectorDataReaderBase.GetValueStrict<long>(offset)      NULL check
+      -> ReadValidValue<long>(offset)
+           1. the column holds exactly a long     -> load it from memory          (the fast path)
+           2. long is one of the twelve types     -> ReadInt64(offset)            (a plain virtual call)
+           3. anything else                       -> GetValidValue<long>(offset)  (a generic virtual call)
+```
+
+Everything from `GetInt64` down to `ReadValidValue` is inlined into the caller. The whole design is about keeping a
+read out of case 3, because of the cost described next.
+
+## The cost everything here avoids: generic virtual methods
+
+`GetValidValue<T>` is a virtual method with its own type parameter. A method table has one slot per method, not one
+per type argument, so the runtime cannot find the right override through a slot. It looks it up in a hash table on
+every call (`CORINFO_HELP_VIRTUAL_FUNC_PTR` in the compiled code). The JIT cannot inline such a call, and it does
+not use profile data to guess the target as it does for a plain virtual call.
+
+- Measured in isolation: a plain virtual call 0.6 to 1.5 ns, a generic virtual call 5 to 9 ns.
+- The same cost applies to a generic method called through an interface.
+- A call on an object whose exact class the JIT knows is bound directly. That is why every reader class, and
+  `DuckDBDataReader` itself, is `sealed`.
+
+## Decisions
+
+### 1. `DuckDBDataReader` is sealed
+
+- **What:** `public sealed class DuckDBDataReader`.
+- **Why:** `GetInt32` calls `GetFieldValue<int>`, which overrides a generic virtual method of `DbDataReader`. On an
+  unsealed class even that call on `this` was a lookup.
+- **Measured:** 5 to 9 ns less per typed getter.
+- **Keep in mind:** a call through a `DbDataReader` variable still pays the lookup. Nothing here can change that.
+
+### 2. The fast path: `StorageType`
+
+- **What:** a reader whose vector holds plain values of one .NET type sets `StorageType` once. `ReadValidValue<T>`
+  compares `typeof(T)` with it and, on a match, loads the value from memory without calling the reader.
+- **Why:** the commonest read asks for the type the column has. It needs no conversion, so it needs no reader.
+- **Why it is written as a type comparison:** the base class asks only "is it the same type?" and names no type. The
+  subclass decides what it stores.
+- **Measured:** `GetInt32` on an INTEGER column went from about 13 ns to about 1 ns per value over decisions 1 and 2.
+- **Which readers set it:** the numeric reader, the boolean reader, and the BigInteger reader for HUGEINT and
+  UHUGEINT (as the DuckDB structs). The string, date-time, decimal and Guid readers cannot: their values need a
+  conversion.
+
+### 3. One numeric reader class per stored type
+
+- **What:** `NumericVectorDataReader<TStorage>`, created by the factory with the stored type fixed. HUGEINT,
+  UHUGEINT and VARINT are in `BigIntegerVectorDataReader`, because their .NET type is not a plain value.
+- **Why:** the earlier single class asked which of ten column types it had, in a `switch`, for every value. With the
+  stored type as a type parameter it is a constant for the JIT.
+- **How conversions work:** `NumericConverter.Convert` uses `CreateChecked` from generic math, so there is no table
+  of type pairs. For a pair that cannot overflow, the .NET 10 JIT removes the `try`/`catch` by itself: INTEGER read as
+  `long` is 15 bytes of code. .NET 8 keeps the `try`.
+- **Measured:** `GetValue` (the path Dapper uses) 0.69 to 0.77; an integer column read as `double` 0.14 to 0.18, and
+  it stopped allocating (it had boxed twice per value through `Convert.ChangeType`).
+- **The price:** the JIT compiles one body per stored type. The first row of a result with all ten numeric types
+  takes about 0.45 ms longer through `GetValue`, and opening it about 0.3 ms longer, once per process.
+- **Left alone on purpose:** a FLOAT or DOUBLE read as an integer still goes through `GetValue(offset, Type)` and
+  `Convert.ChangeType`, which rounds half to even. See "Behaviour" below.
+
+### 4. `CannotCast` builds the exception
+
+- **What:** a refused read does `throw CannotCast(typeof(A), typeof(B))`. The method is marked `NoInlining`.
+- **Why:** `throw new InvalidCastException($"...")` written inline puts the buffers of the interpolated string in the
+  frame of the method. The frame is cleared on every call, whether or not the method throws. The compiled hot path of
+  `GetValue` began by clearing 48 to 80 bytes of stack.
+- **Measured:** `GetValue` on INTEGER 944 to 198 bytes of code; a checked conversion 463 to 87. Throughput did not
+  change measurably. The first-row cost of decision 3 fell from about 1.0 ms to about 0.45 ms, because each of the ten
+  bodies is cheaper to compile.
+- **Rule:** do not build an exception message inline in a method on the read path.
+
+### 5. Twelve typed `Read...` methods
+
+- **What:** `VectorDataReaderBase` declares one plain virtual method for each type `DbDataReader` has a getter for
+  (`ReadBoolean`, `ReadByte`, `ReadInt16`, `ReadInt32`, `ReadInt64`, `ReadFloat`, `ReadDouble`, `ReadDecimal`,
+  `ReadDateTime`, `ReadGuid`, `ReadString`, `ReadStream`). Each defaults to `GetValidValue<T>`. `ReadValidValue<T>`
+  has one line per type that calls it. A reader overrides the ones it produces.
+- **Why:** after decision 3 every read that missed the fast path still paid the lookup: a numeric column read as
+  another numeric type, and every `GetString`, `GetDateTime`, `GetDecimal` and `GetGuid`.
+- **Why a list of types in the base class:** a cheap call needs a slot, and a slot needs a declared method per
+  target type. There is no way to get one without naming the types somewhere. `DbDataReader` has the same list.
+- **Why an override is one line that seems to do nothing:**
+
+  ```csharp
+  internal override long ReadInt64(ulong offset) => GetValidValue<long>(offset);
+  ```
+
+  The class is sealed, so the call to its own `GetValidValue<long>` is bound directly; the compiled override is a
+  single jump. No conversion code was written or moved for this decision.
+- **Rule: an override never contains a conversion of its own.** It calls `GetValidValue<T>` of its own class. Then a
+  value is converted by one piece of code whichever way it is reached, and the routes cannot disagree.
+- **Why `Read...` and not `Get...`:** the string and decimal readers have private `GetString`, `GetStream` and
+  `GetDecimal` methods with the same signature. They would hide a base method of that name instead of overriding it,
+  with only a compiler warning.
+- **Why each line in `ReadValidValue<T>` returns unconditionally:** for a type with a line, the generic virtual call
+  at the end of the method is unreachable. The .NET 8 JIT refuses to inline a method that contains a generic virtual
+  call, but only if it has to compile that call. So these lines are what makes the read inlinable on .NET 8. Do not
+  join a run-time condition to a line.
+- **Measured** against the build with decision 3, on .NET 10 and .NET 8:
+
+  | Read | .NET 10 | .NET 8 |
+  |---|---|---|
+  | The stored type, one column type | 0.99 | 0.61 |
+  | The stored type, eight column types | 0.97 | 0.83 |
+  | INTEGER as `long` | 0.46 | 0.46 |
+  | Eight integer types as `long` | 0.59 | 0.51 |
+  | Eight integer types as `double` | 0.57 | 0.53 |
+  | `GetString`, short strings | 0.80 to 0.83 | 0.78 to 0.79 |
+  | `GetDateTime` | 0.88 | 0.89 |
+  | `GetInt64` on HUGEINT | 0.90 | 0.85 |
+  | `GetDecimal`, `GetGuid` | 0.97 to 0.99 | 0.93 to 0.94 |
+  | `GetValue` | 1.00 | 1.02 |
+
+- **Designs measured and rejected** (`GetInt64` on 8,000,000 values, one column type and eight column types):
+
+  | Design | One type | Eight types | Why not |
+  |---|---|---|---|
+  | The generic virtual method | 50 to 59 ms | 44 ms | the starting point |
+  | **Plain virtual methods (this decision)** | 22 ms | 24 ms | |
+  | A typed reader object, cached per column and type | 30 ms | 30 ms | slower, and the most code |
+  | A `switch` on the column type that loads and widens | 19 ms | 30 ms | best on one type, worst on eight; cannot do a conversion that may fail; puts the table of which type fits which in the base class |
+
+- **Designs considered and not built:** calling the typed methods only from the named getters of `DuckDBDataReader`
+  (measured the same for `GetString`, but it does not help `GetFieldValue<T>`, nullable reads, list items or
+  user-defined function inputs); casting to the concrete reader in `DuckDBDataReader` (same limit); the same casts in
+  `ReadValidValue<T>` (the base class would name its subclasses, and .NET 8 would not inline).
+- **A search for a design with the same speed and no typed methods in the base class** found none. Tried, on
+  .NET 10, `GetInt64` on eight INTEGER columns, with this decision at 22 ms in the same series of runs:
+  - one virtual `TryRead(offset, Type, ref byte destination)` that each reader overrides with a line per type it
+    produces: 43 ms. The override holds the whole chain of type comparisons (246 bytes of code against 6), and the
+    value travels through memory.
+  - a table of function pointers per reader class, indexed by a slot per target type: 34 ms, and level with this
+    decision on eight column types. A call through a function pointer gets no guess from profile data; a plain
+    virtual call does.
+  - the same table filled through reflection on first use, so that no class declares anything: written, not built.
+    It finds methods by name at run time and uses `MakeGenericMethod`, which cannot be declared safe for trimmed and
+    ahead-of-time compiled applications. This decision is safe there by construction: the compiler sees every call.
+  - not built, with the reason: a generic interface per type tested with `is` (a helper call per read); a generic
+    intermediate class or a generic static stub (code generic over a reference type is shared, so the call is still
+    a generic virtual call); fewer, wider virtual methods (changes behaviour at the limits).
+- **Getters that bring no measured speed:** `ReadDecimal` and `ReadGuid`. Their conversions cost 16 and 22 ns per
+  value, and the lookup hardly shows next to that. They are kept so that those types take the same route as the
+  others.
+
+### 6. Nullable reads go through `NullableReader<TValue>`
+
+- **What:** `GetFieldValue<int?>` cannot call `ReadValidValue<int>` directly, because it only has `int?` as its type
+  parameter. `NullableHandler<T>` makes a delegate once per type. The delegate is bound to an instance of
+  `NullableReader<TValue>` and calls its `Read` method.
+- **Why not an expression tree, as it was:** a delegate compiled from an expression tree is compiled once, with no
+  profile data. After decision 5 the JIT laid its code out with the fast path jumping away and back, and the read of
+  the stored type got 7% slower on .NET 10.
+- **Why an instance method and not a static one:** a delegate for a static method measured slower to call.
+- **How the reader for a type is found, and why it is done in three ways.** A trimmed application keeps only code it
+  can see being used, and an application compiled ahead of time (Native AOT) cannot make code at run time. Finding
+  `NullableReader<TValue>` by reflection alone broke both: every nullable read threw `TypeInitializationException`.
+  1. **The common types and the structs of this library are named in code** (`Known<int>() ?? Known<long>() ...`).
+     A compiler sees `new NullableReader<int>()` there, so the code exists in an application compiled ahead of time.
+     The chain runs once per type, when its handler is set up.
+  2. **Any other type, such as an enum of the caller, is found through reflection.** The `DynamicDependency`
+     attribute keeps the trimmer from removing the constructor and the `Read` method, which nothing calls by name.
+     This runs only where `RuntimeFeature.IsDynamicCodeSupported` is true.
+  3. **Where no code can be made at run time, such a type is read as an object and unboxed:**
+     `(T)reader.GetValue(offset, type)`. That needs no code for the type, so it works for every type. It boxes, and it
+     converts by the rules of the `object` path, which is why the types where the two paths differ are in the list.
+- **Checked with a program published both ways** (22 reads of one row): trimmed, the output is the same as with the
+  expression tree. As Native AOT, `DateTime?`, `Guid?`, `bool?`, `short?` and `DuckDBDecimal?` read, where the
+  expression tree threw for each because the code it called by reflection had not been compiled; and with a type
+  taken out of the list it reads through the fallback. The analyzer's AOT warning on this code is gone; two trim
+  warnings stay on the reflection lines, where the attribute does the work the analyzer cannot see.
+- **A new type in the list costs one `?? Known<X>()`.** A type that is missing still works everywhere; under Native
+  AOT it takes the slower fallback. Nothing tests the published forms automatically.
+- **Measured**, ratio to the build with decision 3:
+
+  | Read | Runtime | Expression tree | Static method | Instance method |
+  |---|---|---|---|---|
+  | `int?` from INTEGER | .NET 10 | 1.07 | 1.18 | 0.82 to 0.84 |
+  | `int?` from INTEGER | .NET 8 | 0.97 | 0.96 | 0.34 to 0.35 |
+  | `long?` from INTEGER | .NET 10 | 0.69 | 0.57 | 0.35 to 0.36 |
+  | `long?` from INTEGER | .NET 8 | 0.59 | 0.53 | 0.35 to 0.36 |
+
+  The last column is two runs. Before this change a nullable read cost more than twice as much on .NET 8 as on
+  .NET 10 (65 ms against 28 ms for 8,000,000 values); now both take about 23 ms. The compiled code shows that the
+  old delegate called the read method on .NET 8 where the new method has it inlined, but one call does not account
+  for the whole difference. The rest is not explained.
+
+### 7. HUGEINT and UHUGEINT are converted through `Int128` and `UInt128`
+
+- **What:** `BigIntegerVectorDataReader` reads an integer type from a HUGEINT by building an `Int128` from the two
+  stored halves (a `UInt128` for UHUGEINT) and converting it with `NumericConverter.Convert`, the same converter
+  the other integer columns use. A `BigInteger` is made only when a `BigInteger` is asked for.
+- **Why:** the read used to go through `BigInteger` for every target type: `Upper * 2^64 + Lower`, which is two
+  conversions to `BigInteger`, a multiplication and an addition, and then a checked conversion of the result back to
+  64 bits. That is what `GetInt64` on the `sum()` of an integer column costs.
+- **Why `Int128` and not a check written by hand:** a HUGEINT is exactly an `Int128`, and `Int128` takes part in
+  generic math. So `CreateChecked` gives the right range check for every integer target, signed and unsigned, with no
+  code of our own to get wrong at the limits. On .NET 10 the read as `long` compiles to two loads, a shift and a
+  compare: the upper half must be the sign extension of the lower half. On .NET 8 the conversion is a call.
+- **Why the class is still separate, and not `NumericVectorDataReader<Int128>`:** the .NET type of a HUGEINT column
+  is `BigInteger` and its provider-specific type is `DuckDBHugeInt`. The generic numeric reader returns its stored
+  type from `GetValue` and uses it for the fast path, so it would hand out boxed `Int128` values.
+- **The message of a refused read names the column type:** "Cannot cast from HugeInt to Int64 in column x", and
+  `UnsignedHugeInt` and `VarInt` likewise. These are the names `GetDataTypeName` returns. It said `BigInteger`
+  before, which was the type the reader happened to convert from.
+- **A `BigInteger` is made in one place:** `DuckDBHugeInt.ToBigInteger()` and `DuckDBUHugeInt.ToBigInteger()`, which
+  convert from `Int128` and `UInt128` directly. They used to compute `Upper * 2^64 + Lower`. The reader calls them
+  when a `BigInteger` is asked for (`GetFieldValue<BigInteger>`, `GetValue`), and so does the decimal reader for a
+  DECIMAL stored as a HUGEINT. The two methods are public, so their results must not change:
+  `HugeIntToBigIntegerGivesBackTheValue` and `UHugeIntToBigIntegerGivesBackTheValue` build a struct with the
+  constructor, which splits the value by division, and convert it back. **The speed of this part is not measured.**
+- **Not changed:** `GetValue` and `GetFieldValue<BigInteger>` return a `BigInteger`; a read as `float`, `double` or
+  `decimal` is refused; VARINT is stored as a byte string and still goes through `BigInteger`.
+- **Measured** against the build with decision 5, 1,000,000 rows of four HUGEINT columns read with `GetInt64`, two
+  runs on each runtime: 134 ms to 30 ms on .NET 10, 130 ms to 33 ms on .NET 8. About 34 ns per value before, about
+  7.5 ns after.
+- **Pinned by:** `HugeIntAtTheLimitsOfLongAndULong`, ten values just inside and just outside what `long` and `ulong`
+  hold, for both column types; and `OverflowingHugeIntReadNamesTheColumnTypeAndTheColumn`.
+
+### Smaller decisions
+
+- **`BigIntegerVectorDataReader` is a separate, non-generic class.** HUGEINT, UHUGEINT and VARINT read as
+  `BigInteger`, which is not a plain value, so they cannot be `NumericVectorDataReader<TStorage>`. Loosening the
+  constraint on `TStorage` to fit them in would make the class compile to code shared between types, and the stored
+  type would stop being a constant for the JIT.
+- **`DecimalVectorDataReader` has no inner reader.** It reads a HUGEINT-backed decimal from its own data pointer. It
+  used to hold a numeric reader only for that, and had to reset and dispose it with every chunk.
+- **A column type with no reader gets a plain `VectorDataReaderBase`** from the factory (a UNION column, for
+  example). The query runs, and every read of a value throws "Unrecognised type". Do not make a real reader the
+  default: it would return values read with the wrong layout.
+- **The boolean reader returns two shared boxed objects from `GetValue`.** `GetValue` returns `object`, so a value is
+  boxed on every call; a boolean has two values, so the boxes are made once. Reading a BOOLEAN column through
+  `GetValue` allocates nothing. No other type can do this.
+- **Strings are decoded with `Encoding.UTF8.GetString(pointer, length)`,** not with the `string` constructor that
+  takes an encoding. Both end in the same decoder; the constructor validates more on the way. Short strings measured
+  7 to 8% faster.
+- **`GetValue(offset, Type)` in the numeric reader compares the requested type with `typeof(TStorage)` first** and
+  returns the box it already has. `Convert.ChangeType` does not return early for the same type; it boxes again.
+
+### Costs that are known and not yet removed
+
+- **TIMESTAMP and DATE are converted by a call into DuckDB per value:** 22.9 ns per timestamp and 12.5 ns per date,
+  where the arithmetic alone measured under 1 ns. Moving it to C# needs correctness checks first (infinity, the
+  limits of `DateTime`, values DuckDB itself rejects).
+- **A wide DECIMAL (stored as a HUGEINT) is still converted with `BigInteger` arithmetic** after
+  `ToBigInteger()`: a division by a power of ten and the conversion of the two parts. Not measured since
+  `ToBigInteger()` changed.
+- **`GetValue` boxes every value** except booleans. It returns `object`; nothing can be done about it here.
+- **A user-defined function reads its inputs through `IDuckDBDataReader.GetValue<T>`,** a generic method on an
+  interface, which is looked up at run time on every value. Decision 5 removed the second lookup behind it, not this
+  one.
+
+## Behaviour: what converts to what
+
+`DuckDB.NET.Test/NumericReaderConversionTests.cs` pins all of this.
+
+| Column | As an integer type | As `float` or `double` | As `decimal` | As `BigInteger` |
+|---|---|---|---|---|
+| TINYINT to UBIGINT | the value if it fits | the value | the value | the value |
+| FLOAT, DOUBLE | the value, rounded half to even, if it fits | the value | the value | refused |
+| HUGEINT, UHUGEINT, VARINT | the value if it fits | refused | refused | the value |
+| DECIMAL | refused | refused | the value | the value if it has no fraction |
+| ENUM | its position in the list of names, if it fits | refused | refused | its position |
+
+- A refused read throws `InvalidCastException` that names both types and the column.
+- An ENUM column also reads as `string` (the name) and as a C# enum type of any size. The enum reader converts a
+  C# enum through the size of that enum: `Unsafe.As` reads as many bytes as the target type has, so giving it a
+  smaller value reads past it. It once did, for every type but `string`.
+- DOUBLE as `float` is the C# cast with no check: digits are lost, and a value too large reads as infinity. Npgsql
+  does the same.
+- FLOAT or DOUBLE as `decimal` is the C# cast: a `double` keeps 15 significant digits and a `float` 7. NaN, infinity
+  and a value out of range are refused. Npgsql refuses this read altogether; here it is allowed on purpose.
+- **Two paths with different rules.** A column, and a list item of type `int`, `float`, `double` or `decimal`, are
+  converted by the typed path above. A map key or value, a struct field read into a class, and every other list item
+  are converted by `GetValue(offset, Type)` with `Convert.ChangeType`. The two agree for FLOAT, DOUBLE and `decimal`.
+  They differ for `BigInteger`: an integer column reads as `BigInteger` on the typed path only, and a HUGEINT reads
+  as `long` on the typed path only (decision 7 is on the typed path).
+- **Planned for the next major version:** a value with a fraction read as an integer type will throw instead of
+  rounding, for FLOAT, DOUBLE and DECIMAL alike; and both paths will share one conversion.
+
+## Rules for changing this code
+
+1. Do not add a virtual method with its own type parameter to the read path, and do not call one through an
+   interface in a loop.
+2. Keep every reader class sealed.
+3. A typed `Read...` override calls `GetValidValue<T>` of its own class and nothing else.
+4. A line in `ReadValidValue<T>` is `if (typeof(T) == typeof(X)) return ...;` with nothing else in the condition.
+5. Build exceptions in a helper, not inline.
+6. A new reader class is registered in `VectorDataReaderFactory`, overrides `Reset` if it has child readers, and
+   overrides the `Read...` methods for the types it produces.
+7. Measure before and after, against the previous build in the same run, with a read that must not change as the
+   control, on one column type and on several, and on both target frameworks. A design that wins on one column type
+   can lose on several.
+8. Read the compiled code (`DOTNET_JitDisasm`) for a change on the read path. Several of the facts above were visible
+   only there.

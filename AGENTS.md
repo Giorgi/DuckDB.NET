@@ -98,9 +98,13 @@ dotnet run -c Release --project DuckDB.NET.Benchmarks
   `UdfExceptionStore`, which is keyed by connection ID. Connection IDs repeat across databases, so parallel tests on
   different databases can see each other's stored exception. This is a known flaky test source.
 - **`DuckDBDataReader`:** reads one chunk at a time and creates readers through `VectorDataReaderFactory`, one per
-  column. Composite readers (struct, list, map, decimal) hold child readers. After the first chunk, readers are
+  column. Composite readers (struct, list, map) hold child readers. After the first chunk, readers are
   reused through `VectorDataReaderBase.Reset(IntPtr vector)`. A new `VectorDataReaderBase` subclass must be
   registered in the factory, and must override `Reset` if it has child readers.
+- **The vector readers are performance-critical and shaped by measurement.** Before changing anything in
+  `DuckDB.NET.Data/DataChunk/Reader`, read `DESIGN.md` in that folder: it records why the read path is written as
+  it is, with the measurements and the designs that were rejected. `AGENTS.md` in the same folder has the rules
+  that must hold after a change.
 - **Invariants in `DuckDBDataReader`, each guarded by a regression test:**
   - A NULL chunk from a streaming fetch means either the end of the results or an error. Check the result's error
     before treating it as the end.
