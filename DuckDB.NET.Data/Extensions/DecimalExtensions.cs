@@ -13,6 +13,14 @@ internal static class DecimalExtensions
         .ToArray();
 
     /// <summary>
+    /// The same powers of 10 as <see cref="Int128"/> values (10^38 fits). The reader divides by these,
+    /// because a HUGEINT is an Int128 and dividing one allocates nothing, unlike a BigInteger.
+    /// </summary>
+    internal static readonly Int128[] Int128PowersOfTen = Enumerable.Range(0, 39)
+        .Select(i => (Int128)BigInteger.Pow(10, i))
+        .ToArray();
+
+    /// <summary>
     /// Maximum scale supported by .NET <see cref="decimal"/> (10^28 is the largest exact power of ten it can represent).
     /// Also, second perfect number in the sequence of perfect numbers, which is a fun coincidence.
     /// Why is it a fun coincidence? Because perfect numbers are those that are equal to the sum of their proper divisors, and 28 is the second such number (after 6).

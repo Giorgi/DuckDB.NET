@@ -2,7 +2,7 @@ namespace DuckDB.NET.Data.DataChunk.Reader;
 
 internal sealed class DecimalVectorDataReader : VectorDataReaderBase
 {
-    private readonly BigInteger bigIntRemainderShift;
+    private readonly Int128 remainderShift;
     private readonly DuckDBType decimalType;
 
     internal unsafe DecimalVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
@@ -16,7 +16,7 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
         if (Scale > DecimalExtensions.MaxDecimalScale)
         {
             // Scale > 28: precompute the shift divisor for truncating the remainder to decimal range.
-            bigIntRemainderShift = DecimalExtensions.BigIntPowersOfTen[Scale - DecimalExtensions.MaxDecimalScale];
+            remainderShift = DecimalExtensions.Int128PowersOfTen[Scale - DecimalExtensions.MaxDecimalScale];
         }
     }
 
@@ -89,9 +89,11 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
                 }
             case DuckDBType.HugeInt:
                 {
-                    var hugeInt = GetFieldData<DuckDBHugeInt>(offset).ToBigInteger();
+                    // A HUGEINT is an Int128. Dividing it as one allocates nothing; a BigInteger allocates for
+                    // the value, the quotient and the remainder.
+                    var raw = GetFieldData<DuckDBHugeInt>(offset);
 
-                    var quotient = BigInteger.DivRem(hugeInt, DecimalExtensions.BigIntPowersOfTen[Scale], out var remainder);
+                    var (quotient, remainder) = Int128.DivRem(new Int128((ulong)raw.Upper, raw.Lower), DecimalExtensions.Int128PowersOfTen[Scale]);
 
                     try
                     {
@@ -105,7 +107,7 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
                         {
                             // Scale > 28: remainder can exceed decimal range.
                             // Shift it down to fit, losing digits beyond decimal's 28-29 digit precision.
-                            var shiftedRemainder = remainder / bigIntRemainderShift;
+                            var shiftedRemainder = remainder / remainderShift;
                             result += (decimal)shiftedRemainder / DecimalExtensions.PowersOfTen[DecimalExtensions.MaxDecimalScale];
                         }
 
