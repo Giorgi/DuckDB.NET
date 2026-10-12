@@ -8,6 +8,10 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
 
     internal override DateTime ReadDateTime(ulong offset) => GetValidValue<DateTime>(offset);
 
+    // Infinity is tested here by comparing the stored value with DuckDB's two markers (IsInfinity), for a date and
+    // for every timestamp type. DuckDB's own duckdb_is_finite_* functions make the same comparison, whatever the
+    // unit of the timestamp, so calling them only added a call into the native library for every value.
+
     protected override T GetValidValue<T>(ulong offset)
     {
         if (DuckDBType == DuckDBType.Date)
@@ -80,7 +84,7 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
     {
         var timestampStruct = GetFieldData<DuckDBTimestampStruct>(offset);
 
-        if (!timestampStruct.IsFinite(DuckDBType))
+        if (timestampStruct.IsInfinity)
         {
             if (typeof(T) == typeof(DateTime) || typeof(T) == typeof(DateTimeOffset))
             {
@@ -135,8 +139,7 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
     private (DuckDBDateOnly dateOnly, bool IsFinite) GetDateOnly(ulong offset)
     {
         var date = GetFieldData<DuckDBDate>(offset);
-        var isFinite = NativeMethods.DateTimeHelpers.DuckDBIsFiniteDate(date);
-        return (DuckDBDateOnly.FromDuckDBDate(date), isFinite);
+        return (DuckDBDateOnly.FromDuckDBDate(date), !date.IsInfinity);
     }
 
     private object GetDate(ulong offset, Type targetType)
@@ -186,7 +189,7 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
     {
         var timestampStruct = GetFieldData<DuckDBTimestampStruct>(offset);
 
-        if (!timestampStruct.IsFinite(DuckDBType))
+        if (timestampStruct.IsInfinity)
         {
             if (targetType == typeof(DateTime) || targetType == typeof(DateTimeOffset))
             {
