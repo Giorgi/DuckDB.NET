@@ -400,4 +400,58 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
         ex.Message.Should().Contain("custom factory error");
         ex.InnerException.Should().BeSameAs(originalException);
     }
+
+    private static int idReads;
+    private static int nameReads;
+    private static int salaryReads;
+
+    private static int CountedId(Employee employee)
+    {
+        System.Threading.Interlocked.Increment(ref idReads);
+        return employee.Id;
+    }
+
+    private static string CountedName(Employee employee)
+    {
+        System.Threading.Interlocked.Increment(ref nameReads);
+        return employee.Name;
+    }
+
+    private static double CountedSalary(Employee employee)
+    {
+        System.Threading.Interlocked.Increment(ref salaryReads);
+        return employee.Salary;
+    }
+
+    // The projection is compiled into one method that writes every column of a row. A column that the query reads
+    // is written by the writer of its vector, and the others by a writer that does nothing.
+    [Fact]
+    public void RegisterTableFunctionSimplifiedReadsEachColumnOnceForARow()
+    {
+        const int rowCount = 5000;
+
+        Connection.RegisterTableFunction("ext_counted",
+            () => GetEmployees(rowCount),
+            e => new { Id = CountedId(e), Name = CountedName(e), Salary = CountedSalary(e) });
+
+        (idReads, nameReads, salaryReads) = (0, 0, 0);
+
+        // The columns in another order than the projection has them, over more rows than one chunk holds.
+        var rows = Connection.Query<(double Salary, int Id, string Name)>("SELECT Salary, Id, Name FROM ext_counted() ORDER BY Id").ToList();
+
+        rows.Should().HaveCount(rowCount);
+        rows.Should().OnlyContain(row => row.Name == $"Employee{row.Id}" && row.Salary == 50000 + row.Id * 100);
+        (idReads, nameReads, salaryReads).Should().Be((rowCount, rowCount, rowCount));
+
+        (idReads, nameReads, salaryReads) = (0, 0, 0);
+
+        // One column. The value of a column that the query does not read is still asked for, once and not more.
+        var names = Connection.Query<string>("SELECT Name FROM ext_counted()").ToList();
+
+        names.Should().HaveCount(rowCount);
+        names.Should().OnlyContain(name => name.StartsWith("Employee"));
+        nameReads.Should().Be(rowCount);
+        idReads.Should().BeLessThanOrEqualTo(rowCount);
+        salaryReads.Should().BeLessThanOrEqualTo(rowCount);
+    }
 }

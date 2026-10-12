@@ -37,8 +37,12 @@ partial class DuckDBConnection
             TypeExtensions.GetLogicalType<T3>(), TypeExtensions.GetLogicalType<T4>());
     }
 
-    private unsafe void RegisterScalarMethod(string name, Action<IReadOnlyList<IDuckDBDataReader>, IDuckDBDataWriter, ulong> action, DuckDBLogicalType returnType,
-                                             bool varargs, ScalarFunctionOptions? options, params DuckDBLogicalType[] parameterTypes)
+    // Every scalar function is registered here. The action gets the readers and the writer as the classes they are.
+    // The public methods above take an action over the interfaces, which is an action over the classes as well.
+    // The typed functions in DuckDBConnectionScalarFunctionExtensions call this method with the classes: through an
+    // interface, GetValue<T> and WriteValue<T> are looked up at run time on every call.
+    internal unsafe void RegisterScalarMethod(string name, Action<VectorDataReaderBase[], VectorDataWriterBase, ulong> action, DuckDBLogicalType returnType,
+                                              bool varargs, ScalarFunctionOptions? options, params DuckDBLogicalType[] parameterTypes)
     {
         var function = NativeMethods.ScalarFunction.DuckDBCreateScalarFunction();
         NativeMethods.ScalarFunction.DuckDBScalarFunctionSetName(function, name);

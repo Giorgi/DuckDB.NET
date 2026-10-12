@@ -9,70 +9,115 @@ namespace DuckDB.NET.Data;
 
 public static class DuckDBConnectionScalarFunctionExtensions
 {
+    // The functions registered here read and write through VectorDataReaderBase and VectorDataWriterBase, not through
+    // the public interfaces. GetValue<T> and WriteValue<T> are generic methods: called through an interface, such a
+    // method is looked up at run time on every call, which is once or more for every row. On the classes they are
+    // called directly.
     extension(DuckDBConnection connection)
     {
         public void RegisterScalarFunction<TResult>(string name, Func<TResult> func)
         {
-            connection.RegisterScalarFunction<TResult>(name, (writer, rowCount) =>
+            connection.RegisterScalarMethod(name, (_, writer, rowCount) =>
             {
                 for (ulong index = 0; index < rowCount; index++)
                 {
                     writer.WriteValue(func(), index);
                 }
-            });
+            }, LogicalType<TResult>(), varargs: false, options: null);
         }
 
         public void RegisterScalarFunction<T, TResult>(string name, Func<T, TResult> func)
         {
             var (nullability, anyNullable) = InferParameterNullability(func);
 
-            connection.RegisterScalarFunction<T, TResult>(name, WrapScalarFunction<TResult>((readers, index) =>
-                func(ReadValue<T>(readers[0], index, nullability[0], anyNullable))), new() { HandlesNulls = anyNullable });
+            connection.RegisterScalarMethod(name, (readers, writer, rowCount) =>
+            {
+                var reader = readers[0];
+                var nullable = nullability[0];
+
+                for (ulong index = 0; index < rowCount; index++)
+                {
+                    writer.WriteValue(func(ReadValue<T>(reader, index, nullable, anyNullable)), index);
+                }
+            }, LogicalType<TResult>(), varargs: false, new() { HandlesNulls = anyNullable }, LogicalType<T>());
         }
 
         public void RegisterScalarFunction<T, TResult>(string name, Func<T[], TResult> func)
         {
             var elementNullable = InferArrayElementNullability(func);
 
-            connection.RegisterScalarFunction<T, TResult>(name,
-                WrapVarargsScalarFunction(func, elementNullable), new() { HandlesNulls = elementNullable }, @params: true);
+            connection.RegisterScalarMethod(name, WrapVarargsScalarFunction(func, elementNullable), LogicalType<TResult>(),
+                varargs: true, new() { HandlesNulls = elementNullable }, LogicalType<T>());
         }
 
         public void RegisterScalarFunction<T1, T2, TResult>(string name, Func<T1, T2, TResult> func)
         {
             var (nullability, anyNullable) = InferParameterNullability(func);
 
-            connection.RegisterScalarFunction<T1, T2, TResult>(name, WrapScalarFunction<TResult>((readers, index) =>
-                func(ReadValue<T1>(readers[0], index, nullability[0], anyNullable), ReadValue<T2>(readers[1], index, nullability[1], anyNullable))),
-                new() { HandlesNulls = anyNullable });
+            connection.RegisterScalarMethod(name, (readers, writer, rowCount) =>
+            {
+                var reader1 = readers[0];
+                var reader2 = readers[1];
+                var (nullable1, nullable2) = (nullability[0], nullability[1]);
+
+                for (ulong index = 0; index < rowCount; index++)
+                {
+                    writer.WriteValue(func(ReadValue<T1>(reader1, index, nullable1, anyNullable), ReadValue<T2>(reader2, index, nullable2, anyNullable)), index);
+                }
+            }, LogicalType<TResult>(), varargs: false, new() { HandlesNulls = anyNullable },
+            LogicalType<T1>(), LogicalType<T2>());
         }
 
         public void RegisterScalarFunction<T1, T2, T3, TResult>(string name, Func<T1, T2, T3, TResult> func)
         {
             var (nullability, anyNullable) = InferParameterNullability(func);
 
-            connection.RegisterScalarFunction<T1, T2, T3, TResult>(name, WrapScalarFunction<TResult>((readers, index) =>
-                func(ReadValue<T1>(readers[0], index, nullability[0], anyNullable), ReadValue<T2>(readers[1], index, nullability[1], anyNullable),
-                     ReadValue<T3>(readers[2], index, nullability[2], anyNullable))),
-                new() { HandlesNulls = anyNullable });
+            connection.RegisterScalarMethod(name, (readers, writer, rowCount) =>
+            {
+                var reader1 = readers[0];
+                var reader2 = readers[1];
+                var reader3 = readers[2];
+                var (nullable1, nullable2, nullable3) = (nullability[0], nullability[1], nullability[2]);
+
+                for (ulong index = 0; index < rowCount; index++)
+                {
+                    writer.WriteValue(func(ReadValue<T1>(reader1, index, nullable1, anyNullable), ReadValue<T2>(reader2, index, nullable2, anyNullable),
+                                           ReadValue<T3>(reader3, index, nullable3, anyNullable)), index);
+                }
+            }, LogicalType<TResult>(), varargs: false, new() { HandlesNulls = anyNullable },
+            LogicalType<T1>(), LogicalType<T2>(), LogicalType<T3>());
         }
 
         public void RegisterScalarFunction<T1, T2, T3, T4, TResult>(string name, Func<T1, T2, T3, T4, TResult> func)
         {
             var (nullability, anyNullable) = InferParameterNullability(func);
 
-            connection.RegisterScalarFunction<T1, T2, T3, T4, TResult>(name, WrapScalarFunction<TResult>((readers, index) =>
-                func(ReadValue<T1>(readers[0], index, nullability[0], anyNullable), ReadValue<T2>(readers[1], index, nullability[1], anyNullable),
-                     ReadValue<T3>(readers[2], index, nullability[2], anyNullable), ReadValue<T4>(readers[3], index, nullability[3], anyNullable))),
-                new() { HandlesNulls = anyNullable });
+            connection.RegisterScalarMethod(name, (readers, writer, rowCount) =>
+            {
+                var reader1 = readers[0];
+                var reader2 = readers[1];
+                var reader3 = readers[2];
+                var reader4 = readers[3];
+                var (nullable1, nullable2, nullable3, nullable4) = (nullability[0], nullability[1], nullability[2], nullability[3]);
+
+                for (ulong index = 0; index < rowCount; index++)
+                {
+                    writer.WriteValue(func(ReadValue<T1>(reader1, index, nullable1, anyNullable), ReadValue<T2>(reader2, index, nullable2, anyNullable),
+                                           ReadValue<T3>(reader3, index, nullable3, anyNullable), ReadValue<T4>(reader4, index, nullable4, anyNullable)), index);
+                }
+            }, LogicalType<TResult>(), varargs: false, new() { HandlesNulls = anyNullable },
+            LogicalType<T1>(), LogicalType<T2>(), LogicalType<T3>(), LogicalType<T4>());
         }
     }
+
+    // System.Reflection has a TypeExtensions class too, so the one of this library is named in full, once.
+    private static DuckDBLogicalType LogicalType<T>() => Extensions.TypeExtensions.GetLogicalType<T>();
 
     // checksNulls: true when any parameter in the function is nullable (special handling active).
     // Needed because set_special_handling is function-level — DuckDB sends NULLs for ALL params,
     // so non-nullable params must also check and throw a descriptive error.
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static T ReadValue<T>(IDuckDBDataReader reader, ulong index, bool isNullable, bool checksNulls)
+    private static T ReadValue<T>(VectorDataReaderBase reader, ulong index, bool isNullable, bool checksNulls)
     {
         if (checksNulls && !reader.IsValid(index))
         {
@@ -91,28 +136,15 @@ public static class DuckDBConnectionScalarFunctionExtensions
             $"Use '{typeof(T).Name}?' to handle NULL values.");
     }
 
-    private static Action<IReadOnlyList<IDuckDBDataReader>, IDuckDBDataWriter, ulong> WrapScalarFunction<TResult>(Func<IReadOnlyList<IDuckDBDataReader>, ulong, TResult> perRowFunc)
+    private static Action<VectorDataReaderBase[], VectorDataWriterBase, ulong> WrapVarargsScalarFunction<T, TResult>(Func<T[], TResult> func, bool elementNullable)
     {
         return (readers, writer, rowCount) =>
         {
-            for (ulong index = 0; index < rowCount; index++)
-            {
-                var result = perRowFunc(readers, index);
-
-                writer.WriteValue(result, index);
-            }
-        };
-    }
-
-    private static Action<IReadOnlyList<IDuckDBDataReader>, IDuckDBDataWriter, ulong> WrapVarargsScalarFunction<T, TResult>(Func<T[], TResult> func, bool elementNullable)
-    {
-        return (readers, writer, rowCount) =>
-        {
-            var args = new T[readers.Count];
+            var args = new T[readers.Length];
 
             for (ulong index = 0; index < rowCount; index++)
             {
-                for (int r = 0; r < readers.Count; r++)
+                for (int r = 0; r < readers.Length; r++)
                 {
                     args[r] = ReadValue<T>(readers[r], index, elementNullable, elementNullable);
                 }

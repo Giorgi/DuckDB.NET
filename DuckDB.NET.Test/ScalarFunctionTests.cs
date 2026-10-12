@@ -664,6 +664,114 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         ex.InnerException.Should().BeSameAs(originalException);
     }
 
+    // The typed forms each have their own loop over the rows. The tests below give every parameter a type of its
+    // own and more rows than one chunk holds, so that a loop that reads the wrong column or the wrong row shows.
+    [Fact]
+    public void SimplifiedScalarFunctionOneParamOverSeveralChunks()
+    {
+        Connection.RegisterScalarFunction<int, long>("chunks_one", value => value * 3L + 1);
+
+        var rows = Connection.Query<(int Input, long Result)>("SELECT i::INT, chunks_one(i::INT) FROM range(5000) t(i) ORDER BY i").ToList();
+
+        rows.Should().HaveCount(5000);
+        rows.Should().OnlyContain(row => row.Result == row.Input * 3L + 1);
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionTwoParamsOverSeveralChunks()
+    {
+        Connection.RegisterScalarFunction<int, string, string>("chunks_two", (number, text) => $"{number}:{text}");
+
+        var rows = Connection.Query<(int Input, string Result)>("SELECT i::INT, chunks_two(i::INT, 'row ' || (i * 7)) FROM range(5000) t(i) ORDER BY i").ToList();
+
+        rows.Should().HaveCount(5000);
+        rows.Should().OnlyContain(row => row.Result == $"{row.Input}:row {row.Input * 7}");
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionThreeParamsOfDifferentTypes()
+    {
+        Connection.RegisterScalarFunction<int, long?, double, string>("three_mixed",
+            (number, optional, ratio) => $"{number}|{optional?.ToString() ?? "none"}|{ratio.ToString(CultureInfo.InvariantCulture)}");
+
+        var rows = Connection.Query<(int Input, string Result)>(
+            "SELECT i::INT, three_mixed(i::INT, CASE WHEN i % 3 = 0 THEN NULL ELSE i * 1000000000 END, i + 0.5) FROM range(5000) t(i) ORDER BY i").ToList();
+
+        rows.Should().HaveCount(5000);
+        rows.Should().OnlyContain(row => row.Result == $"{row.Input}|{(row.Input % 3 == 0 ? "none" : (row.Input * 1000000000L).ToString())}|{row.Input}.5");
+
+        // The second parameter takes a NULL. The third does not, and says so.
+        Command.CommandText = "SELECT three_mixed(1, NULL, 2.5)";
+        Command.ExecuteScalar().Should().Be("1|none|2.5");
+
+        Command.CommandText = "SELECT three_mixed(1, 2, NULL)";
+        Command.Invoking(command => command.ExecuteScalar()).Should().Throw<DuckDBException>().WithMessage("*'Double' received NULL*");
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionFourParams()
+    {
+        Connection.RegisterScalarFunction<int, long, string, double, string>("four_mixed",
+            (number, large, text, ratio) => $"{number}|{large}|{text}|{ratio.ToString(CultureInfo.InvariantCulture)}");
+
+        var rows = Connection.Query<(int Input, string Result)>(
+            "SELECT i::INT, four_mixed(i::INT, i * 1000000000, 'row ' || (i * 7), i + 0.25) FROM range(5000) t(i) ORDER BY i").ToList();
+
+        rows.Should().HaveCount(5000);
+        rows.Should().OnlyContain(row => row.Result == $"{row.Input}|{row.Input * 1000000000L}|row {row.Input * 7}|{row.Input}.25");
+
+        // No parameter takes a NULL, so DuckDB gives NULL for a constant NULL without calling the function.
+        Command.CommandText = "SELECT four_mixed(1, 2, NULL, 4.5)";
+        Command.ExecuteScalar().Should().Be(DBNull.Value);
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionFourParamsWithNulls()
+    {
+        Connection.RegisterScalarFunction<int?, long, double?, short, string>("four_nulls",
+            (first, second, third, fourth) => $"{first?.ToString() ?? "none"}|{second}|{third?.ToString(CultureInfo.InvariantCulture) ?? "none"}|{fourth}");
+
+        var rows = Connection.Query<(int Input, string Result)>(
+            "SELECT i::INT, four_nulls(CASE WHEN i % 2 = 0 THEN NULL ELSE i::INT END, i * 1000000000, CASE WHEN i % 3 = 0 THEN NULL ELSE i + 0.5 END, (i % 100)::SMALLINT) " +
+            "FROM range(5000) t(i) ORDER BY i").ToList();
+
+        rows.Should().HaveCount(5000);
+        rows.Should().OnlyContain(row => row.Result ==
+            $"{(row.Input % 2 == 0 ? "none" : row.Input.ToString())}|{row.Input * 1000000000L}|{(row.Input % 3 == 0 ? "none" : row.Input + ".5")}|{row.Input % 100}");
+
+        // The second and the fourth parameter do not take a NULL. The arguments are read in order, so with a NULL in
+        // both it is the second that is reported.
+        Command.CommandText = "SELECT four_nulls(1, 2, 3.5, NULL)";
+        Command.Invoking(command => command.ExecuteScalar()).Should().Throw<DuckDBException>().WithMessage("*'Int16' received NULL*");
+
+        Command.CommandText = "SELECT four_nulls(1, NULL, 3.5, NULL)";
+        Command.Invoking(command => command.ExecuteScalar()).Should().Throw<DuckDBException>().WithMessage("*'Int64' received NULL*");
+    }
+
+    // A function with parameters gives the same result for the same arguments, as far as DuckDB is told, and one
+    // without parameters does not. DuckDB calls the first kind once for a constant argument.
+    [Fact]
+    public void SimplifiedScalarFunctionsWithParametersArePure()
+    {
+        Connection.RegisterScalarFunction("stable_zero", () => 1);
+        Connection.RegisterScalarFunction<int, int>("stable_one", a => a);
+        Connection.RegisterScalarFunction<int, int, int>("stable_two", (a, b) => a + b);
+        Connection.RegisterScalarFunction<int, int, int, int>("stable_three", (a, b, c) => a + b + c);
+        Connection.RegisterScalarFunction<int, int, int, int, int>("stable_four", (a, b, c, d) => a + b + c + d);
+        Connection.RegisterScalarFunction("stable_params", (int[] values) => values.Sum());
+
+        var stability = Connection.Query<(string Name, string Stability)>(
+            "SELECT function_name, stability FROM duckdb_functions() WHERE function_name LIKE 'stable\\_%' ESCAPE '\\' ORDER BY function_name").ToList();
+
+        stability.Should().Equal(
+            ("stable_four", "CONSISTENT"),
+            ("stable_one", "CONSISTENT"),
+            ("stable_params", "CONSISTENT"),
+            ("stable_three", "CONSISTENT"),
+            ("stable_two", "CONSISTENT"),
+            ("stable_zero", "VOLATILE"));
+    }
+
     private static bool IsPrime(int value)
     {
         for (int i = 2; i <= Math.Sqrt(value); i++)

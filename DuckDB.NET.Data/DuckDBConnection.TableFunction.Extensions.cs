@@ -199,6 +199,7 @@ public static class DuckDBConnectionTableFunctionExtensions
 
     private static readonly MethodInfo GetValueMethod = typeof(IDuckDBValueReader).GetMethod(nameof(IDuckDBValueReader.GetValue))!;
     private static readonly MethodInfo WriteValueMethod = typeof(IDuckDBDataWriter).GetMethod(nameof(IDuckDBDataWriter.WriteValue))!;
+    private static readonly MethodInfo ConcreteWriteValueMethod = typeof(VectorDataWriterBase).GetMethod(nameof(VectorDataWriterBase.WriteValue))!;
 
     private static (ColumnInfo[] columns, Action<object?, IDuckDBDataWriter[], ulong> mapper) ParseProjection<TData, TProjection>(Expression<Func<TData, TProjection>> projection)
     {
@@ -361,27 +362,36 @@ public static class DuckDBConnectionTableFunctionExtensions
         var replacer = new ParameterReplacer(originalParam, dataParam);
         var writeCalls = new Expression[columnCount];
 
+        // WriteValue<T> is a generic method. Called through the interface it is looked up at run time, for every
+        // column of every row. The writer of a column that the query reads is a VectorDataWriterBase, whose method
+        // is called directly, so each column tests for that class first:
+        //   if (writers[i] is VectorDataWriterBase writer) writer.WriteValue(data.Column, rowIndex);
+        //   else writers[i].WriteValue(data.Column, rowIndex);
+        // A column the query does not read has a NullDataWriter and takes the second line, as it did before.
+        var concreteWriter = Expression.Variable(typeof(VectorDataWriterBase), "writer");
+
         for (int i = 0; i < columnCount; i++)
         {
             var reboundAccessor = replacer.Visit(accessors[i]);
             var writerAccess = Expression.ArrayIndex(writersParam, Expression.Constant(i));
 
-            writeCalls[i] = Expression.Call(
-                writerAccess,
-                WriteValueMethod.MakeGenericMethod(types[i]),
-                reboundAccessor,
-                rowIndexParam);
+            writeCalls[i] = Expression.Block(
+                Expression.Assign(concreteWriter, Expression.TypeAs(writerAccess, typeof(VectorDataWriterBase))),
+                Expression.IfThenElse(
+                    Expression.ReferenceNotEqual(concreteWriter, Expression.Constant(null, typeof(VectorDataWriterBase))),
+                    Expression.Call(concreteWriter, ConcreteWriteValueMethod.MakeGenericMethod(types[i]), reboundAccessor, rowIndexParam),
+                    Expression.Call(writerAccess, WriteValueMethod.MakeGenericMethod(types[i]), reboundAccessor, rowIndexParam)));
         }
 
-        var body = Expression.Block(writeCalls);
+        var body = Expression.Block([concreteWriter], writeCalls);
         return Expression.Lambda<Action<TData, IDuckDBDataWriter[], ulong>>(body, dataParam, writersParam, rowIndexParam).Compile();
     }
 
     // Rebinds parameter references when embedding sub-expressions from the user's projection lambda
     // into a new lambda with a different parameter. E.g. given (Employee e) => new { e.Id }, the
     // accessor "e.Id" references the original parameter "e". When we compile the combined writer
-    // (data, writers, rowIndex) => { writers[0].WriteValue(data.Id, rowIndex); ... }, we must
-    // replace "e" with "data".
+    // (data, writers, rowIndex) => { write data.Id with writers[0]; ... } (see CompileCombinedWriter),
+    // we must replace "e" with "data".
     private sealed class ParameterReplacer(ParameterExpression oldParam, ParameterExpression newParam) : ExpressionVisitor
     {
         protected override Expression VisitParameter(ParameterExpression node)
