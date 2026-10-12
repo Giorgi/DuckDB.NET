@@ -1,54 +1,35 @@
-﻿namespace DuckDB.NET.Data.Extensions;
+﻿using System.Buffers.Binary;
+
+namespace DuckDB.NET.Data.Extensions;
 
 internal static class GuidConverter
 {
-    private const int GuidSize = 16;
-
-    // First 4 bytes (little-endian), Next 4 bytes (little-endian), Last 8 bytes (big-endian)
-    private static readonly int[] GuidByteOrder = [6, 7, 4, 5, 0, 1, 2, 3, 15, 14, 13, 12, 11, 10, 9, 8];
-
-    public static unsafe Guid ConvertToGuid(this DuckDBHugeInt input)
+    // DuckDB stores a UUID as the 128-bit number its text form spells, with the top bit flipped. So the upper half
+    // holds the first three groups of the text (8, 4 and 4 hex digits) and the lower half the last two, both with
+    // the first digit in the highest bits. Those groups are the parts a Guid is constructed from.
+    public static Guid ConvertToGuid(this DuckDBHugeInt input)
     {
-        Span<byte> bytes = stackalloc byte[32];
-
         // Reverse the bit flip on the upper 64 bits
         var upper = input.Upper ^ ((long)1 << 63);
+        var lower = input.Lower;
 
-        // Write upper 64 bits (bytes 0-7)
-        BitConverter.TryWriteBytes(bytes[GuidSize..], upper);
-
-        // Write lower 64 bits (bytes 8-15)
-        BitConverter.TryWriteBytes(bytes[(GuidSize + 8)..], input.Lower);
-
-        // Reconstruct the Guid bytes (reverse the original byte reordering)
-        for (var i = 0; i < GuidSize; i++)
-        {
-            bytes[GuidByteOrder[i]] = bytes[i + GuidSize];
-        }
-
-        // Create Guid from the first 16 bytes
-        return new Guid(bytes[..GuidSize]);
+        return new Guid((int)(upper >> 32), (short)(upper >> 16), (short)upper,
+            (byte)(lower >> 56), (byte)(lower >> 48), (byte)(lower >> 40), (byte)(lower >> 32),
+            (byte)(lower >> 24), (byte)(lower >> 16), (byte)(lower >> 8), (byte)lower);
     }
 
 
     //https://github.com/duckdb/duckdb/blob/9c91b3a329073ea1767b0aaff94b51da98dd03e2/src/common/types/uuid.cpp#L6
     public static DuckDBHugeInt ToHugeInt(this Guid guid, bool flip = true)
     {
-        Span<byte> bytes = stackalloc byte[32];
+        // The bytes of the Guid in the order of its text form, which is the number DuckDB stores
+        Span<byte> bytes = stackalloc byte[16];
 
-        guid.TryWriteBytes(bytes);
+        guid.TryWriteBytes(bytes, bigEndian: true, out _);
 
-        // Reconstruct the Guid bytes (reverse the original byte reordering)
-        for (var i = 0; i < GuidSize; i++)
-        {
-            bytes[i + GuidSize] = bytes[GuidByteOrder[i]];
-        }
+        var upper = BinaryPrimitives.ReadInt64BigEndian(bytes);
+        var lower = BinaryPrimitives.ReadUInt64BigEndian(bytes[8..]);
 
-        // Upper 64 bits (bytes 0-7)
-        var upper = BitConverter.ToInt64(bytes[GuidSize..]);
-
-        // Lower 64 bits (bytes 8-15)
-        var lower = BitConverter.ToUInt64(bytes[(GuidSize + 8)..]);
         //Do not flip if we are passing it to duckdb_create_uuid. That function will flip it for us.
         if (flip)
         {
