@@ -143,10 +143,17 @@ public struct DuckDBTimeTzStruct
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public struct DuckDBTimeTz
+public struct DuckDBTimeTz : IEquatable<DuckDBTimeTz>
 {
     public DuckDBTimeOnly Time { get; set; }
     public int Offset { get; set; }
+
+    // Without these, Equals is ValueType.Equals(object), which boxes and compares the fields through reflection.
+    public readonly bool Equals(DuckDBTimeTz other) => Time.Equals(other.Time) && Offset == other.Offset;
+
+    public readonly override bool Equals(object? obj) => obj is DuckDBTimeTz other && Equals(other);
+
+    public readonly override int GetHashCode() => HashCode.Combine(Time, Offset);
 }
 
 [StructLayout(LayoutKind.Sequential)]

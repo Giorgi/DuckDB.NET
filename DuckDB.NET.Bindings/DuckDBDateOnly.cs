@@ -29,8 +29,6 @@ public readonly struct DuckDBDateOnly(int year, byte month, byte day) : IEquatab
 
     public byte Day { get; } = day;
 
-    internal static readonly DuckDBDateOnly MinValue = FromDateTime(DateTime.MinValue);
-
     /// <summary>
     /// Returns true if this date represents positive or negative infinity.
     /// </summary>

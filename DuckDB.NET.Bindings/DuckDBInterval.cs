@@ -3,7 +3,7 @@
 namespace DuckDB.NET.Native;
 
 [StructLayout(LayoutKind.Sequential)]
-public readonly struct DuckDBInterval(int months, int days, ulong micros)
+public readonly struct DuckDBInterval(int months, int days, ulong micros) : IEquatable<DuckDBInterval>
 {
     public int Months { get; } = months;
 
@@ -43,4 +43,12 @@ public readonly struct DuckDBInterval(int months, int days, ulong micros)
 
     private static DuckDBInterval FromTimeSpan(TimeSpan timeSpan)
         => new(0, timeSpan.Days, unchecked((ulong)(timeSpan.Ticks % TimeSpan.TicksPerDay / TimeSpan.TicksPerMicrosecond)));
+
+    // Without these, Equals is ValueType.Equals(object), which boxes. Two intervals are equal when their three
+    // parts are: one month and thirty days are different values, as they are in the three fields DuckDB stores.
+    public bool Equals(DuckDBInterval other) => Months == other.Months && Days == other.Days && Micros == other.Micros;
+
+    public override bool Equals(object? obj) => obj is DuckDBInterval other && Equals(other);
+
+    public override int GetHashCode() => HashCode.Combine(Months, Days, Micros);
 }

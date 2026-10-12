@@ -19,12 +19,8 @@ public readonly struct DuckDBTimeOnly(byte hour, byte min, byte sec, int microse
 
     public long Ticks => DateTimeExtensions.GetTicks(Hour, Min, Sec, Microsecond);
 
-    public DateTime ToDateTime()
-    {
-        var date = DuckDBDateOnly.MinValue;
-
-        return new DateTime(date.Year, date.Month, date.Day).AddTicks(Ticks);
-    }
+    // The time on the first day a DateTime holds, 0001-01-01
+    public DateTime ToDateTime() => new DateTime(Ticks);
 
     internal static DuckDBTimeOnly FromDateTime(DateTime dateTime)
     {

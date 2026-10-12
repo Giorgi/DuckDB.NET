@@ -99,4 +99,22 @@ public class DuckDBIntervalTests
         Assert.Equal(5, ts.Days);
         Assert.Equal(((17 * 60 + 12) * 60 + 45) * (ulong)1e6, ts.Micros);
     }
+
+    [Fact]
+    public void IntervalsAreEqualWhenTheirThreePartsAre()
+    {
+        var interval = new DuckDBInterval(1, 2, 3);
+
+        interval.Equals(new DuckDBInterval(1, 2, 3)).Should().BeTrue();
+        interval.Equals((object)new DuckDBInterval(1, 2, 3)).Should().BeTrue();
+        interval.GetHashCode().Should().Be(new DuckDBInterval(1, 2, 3).GetHashCode());
+
+        interval.Equals(new DuckDBInterval(2, 2, 3)).Should().BeFalse();
+        interval.Equals(new DuckDBInterval(1, 3, 3)).Should().BeFalse();
+        interval.Equals(new DuckDBInterval(1, 2, 4)).Should().BeFalse();
+        interval.Equals("1 month").Should().BeFalse();
+
+        // A month is not thirty days: DuckDB stores the three parts separately, and so are they compared.
+        new DuckDBInterval(1, 0, 0).Equals(new DuckDBInterval(0, 30, 0)).Should().BeFalse();
+    }
 }
