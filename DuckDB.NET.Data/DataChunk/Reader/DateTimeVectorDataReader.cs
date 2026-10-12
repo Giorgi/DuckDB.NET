@@ -38,6 +38,8 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
     }
 
     internal override DateTime ReadDateTime(ulong offset) => GetValidValue<DateTime>(offset);
+    internal override DateTimeOffset ReadDateTimeOffset(ulong offset) => GetValidValue<DateTimeOffset>(offset);
+    internal override DateOnly ReadDateOnly(ulong offset) => GetValidValue<DateOnly>(offset);
 
     protected override T GetValidValue<T>(ulong offset)
     {
