@@ -34,6 +34,11 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static unsafe partial void DuckDBVectorAssignStringElementLength(IntPtr vector, ulong index, byte* handle, long length);
 
+        // No UTF-8 validation: the caller guarantees it. Allocates in the string heap of the vector for a long string.
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_unsafe_vector_assign_string_element_len")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static unsafe partial void DuckDBUnsafeVectorAssignStringElementLength(IntPtr vector, ulong index, byte* handle, long length);
+
         [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_list_vector_get_child")]
 		[UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
