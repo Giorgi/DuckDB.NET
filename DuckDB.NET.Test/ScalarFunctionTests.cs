@@ -664,6 +664,25 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         ex.InnerException.Should().BeSameAs(originalException);
     }
 
+    // DuckDB copies the expression of a filter, and the function has to know its connection in the copy as well.
+    [Theory]
+    [InlineData("where", "SELECT i FROM range(5) t(i) WHERE {0}(i) > 0")]
+    [InlineData("having", "SELECT i FROM range(5) t(i) GROUP BY i HAVING {0}(i) > 0")]
+    public void ScalarFunctionError_PreservesInnerExceptionInAFilter(string place, string sql)
+    {
+        var originalException = new InvalidOperationException("custom filter error");
+
+        // A name of its own for each case: the cases share one connection, and a name is registered once.
+        var name = "scalar_err_in_" + place;
+        Connection.RegisterScalarFunction<long, long>(name, (_, _, _) => throw originalException);
+
+        Command.CommandText = string.Format(sql, name);
+        var exception = Command.Invoking(command => command.ExecuteScalar()).Should().Throw<DuckDBException>().Which;
+
+        exception.Message.Should().Contain("custom filter error");
+        exception.InnerException.Should().BeSameAs(originalException);
+    }
+
     // The typed forms each have their own loop over the rows. The tests below give every parameter a type of its
     // own and more rows than one chunk holds, so that a loop that reads the wrong column or the wrong row shows.
     [Fact]

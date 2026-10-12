@@ -103,10 +103,30 @@ partial class DuckDBConnection
         {
             var connectionId = UdfExceptionStore.GetScalarFunctionBindConnectionId(info);
             NativeMethods.ScalarFunction.DuckDBScalarFunctionSetBindData(info, connectionId.ToHandle(), &DestroyExtraInfo);
+
+            // DuckDB copies a bound expression, for a filter in WHERE or HAVING for example, and without this
+            // callback the copy has no bind data. The function then cannot tell which connection it runs on, and
+            // an exception it throws reaches the caller without its InnerException.
+            NativeMethods.ScalarFunction.DuckDBScalarFunctionSetBindDataCopy(info, &CopyBindData);
         }
         catch
         {
             // If we can't get the connection ID, we still allow the function to proceed
+        }
+    }
+
+    // Each copy of the bind data is destroyed by itself, so each gets a handle of its own to the connection ID.
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static IntPtr CopyBindData(IntPtr bindData)
+    {
+        try
+        {
+            return bindData != IntPtr.Zero && GCHandle.FromIntPtr(bindData).Target is { } connectionId ? connectionId.ToHandle() : IntPtr.Zero;
+        }
+        catch
+        {
+            // Without bind data the function still runs; only the InnerException is lost.
+            return IntPtr.Zero;
         }
     }
 
