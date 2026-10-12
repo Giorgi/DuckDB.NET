@@ -80,8 +80,8 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
     /// <returns>Data at the specified offset</returns>
     protected virtual T GetValidValue<T>(ulong offset) => (T)GetValue(offset, typeof(T));
 
-    // One method for each type that DbDataReader has a getter for, and for DateTimeOffset and DateOnly, which are
-    // read with GetFieldValue. GetValidValue is a generic virtual method, which
+    // One method for each type that DbDataReader has a getter for, and for DateTimeOffset, DateOnly and TimeOnly,
+    // which are read with GetFieldValue. GetValidValue is a generic virtual method, which
     // is looked up at run time on every call. These are plain virtual methods, which are not, and ReadValidValue
     // calls them for their types. A reader overrides the ones it produces, and an override calls GetValidValue of
     // its own class, so a value is converted by the same code whichever way it is reached.
@@ -96,6 +96,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
     internal virtual DateTime ReadDateTime(ulong offset) => GetValidValue<DateTime>(offset);
     internal virtual DateTimeOffset ReadDateTimeOffset(ulong offset) => GetValidValue<DateTimeOffset>(offset);
     internal virtual DateOnly ReadDateOnly(ulong offset) => GetValidValue<DateOnly>(offset);
+    internal virtual TimeOnly ReadTimeOnly(ulong offset) => GetValidValue<TimeOnly>(offset);
     internal virtual Guid ReadGuid(ulong offset) => GetValidValue<Guid>(offset);
     internal virtual string ReadString(ulong offset) => GetValidValue<string>(offset);
     internal virtual Stream ReadStream(ulong offset) => GetValidValue<Stream>(offset);
@@ -121,6 +122,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
         if (typeof(T) == typeof(DateTime)) return (T)(object)ReadDateTime(offset);
         if (typeof(T) == typeof(DateTimeOffset)) return (T)(object)ReadDateTimeOffset(offset);
         if (typeof(T) == typeof(DateOnly)) return (T)(object)ReadDateOnly(offset);
+        if (typeof(T) == typeof(TimeOnly)) return (T)(object)ReadTimeOnly(offset);
         if (typeof(T) == typeof(Guid))     return (T)(object)ReadGuid(offset);
         if (typeof(T) == typeof(string))   return (T)(object)ReadString(offset);
         if (typeof(T) == typeof(Stream))   return (T)(object)ReadStream(offset);
