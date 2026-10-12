@@ -78,7 +78,8 @@ between two runs.
   test of the switch boxes the value.
 - **Measured**, eight `int?` properties, per value: 132 ns and 72 bytes to 24 ns and none on .NET 8; 21.9 ns and
   24 bytes to 19.0 ns and none on .NET 10. A nullable property now costs what a plain one does.
-- **The same boxing is still in `WriteValue<T>`** for a nullable `T`. See "Costs that are known".
+- **`WriteValue<T>` had the same boxing** for a nullable `T`, which the appender row does not reach. Decision 9
+  removes it in the same way.
 
 ### 5. The date and time structs have their own equality
 
@@ -169,12 +170,46 @@ between two runs.
   the connection, which the function needs to keep an exception for the caller. DuckDB copies a bound expression,
   for a filter for example, and a copy without that callback has no bind data.
 
+### 9. A nullable value is written without boxing
+
+- **What:** `WriteValue<T>` tests `typeof(T).IsValueType && default(T) is null` before its switch. Both are
+  constants for the JIT, so only a nullable value type keeps the branch. It calls `WriteNullable`, which has one
+  line per type, `if (typeof(T) == typeof(int?)) AppendNumeric(Unsafe.As<T, int?>(ref value).GetValueOrDefault(),
+  rowIndex)`, in the order of the switch. (`40b625b`)
+- **Why:** the switch tests the type of the value with patterns (`int val => ...`). For `T = int?` such a test
+  boxes the value. The appender row unwraps a nullable before it calls `WriteValue<T>`, so it never got here.
+  Three callers did: a function that returns a nullable value, a nullable column of a table function, and the
+  collection writer for the items of a `List<int?>` or an `int?[]`.
+- **The compiled code** of `WriteValue<int?>` (.NET 10) has no call to a box or unbox helper. It calls
+  `WriteNullable<int?>`, 47 bytes, in which the 21 type tests have folded to one virtual call,
+  `AppendNumeric(int)`. `WriteNullable` is not inlined, so a nullable write makes one call more than a plain one.
+- **What is still boxed:** a nullable enum, and a nullable struct that has no line. They take the last branch of
+  `WriteNullable`, which is the rest of the switch: an enum, a collection, and the error.
+- **Measured** on .NET 10 against the build before, which has decision 8:
+
+  | Write | Ratio | Allocated |
+  |---|---|---|
+  | Function `int?` to `int?`, 1,000,000 rows | 0.61 (22.6 to 13.9 ms) | 21,199 KB to 104 KB |
+  | Table function, four columns, one of them `int?` | 0.77 (46.4 to 36.0 ms) | 21,335 KB to 240 KB |
+  | `List<int?>` of ten items, 100,000 lists | 0.74 | 21,103 KB to 9 KB |
+  | `int?[]` of ten items | 0.70 | 21,103 KB to 9 KB |
+  | `List<double?>` of ten items | 0.84 | 21,103 KB to 9 KB |
+  | Function `int` to `int`, and `List<int>` (controls) | 1.00 and 0.97 | The same |
+
+  The three list rows are from a run on a machine that was not quiet (`RatioSD` 0.15 to 0.33).
+- **Decisions 8 and 9 together,** against `1.5.6-alpha.66`: the `int` function 0.36, the `int?` function 0.40, the
+  table function 0.62, with the controls at 0.99 and 1.00. .NET 8 was not measured for this decision.
+- **Pinned by:** `SimplifiedScalarFunctionReturnsNullableOfEveryType`, a function for each of the 21 types, and
+  `NullableItemsAppendedAfterAFailedListReplaceItsNulls`, for a value written where a NULL was.
+
 ## Costs that are known and not yet removed
 
 - **A callback written against the interfaces pays the lookups of decision 8:** 11.0 ms where the typed form of
   the same function takes 3.6 ms. Non-generic methods on the interfaces would remove them.
-- **A nullable value is boxed in `WriteValue<T>`:** about 21 bytes per value for a function that returns `int?`,
-  for a nullable column of a table function, and for the items of a `List<int?>`. The device of decision 4 fits.
+- **A typed function reads a nullable argument through a delegate and tests it for NULL twice.** After decision 9
+  an `int?` function takes 13.9 ms where an `int` function takes 6.2 ms.
+- **A list is walked through its enumerator:** one allocated for every list, and two interface calls per item.
+  The collection is also tested against about 45 interfaces, for every list, to find its item type.
 - **A C# enum is boxed twice** on its way into an ENUM column, 48 bytes per value, and `AppendEnum<TEnum>` is
   looked up at run time.
 - **A table function gets its rows as `object`:** a row that is a value type is boxed, and every row costs two
