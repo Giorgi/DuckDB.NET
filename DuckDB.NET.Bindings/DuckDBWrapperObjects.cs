@@ -218,7 +218,10 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
     {
         var timeTzStruct = NativeMethods.Value.DuckDBGetTimeTz(this);
         var timeTz = NativeMethods.DateTimeHelpers.DuckDBFromTimeTz(timeTzStruct);
-        return new DateTimeOffset(timeTz.Time.ToDateTime(), TimeSpan.FromSeconds(timeTz.Offset));
+
+        // On 0001-01-02, like a TIMETZ read from a column: on the first day a DateTime holds, a time earlier than its
+        // own positive offset would be an instant before year 1.
+        return new DateTimeOffset(timeTz.Time.ToDateTime().AddDays(1), TimeSpan.FromSeconds(timeTz.Offset));
     }
 }
 

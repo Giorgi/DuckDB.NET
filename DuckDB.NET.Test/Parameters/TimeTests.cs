@@ -131,7 +131,9 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         dateTimeOffset.Hour.Should().Be((byte)hour);
         dateTimeOffset.Minute.Should().Be((byte)minute);
         dateTimeOffset.Second.Should().Be((byte)second);
-        dateTimeOffset.Ticks.Should().Be(new TimeOnly(hour, minute, second).Add(TimeSpan.FromTicks(microsecond * 10)).Ticks);
+        dateTimeOffset.TimeOfDay.Ticks.Should().Be(new TimeOnly(hour, minute, second).Add(TimeSpan.FromTicks(microsecond * 10)).Ticks);
+        // The time is put on the second day a DateTime holds; see TimeWithATimeZoneIsReadOnTheSecondDay
+        dateTimeOffset.Date.Should().Be(new DateTime(1, 1, 2));
 
         dateTimeOffset.Offset.Should().Be(new TimeSpan(offsetHours, offsetHours >= 0 ? offsetMinutes : -offsetMinutes, 0));
     }
@@ -155,7 +157,9 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         dateTimeOffset.Hour.Should().Be((byte)hour);
         dateTimeOffset.Minute.Should().Be((byte)minute);
         dateTimeOffset.Second.Should().Be((byte)second);
-        dateTimeOffset.Ticks.Should().Be(new TimeOnly(hour, minute, second).Add(TimeSpan.FromTicks(microsecond * 10)).Ticks);
+        dateTimeOffset.TimeOfDay.Ticks.Should().Be(new TimeOnly(hour, minute, second).Add(TimeSpan.FromTicks(microsecond * 10)).Ticks);
+        // The time is put on the second day a DateTime holds; see TimeWithATimeZoneIsReadOnTheSecondDay
+        dateTimeOffset.Date.Should().Be(new DateTime(1, 1, 2));
 
         var timeSpan = new TimeSpan(offsetHours, offsetHours >= 0 ? offsetMinutes : -offsetMinutes, 0);
         dateTimeOffset.Offset.Should().Be(timeSpan);
@@ -209,5 +213,65 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
         result.Should().BeOfType<TimeOnly>().Subject
             .Should().Be(value);
+    }
+
+    // A DateTimeOffset needs a date and a TIMETZ has none. On 0001-01-01 a time that is earlier in the day than its
+    // own positive offset would be an instant before year 1, which a DateTimeOffset refuses; so the time is put on
+    // 0001-01-02, as Npgsql does. The last column is the same value inside a list.
+    [Theory]
+    [InlineData("12:00:00+00", 12, 0, 0, 0)]
+    [InlineData("00:30:00+01", 0, 30, 1, 0)]
+    [InlineData("00:00:00+00:01", 0, 0, 0, 1)]
+    [InlineData("03:59:59+04", 3, 59, 4, 0)]
+    [InlineData("12:00:00+14", 12, 0, 14, 0)]
+    [InlineData("12:00:00-14", 12, 0, -14, 0)]
+    [InlineData("23:59:00-01", 23, 59, -1, 0)]
+    [InlineData("12:00:00+05:30", 12, 0, 5, 30)]
+    public void TimeWithATimeZoneIsReadOnTheSecondDay(string value, int hour, int minute, int offsetHours, int offsetMinutes)
+    {
+        Command.CommandText = $"SELECT '{value}'::TIMETZ, ['{value}'::TIMETZ]";
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        var expected = new DateTimeOffset(1, 1, 2, hour, minute, minute == 59 && hour == 3 ? 59 : 0, new TimeSpan(offsetHours, offsetMinutes, 0));
+
+        reader.GetFieldValue<DateTimeOffset>(0).Should().Be(expected);
+        reader.GetFieldValue<DateTimeOffset>(0).Offset.Should().Be(expected.Offset);
+        reader.GetValue(0).Should().Be(expected);
+        reader.GetFieldValue<List<DateTimeOffset>>(1).Should().Equal(expected);
+
+        // Written back, the date is dropped and the same value arrives.
+        Command.CommandText = $"SELECT ?::TIMETZ = '{value}'::TIMETZ";
+        Command.Parameters.Add(new DuckDBParameter(expected));
+        Command.ExecuteScalar().Should().Be(true);
+    }
+
+    // The latest time DuckDB has is the end of the day, which is the start of the third day.
+    [Fact]
+    public void TimeWithATimeZoneAtTheEndOfTheDay()
+    {
+        Command.CommandText = "SELECT '24:00:00+00'::TIMETZ";
+
+        Command.ExecuteScalar().Should().Be(new DateTimeOffset(1, 1, 3, 0, 0, 0, TimeSpan.Zero));
+    }
+
+    // DuckDB allows an offset up to 15:59:59, with seconds. A DateTimeOffset has no value for one beyond 14 hours or
+    // with seconds; such a TIMETZ reads as DuckDBTimeTz.
+    [Theory]
+    [InlineData("12:00:00+14:01", typeof(ArgumentOutOfRangeException), 50460)]
+    [InlineData("12:00:00+00:00:30", typeof(ArgumentException), 30)]
+    [InlineData("12:00:00-15:59:59", typeof(ArgumentException), -57599)]
+    public void TimeWithAnOffsetThatDateTimeOffsetDoesNotHave(string value, Type exception, int offsetSeconds)
+    {
+        Command.CommandText = $"SELECT '{value}'::TIMETZ";
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.Invoking(r => r.GetFieldValue<DateTimeOffset>(0)).Should().Throw<ArgumentException>().Which.Should().BeOfType(exception);
+        reader.Invoking(r => r.GetValue(0)).Should().Throw<ArgumentException>().Which.Should().BeOfType(exception);
+
+        var timeTz = reader.GetFieldValue<DuckDBTimeTz>(0);
+        timeTz.Offset.Should().Be(offsetSeconds);
+        timeTz.Time.Hour.Should().Be(12);
     }
 }

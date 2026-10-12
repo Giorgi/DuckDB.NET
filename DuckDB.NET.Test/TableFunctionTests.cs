@@ -407,6 +407,8 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
                 timeTz.Minute.Should().Be(30);
                 timeTz.Second.Should().Be(45);
                 timeTz.Offset.Should().Be(TimeSpan.FromHours(2));
+                // On the second day a DateTime holds, like a TIMETZ read from a column
+                timeTz.Date.Should().Be(new DateTime(1, 1, 2));
 
                 return new TableFunction(new List<ColumnInfo>
                 {

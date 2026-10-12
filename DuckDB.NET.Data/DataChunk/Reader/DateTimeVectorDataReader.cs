@@ -81,8 +81,7 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
 
             if (typeof(T) == typeof(DateTimeOffset))
             {
-                var dateTimeOffset = new DateTimeOffset(timeTz.Time.ToDateTime(), TimeSpan.FromSeconds(timeTz.Offset));
-                return (T)(object)dateTimeOffset;
+                return (T)(object)ToDateTimeOffset(timeTz);
             }
 
             return (T)(object)timeTz;
@@ -184,6 +183,14 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
         return timestampStruct.ToDuckDBTimestamp(DuckDBType).result;
     }
 
+    // A DateTimeOffset needs a date, and a TIMETZ has none. The time is put on 0001-01-02, the second day a DateTime
+    // holds, as Npgsql does: on the first day, a time earlier than its own positive offset would be an instant before
+    // year 1, which a DateTimeOffset refuses.
+    private static DateTimeOffset ToDateTimeOffset(DuckDBTimeTz timeTz)
+    {
+        return new DateTimeOffset(timeTz.Time.ToDateTime().AddDays(1), TimeSpan.FromSeconds(timeTz.Offset));
+    }
+
     private DuckDBTimeTz GetTimeTz(ulong offset)
     {
         var data = GetFieldData<DuckDBTimeTzStruct>(offset);
@@ -248,7 +255,7 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
 
         if (targetType == typeof(DateTimeOffset))
         {
-            return new DateTimeOffset(timeTz.Time.ToDateTime(), TimeSpan.FromSeconds(timeTz.Offset));
+            return ToDateTimeOffset(timeTz);
         }
 
         return timeTz;
