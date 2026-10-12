@@ -123,6 +123,10 @@ dotnet run -c Release --project DuckDB.NET.Benchmarks
   scalar and table function output. `CollectionVectorDataWriter` holds the shared collection logic;
   `ListVectorDataWriter` (running offsets, growth) and `ArrayVectorDataWriter` (fixed size, row-based positions)
   are separate because DuckDB stores the two differently.
+- **The write path is shaped by measurement, like the readers.** Before changing a writer, the appender row, the
+  mapped appender or the loops of scalar and table functions, read `DESIGN.md` in `DataChunk/Writer`: it records
+  why the write path is written as it is, with the measurements, the designs that were rejected, and the rules
+  that must hold after a change.
 - **`DuckDBAppender`:** the low-level appender (`connection.CreateAppender(table)`, then `CreateRow().AppendValue(...)`,
   or the allocation-free `AppendRow`). It buffers rows in a data chunk of `VectorSize` (2048) rows. It does **no type
   checking** and writes the raw bytes of the .NET type it is given; the docs call this out. A row is written only once

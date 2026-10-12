@@ -248,9 +248,11 @@ not use profile data to guess the target as it does for a plain virtual call.
 - **A `BigInteger` is made in one place:** `DuckDBHugeInt.ToBigInteger()` and `DuckDBUHugeInt.ToBigInteger()`, which
   convert from `Int128` and `UInt128` directly. They used to compute `Upper * 2^64 + Lower`. The reader calls them
   when a `BigInteger` is asked for (`GetFieldValue<BigInteger>`, `GetValue`), and so does the decimal reader when a
-  DECIMAL stored as a HUGEINT is read as `BigInteger`. The two methods are public, so their results must not change:
-  `HugeIntToBigIntegerGivesBackTheValue` and `UHugeIntToBigIntegerGivesBackTheValue` build a struct with the
-  constructor, which splits the value by division, and convert it back.
+  DECIMAL stored as a HUGEINT is read as `BigInteger`. The two methods are public, so their results must not change.
+- **The constructors go through `Int128` and `UInt128` as well** (decision 7 in `../Writer/DESIGN.md`). So the
+  constructor and `ToBigInteger()` do not check each other: a round trip would not notice a mistake they share.
+  `HugeIntToBigIntegerGivesBackTheValue` and `UHugeIntToBigIntegerGivesBackTheValue` compare the two halves with
+  the ones division gives, and then convert back.
 - **A wide DECIMAL (more than 18 digits, stored as a HUGEINT) read as `decimal` is divided as an `Int128`:**
   `Int128.DivRem` by a power of ten from `DecimalExtensions.Int128PowersOfTen`, then the same conversion of quotient
   and remainder as before. It used `BigInteger.DivRem`, which allocates for the value, the quotient and the
@@ -289,7 +291,7 @@ not use profile data to guess the target as it does for a plain virtual call.
 - **TIME and TIMETZ the same way.** A TIME is microseconds from midnight, so as `TimeOnly` or `DateTime` it is
   `micros * 10` ticks. A TIMETZ is 64 bits: the microseconds in the upper 40, and in the lower 24 the offset from
   UTC, stored as 57,599 (the largest offset, 15:59:59) minus the offset in seconds. That layout is `dtime_tz_t` in
-  DuckDB's `datetime.hpp`, read at `v1.5.6`; the constants in the reader carry the reference. As `DateTimeOffset`
+  DuckDB's `datetime.hpp`, read at `v1.5.6`; the constants carry the reference. As `DateTimeOffset`
   the time is put on 0001-01-02 (see "Behaviour"). DuckDB used to divide each value into hour, minute, second and
   microsecond (`duckdb_from_time`, `duckdb_from_time_tz`), and the reader multiplied them back.
 - **Why:** the read used to ask DuckDB whether the value was finite (`duckdb_is_finite_*`), have DuckDB split it into
@@ -306,6 +308,10 @@ not use profile data to guess the target as it does for a plain virtual call.
   and so does DuckDB when it casts a TIMESTAMP_NS to a TIMESTAMP.
 - **A value outside the .NET type** throws `ArgumentOutOfRangeException`, as before, with a message that names the
   column and the DuckDB type that can hold it. Readers of function arguments have no column name and leave it out.
+- **The write side does the same arithmetic in the other direction** (decision 6 in `../Writer/DESIGN.md`). The
+  epoch and the TIMETZ constants are in `Extensions/DateTimeExtensions.cs`, one copy for both directions, and the
+  reader refers to them. A change to a constant changes reads and writes together, so a round trip does not show
+  it; the guard below and the one of the write side do.
 - **What still calls DuckDB:** a read as one of the DuckDB struct types, `DuckDBDateOnly`, `DuckDBTimestamp`,
   `DuckDBTimeOnly` or `DuckDBTimeTz`, which needs the parts. No read as a .NET type does.
 - **A defect that went with it:** `make_timestamp` can store a finite TIMESTAMP below DuckDB's own minimum
@@ -390,9 +396,11 @@ not use profile data to guess the target as it does for a plain virtual call.
   that fits 96 bits with a scale of at most 28 could be built the same way. That is not done because it changes what
   the value looks like: `1.5000` where it is `1.5` today. Its speed is not measured.
 - **`GetValue` boxes every value** except booleans. It returns `object`; nothing can be done about it here.
-- **A user-defined function reads its inputs through `IDuckDBDataReader.GetValue<T>`,** a generic method on an
-  interface, which is looked up at run time on every value. Decision 5 removed the second lookup behind it, not this
-  one.
+- **A scalar function whose callback is written against the interfaces reads its inputs through
+  `IDuckDBDataReader.GetValue<T>`,** a generic method on an interface, which is looked up at run time on every
+  value. Decision 5 removed the second lookup behind it, not this one. The typed forms
+  (`RegisterScalarFunction<int, int>("f", x => x + 1)`) do not: their loops call `GetValue<T>` on
+  `VectorDataReaderBase`, where it is not virtual and is inlined (decision 8 in `../Writer/DESIGN.md`).
 
 ## Behaviour: what converts to what
 
