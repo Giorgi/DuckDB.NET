@@ -563,6 +563,56 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
         reader.GetFieldValue<List<int?>>(0).Should().Equal(7, null, 9);
     }
 
+    // A List<T> and an array are written as a span, and every other collection through its enumerator. The same
+    // items have to be stored whichever way they come.
+    [Fact]
+    public void ItemsAreTheSameFromAListAnArrayAndAnotherCollection()
+    {
+        Command.CommandText = "CREATE TABLE list_kinds (i INTEGER[], n INTEGER[], s VARCHAR[], fixed INTEGER[3], nested INTEGER[][])";
+        Command.ExecuteNonQuery();
+
+        var ints = new List<int> { 1, -2, 3 };
+        var nullableInts = new List<int?> { 4, null, 6 };
+        var strings = new List<string> { "one", null, "a string of more than twelve bytes" };
+        var nested = new List<List<int>> { new() { 1, 2 }, new(), new() { 3 } };
+
+        using (var appender = Connection.CreateAppender("list_kinds"))
+        {
+            appender.CreateRow().AppendValue(ints).AppendValue(nullableInts).AppendValue(strings).AppendValue(ints).AppendValue(nested).EndRow();
+
+            appender.CreateRow().AppendValue(ints.ToArray()).AppendValue(nullableInts.ToArray()).AppendValue(strings.ToArray())
+                .AppendValue(ints.ToArray()).AppendValue(nested.ToArray()).EndRow();
+
+            appender.CreateRow().AppendValue(new System.Collections.ObjectModel.Collection<int>(ints))
+                .AppendValue(new System.Collections.ObjectModel.Collection<int?>(nullableInts))
+                .AppendValue(new System.Collections.ObjectModel.Collection<string>(strings))
+                .AppendValue(new System.Collections.ObjectModel.Collection<int>(ints))
+                .AppendValue(new System.Collections.ObjectModel.Collection<List<int>>(nested)).EndRow();
+
+            // An array of strings that arrives as items of object, and a list with room for more items than it has.
+            IEnumerable<object> objects = strings.ToArray();
+            var withCapacity = new List<int>(100) { 1, -2, 3 };
+
+            appender.CreateRow().AppendValue(withCapacity).AppendValue(nullableInts).AppendValue(objects).AppendValue(withCapacity).AppendValue(nested).EndRow();
+        }
+
+        Command.CommandText = "SELECT i::VARCHAR, n::VARCHAR, s::VARCHAR, fixed::VARCHAR, nested::VARCHAR FROM list_kinds ORDER BY rowid";
+        using var reader = Command.ExecuteReader();
+
+        for (var row = 0; row < 4; row++)
+        {
+            reader.Read().Should().BeTrue();
+
+            reader.GetString(0).Should().Be("[1, -2, 3]", $"row {row}");
+            reader.GetString(1).Should().Be("[4, NULL, 6]", $"row {row}");
+            reader.GetString(2).Should().Be("[one, NULL, a string of more than twelve bytes]", $"row {row}");
+            reader.GetString(3).Should().Be("[1, -2, 3]", $"row {row}");
+            reader.GetString(4).Should().Be("[[1, 2], [], [3]]", $"row {row}");
+        }
+
+        reader.Read().Should().BeFalse();
+    }
+
     // Says it has three items, gives a NULL and then fails.
     private sealed class NullThenFailure : System.Collections.ICollection, IEnumerable<int?>
     {
