@@ -6,11 +6,20 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
     // counted from 1970-01-01. A DateTime counts ticks of 100 nanoseconds from 0001-01-01 and a DateOnly counts days
     // from there. So a read as one of the .NET types is a multiplication and an addition, and nothing is asked of
     // DuckDB. A read as DuckDBDateOnly or DuckDBTimestamp needs the year, month and day, and has DuckDB split the value.
+    // A TIME is microseconds from midnight, and a TIMETZ packs those and the offset into 64 bits; they are read in the
+    // same way, and as DuckDBTimeOnly or DuckDBTimeTz DuckDB splits them.
     // TemporalConversionTests compares the two ways, so a change in DuckDB shows there.
     private const int UnixEpochDayNumber = 719_162;                 // DateOnly.FromDateTime(DateTime.UnixEpoch).DayNumber
     private const int MaxDayNumber = 3_652_058;                     // DateOnly.MaxValue.DayNumber
     private const long UnixEpochTicks = 621_355_968_000_000_000;    // DateTime.UnixEpoch.Ticks
     private const long MaxTicks = 3_155_378_975_999_999_999;        // DateTime.MaxValue.Ticks
+
+    // A TIMETZ, from dtime_tz_t in DuckDB's datetime.hpp: the microseconds from midnight in the upper 40 bits, and in
+    // the lower 24 the offset from UTC, stored as the largest offset (15:59:59) minus the offset, in seconds.
+    private const int TimeTzOffsetBits = 24;
+    private const ulong TimeTzOffsetMask = (1UL << TimeTzOffsetBits) - 1;
+    private const int TimeTzMaximumOffsetSeconds = 16 * 60 * 60 - 1;
+
     private const long MinimumDuckDBMicroseconds = -9_223_372_022_400_000_000;  // TIMESTAMP '290309-12-22 (BC) 00:00:00'
 
     // For a timestamp column: the ticks in one unit of the column, and the range of a DateTime in that unit.
@@ -60,31 +69,27 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
 
         if (DuckDBType == DuckDBType.Time)
         {
-            var timeOnly = GetTimeOnly(offset);
+            if (typeof(T) == typeof(TimeOnly))
+            {
+                return (T)(object)new TimeOnly(GetTimeTicks(offset));
+            }
 
             if (typeof(T) == typeof(DateTime))
             {
-                return (T)(object)(DateTime)timeOnly;
+                return (T)(object)new DateTime(GetTimeTicks(offset));
             }
 
-            if (typeof(T) == typeof(TimeOnly))
-            {
-                return (T)(object)(TimeOnly)timeOnly;
-            }
-
-            return (T)(object)timeOnly;
+            return (T)(object)GetTimeOnly(offset);
         }
 
         if (DuckDBType == DuckDBType.TimeTz)
         {
-            var timeTz = GetTimeTz(offset);
-
             if (typeof(T) == typeof(DateTimeOffset))
             {
-                return (T)(object)ToDateTimeOffset(timeTz);
+                return (T)(object)GetTimeTzAsDateTimeOffset(offset);
             }
 
-            return (T)(object)timeTz;
+            return (T)(object)GetTimeTz(offset);
         }
 
         return DuckDBType switch
@@ -183,12 +188,22 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
         return timestampStruct.ToDuckDBTimestamp(DuckDBType).result;
     }
 
+    // The ticks from midnight. DuckDB has 24:00:00 as a time; a TimeOnly refuses it, and a DateTime takes it as the
+    // start of the next day.
+    private long GetTimeTicks(ulong offset) => GetFieldData<DuckDBTime>(offset).Micros * TimeSpan.TicksPerMicrosecond;
+
     // A DateTimeOffset needs a date, and a TIMETZ has none. The time is put on 0001-01-02, the second day a DateTime
     // holds, as Npgsql does: on the first day, a time earlier than its own positive offset would be an instant before
-    // year 1, which a DateTimeOffset refuses.
-    private static DateTimeOffset ToDateTimeOffset(DuckDBTimeTz timeTz)
+    // year 1, which a DateTimeOffset refuses. DuckDB allows an offset up to 15:59:59; a DateTimeOffset refuses one
+    // beyond 14 hours or with seconds, and such a value is read as DuckDBTimeTz.
+    private DateTimeOffset GetTimeTzAsDateTimeOffset(ulong offset)
     {
-        return new DateTimeOffset(timeTz.Time.ToDateTime().AddDays(1), TimeSpan.FromSeconds(timeTz.Offset));
+        var bits = GetFieldData<DuckDBTimeTzStruct>(offset).Bits;
+
+        var ticks = (long)(bits >> TimeTzOffsetBits) * TimeSpan.TicksPerMicrosecond;
+        var offsetSeconds = TimeTzMaximumOffsetSeconds - (int)(bits & TimeTzOffsetMask);
+
+        return new DateTimeOffset(new DateTime(TimeSpan.TicksPerDay + ticks), new TimeSpan(offsetSeconds * TimeSpan.TicksPerSecond));
     }
 
     private DuckDBTimeTz GetTimeTz(ulong offset)
@@ -220,18 +235,17 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
 
     private object GetTime(ulong offset, Type targetType)
     {
-        var timeOnly = GetTimeOnly(offset);
-        if (targetType == typeof(DateTime))
-        {
-            return (DateTime)timeOnly;
-        }
-
         if (targetType == typeof(TimeOnly))
         {
-            return (TimeOnly)timeOnly;
+            return new TimeOnly(GetTimeTicks(offset));
         }
 
-        return timeOnly;
+        if (targetType == typeof(DateTime))
+        {
+            return new DateTime(GetTimeTicks(offset));
+        }
+
+        return GetTimeOnly(offset);
     }
 
     private object GetDateTime(ulong offset, Type targetType)
@@ -251,14 +265,12 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
 
     private object GetDateTimeOffset(ulong offset, Type targetType)
     {
-        var timeTz = GetTimeTz(offset);
-
         if (targetType == typeof(DateTimeOffset))
         {
-            return ToDateTimeOffset(timeTz);
+            return GetTimeTzAsDateTimeOffset(offset);
         }
 
-        return timeTz;
+        return GetTimeTz(offset);
     }
 
     // The methods below build the exceptions, so that no message is put together in the methods that read.

@@ -3,9 +3,10 @@ using DuckDB.NET.Data.Extensions;
 
 namespace DuckDB.NET.Test;
 
-// DuckDB.NET converts a DATE and the timestamp types to .NET types with its own arithmetic, without asking DuckDB.
+// DuckDB.NET converts a DATE, a TIME, a TIMETZ and the timestamp types to .NET types with its own arithmetic, without
+// asking DuckDB.
 // These tests compare its results with DuckDB's: the parts DuckDB splits the same value into (a read as
-// DuckDBDateOnly or DuckDBTimestamp calls duckdb_from_date or duckdb_from_timestamp) and the text DuckDB prints
+// DuckDBDateOnly, DuckDBTimestamp, DuckDBTimeOnly or DuckDBTimeTz has DuckDB split the value) and the text DuckDB prints
 // for it. If a DuckDB release changes how these types are stored or what they mean, these tests fail.
 public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
@@ -351,5 +352,100 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
 
         Command.CommandText = "SELECT temporal_ticks(make_timestamp(253402300800000000))";
         Command.Invoking(c => c.ExecuteScalar()).Should().Throw<DuckDBException>().WithMessage("*Value is outside the range of System.DateTime. Use GetFieldValue<DuckDBTimestamp>() to read it.*");
+    }
+
+    // Every second of the day, each with a different fraction. The hour, the minute and the microseconds within the
+    // minute are DuckDB's own; the read as DuckDBTimeOnly has DuckDB split the value.
+    [Fact]
+    public void EverySecondOfTheDayIsReadAsDuckDBSplitsIt()
+    {
+        Command.CommandText = "SELECT t, hour(t), minute(t), microsecond(t), [t] FROM (" +
+                              "SELECT TIME '00:00:00' + INTERVAL (i) SECOND + INTERVAL ((i * 7919) % 1000000) MICROSECOND t FROM range(86400) r(i))";
+        using var reader = Command.ExecuteReader();
+
+        var rows = 0;
+        while (reader.Read())
+        {
+            var ticks = ((reader.GetInt64(1) * 60 + reader.GetInt64(2)) * 60_000_000 + reader.GetInt64(3)) * 10;
+            var split = reader.GetFieldValue<DuckDBTimeOnly>(0);
+
+            if (ticks != ((split.Hour * 60L + split.Min) * 60 + split.Sec) * 10_000_000 + split.Microsecond * 10L ||
+                reader.GetFieldValue<TimeOnly>(0).Ticks != ticks ||
+                ((TimeOnly)reader.GetValue(0)).Ticks != ticks ||
+                reader.GetDateTime(0).Ticks != ticks || reader.GetDateTime(0).Kind != DateTimeKind.Unspecified ||
+                reader.GetFieldValue<List<TimeOnly>>(4)[0].Ticks != ticks ||
+                reader.GetFieldValue<List<DateTime>>(4)[0].Ticks != ticks)
+            {
+                Assert.Fail($"Second {rows}: DuckDB says {reader.GetInt64(1)}:{reader.GetInt64(2)} and {reader.GetInt64(3)} microseconds, read as TimeOnly {reader.GetFieldValue<TimeOnly>(0):O}, as DateTime {reader.GetDateTime(0):O}");
+            }
+
+            rows++;
+        }
+
+        rows.Should().Be(86400);
+    }
+
+    // DuckDB has the end of the day as a time; a TimeOnly stops one tick before it.
+    [Fact]
+    public void TheEndOfTheDayIsNotATimeOnly()
+    {
+        Command.CommandText = "SELECT TIME '24:00:00', [TIME '24:00:00']";
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.Invoking(r => r.GetFieldValue<TimeOnly>(0)).Should().Throw<ArgumentOutOfRangeException>();
+        reader.Invoking(r => r.GetValue(0)).Should().Throw<ArgumentOutOfRangeException>();
+        reader.Invoking(r => r.GetFieldValue<List<TimeOnly>>(1)).Should().Throw<ArgumentOutOfRangeException>();
+
+        reader.GetDateTime(0).Should().Be(new DateTime(1, 1, 2));
+        reader.GetFieldValue<DuckDBTimeOnly>(0).Hour.Should().Be(24);
+    }
+
+    // Each time with each offset. What is expected comes from the text given to DuckDB, and the read as DuckDBTimeTz
+    // has DuckDB take the stored value apart.
+    [Fact]
+    public void TimeWithATimeZoneIsReadAsDuckDBSplitsIt()
+    {
+        (string Text, long Ticks)[] times =
+        [
+            ("00:00:00", 0), ("00:00:00.000001", 10), ("00:30:00", 18_000_000_000), ("03:59:59.999999", 143_999_999_990),
+            ("12:34:56.123456", 452_961_234_560), ("23:59:59.999999", 863_999_999_990), ("24:00:00", 864_000_000_000)
+        ];
+        (string Text, int Seconds)[] offsets =
+        [
+            ("-14:00", -50400), ("-05:30", -19800), ("-00:01", -60), ("+00", 0), ("+00:01", 60), ("+05:30", 19800), ("+14:00", 50400)
+        ];
+
+        var cases = (from time in times from offset in offsets select (Text: time.Text + offset.Text, time.Ticks, offset.Seconds)).ToList();
+
+        Command.CommandText = "SELECT v::TIMETZ, [v::TIMETZ] FROM (SELECT unnest([" + string.Join(", ", cases.Select(c => $"'{c.Text}'")) + "]) v)";
+        using var reader = Command.ExecuteReader();
+
+        foreach (var (text, ticks, seconds) in cases)
+        {
+            reader.Read().Should().BeTrue();
+
+            // On the second day a DateTime holds: see TimeWithATimeZoneIsReadOnTheSecondDay in TimeTests
+            var expected = new DateTimeOffset(TimeSpan.TicksPerDay + ticks, TimeSpan.FromSeconds(seconds));
+
+            var read = reader.GetFieldValue<DateTimeOffset>(0);
+            read.Should().Be(expected, text);
+            read.Offset.Should().Be(expected.Offset, text);
+            read.Ticks.Should().Be(expected.Ticks, text);
+
+            var boxed = (DateTimeOffset)reader.GetValue(0);
+            boxed.Ticks.Should().Be(expected.Ticks, text);
+            boxed.Offset.Should().Be(expected.Offset, text);
+
+            var inList = reader.GetFieldValue<List<DateTimeOffset>>(1)[0];
+            inList.Ticks.Should().Be(expected.Ticks, text);
+            inList.Offset.Should().Be(expected.Offset, text);
+
+            var split = reader.GetFieldValue<DuckDBTimeTz>(0);
+            split.Offset.Should().Be(seconds, text);
+            (((split.Time.Hour * 60L + split.Time.Min) * 60 + split.Time.Sec) * 10_000_000 + split.Time.Microsecond * 10L).Should().Be(ticks, text);
+        }
+
+        reader.Read().Should().BeFalse();
     }
 }
