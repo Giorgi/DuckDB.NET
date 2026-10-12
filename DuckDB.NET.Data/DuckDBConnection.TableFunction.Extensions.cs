@@ -205,6 +205,11 @@ public static class DuckDBConnectionTableFunctionExtensions
     {
         var (names, types, accessors) = projection.Body switch
         {
+            // Only the "new" of an anonymous type says which member each argument becomes. A constructor call such as
+            // "new Row(e.Id, e.Name)" has arguments and no names for them.
+            NewExpression { Members: null } => throw new ArgumentException(
+                "Projection cannot be a constructor call, because its arguments have no column names. " +
+                "Use an anonymous type (e => new { e.Id, e.Name }) or an object initializer (e => new Row { Id = e.Id })."),
             NewExpression newExpr => ParseNewExpression(newExpr),
             MemberInitExpression initExpr => ParseMemberInitExpression(initExpr),
             MemberExpression memberExpr => ([memberExpr.Member.Name], [memberExpr.Type], [memberExpr]),

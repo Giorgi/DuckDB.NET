@@ -401,6 +401,24 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
         ex.InnerException.Should().BeSameAs(originalException);
     }
 
+    record EmployeeName(int Id, string Name);
+
+    [Fact]
+    public void RegisterTableFunctionSimplifiedConstructorCallRejected()
+    {
+        var employees = GetEmployees(3);
+
+        // The arguments of a constructor have no column names. It used to fail with NullReferenceException.
+        Connection.Invoking(connection => connection.RegisterTableFunction("ext_ctor_record", () => employees, e => new EmployeeName(e.Id, e.Name)))
+            .Should().Throw<ArgumentException>().WithMessage("*no column names*");
+
+        Connection.Invoking(connection => connection.RegisterTableFunction("ext_ctor_tuple", () => employees, e => new Tuple<int, string>(e.Id, e.Name)))
+            .Should().Throw<ArgumentException>().WithMessage("*no column names*");
+
+        Connection.Invoking(connection => connection.RegisterTableFunction("ext_ctor_empty", () => employees, e => new EmployeeDto()))
+            .Should().Throw<ArgumentException>().WithMessage("*no column names*");
+    }
+
     private static int idReads;
     private static int nameReads;
     private static int salaryReads;
