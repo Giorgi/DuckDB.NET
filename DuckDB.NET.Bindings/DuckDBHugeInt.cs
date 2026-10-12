@@ -5,12 +5,9 @@ namespace DuckDB.NET.Native;
 [StructLayout(LayoutKind.Sequential)]
 public readonly struct DuckDBHugeInt
 {
-    private static readonly BigInteger Base = BigInteger.Pow(2, 64);
-
-    // DuckDB's HUGEINT is a 128-bit two's complement integer: -2^127 to 2^127 - 1.
-    // Parsed with the invariant culture: the current one may write the negative sign in another way.
-    public static BigInteger HugeIntMinValue { get; } = BigInteger.Parse("-170141183460469231731687303715884105728", CultureInfo.InvariantCulture);
-    public static BigInteger HugeIntMaxValue { get; } = BigInteger.Parse("170141183460469231731687303715884105727", CultureInfo.InvariantCulture);
+    // DuckDB's HUGEINT is a 128-bit two's complement integer, -2^127 to 2^127 - 1, which is what Int128 is.
+    public static BigInteger HugeIntMinValue { get; } = Int128.MinValue;
+    public static BigInteger HugeIntMaxValue { get; } = Int128.MaxValue;
 
     public DuckDBHugeInt(BigInteger value)
     {
@@ -19,16 +16,11 @@ public readonly struct DuckDBHugeInt
             throw new ArgumentOutOfRangeException(nameof(value), $"value must be between {HugeIntMinValue} and {HugeIntMaxValue}");
         }
 
-        var upper = (long)BigInteger.DivRem(value, Base, out var rem);
+        // The two halves of the Int128 are the two halves of the HUGEINT, the sign included.
+        var wide = (Int128)value;
 
-        if (rem < 0)
-        {
-            rem += Base;
-            upper -= 1;
-        }
-
-        Upper = upper;
-        Lower = (ulong)rem;
+        Upper = (long)(wide >> 64);
+        Lower = (ulong)wide;
     }
 
     public DuckDBHugeInt(ulong lower, long upper)
@@ -51,10 +43,8 @@ public readonly struct DuckDBHugeInt
 [StructLayout(LayoutKind.Sequential)]
 public readonly struct DuckDBUHugeInt
 {
-    private static readonly BigInteger Base = BigInteger.Pow(2, 64);
-
-    public static BigInteger HugeIntMinValue { get; } = BigInteger.Zero;
-    public static BigInteger HugeIntMaxValue { get; } = BigInteger.Parse("340282366920938463463374607431768211455", CultureInfo.InvariantCulture);
+    public static BigInteger HugeIntMinValue { get; } = UInt128.MinValue;
+    public static BigInteger HugeIntMaxValue { get; } = UInt128.MaxValue;
 
     public DuckDBUHugeInt(BigInteger value)
     {
@@ -63,10 +53,10 @@ public readonly struct DuckDBUHugeInt
             throw new ArgumentOutOfRangeException(nameof(value), $"value must be between {HugeIntMinValue} and {HugeIntMaxValue}");
         }
 
-        var upper = (ulong)BigInteger.DivRem(value, Base, out var rem);
+        var wide = (UInt128)value;
 
-        Upper = upper;
-        Lower = (ulong)rem;
+        Upper = (ulong)(wide >> 64);
+        Lower = (ulong)wide;
     }
 
     public DuckDBUHugeInt(ulong lower, ulong upper)

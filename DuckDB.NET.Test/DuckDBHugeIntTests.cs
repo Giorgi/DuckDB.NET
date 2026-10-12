@@ -6,6 +6,8 @@ namespace DuckDB.NET.Test;
 
 public class DuckDBHugeIntTests
 {
+    private static readonly BigInteger TwoToThe64 = BigInteger.Pow(2, 64);
+
     // The limits are set once, when the type is first used, and a failure there leaves the type unusable for the
     // rest of the process. So the test loads a second copy of the assembly and reads the limits from that copy,
     // under a culture that does not write the negative sign as "-".
@@ -36,8 +38,9 @@ public class DuckDBHugeIntTests
         }
     }
 
-    // The constructor splits a value into its two halves by division, and ToBigInteger puts them together
-    // through Int128. The two do not share code, so a value that survives both was converted correctly.
+    // The constructor and ToBigInteger both go through Int128, so a round trip alone would not notice a mistake
+    // they share. The two halves are compared with the ones that division gives: the value is
+    // Upper * 2^64 + Lower, with Lower never negative.
     [Theory]
     [InlineData("0")]
     [InlineData("1")]
@@ -56,7 +59,19 @@ public class DuckDBHugeIntTests
     {
         var value = BigInteger.Parse(text, CultureInfo.InvariantCulture);
 
-        new DuckDBHugeInt(value).ToBigInteger().Should().Be(value);
+        var hugeInt = new DuckDBHugeInt(value);
+
+        var upper = BigInteger.DivRem(value, TwoToThe64, out var lower);
+
+        if (lower < 0)
+        {
+            lower += TwoToThe64;
+            upper -= 1;
+        }
+
+        ((BigInteger)hugeInt.Upper).Should().Be(upper);
+        ((BigInteger)hugeInt.Lower).Should().Be(lower);
+        hugeInt.ToBigInteger().Should().Be(value);
     }
 
     [Theory]
@@ -71,7 +86,42 @@ public class DuckDBHugeIntTests
     {
         var value = BigInteger.Parse(text, CultureInfo.InvariantCulture);
 
-        new DuckDBUHugeInt(value).ToBigInteger().Should().Be(value);
+        var hugeInt = new DuckDBUHugeInt(value);
+
+        var upper = BigInteger.DivRem(value, TwoToThe64, out var lower);
+
+        ((BigInteger)hugeInt.Upper).Should().Be(upper);
+        ((BigInteger)hugeInt.Lower).Should().Be(lower);
+        hugeInt.ToBigInteger().Should().Be(value);
+    }
+
+    // The conversion to Int128 or UInt128 throws OverflowException by itself. Callers get the exception and the
+    // message they got before that conversion was used.
+    [Theory]
+    [InlineData("170141183460469231731687303715884105728")]     // the largest HUGEINT + 1
+    [InlineData("-170141183460469231731687303715884105729")]    // the smallest HUGEINT - 1
+    [InlineData("340282366920938463463374607431768211456")]     // 2^128: one bit more than an Int128 has
+    [InlineData("-340282366920938463463374607431768211456")]
+    public void HugeIntRejectsAValueOutOfRange(string text)
+    {
+        var value = BigInteger.Parse(text, CultureInfo.InvariantCulture);
+
+        FluentActions.Invoking(() => new DuckDBHugeInt(value)).Should().Throw<ArgumentOutOfRangeException>()
+            .WithMessage("value must be between -170141183460469231731687303715884105728 and 170141183460469231731687303715884105727*")
+            .Which.ParamName.Should().Be("value");
+    }
+
+    [Theory]
+    [InlineData("-1")]
+    [InlineData("-170141183460469231731687303715884105728")]    // fits an Int128, and is still not a UHUGEINT
+    [InlineData("340282366920938463463374607431768211456")]     // the largest UHUGEINT + 1
+    public void UHugeIntRejectsAValueOutOfRange(string text)
+    {
+        var value = BigInteger.Parse(text, CultureInfo.InvariantCulture);
+
+        FluentActions.Invoking(() => new DuckDBUHugeInt(value)).Should().Throw<ArgumentOutOfRangeException>()
+            .WithMessage("value must be between 0 and 340282366920938463463374607431768211455*")
+            .Which.ParamName.Should().Be("value");
     }
 
     private static BigInteger Limit(Assembly assembly, Type type, string property)
