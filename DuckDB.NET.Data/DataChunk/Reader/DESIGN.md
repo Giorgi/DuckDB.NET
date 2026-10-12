@@ -85,6 +85,18 @@ not use profile data to guess the target as it does for a plain virtual call.
   change measurably. The first-row cost of decision 3 fell from about 1.0 ms to about 0.45 ms, because each of the ten
   bodies is cheaper to compile.
 - **Rule:** do not build an exception message inline in a method on the read path.
+- **The same cost, found again in `DecimalVectorDataReader.GetDecimal`.** It held the conversion of all four storage
+  sizes. The one for a HUGEINT divides and has a `try` block, and the method built a message for an unknown storage
+  size. Every call reserved 248 bytes of stack and cleared 56 of them (.NET 10; 280 and 72 on .NET 8), also for the
+  three small sizes, whose conversion is a dozen instructions. Now the wide case is `GetWideDecimal` and the message
+  is `InvalidStorageType()`. Moving the wide case alone left 40 bytes cleared per call, because of the message.
+  `GetDecimal` went from 1,612 to 487 bytes on .NET 10 (1,831 to 552 on .NET 8) and clears nothing.
+- **Here it did change throughput:** 4,000,000 `GetDecimal` calls on DECIMAL(18,4), against the build with decision
+  3: 0.79 to 0.81 on .NET 10 (four runs, 55.6 to 56.1 ms against 69 to 70 ms). On .NET 8 the four runs were 0.70,
+  0.79, 0.90 and 1.52: this build measured 55, 57 and 62 ms, and 100 ms in one launch that was slow throughout. Why
+  .NET 8 varies between launches is not known. Decision 5 alone measured 0.97 to 0.99 and 0.93 to 0.94 on this read.
+- **So: keep a rare, expensive case out of the method that holds the common, cheap ones.** A stack frame is sized
+  and cleared for everything in the method.
 
 ### 5. Twelve typed `Read...` methods
 
@@ -155,9 +167,10 @@ not use profile data to guess the target as it does for a plain virtual call.
   - not built, with the reason: a generic interface per type tested with `is` (a helper call per read); a generic
     intermediate class or a generic static stub (code generic over a reference type is shared, so the call is still
     a generic virtual call); fewer, wider virtual methods (changes behaviour at the limits).
-- **Getters that bring no measured speed:** `ReadDecimal` and `ReadGuid`. Their conversions cost 16 and 22 ns per
-  value, and the lookup hardly shows next to that. They are kept so that those types take the same route as the
-  others.
+- **Getters that brought no measured speed:** `ReadDecimal` and `ReadGuid`. A `GetDecimal` cost about 16 ns and a
+  `GetGuid` about 22 ns in all when this was measured (.NET 10), and the lookup hardly showed next to that. They are
+  kept so that those types take the same route as the others. Both reads have been made cheaper since, in other
+  ways: see decision 4 and "Smaller decisions".
 
 ### 6. Nullable reads go through `NullableReader<TValue>`
 
@@ -263,6 +276,14 @@ not use profile data to guess the target as it does for a plain virtual call.
   type would stop being a constant for the JIT.
 - **`DecimalVectorDataReader` has no inner reader.** It reads a HUGEINT-backed decimal from its own data pointer. It
   used to hold a numeric reader only for that, and had to reset and dispose it with every chunk.
+- **A UUID is converted to a `Guid` from its parts** (`GuidConverter`, in `Extensions`). DuckDB stores a UUID as the
+  128-bit number its text form spells, with the top bit flipped, so the two halves hold exactly the parts the `Guid`
+  constructor takes. The conversion used to write both halves into a 32-byte stack buffer, move 16 bytes one at a
+  time through a table of positions and build the `Guid` from a span: 188 bytes of code with a loop, against 116
+  with none (.NET 10). The write direction reads two big-endian 64-bit numbers from the bytes of the `Guid`. Old and
+  new were compared in both directions on 40,001,412 values per runtime, none different. Measured, 4,000,000
+  `GetGuid` calls against the build with decision 3: 95.9 to 66.1 ms on .NET 10 (one run, 0.69); on .NET 8 two
+  noisy runs, 0.44 and 0.55. The write direction is not measured.
 - **A column type with no reader gets a plain `VectorDataReaderBase`** from the factory (a UNION column, for
   example). The query runs, and every read of a value throws "Unrecognised type". Do not make a real reader the
   default: it would return values read with the wrong layout.
@@ -280,8 +301,8 @@ not use profile data to guess the target as it does for a plain virtual call.
 - **TIMESTAMP and DATE are converted by a call into DuckDB per value:** 22.9 ns per timestamp and 12.5 ns per date,
   where the arithmetic alone measured under 1 ns. Moving it to C# needs correctness checks first (infinity, the
   limits of `DateTime`, values DuckDB itself rejects).
-- **A wide DECIMAL (stored as a HUGEINT) is still divided on every read:** 52 to 70 ns per value, where a
-  DECIMAL(18,4), which is built from the stored integer and the scale with no division, takes about 16 ns. A value
+- **A wide DECIMAL (stored as a HUGEINT) is still divided on every read:** about 50 to 70 ns per value, where a
+  DECIMAL(18,4), which is built from the stored integer and the scale with no division, takes about 14 ns. A value
   that fits 96 bits with a scale of at most 28 could be built the same way. That is not done because it changes what
   the value looks like: `1.5000` where it is `1.5` today. Its speed is not measured.
 - **`GetValue` boxes every value** except booleans. It returns `object`; nothing can be done about it here.
