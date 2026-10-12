@@ -18,7 +18,7 @@ DuckDBDataReader.GetInt64(ordinal)
     -> VectorDataReaderBase.GetValueStrict<long>(offset)      NULL check
       -> ReadValidValue<long>(offset)
            1. the column holds exactly a long     -> load it from memory          (the fast path)
-           2. long is one of the twelve types     -> ReadInt64(offset)            (a plain virtual call)
+           2. long is one of the fourteen types   -> ReadInt64(offset)            (a plain virtual call)
            3. anything else                       -> GetValidValue<long>(offset)  (a generic virtual call)
 ```
 
@@ -98,12 +98,18 @@ not use profile data to guess the target as it does for a plain virtual call.
 - **So: keep a rare, expensive case out of the method that holds the common, cheap ones.** A stack frame is sized
   and cleared for everything in the method.
 
-### 5. Twelve typed `Read...` methods
+### 5. Fourteen typed `Read...` methods
 
 - **What:** `VectorDataReaderBase` declares one plain virtual method for each type `DbDataReader` has a getter for
   (`ReadBoolean`, `ReadByte`, `ReadInt16`, `ReadInt32`, `ReadInt64`, `ReadFloat`, `ReadDouble`, `ReadDecimal`,
-  `ReadDateTime`, `ReadGuid`, `ReadString`, `ReadStream`). Each defaults to `GetValidValue<T>`. `ReadValidValue<T>`
-  has one line per type that calls it. A reader overrides the ones it produces.
+  `ReadDateTime`, `ReadGuid`, `ReadString`, `ReadStream`), and two more for `ReadDateTimeOffset` and `ReadDateOnly`.
+  Each defaults to `GetValidValue<T>`. `ReadValidValue<T>` has one line per type that calls it. A reader overrides
+  the ones it produces.
+- **The last two were added with decision 8,** when the conversion behind them had become cheap enough for the
+  lookup to show: without them a DATE read as `DateOnly` took 24.7 ms for 4,000,000 values and with them 9.5 ms; a
+  TIMESTAMPTZ read as `DateTimeOffset` 74.5 ms and 58.7 ms (.NET 10, the two figures of each pair from different
+  runs). `DbDataReader` has no getter for either type; `GetFieldValue<T>` is how they are read. A further target
+  type is worth a method only when a measurement shows the lookup, as here.
 - **Why:** after decision 3 every read that missed the fast path still paid the lookup: a numeric column read as
   another numeric type, and every `GetString`, `GetDateTime`, `GetDecimal` and `GetGuid`.
 - **Why a list of types in the base class:** a cheap call needs a slot, and a slot needs a declared method per
@@ -268,6 +274,58 @@ not use profile data to guess the target as it does for a plain virtual call.
 - **Pinned by:** `HugeIntAtTheLimitsOfLongAndULong`, ten values just inside and just outside what `long` and `ulong`
   hold, for both column types; and `OverflowingHugeIntReadNamesTheColumnTypeAndTheColumn`.
 
+### 8. A DATE and a timestamp are converted by arithmetic
+
+- **What:** `DateTimeVectorDataReader` converts a DATE read as `DateTime` or `DateOnly`, and a TIMESTAMP,
+  TIMESTAMP_S, _MS, _NS or TIMESTAMPTZ read as `DateTime` or `DateTimeOffset`, itself. DuckDB stores a DATE as days
+  and a timestamp as a count in the unit of the column, both from 1970-01-01. A `DateTime` counts ticks of 100 ns
+  from 0001-01-01. So the read is one multiplication, one addition and one comparison for the range. Both paths do
+  it: the typed one and `GetValue(offset, Type)`.
+- **Why:** the read used to ask DuckDB whether the value was finite (`duckdb_is_finite_*`), have DuckDB split it into
+  year, month, day and time (`duckdb_from_timestamp`, `duckdb_from_date`), and put the parts back together with
+  `new DateTime(year, month, day).AddTicks(...)`. The split measured 18 of the 22.9 ns of a timestamp conversion.
+- **Infinity is two stored values,** the same two for every timestamp unit and two for a DATE, and the bindings have
+  them as constants (`IsInfinity`). DuckDB's own functions make that comparison. An infinite value read as a .NET
+  type throws `InvalidOperationException` with the message it always had.
+- **The range check is one unsigned comparison** per read (`(ulong)(units - minimum) > (ulong)(maximum - minimum)`).
+  It also catches the infinity markers, so the common path has no separate test for them; the helper that builds
+  the exception tells the two apart. TIMESTAMP_NS has no range check: its whole range, 1677 to 2262, is inside a
+  `DateTime`, so there the two markers are tested directly.
+- **TIMESTAMP_NS: `ticks = nanoseconds / 100`,** dropped toward zero for both signs. The earlier code did the same,
+  and so does DuckDB when it casts a TIMESTAMP_NS to a TIMESTAMP.
+- **A value outside the .NET type** throws `ArgumentOutOfRangeException`, as before, with a message that names the
+  column and the DuckDB type that can hold it. Readers of function arguments have no column name and leave it out.
+- **What still calls DuckDB:** a read as `DuckDBDateOnly` or `DuckDBTimestamp`, which needs the year, month and day,
+  and every read of a TIME or TIMETZ.
+- **A defect that went with it:** `make_timestamp` can store a finite TIMESTAMP below DuckDB's own minimum
+  (duckdb/duckdb#26797). `duckdb_from_timestamp` throws a C++ exception for it, which reached the caller as
+  `SEHException`. Catching that is not safe: in a review the process died within 20,000 such reads, on both
+  runtimes. A read as `DateTime` no longer goes there. A read as `DuckDBTimestamp` still does; that is left to
+  DuckDB, and the message for such a value does not recommend it.
+- **The guard, because this code now assumes how DuckDB stores these types:**
+  `DuckDB.NET.Test/TemporalConversionTests.cs` compares each read with what DuckDB itself says about the same value:
+  the split (`GetFieldValue<DuckDBTimestamp>`), the text (`strftime`) and the count (`epoch_us`). Every day a
+  `DateTime` holds is in it, and each timestamp type. If a DuckDB release changes a unit, an epoch or a marker, it
+  fails. Do not replace those comparisons with constants worked out in C#.
+- **Checked:** the old and the new build on about 430,000 result lines per runtime (stored values through every
+  accessor, lists, structs, maps, nullable targets, function arguments, three session time zones), nothing different
+  but the exceptions above; 40 deliberate mistakes in the new code, 39 caught by the guard class, the last one in
+  code SQL cannot reach.
+- **Measured** against `1.5.6-alpha.53`, 4,000,000 values, ratio of the time. .NET 8 is one run; on .NET 10 the two
+  rows with a typed method of decision 5 are from a second run:
+
+  | Read | .NET 10 | .NET 8 |
+  |---|---|---|
+  | TIMESTAMP as `DateTime` | 0.15 (125.9 to 19.3 ms) | 0.20 (117.0 to 23.0 ms) |
+  | TIMESTAMP_NS as `DateTime` | 0.17 | 0.18 |
+  | TIMESTAMPTZ as `DateTimeOffset` | 0.37 | 0.40 |
+  | TIMESTAMP with `GetValue` | 0.24 | 0.28 |
+  | DATE as `DateTime` | 0.16 (68.4 to 10.6 ms) | 0.24 (63.6 to 14.9 ms) |
+  | DATE as `DateOnly` | 0.12 | 0.19 |
+
+  The test for infinity alone, before the arithmetic, measured 0.65 and 0.85 on the two DATE reads and nothing
+  measurable on timestamps (.NET 10).
+
 ### Smaller decisions
 
 - **`BigIntegerVectorDataReader` is a separate, non-generic class.** HUGEINT, UHUGEINT and VARINT read as
@@ -298,9 +356,13 @@ not use profile data to guess the target as it does for a plain virtual call.
 
 ### Costs that are known and not yet removed
 
-- **TIMESTAMP and DATE are converted by a call into DuckDB per value:** 22.9 ns per timestamp and 12.5 ns per date,
-  where the arithmetic alone measured under 1 ns. Moving it to C# needs correctness checks first (infinity, the
-  limits of `DateTime`, values DuckDB itself rejects).
+- **TIME and TIMETZ are still split by a call into DuckDB per value** (`duckdb_from_time`, `duckdb_from_time_tz`)
+  and put back together in C#. A TIME is a count of microseconds; a TIMETZ packs the time and the offset into 64
+  bits, and that layout has to be taken from DuckDB's source before it is read here. Not measured. Their branches
+  are also why `GetValidValue<DateTime>` still clears 16 to 24 bytes of stack on entry (decision 4).
+- **A TIMESTAMPTZ read as `DateTimeOffset` keeps about 15 ns per value** where a `DateTime` takes 5: the constructor
+  of `DateTimeOffset` is a call that validates the offset. That is the cost of the type.
+- **A read as `DuckDBTimestamp` or `DuckDBDateOnly` calls DuckDB,** by design (decision 8).
 - **A wide DECIMAL (stored as a HUGEINT) is still divided on every read:** about 50 to 70 ns per value, where a
   DECIMAL(18,4), which is built from the stored integer and the scale with no division, takes about 14 ns. A value
   that fits 96 bits with a scale of at most 28 could be built the same way. That is not done because it changes what
@@ -312,7 +374,8 @@ not use profile data to guess the target as it does for a plain virtual call.
 
 ## Behaviour: what converts to what
 
-`DuckDB.NET.Test/NumericReaderConversionTests.cs` pins all of this.
+`DuckDB.NET.Test/NumericReaderConversionTests.cs` pins the numeric part of this, `DuckDBDataReaderEnumTests.cs` the
+ENUM row, and `TemporalConversionTests.cs` the dates and timestamps at the end.
 
 | Column | As an integer type | As `float` or `double` | As `decimal` | As `BigInteger` |
 |---|---|---|---|---|
@@ -340,6 +403,16 @@ not use profile data to guess the target as it does for a plain virtual call.
   as `long` on the typed path only (decision 7 is on the typed path).
 - **Planned for the next major version:** a value with a fraction read as an integer type will throw instead of
   rounding, for FLOAT, DOUBLE and DECIMAL alike; and both paths will share one conversion.
+
+Dates and timestamps (decision 8):
+
+- A DATE reads as `DateOnly` (what `GetValue` returns), `DateTime` at midnight, or `DuckDBDateOnly`. A timestamp of
+  any unit reads as `DateTime` (what `GetValue` returns), `DateTimeOffset` with offset zero, or `DuckDBTimestamp`.
+- A `DateTime` has `Kind` `Unspecified`, also for a TIMESTAMPTZ, which DuckDB stores in UTC.
+- A TIMESTAMP_NS loses what is below 100 ns, toward zero. Read as `DuckDBTimestamp` it loses what is below a
+  microsecond.
+- Infinity reads only as the DuckDB types; as a .NET type it throws `InvalidOperationException`.
+- A finite value outside the .NET type throws `ArgumentOutOfRangeException`. The two paths agree on all of this.
 
 ## Rules for changing this code
 
