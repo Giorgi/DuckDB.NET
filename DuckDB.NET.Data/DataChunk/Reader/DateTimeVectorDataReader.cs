@@ -9,16 +9,15 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
     // A TIME is microseconds from midnight, and a TIMETZ packs those and the offset into 64 bits; they are read in the
     // same way, and as DuckDBTimeOnly or DuckDBTimeTz DuckDB splits them.
     // TemporalConversionTests compares the two ways, so a change in DuckDB shows there.
-    private const int UnixEpochDayNumber = 719_162;                 // DateOnly.FromDateTime(DateTime.UnixEpoch).DayNumber
+    private const int UnixEpochDayNumber = DateTimeExtensions.UnixEpochDayNumber;
     private const int MaxDayNumber = 3_652_058;                     // DateOnly.MaxValue.DayNumber
-    private const long UnixEpochTicks = 621_355_968_000_000_000;    // DateTime.UnixEpoch.Ticks
+    private const long UnixEpochTicks = DateTimeExtensions.UnixEpochTicks;
     private const long MaxTicks = 3_155_378_975_999_999_999;        // DateTime.MaxValue.Ticks
 
-    // A TIMETZ, from dtime_tz_t in DuckDB's datetime.hpp: the microseconds from midnight in the upper 40 bits, and in
-    // the lower 24 the offset from UTC, stored as the largest offset (15:59:59) minus the offset, in seconds.
-    private const int TimeTzOffsetBits = 24;
-    private const ulong TimeTzOffsetMask = (1UL << TimeTzOffsetBits) - 1;
-    private const int TimeTzMaximumOffsetSeconds = 16 * 60 * 60 - 1;
+    // The layout of a TIMETZ is described where the constants are.
+    private const int TimeTzOffsetBits = DateTimeExtensions.TimeTzOffsetBits;
+    private const ulong TimeTzOffsetMask = DateTimeExtensions.TimeTzOffsetMask;
+    private const int TimeTzMaximumOffsetSeconds = DateTimeExtensions.TimeTzMaximumOffsetSeconds;
 
     private const long MinimumDuckDBMicroseconds = -9_223_372_022_400_000_000;  // TIMESTAMP '290309-12-22 (BC) 00:00:00'
 

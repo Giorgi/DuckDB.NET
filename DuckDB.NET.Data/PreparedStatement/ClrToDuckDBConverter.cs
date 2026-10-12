@@ -27,25 +27,25 @@ internal static class ClrToDuckDBConverter
         },
         { DbType.Date, value =>
             {
-                var date = (value is DateOnly dateOnly ? (DuckDBDateOnly)dateOnly : (DuckDBDateOnly)value).ToDuckDBDate();
+                var date = value is DateOnly dateOnly ? dateOnly.ToDuckDBDate() : ((DuckDBDateOnly)value).ToDuckDBDate();
                 return NativeMethods.Value.DuckDBCreateDate(date);
             }
         },
         { DbType.Time, value =>
             {
                 // A TimeSpan is a time of day here: TimeOnly.FromTimeSpan refuses a negative one or one of a day or more.
-                var time = NativeMethods.DateTimeHelpers.DuckDBToTime(value switch
+                var time = value switch
                 {
-                    TimeOnly timeOnly => (DuckDBTimeOnly)timeOnly,
-                    TimeSpan timeSpan => (DuckDBTimeOnly)TimeOnly.FromTimeSpan(timeSpan),
-                    _ => (DuckDBTimeOnly)value
-                });
+                    TimeOnly timeOnly => timeOnly.ToDuckDBTime(),
+                    TimeSpan timeSpan => TimeOnly.FromTimeSpan(timeSpan).ToDuckDBTime(),
+                    _ => NativeMethods.DateTimeHelpers.DuckDBToTime((DuckDBTimeOnly)value)
+                };
                 return NativeMethods.Value.DuckDBCreateTime(time);
             }
         },
         { DbType.DateTime, value =>
             {
-                var dateTime = (value is DateTime dt ? (DuckDBTimestamp)dt : (DuckDBTimestamp)value).ToDuckDBTimestampStruct();
+                var dateTime = value is DateTime dt ? dt.ToTimestampStruct(DuckDBType.Timestamp) : ((DuckDBTimestamp)value).ToDuckDBTimestampStruct();
                 return NativeMethods.Value.DuckDBCreateTimestamp(dateTime);
             }
         },
@@ -94,12 +94,12 @@ internal static class ClrToDuckDBConverter
             // No inferred type (a bare "?"): TimeSpan has no DbType, and its ToString() isn't interval text
             // DuckDB can parse once there are days ("1.01:01:01"). DbType.Time sends it as a time instead.
             (DuckDBType.Invalid, TimeSpan value) when dbType != DbType.Time => NativeMethods.Value.DuckDBCreateInterval(value),
-            (DuckDBType.Date, DateTime value) => NativeMethods.Value.DuckDBCreateDate(((DuckDBDateOnly)value).ToDuckDBDate()),
+            (DuckDBType.Date, DateTime value) => NativeMethods.Value.DuckDBCreateDate(value.ToDuckDBDate()),
             (DuckDBType.Date, DuckDBDateOnly value) => NativeMethods.Value.DuckDBCreateDate(value.ToDuckDBDate()),
-            (DuckDBType.Time, DateTime value) => NativeMethods.Value.DuckDBCreateTime(NativeMethods.DateTimeHelpers.DuckDBToTime((DuckDBTimeOnly)value)),
+            (DuckDBType.Time, DateTime value) => NativeMethods.Value.DuckDBCreateTime(value.ToDuckDBTime()),
             (DuckDBType.Time, DuckDBTimeOnly value) => NativeMethods.Value.DuckDBCreateTime(NativeMethods.DateTimeHelpers.DuckDBToTime(value)),
-            (DuckDBType.Date, DateOnly value) => NativeMethods.Value.DuckDBCreateDate(((DuckDBDateOnly)value).ToDuckDBDate()),
-            (DuckDBType.Time, TimeOnly value) => NativeMethods.Value.DuckDBCreateTime(NativeMethods.DateTimeHelpers.DuckDBToTime(value)),
+            (DuckDBType.Date, DateOnly value) => NativeMethods.Value.DuckDBCreateDate(value.ToDuckDBDate()),
+            (DuckDBType.Time, TimeOnly value) => NativeMethods.Value.DuckDBCreateTime(value.ToDuckDBTime()),
             (DuckDBType.TimeTz, DateTimeOffset value) => NativeMethods.Value.DuckDBCreateTimeTz(value.ToTimeTzStruct()),
             (DuckDBType.Blob, byte[] value) => NativeMethods.Value.DuckDBCreateBlob(value, value.Length),
             (DuckDBType.List, ICollection value) => CreateCollectionValue(logicalType, value, true, dbType),
