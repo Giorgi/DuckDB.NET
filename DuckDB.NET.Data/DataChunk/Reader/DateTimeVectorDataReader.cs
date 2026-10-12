@@ -80,6 +80,11 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
                 return (T)(object)new DateTime(GetTimeTicks(offset));
             }
 
+            if (typeof(T) == typeof(TimeSpan))
+            {
+                return (T)(object)new TimeSpan(GetTimeTicks(offset));
+            }
+
             return (T)(object)GetTimeOnly(offset);
         }
 
@@ -189,8 +194,8 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
         return timestampStruct.ToDuckDBTimestamp(DuckDBType).result;
     }
 
-    // The ticks from midnight. DuckDB has 24:00:00 as a time; a TimeOnly refuses it, and a DateTime takes it as the
-    // start of the next day.
+    // The ticks from midnight. DuckDB has 24:00:00 as a time; a TimeOnly refuses it, a DateTime takes it as the
+    // start of the next day, and a TimeSpan as one day.
     private long GetTimeTicks(ulong offset) => GetFieldData<DuckDBTime>(offset).Micros * TimeSpan.TicksPerMicrosecond;
 
     // A DateTimeOffset needs a date, and a TIMETZ has none. The time is put on 0001-01-02, the second day a DateTime
@@ -244,6 +249,11 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
         if (targetType == typeof(DateTime))
         {
             return new DateTime(GetTimeTicks(offset));
+        }
+
+        if (targetType == typeof(TimeSpan))
+        {
+            return new TimeSpan(GetTimeTicks(offset));
         }
 
         return GetTimeOnly(offset);

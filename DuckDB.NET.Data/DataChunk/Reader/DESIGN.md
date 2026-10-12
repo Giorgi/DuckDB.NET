@@ -435,9 +435,11 @@ Dates, times and timestamps (decision 8):
   microsecond.
 - Infinity reads only as the DuckDB types; as a .NET type it throws `InvalidOperationException`.
 - A finite value outside the .NET type throws `ArgumentOutOfRangeException`. The two paths agree on all of this.
-- A TIME reads as `TimeOnly` (what `GetValue` returns), as `DateTime` on 0001-01-01, or as `DuckDBTimeOnly`.
-  `24:00:00`, which DuckDB allows, is refused as `TimeOnly` (`ArgumentOutOfRangeException` from its constructor)
-  and is 0001-01-02 as `DateTime`. Not as `TimeSpan`, which Npgsql allows.
+- A TIME reads as `TimeOnly` (what `GetValue` returns), as `TimeSpan` (the time since midnight), as `DateTime` on
+  0001-01-01, or as `DuckDBTimeOnly`. `24:00:00`, which DuckDB allows, is refused as `TimeOnly`
+  (`ArgumentOutOfRangeException` from its constructor), is one day as `TimeSpan`, and is 0001-01-02 as `DateTime`.
+  Npgsql reads a `time` as `TimeOnly` and `TimeSpan` in the same way. A TIMETZ does not read as `TimeSpan`, there
+  as here. `TimeSpan` has no typed `Read...` method (decision 5); nothing has measured that read.
 - A TIMETZ reads as `DateTimeOffset` (what `GetValue` returns) with the time on 0001-01-02, or as `DuckDBTimeTz`.
   A `DateTimeOffset` needs a date. On 0001-01-01 a time earlier in the day than its own positive offset, such as
   `00:30:00+01`, would be an instant before year 1, which `DateTimeOffset` refuses; Npgsql uses the second day for

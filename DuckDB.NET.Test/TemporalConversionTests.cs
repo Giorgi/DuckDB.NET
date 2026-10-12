@@ -371,6 +371,8 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
 
             if (ticks != ((split.Hour * 60L + split.Min) * 60 + split.Sec) * 10_000_000 + split.Microsecond * 10L ||
                 reader.GetFieldValue<TimeOnly>(0).Ticks != ticks ||
+                reader.GetFieldValue<TimeSpan>(0).Ticks != ticks ||
+                reader.GetFieldValue<List<TimeSpan>>(4)[0].Ticks != ticks ||
                 ((TimeOnly)reader.GetValue(0)).Ticks != ticks ||
                 reader.GetDateTime(0).Ticks != ticks || reader.GetDateTime(0).Kind != DateTimeKind.Unspecified ||
                 reader.GetFieldValue<List<TimeOnly>>(4)[0].Ticks != ticks ||
@@ -399,6 +401,11 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
 
         reader.GetDateTime(0).Should().Be(new DateTime(1, 1, 2));
         reader.GetFieldValue<DuckDBTimeOnly>(0).Hour.Should().Be(24);
+
+        // A TimeSpan is a length of time and holds a whole day; it is the .NET type that reads this value as a time.
+        reader.GetFieldValue<TimeSpan>(0).Should().Be(TimeSpan.FromDays(1));
+        reader.GetFieldValue<TimeSpan?>(0).Should().Be(TimeSpan.FromDays(1));
+        reader.GetFieldValue<List<TimeSpan>>(1).Should().Equal(TimeSpan.FromDays(1));
     }
 
     // Each time with each offset. What is expected comes from the text given to DuckDB, and the read as DuckDBTimeTz
