@@ -103,8 +103,8 @@ dotnet run -c Release --project DuckDB.NET.Benchmarks
   registered in the factory, and must override `Reset` if it has child readers.
 - **The vector readers are performance-critical and shaped by measurement.** Before changing anything in
   `DuckDB.NET.Data/DataChunk/Reader`, read `DESIGN.md` in that folder: it records why the read path is written as
-  it is, with the measurements and the designs that were rejected. `AGENTS.md` in the same folder has the rules
-  that must hold after a change.
+  it is, with the measurements and the designs that were rejected. `AGENTS.md` in `DataChunk` has the rules that
+  must hold after a change, for the readers and for the writers.
 - **Invariants in `DuckDBDataReader`, each guarded by a regression test:**
   - A NULL chunk from a streaming fetch means either the end of the results or an error. Check the result's error
     before treating it as the end.
@@ -125,8 +125,8 @@ dotnet run -c Release --project DuckDB.NET.Benchmarks
   are separate because DuckDB stores the two differently.
 - **The write path is shaped by measurement, like the readers.** Before changing a writer, the appender row, the
   mapped appender or the loops of scalar and table functions, read `DESIGN.md` in `DataChunk/Writer`: it records
-  why the write path is written as it is, with the measurements, the designs that were rejected, and the rules
-  that must hold after a change.
+  why the write path is written as it is, with the measurements and the designs that were rejected. The readers
+  and the writers mirror each other, so look at both folders before changing how a type is read or written.
 - **`DuckDBAppender`:** the low-level appender (`connection.CreateAppender(table)`, then `CreateRow().AppendValue(...)`,
   or the allocation-free `AppendRow`). It buffers rows in a data chunk of `VectorSize` (2048) rows. It does **no type
   checking** and writes the raw bytes of the .NET type it is given; the docs call this out. A row is written only once
