@@ -28,6 +28,15 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
             return;
         }
 
+        // Both tests are constants for the JIT, so a T that is not a nullable value type does not keep this branch.
+        // A nullable value type must not reach the switch below: testing its type there boxes it, for every value.
+        if (typeof(T).IsValueType && default(T) is null)
+        {
+            WriteNullable(ref value, rowIndex);
+            MarkValid(rowIndex);
+            return;
+        }
+
         _ = value switch
         {
             bool val => AppendBool(val, rowIndex),
@@ -63,11 +72,62 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
             _ => ThrowException<T>()
         };
 
-        // A value can land where a NULL was written before: a collection that failed part way can have
-        // marked some of its items NULL, and retrying it writes the same items again.
+        MarkValid(rowIndex);
+    }
+
+    // A value can land where a NULL was written before: a collection that failed part way can have
+    // marked some of its items NULL, and retrying it writes the same items again.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void MarkValid(ulong rowIndex)
+    {
         if (validity != default)
         {
             ValidityMask.SetValid(validity, rowIndex);
+        }
+    }
+
+    // T is a nullable value type and the value is not null. A test of T against a type is a constant for the JIT,
+    // so one line is left, which calls the method that the switch in WriteValue calls for the underlying type.
+    // The lines are in the order of that switch.
+    private void WriteNullable<T>(ref T value, ulong rowIndex)
+    {
+        if (typeof(T) == typeof(bool?)) AppendBool(Unsafe.As<T, bool?>(ref value).GetValueOrDefault(), rowIndex);
+
+        else if (typeof(T) == typeof(sbyte?)) AppendNumeric(Unsafe.As<T, sbyte?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(short?)) AppendNumeric(Unsafe.As<T, short?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(int?)) AppendNumeric(Unsafe.As<T, int?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(long?)) AppendNumeric(Unsafe.As<T, long?>(ref value).GetValueOrDefault(), rowIndex);
+
+        else if (typeof(T) == typeof(byte?)) AppendNumeric(Unsafe.As<T, byte?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(ushort?)) AppendNumeric(Unsafe.As<T, ushort?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(uint?)) AppendNumeric(Unsafe.As<T, uint?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(ulong?)) AppendNumeric(Unsafe.As<T, ulong?>(ref value).GetValueOrDefault(), rowIndex);
+
+        else if (typeof(T) == typeof(float?)) AppendNumeric(Unsafe.As<T, float?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(double?)) AppendNumeric(Unsafe.As<T, double?>(ref value).GetValueOrDefault(), rowIndex);
+
+        else if (typeof(T) == typeof(decimal?)) AppendDecimal(Unsafe.As<T, decimal?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(BigInteger?)) AppendBigInteger(Unsafe.As<T, BigInteger?>(ref value).GetValueOrDefault(), rowIndex);
+
+        else if (typeof(T) == typeof(Guid?)) AppendGuid(Unsafe.As<T, Guid?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(DateTime?)) AppendDateTime(Unsafe.As<T, DateTime?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(TimeSpan?)) AppendTimeSpan(Unsafe.As<T, TimeSpan?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(DuckDBDateOnly?)) AppendDateOnly(Unsafe.As<T, DuckDBDateOnly?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(DuckDBTimeOnly?)) AppendTimeOnly(Unsafe.As<T, DuckDBTimeOnly?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(DateOnly?)) AppendDateOnly(Unsafe.As<T, DateOnly?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(TimeOnly?)) AppendTimeOnly(Unsafe.As<T, TimeOnly?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(DateTimeOffset?)) AppendDateTimeOffset(Unsafe.As<T, DateTimeOffset?>(ref value).GetValueOrDefault(), rowIndex);
+
+        // What is left of the switch for a value type: an enum, a struct that is a collection, and the error.
+        // These are boxed, as they were.
+        else
+        {
+            _ = (object)value! switch
+            {
+                Enum val => AppendEnum(val, rowIndex),
+                ICollection val => AppendCollection(val, rowIndex),
+                _ => ThrowException<T>()
+            };
         }
     }
 

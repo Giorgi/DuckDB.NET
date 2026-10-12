@@ -540,6 +540,47 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
         }
     }
 
+    // A list that fails part way has already written some of its items, a NULL among them. The value appended in
+    // its place puts a number where that NULL was, and the item has to stop being NULL.
+    [Fact]
+    public void NullableItemsAppendedAfterAFailedListReplaceItsNulls()
+    {
+        Command.CommandText = "CREATE TABLE list_retry_nullable (l INTEGER[])";
+        Command.ExecuteNonQuery();
+
+        using (var appender = Connection.CreateAppender("list_retry_nullable"))
+        {
+            var row = appender.CreateRow();
+
+            row.Invoking(r => r.AppendValue(new NullThenFailure())).Should().Throw<InvalidOperationException>().WithMessage("no more items");
+            row.AppendValue(new List<int?> { 7, null, 9 }).EndRow();
+        }
+
+        Command.CommandText = "SELECT l FROM list_retry_nullable";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        reader.GetFieldValue<List<int?>>(0).Should().Equal(7, null, 9);
+    }
+
+    // Says it has three items, gives a NULL and then fails.
+    private sealed class NullThenFailure : System.Collections.ICollection, IEnumerable<int?>
+    {
+        public int Count => 3;
+        public bool IsSynchronized => false;
+        public object SyncRoot => this;
+
+        public void CopyTo(Array array, int index) => throw new NotSupportedException();
+
+        public IEnumerator<int?> GetEnumerator()
+        {
+            yield return null;
+            throw new InvalidOperationException("no more items");
+        }
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
     private enum TestEnum
     {
         Test1 = 0,

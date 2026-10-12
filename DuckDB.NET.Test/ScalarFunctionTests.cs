@@ -664,6 +664,60 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         ex.InnerException.Should().BeSameAs(originalException);
     }
 
+    // A function that returns a nullable value type writes it without boxing it, through one line per type in
+    // VectorDataWriterBase.WriteNullable. Every type that has a line is here, with a value and a NULL, over more
+    // rows than one chunk holds.
+    [Fact]
+    public void SimplifiedScalarFunctionReturnsNullableOfEveryType()
+    {
+        ReturnsNullable<bool>(true);
+        ReturnsNullable<sbyte>(-5);
+        ReturnsNullable<short>(-1234);
+        ReturnsNullable<int>(-123456);
+        ReturnsNullable<long>(-12345678901);
+        ReturnsNullable<byte>(200);
+        ReturnsNullable<ushort>(60000);
+        ReturnsNullable<uint>(4000000000);
+        ReturnsNullable<ulong>(18000000000000000000);
+        ReturnsNullable<float>(1.5f);
+        ReturnsNullable<double>(2.25);
+        ReturnsNullable<decimal>(12.5m);
+        ReturnsNullable<BigInteger>(BigInteger.Pow(2, 100));
+        ReturnsNullable<Guid>(Guid.Parse("0f8fad5b-d9cb-469f-a165-70867728950e"));
+        ReturnsNullable<DateTime>(new DateTime(2024, 2, 29, 12, 30, 45));
+        ReturnsNullable<TimeSpan>(new TimeSpan(1, 2, 3, 4));
+        ReturnsNullable<DuckDBDateOnly>(new DuckDBDateOnly(2024, 2, 29));
+        ReturnsNullable<DuckDBTimeOnly>(new DuckDBTimeOnly(12, 30, 45));
+        ReturnsNullable<DateOnly>(new DateOnly(2024, 2, 29));
+        ReturnsNullable<TimeOnly>(new TimeOnly(12, 30, 45));
+        ReturnsNullable<DateTimeOffset>(new DateTimeOffset(2024, 2, 29, 12, 30, 45, TimeSpan.Zero));
+    }
+
+    private void ReturnsNullable<T>(T value) where T : struct
+    {
+        const int rowCount = 5000;
+        var name = "nullable_" + typeof(T).Name.ToLowerInvariant();
+
+        Connection.RegisterScalarFunction<int, T?>(name, number => number % 3 == 0 ? null : value);
+
+        Command.CommandText = $"SELECT {name}(i::INT) FROM range({rowCount}) t(i) ORDER BY i";
+        using var reader = Command.ExecuteReader();
+
+        for (var row = 0; row < rowCount; row++)
+        {
+            reader.Read().Should().BeTrue();
+
+            if (row % 3 == 0)
+            {
+                reader.IsDBNull(0).Should().BeTrue($"row {row} of {name} is NULL");
+            }
+            else if (!reader.GetFieldValue<T>(0).Equals(value))
+            {
+                Assert.Fail($"Row {row} of {name}: expected {value}, read {reader.GetFieldValue<T>(0)}");
+            }
+        }
+    }
+
     // DuckDB copies the expression of a filter, and the function has to know its connection in the copy as well.
     [Theory]
     [InlineData("where", "SELECT i FROM range(5) t(i) WHERE {0}(i) > 0")]
