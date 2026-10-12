@@ -88,37 +88,43 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
                     return new decimal((int)abs, (int)(abs >> 32), 0, raw < 0, Scale);
                 }
             case DuckDBType.HugeInt:
-                {
-                    // A HUGEINT is an Int128. Dividing it as one allocates nothing; a BigInteger allocates for
-                    // the value, the quotient and the remainder.
-                    var raw = GetFieldData<DuckDBHugeInt>(offset);
+                return GetWideDecimal(offset);
+            default: throw InvalidStorageType();
+        }
+    }
 
-                    var (quotient, remainder) = Int128.DivRem(new Int128((ulong)raw.Upper, raw.Lower), DecimalExtensions.Int128PowersOfTen[Scale]);
+    // A DECIMAL of more than 18 digits, which DuckDB stores as a HUGEINT. It is a method of its own because the
+    // division and the try block need a large stack frame, and inside GetDecimal that frame is set up and
+    // cleared on every call, also for the three storage sizes that do not need it.
+    private decimal GetWideDecimal(ulong offset)
+    {
+        // A HUGEINT is an Int128. Dividing it as one allocates nothing; a BigInteger allocates for
+        // the value, the quotient and the remainder.
+        var raw = GetFieldData<DuckDBHugeInt>(offset);
 
-                    try
-                    {
-                        var result = (decimal)quotient;
+        var (quotient, remainder) = Int128.DivRem(new Int128((ulong)raw.Upper, raw.Lower), DecimalExtensions.Int128PowersOfTen[Scale]);
 
-                        if (Scale <= DecimalExtensions.MaxDecimalScale)
-                        {
-                            result += decimal.Divide((decimal)remainder, DecimalExtensions.PowersOfTen[Scale]);
-                        }
-                        else
-                        {
-                            // Scale > 28: remainder can exceed decimal range.
-                            // Shift it down to fit, losing digits beyond decimal's 28-29 digit precision.
-                            var shiftedRemainder = remainder / remainderShift;
-                            result += (decimal)shiftedRemainder / DecimalExtensions.PowersOfTen[DecimalExtensions.MaxDecimalScale];
-                        }
+        try
+        {
+            var result = (decimal)quotient;
 
-                        return result;
-                    }
-                    catch (OverflowException exception)
-                    {
-                        throw new OverflowException($"Value in column {ColumnName} exceeds the range of System.Decimal. Use GetFieldValue<BigInteger>() or GetFieldValue<DuckDBDecimal>() to read it.", exception);
-                    }
-                }
-            default: throw new DuckDBException($"Invalid storage type {decimalType} ({(int)decimalType}) for decimal column {ColumnName}");
+            if (Scale <= DecimalExtensions.MaxDecimalScale)
+            {
+                result += decimal.Divide((decimal)remainder, DecimalExtensions.PowersOfTen[Scale]);
+            }
+            else
+            {
+                // Scale > 28: remainder can exceed decimal range.
+                // Shift it down to fit, losing digits beyond decimal's 28-29 digit precision.
+                var shiftedRemainder = remainder / remainderShift;
+                result += (decimal)shiftedRemainder / DecimalExtensions.PowersOfTen[DecimalExtensions.MaxDecimalScale];
+            }
+
+            return result;
+        }
+        catch (OverflowException exception)
+        {
+            throw new OverflowException($"Value in column {ColumnName} exceeds the range of System.Decimal. Use GetFieldValue<BigInteger>() or GetFieldValue<DuckDBDecimal>() to read it.", exception);
         }
     }
 
@@ -149,7 +155,7 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
             DuckDBType.Integer => ToHugeInt(GetFieldData<int>(offset)),
             DuckDBType.BigInt => ToHugeInt(GetFieldData<long>(offset)),
             DuckDBType.HugeInt => GetFieldData<DuckDBHugeInt>(offset),
-            _ => throw new DuckDBException($"Invalid storage type {decimalType} ({(int)decimalType}) for decimal column {ColumnName}")
+            _ => throw InvalidStorageType()
         };
 
         return new DuckDBDecimal(Precision, Scale, value);
@@ -161,8 +167,12 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
         DuckDBType.Integer => GetFieldData<int>(offset),
         DuckDBType.BigInt => GetFieldData<long>(offset),
         DuckDBType.HugeInt => GetFieldData<DuckDBHugeInt>(offset).ToBigInteger(),
-        _ => throw new DuckDBException($"Invalid storage type {decimalType} ({(int)decimalType}) for decimal column {ColumnName}")
+        _ => throw InvalidStorageType()
     };
+
+    // A method, so that the message is not built inside GetDecimal: the buffer for it would be part of that
+    // method's stack frame and be cleared on every call.
+    private DuckDBException InvalidStorageType() => new DuckDBException($"Invalid storage type {decimalType} ({(int)decimalType}) for decimal column {ColumnName}");
 
     private static DuckDBHugeInt ToHugeInt(long value) => new(unchecked((ulong)value), value < 0 ? -1 : 0);
 }
