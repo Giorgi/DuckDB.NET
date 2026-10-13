@@ -8,6 +8,18 @@ namespace DuckDB.NET.Data;
 
 public record ColumnInfo(string Name, Type Type);
 
+/// <summary>
+/// The number of rows a table function returns, for the optimizer of DuckDB.
+/// </summary>
+/// <param name="Value">The number of rows.</param>
+/// <param name="IsExact">
+/// Passed to DuckDB as it is. With DuckDB 1.5 and older the meaning is the reverse of the name: <c>false</c>, the
+/// default, makes <paramref name="Value"/> the most rows the function can return, and <c>true</c> makes it an
+/// estimate only. DuckDB relies on a maximum: a function that returns more rows than that can get a wrong
+/// <c>sum</c>. So with DuckDB 1.5 pass <c>false</c> only when the function never returns more than
+/// <paramref name="Value"/> rows, and <c>true</c> for a guess. DuckDB 2.0 corrects this: there <c>true</c> sets
+/// the maximum and <c>false</c> is an estimate, and a maximum that is too small can also remove a <c>LIMIT</c>.
+/// </param>
 public record CardinalityHint(ulong Value, bool IsExact = false);
 
 public record ProjectedColumn(int Index, string Name, Type Type);
@@ -172,7 +184,20 @@ partial class DuckDBConnection
                 NativeMethods.TableFunction.DuckDBBindAddResultColumn(info, columnInfo.Name, logicalType);
             }
 
-            if (tableFunctionData.Cardinality is { } cardinality)
+            // The number of rows of an array is known without reading it and cannot change, so DuckDB is told
+            // it when the function gives no number of its own. Only for an array: DuckDB 1.5 takes the number
+            // as the most rows the function can return (there duckdb_bind_set_cardinality sets the maximum
+            // when is_exact is false, and only the estimate when it is true; DuckDB 2.0 has it the other way
+            // round), and a sum over more rows than that is wrong. Any other collection can be longer when it
+            // is read than it is now. The length of an array is true as a maximum and as an estimate.
+            var cardinality = tableFunctionData.Cardinality;
+
+            if (cardinality is null && tableFunctionData.Data is Array array)
+            {
+                cardinality = new CardinalityHint((ulong)array.LongLength);
+            }
+
+            if (cardinality is not null)
             {
                 NativeMethods.TableFunction.DuckDBBindSetCardinality(info, cardinality.Value, isExact: cardinality.IsExact);
             }
