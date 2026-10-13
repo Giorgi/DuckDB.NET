@@ -70,7 +70,7 @@ internal interface IPropertyMapping<T>
 {
     Type PropertyType { get; }
     PropertyMappingType MappingType { get; }
-    void AppendToRow(IDuckDBAppenderRow row, T record);
+    void AppendToRow(DuckDBAppenderRow row, T record);
 }
 
 internal sealed class PropertyMapping<T, TProperty> : IPropertyMapping<T>
@@ -79,7 +79,7 @@ internal sealed class PropertyMapping<T, TProperty> : IPropertyMapping<T>
     public Func<T, TProperty> Getter { get; set; } = _ => default!;
     public PropertyMappingType MappingType { get; set; }
 
-    public void AppendToRow(IDuckDBAppenderRow row, T record)
+    public void AppendToRow(DuckDBAppenderRow row, T record)
     {
         var value = Getter(record);
 
@@ -121,10 +121,10 @@ internal sealed class PropertyMapping<T, TProperty> : IPropertyMapping<T>
             TimeSpan v => row.AppendValue(v),
             Guid v => row.AppendValue(v),
             BigInteger v => row.AppendValue(v),
-            DuckDBDateOnly v => row.AppendValue(v),
-            DuckDBTimeOnly v => row.AppendValue(v),
-            DateOnly v => row.AppendValue(v),
-            TimeOnly v => row.AppendValue(v),
+            DuckDBDateOnly v => row.AppendValue((DuckDBDateOnly?)v),
+            DuckDBTimeOnly v => row.AppendValue((DuckDBTimeOnly?)v),
+            DateOnly v => row.AppendValue((DateOnly?)v),
+            TimeOnly v => row.AppendValue((TimeOnly?)v),
 
             _ => throw new NotSupportedException($"Type {typeof(TProperty).Name} is not supported for appending")
         };
@@ -132,7 +132,7 @@ internal sealed class PropertyMapping<T, TProperty> : IPropertyMapping<T>
 
     // Every AppendValue overload takes a nullable, so the value is passed on as it is. typeof(TProperty) is a
     // constant for the JIT, which keeps the one matching line.
-    private static void AppendNullable(IDuckDBAppenderRow row, ref TProperty value)
+    private static void AppendNullable(DuckDBAppenderRow row, ref TProperty value)
     {
         if (typeof(TProperty) == typeof(bool?)) row.AppendValue(Unsafe.As<TProperty, bool?>(ref value));
         else if (typeof(TProperty) == typeof(sbyte?)) row.AppendValue(Unsafe.As<TProperty, sbyte?>(ref value));
@@ -164,7 +164,7 @@ internal sealed class DefaultValueMapping<T> : IPropertyMapping<T>
     public Type PropertyType { get; set; } = typeof(object);
     public PropertyMappingType MappingType { get; set; }
 
-    public void AppendToRow(IDuckDBAppenderRow row, T record)
+    public void AppendToRow(DuckDBAppenderRow row, T record)
     {
         row.AppendDefault();
     }
@@ -175,7 +175,7 @@ internal sealed class NullValueMapping<T> : IPropertyMapping<T>
     public Type PropertyType { get; set; } = typeof(object);
     public PropertyMappingType MappingType { get; set; }
 
-    public void AppendToRow(IDuckDBAppenderRow row, T record)
+    public void AppendToRow(DuckDBAppenderRow row, T record)
     {
         row.AppendNullValue();
     }
