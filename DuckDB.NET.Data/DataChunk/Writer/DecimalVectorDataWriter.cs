@@ -98,7 +98,6 @@ internal sealed unsafe class DecimalVectorDataWriter(IntPtr vector, void* vector
     }
 
     // A method, so that the message is not built in the stack frame of AppendDecimal.
-    [MethodImpl(MethodImplOptions.NoInlining)]
     private OverflowException DoesNotFit(decimal value)
     {
         return new OverflowException($"Value {value.ToString(CultureInfo.InvariantCulture)} has too many digits for a DECIMAL({width},{scale}) column");

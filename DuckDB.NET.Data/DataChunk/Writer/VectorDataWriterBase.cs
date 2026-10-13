@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Data.DataChunk.Writer;
@@ -183,6 +184,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
 
     internal virtual bool AppendCollection(ICollection value, ulong rowIndex) => ThrowException<ICollection>();
 
+    [DoesNotReturn]
     private bool ThrowException<T>()
     {
         throw new InvalidOperationException($"Cannot write {typeof(T).Name} to {columnType} column");

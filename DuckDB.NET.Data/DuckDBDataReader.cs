@@ -1,4 +1,5 @@
 ﻿using DuckDB.NET.Data.DataChunk.Reader;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.CompilerServices;
 
@@ -435,6 +436,7 @@ public sealed class DuckDBDataReader : DbDataReader
         }
     }
 
+    [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void ThrowNoRowRead()
     {
