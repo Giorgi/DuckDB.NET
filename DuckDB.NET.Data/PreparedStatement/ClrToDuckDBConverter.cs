@@ -229,12 +229,16 @@ internal static class ClrToDuckDBConverter
 
     private static DuckDBValue DecimalToDuckDBValue(decimal value)
     {
-        var mantissa = value.GetMantissa();
+        // The value goes to DuckDB as it is in the decimal: the integer, with the scale of the decimal. The writer of
+        // the appender starts from the same parts (DecimalVectorDataWriter).
+        value.GetParts(out var low, out var high, out var isNegative, out var scale);
+        var magnitude = new UInt128(high, low);
 
-        var width = mantissa.IsZero
-            ? value.Scale + 1
-            : Math.Max((int)BigInteger.Log10(BigInteger.Abs(mantissa)) + 1, value.Scale + 1);
+        // The width is the number of digits. A value below one has a zero in front of its fraction.
+        var width = Math.Max(DecimalExtensions.CountDigits(magnitude), scale + 1);
 
-        return NativeMethods.Value.DuckDBCreateDecimal(new DuckDBDecimal((byte)width, value.Scale, new DuckDBHugeInt(mantissa)));
+        var integer = isNegative ? -(Int128)magnitude : (Int128)magnitude;
+
+        return NativeMethods.Value.DuckDBCreateDecimal(new DuckDBDecimal((byte)width, scale, new DuckDBHugeInt((ulong)integer, (long)(integer >> 64))));
     }
 }

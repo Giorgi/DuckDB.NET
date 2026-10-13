@@ -172,7 +172,7 @@ public class ListParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void ListWithAnItemThatDoesNotFitTheColumnIsRefused()
     {
-        Command.CommandText = "CREATE OR REPLACE TABLE ParameterListRefused (wide DECIMAL(38,10)[], nested DECIMAL(9,2)[][], fixed DECIMAL(9,2)[2]);";
+        Command.CommandText = "CREATE OR REPLACE TABLE ParameterListRefused (wide DECIMAL(38,10)[], nested DECIMAL(9,2)[][], fixed DECIMAL(9,2)[2], narrow DECIMAL(3,0)[]);";
         Command.ExecuteNonQuery();
 
         // 29 digits in front of the point, where the column has room for 28.
@@ -182,6 +182,9 @@ public class ListParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Refused("INSERT INTO ParameterListRefused (nested) VALUES ($1)", new List<List<decimal>> { new() { 1.5m }, new() { 123456789.12m } });
         Refused("INSERT INTO ParameterListRefused (fixed) VALUES ($1)", new List<decimal> { 1.5m, 123456789.12m });
         Refused("SELECT len($1)", new List<decimal> { 1.5m, tooLarge });
+
+        // One digit too many. Sent with a width of three, as it was once, DuckDB took it for a value that fits.
+        Refused("INSERT INTO ParameterListRefused (narrow) VALUES ($1)", new List<decimal> { 1000m });
 
         // The connection is as it was, and a list that fits is stored.
         Command.CommandText = "INSERT INTO ParameterListRefused (wide) VALUES ($1) RETURNING len(wide)";

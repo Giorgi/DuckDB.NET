@@ -1,6 +1,5 @@
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 
 namespace DuckDB.NET.Data.Extensions;
 
@@ -75,6 +74,22 @@ internal static class DecimalExtensions
         10_000_000_000_000_000_000_000_000_000m,
     ];
 
+    /// <summary>
+    /// The number of decimal digits of an integer that a decimal can hold (29 at most). Zero has one digit.
+    /// </summary>
+    internal static int CountDigits(UInt128 magnitude)
+    {
+        for (var digits = 1; digits <= MaxDecimalScale; digits++)
+        {
+            if (magnitude < (UInt128)Int128PowersOfTen[digits])
+            {
+                return digits;
+            }
+        }
+
+        return MaxDecimalScale + 1;
+    }
+
     extension(decimal value)
     {
         /// <summary>
@@ -94,27 +109,6 @@ internal static class DecimalExtensions
             high = (uint)bits[2];
             isNegative = bits[3] < 0;
             scale = (byte)(bits[3] >> 16);
-        }
-
-        /// <summary>
-        /// Extracts the signed mantissa from the decimal's binary representation.
-        /// The mantissa equals value × 10^Scale, avoiding arithmetic reconstruction.
-        /// </summary>
-        internal BigInteger GetMantissa()
-        {
-            Span<int> bits = stackalloc int[4];
-            decimal.GetBits(value, bits);
-
-            var isNegative = bits[3] < 0;
-
-            Span<byte> mantissaBytes = stackalloc byte[13]; // 12 bytes mantissa + 1 zero for unsigned
-            MemoryMarshal.AsBytes(bits[..3]).CopyTo(mantissaBytes);
-            mantissaBytes[12] = 0;
-
-            var mantissa = new BigInteger(mantissaBytes, isUnsigned: true, isBigEndian: false);
-            if (isNegative) mantissa = -mantissa;
-
-            return mantissa;
         }
     }
 }

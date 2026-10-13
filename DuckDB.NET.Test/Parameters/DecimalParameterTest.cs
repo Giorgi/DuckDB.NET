@@ -384,4 +384,76 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.GetFieldValue<DuckDBDecimal?>(0).Should().BeNull();
         reader.GetProviderSpecificValue(0).Should().Be(DBNull.Value);
     }
+
+    // A parameter is sent with a width. One that is too small hides a digit too many: 1000 sent as a DECIMAL(3,0)
+    // was stored in a DECIMAL(3,0) column. One that is too large only shows in typeof and in the type of a result.
+    // So the width is the number of digits exactly.
+    [Fact]
+    public void ParameterHasTheWidthOfItsDigits()
+    {
+        var power = 1m;
+
+        for (var digits = 1; digits <= 29; digits++)
+        {
+            TypeOf(power).Should().Be($"DECIMAL({digits},0)", $"for {power}");
+            TypeOf(-power).Should().Be($"DECIMAL({digits},0)", $"for {-power}");
+
+            if (digits > 1)
+            {
+                TypeOf(power - 1).Should().Be($"DECIMAL({digits - 1},0)", $"for {power - 1}");
+            }
+
+            if (digits < 29)
+            {
+                power *= 10;
+            }
+        }
+
+        TypeOf(0m).Should().Be("DECIMAL(1,0)");
+        TypeOf(0.00m).Should().Be("DECIMAL(3,2)");
+        TypeOf(0.001m).Should().Be("DECIMAL(4,3)");
+        TypeOf(1.50m).Should().Be("DECIMAL(3,2)");
+        TypeOf(-999.99m).Should().Be("DECIMAL(5,2)");
+        TypeOf(decimal.MaxValue).Should().Be("DECIMAL(29,0)");
+        TypeOf(decimal.MinValue).Should().Be("DECIMAL(29,0)");
+        TypeOf(0.0000000000000000000000000001m).Should().Be("DECIMAL(29,28)");
+        TypeOf(7.9228162514264337593543950335m).Should().Be("DECIMAL(29,28)");
+
+        string TypeOf(decimal value)
+        {
+            Command.CommandText = "SELECT typeof($1)";
+            Command.Parameters.Clear();
+            Command.Parameters.Add(new DuckDBParameter(value));
+
+            return (string)Command.ExecuteScalar();
+        }
+    }
+
+    [Fact]
+    public void ParameterWithMoreDigitsThanItsColumnIsRefused()
+    {
+        Command.CommandText = "CREATE OR REPLACE TABLE DecimalParameterRefused (value DECIMAL(3,0));";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "INSERT INTO DecimalParameterRefused VALUES ($1)";
+
+        foreach (var value in new[] { 999m, -999m, 999.4m })
+        {
+            Command.Parameters.Clear();
+            Command.Parameters.Add(new DuckDBParameter(value));
+            Command.ExecuteNonQuery();
+        }
+
+        // DuckDB rounds a parameter, so 999.5 is 1000 for this column.
+        foreach (var value in new[] { 1000m, -1000m, 999.5m })
+        {
+            Command.Parameters.Clear();
+            Command.Parameters.Add(new DuckDBParameter(value));
+            Command.Invoking(command => command.ExecuteNonQuery()).Should().Throw<DuckDBException>().WithMessage("*Conversion Error*", $"for {value}");
+        }
+
+        Command.Parameters.Clear();
+        Command.CommandText = "SELECT list(value ORDER BY rowid)::VARCHAR FROM DecimalParameterRefused";
+        Command.ExecuteScalar().Should().Be("[999, -999, 999]");
+    }
 }
