@@ -1,5 +1,6 @@
 using DuckDB.NET.Data.Connection;
 using DuckDB.NET.Data.DataChunk.Writer;
+using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -198,10 +199,9 @@ public static class DuckDBConnectionTableFunctionExtensions
     }
 
     private static readonly MethodInfo GetValueMethod = typeof(IDuckDBValueReader).GetMethod(nameof(IDuckDBValueReader.GetValue))!;
-    private static readonly MethodInfo WriteValueMethod = typeof(IDuckDBDataWriter).GetMethod(nameof(IDuckDBDataWriter.WriteValue))!;
-    private static readonly MethodInfo ConcreteWriteValueMethod = typeof(VectorDataWriterBase).GetMethod(nameof(VectorDataWriterBase.WriteValue))!;
+    private static readonly MethodInfo WriteValueMethod = typeof(VectorDataWriterBase).GetMethod(nameof(VectorDataWriterBase.WriteValue))!;
 
-    private static (ColumnInfo[] columns, Func<IEnumerable, TableFunctionScan> createScan) ParseProjection<TData, TProjection>(Expression<Func<TData, TProjection>> projection)
+    private static (ColumnInfo[] columns, TableFunctionScanFactory createScan) ParseProjection<TData, TProjection>(Expression<Func<TData, TProjection>> projection)
     {
         var (names, types, accessors) = projection.Body switch
         {
@@ -222,10 +222,18 @@ public static class DuckDBConnectionTableFunctionExtensions
             columns[i] = new ColumnInfo(names[i], types[i]);
         }
 
-        var combinedWriter = CompileCombinedWriter<TData>(names.Length, types, accessors, projection.Parameters[0]);
+        // The code that writes a row is compiled for the columns that a query reads, when a scan starts, and kept:
+        // a query that is run again, or a scan that DuckDB starts again, finds it by its columns.
+        var parameter = projection.Parameters[0];
+        var writers = new ConcurrentDictionary<string, Action<TData, VectorDataWriterBase[], ulong>>();
 
         // The data of the function is what its data callback returned, an IEnumerable<TData>.
-        return (columns, data => TableFunctionScan.Create((IEnumerable<TData>)data, combinedWriter));
+        return (columns, (data, projected, _) =>
+        {
+            var writeRow = writers.GetOrAdd(string.Join(',', projected), _ => CompileRowWriter<TData>(projected, types, accessors, parameter));
+
+            return TableFunctionScan.Create((IEnumerable<TData>)data, writeRow);
+        });
     }
 
     private static (string[] names, Type[] types, Expression[] accessors) ParseNewExpression(NewExpression newExpr)
@@ -305,7 +313,7 @@ public static class DuckDBConnectionTableFunctionExtensions
 
     private static void RegisterInternal(DuckDBConnection connection, string name, TableFunctionParameter[] parameters,
                                          Func<IReadOnlyList<IDuckDBValueReader>, IReadOnlyDictionary<string, IDuckDBValueReader>, TableFunction> bind,
-                                         Func<IEnumerable, TableFunctionScan> createScan)
+                                         TableFunctionScanFactory createScan)
     {
         var positionalTypes = new List<DuckDBLogicalType>();
         var namedDefinitions = new List<NamedParameterDefinition>();
@@ -354,44 +362,39 @@ public static class DuckDBConnectionTableFunctionExtensions
         return result;
     }
 
-    private static Action<TData, IDuckDBDataWriter[], ulong> CompileCombinedWriter<TData>(int columnCount, Type[] types, Expression[] accessors, ParameterExpression originalParam)
+    // Compiles (data, writers, rowIndex) => { writers[0].WriteValue(data.Id, rowIndex); writers[1].WriteValue(...); }
+    // for the columns that a query reads: writers[k] is the writer of the k-th of them, and projected[k] says which
+    // column of the function that is. A column that the query does not read has no writer and no code here, so
+    // its value is not worked out at all.
+    //
+    // WriteValue<T> is called on the class. Called through IDuckDBDataWriter it is a generic method of an
+    // interface, which is looked up at run time for every column of every row.
+    private static Action<TData, VectorDataWriterBase[], ulong> CompileRowWriter<TData>(int[] projected, Type[] types, Expression[] accessors, ParameterExpression originalParam)
     {
         var dataParam = Expression.Parameter(typeof(TData), "data");
-        var writersParam = Expression.Parameter(typeof(IDuckDBDataWriter[]), "writers");
+        var writersParam = Expression.Parameter(typeof(VectorDataWriterBase[]), "writers");
         var rowIndexParam = Expression.Parameter(typeof(ulong), "rowIndex");
 
         var replacer = new ParameterReplacer(originalParam, dataParam);
-        var writeCalls = new Expression[columnCount];
+        var writeCalls = new Expression[projected.Length];
 
-        // WriteValue<T> is a generic method. Called through the interface it is looked up at run time, for every
-        // column of every row. The writer of a column that the query reads is a VectorDataWriterBase, whose method
-        // is called directly, so each column tests for that class first:
-        //   if (writers[i] is VectorDataWriterBase writer) writer.WriteValue(data.Column, rowIndex);
-        //   else writers[i].WriteValue(data.Column, rowIndex);
-        // A column the query does not read has a NullDataWriter and takes the second line, as it did before.
-        var concreteWriter = Expression.Variable(typeof(VectorDataWriterBase), "writer");
-
-        for (int i = 0; i < columnCount; i++)
+        for (int i = 0; i < projected.Length; i++)
         {
-            var reboundAccessor = replacer.Visit(accessors[i]);
+            var column = projected[i];
+            var reboundAccessor = replacer.Visit(accessors[column]);
             var writerAccess = Expression.ArrayIndex(writersParam, Expression.Constant(i));
 
-            writeCalls[i] = Expression.Block(
-                Expression.Assign(concreteWriter, Expression.TypeAs(writerAccess, typeof(VectorDataWriterBase))),
-                Expression.IfThenElse(
-                    Expression.ReferenceNotEqual(concreteWriter, Expression.Constant(null, typeof(VectorDataWriterBase))),
-                    Expression.Call(concreteWriter, ConcreteWriteValueMethod.MakeGenericMethod(types[i]), reboundAccessor, rowIndexParam),
-                    Expression.Call(writerAccess, WriteValueMethod.MakeGenericMethod(types[i]), reboundAccessor, rowIndexParam)));
+            writeCalls[i] = Expression.Call(writerAccess, WriteValueMethod.MakeGenericMethod(types[column]), reboundAccessor, rowIndexParam);
         }
 
-        var body = Expression.Block([concreteWriter], writeCalls);
-        return Expression.Lambda<Action<TData, IDuckDBDataWriter[], ulong>>(body, dataParam, writersParam, rowIndexParam).Compile();
+        Expression body = writeCalls.Length == 0 ? Expression.Empty() : Expression.Block(writeCalls);
+        return Expression.Lambda<Action<TData, VectorDataWriterBase[], ulong>>(body, dataParam, writersParam, rowIndexParam).Compile();
     }
 
     // Rebinds parameter references when embedding sub-expressions from the user's projection lambda
     // into a new lambda with a different parameter. E.g. given (Employee e) => new { e.Id }, the
     // accessor "e.Id" references the original parameter "e". When we compile the combined writer
-    // (data, writers, rowIndex) => { write data.Id with writers[0]; ... } (see CompileCombinedWriter),
+    // (data, writers, rowIndex) => { write data.Id with writers[0]; ... } (see CompileRowWriter),
     // we must replace "e" with "data".
     private sealed class ParameterReplacer(ParameterExpression oldParam, ParameterExpression newParam) : ExpressionVisitor
     {

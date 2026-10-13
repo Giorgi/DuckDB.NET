@@ -95,10 +95,10 @@ partial class DuckDBConnection
 
     internal void RegisterTableFunctionInternal(string name, Func<IReadOnlyList<IDuckDBValueReader>, IReadOnlyDictionary<string, IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback, DuckDBLogicalType[] positionalLogicalTypes, NamedParameterDefinition[] namedParameters)
     {
-        RegisterTableFunctionInternal(name, resultCallback, data => new ObjectTableFunctionScan(data.GetEnumerator(), mapperCallback), positionalLogicalTypes, namedParameters);
+        RegisterTableFunctionInternal(name, resultCallback, (data, projected, columnCount) => new ObjectTableFunctionScan(data.GetEnumerator(), mapperCallback, projected, columnCount), positionalLogicalTypes, namedParameters);
     }
 
-    internal unsafe void RegisterTableFunctionInternal(string name, Func<IReadOnlyList<IDuckDBValueReader>, IReadOnlyDictionary<string, IDuckDBValueReader>, TableFunction> resultCallback, Func<IEnumerable, TableFunctionScan> createScan, DuckDBLogicalType[] positionalLogicalTypes, NamedParameterDefinition[] namedParameters)
+    internal unsafe void RegisterTableFunctionInternal(string name, Func<IReadOnlyList<IDuckDBValueReader>, IReadOnlyDictionary<string, IDuckDBValueReader>, TableFunction> resultCallback, TableFunctionScanFactory createScan, DuckDBLogicalType[] positionalLogicalTypes, NamedParameterDefinition[] namedParameters)
     {
         var function = NativeMethods.TableFunction.DuckDBCreateTableFunction();
         NativeMethods.TableFunction.DuckDBTableFunctionSetName(function, name);
@@ -256,7 +256,7 @@ partial class DuckDBConnection
             }
 
             // The scan is disposed in TableFunctionInitData.Dispose.
-            var scan = rows is null ? null : functionInfo.CreateScan(rows);
+            var scan = rows is null ? null : functionInfo.CreateScan(rows, projected, bindData.Columns.Count);
 
             var logicalTypes = new DuckDBLogicalType[count];
             for (var i = 0; i < count; i++)
@@ -264,7 +264,7 @@ partial class DuckDBConnection
                 logicalTypes[i] = bindData.Columns[projected[i]].Type.GetLogicalType();
             }
 
-            var initData = new TableFunctionInitData(projected, scan, logicalTypes, bindData.Columns.Count);
+            var initData = new TableFunctionInitData(scan, logicalTypes);
             NativeMethods.TableFunction.DuckDBInitSetInitData(info, initData.ToHandle(), &DestroyExtraInfo);
         }
         catch (Exception ex)
@@ -280,7 +280,7 @@ partial class DuckDBConnection
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void TableFunction(IntPtr info, IntPtr chunk)
     {
-        IDuckDBDataWriter[] writers = [];
+        VectorDataWriterBase?[] writers = [];
         try
         {
             var initHandle = GCHandle.FromIntPtr(NativeMethods.TableFunction.DuckDBFunctionGetInitData(info));
@@ -291,16 +291,15 @@ partial class DuckDBConnection
             }
 
             var dataChunk = new DuckDBDataChunk(chunk);
-            var projected = tableFunctionInitData.Projected;
+            var logicalTypes = tableFunctionInitData.LogicalTypes;
 
             writers = tableFunctionInitData.Writers;
-            Array.Fill(writers, NullDataWriter.Instance);
 
-            for (var columnIndex = 0; columnIndex < projected.Length; columnIndex++)
+            for (var columnIndex = 0; columnIndex < logicalTypes.Length; columnIndex++)
             {
                 var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(dataChunk, columnIndex);
 
-                writers[projected[columnIndex]] = VectorDataWriterFactory.CreateWriter(vector, tableFunctionInitData.LogicalTypes[columnIndex]);
+                writers[columnIndex] = VectorDataWriterFactory.CreateWriter(vector, logicalTypes[columnIndex]);
             }
 
             if (tableFunctionInitData.Scan is not { } scan)
@@ -308,7 +307,7 @@ partial class DuckDBConnection
                 throw new InvalidOperationException("User defined table function failed. No data source available");
             }
 
-            var size = scan.Fill(writers, DuckDBGlobalData.VectorSize);
+            var size = scan.Fill(tableFunctionInitData.Writers, DuckDBGlobalData.VectorSize);
 
             NativeMethods.DataChunks.DuckDBDataChunkSetSize(dataChunk, size);
         }
@@ -331,9 +330,12 @@ partial class DuckDBConnection
         }
         finally
         {
-            foreach (var writer in writers)
+            // The writers of a chunk are not used for the next one. A slot is cleared, so that a chunk that fails
+            // before it has made all its writers does not dispose one of the chunk before again.
+            for (var index = 0; index < writers.Length; index++)
             {
-                (writer as IDisposable)?.Dispose();
+                writers[index]?.Dispose();
+                writers[index] = null;
             }
         }
     }

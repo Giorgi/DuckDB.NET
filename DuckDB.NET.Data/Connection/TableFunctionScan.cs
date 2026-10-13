@@ -7,13 +7,17 @@ namespace DuckDB.NET.Data.Connection;
 // calls is static and cannot be generic, so it sees this class and calls Fill once for every chunk. The type of
 // the rows is kept by the generic classes below, from the data to the code that writes a row, so a row is never
 // passed as object: no cast for a row, and no box for a row that is a struct.
+//
+// A scan is made when DuckDB starts it, which is when the columns that the query reads are known. The writers
+// that Fill is given are the writers of those columns only, in the order in which DuckDB asked for them.
 internal abstract class TableFunctionScan : IDisposable
 {
     /// <summary>
     /// Writes the next rows, row i of this call at position i, and returns how many were written.
     /// DuckDB calls again until a call writes no row.
     /// </summary>
-    public abstract ulong Fill(IDuckDBDataWriter[] writers, ulong maxRows);
+    /// <param name="writers">The writers of the columns that the query reads, in the order of the chunk.</param>
+    public abstract ulong Fill(VectorDataWriterBase[] writers, ulong maxRows);
 
     public virtual void Dispose()
     {
@@ -21,18 +25,18 @@ internal abstract class TableFunctionScan : IDisposable
 
     // An array and a List<T> are read by position, with no enumerator. Every other source is enumerated, and so
     // is a class derived from List<T>, which may enumerate in a way of its own.
-    public static TableFunctionScan Create<T>(IEnumerable<T> rows, Action<T, IDuckDBDataWriter[], ulong> write) => rows switch
+    public static TableFunctionScan Create<T>(IEnumerable<T> rows, Action<T, VectorDataWriterBase[], ulong> write) => rows switch
     {
         T[] array => new ArrayScan<T>(array, write),
         List<T> list when list.GetType() == typeof(List<T>) => new ListScan<T>(list, write),
         _ => new EnumeratorScan<T>(rows.GetEnumerator(), write)
     };
 
-    private sealed class ArrayScan<T>(T[] rows, Action<T, IDuckDBDataWriter[], ulong> write) : TableFunctionScan
+    private sealed class ArrayScan<T>(T[] rows, Action<T, VectorDataWriterBase[], ulong> write) : TableFunctionScan
     {
         private int position;
 
-        public override ulong Fill(IDuckDBDataWriter[] writers, ulong maxRows)
+        public override ulong Fill(VectorDataWriterBase[] writers, ulong maxRows)
         {
             var count = (int)Math.Min(maxRows, (ulong)(rows.Length - position));
             var chunk = new ReadOnlySpan<T>(rows, position, count);
@@ -47,12 +51,12 @@ internal abstract class TableFunctionScan : IDisposable
         }
     }
 
-    private sealed class ListScan<T>(List<T> rows, Action<T, IDuckDBDataWriter[], ulong> write) : TableFunctionScan
+    private sealed class ListScan<T>(List<T> rows, Action<T, VectorDataWriterBase[], ulong> write) : TableFunctionScan
     {
         private readonly int count = rows.Count;
         private int position;
 
-        public override ulong Fill(IDuckDBDataWriter[] writers, ulong maxRows)
+        public override ulong Fill(VectorDataWriterBase[] writers, ulong maxRows)
         {
             ThrowIfChanged();
 
@@ -83,9 +87,9 @@ internal abstract class TableFunctionScan : IDisposable
         }
     }
 
-    private sealed class EnumeratorScan<T>(IEnumerator<T> rows, Action<T, IDuckDBDataWriter[], ulong> write) : TableFunctionScan
+    private sealed class EnumeratorScan<T>(IEnumerator<T> rows, Action<T, VectorDataWriterBase[], ulong> write) : TableFunctionScan
     {
-        public override ulong Fill(IDuckDBDataWriter[] writers, ulong maxRows)
+        public override ulong Fill(VectorDataWriterBase[] writers, ulong maxRows)
         {
             ulong count = 0;
 
@@ -102,16 +106,38 @@ internal abstract class TableFunctionScan : IDisposable
     }
 }
 
-// The low-level registration: the rows are an IEnumerable and the code that writes a row takes an object.
-internal sealed class ObjectTableFunctionScan(IEnumerator rows, Action<object?, IDuckDBDataWriter[], ulong> write) : TableFunctionScan
+// The low-level registration: the rows are an IEnumerable, and the code that writes a row takes an object and a
+// writer for every column of the function, at the index of the column. A column that the query does not read
+// gets a writer that does nothing.
+internal sealed class ObjectTableFunctionScan : TableFunctionScan
 {
-    public override ulong Fill(IDuckDBDataWriter[] writers, ulong maxRows)
+    private readonly IEnumerator rows;
+    private readonly Action<object?, IDuckDBDataWriter[], ulong> write;
+    private readonly int[] projected;
+    private readonly IDuckDBDataWriter[] allWriters;
+
+    public ObjectTableFunctionScan(IEnumerator rows, Action<object?, IDuckDBDataWriter[], ulong> write, int[] projected, int columnCount)
     {
+        this.rows = rows;
+        this.write = write;
+        this.projected = projected;
+
+        allWriters = new IDuckDBDataWriter[columnCount];
+        Array.Fill(allWriters, NullDataWriter.Instance);
+    }
+
+    public override ulong Fill(VectorDataWriterBase[] writers, ulong maxRows)
+    {
+        for (var index = 0; index < projected.Length; index++)
+        {
+            allWriters[projected[index]] = writers[index];
+        }
+
         ulong count = 0;
 
         while (count < maxRows && rows.MoveNext())
         {
-            write(rows.Current, writers, count);
+            write(rows.Current, allWriters, count);
             count++;
         }
 

@@ -441,8 +441,8 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
         return employee.Salary;
     }
 
-    // The projection is compiled into one method that writes every column of a row. A column that the query reads
-    // is written by the writer of its vector, and the others by a writer that does nothing.
+    // The projection is compiled into a method that writes a row, for the columns that the query reads. The value
+    // of a column that the query does not read is not asked for.
     [Fact]
     public void RegisterTableFunctionSimplifiedReadsEachColumnOnceForARow()
     {
@@ -463,14 +463,25 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
 
         (idReads, nameReads, salaryReads) = (0, 0, 0);
 
-        // One column. The value of a column that the query does not read is still asked for, once and not more.
+        // One column. The other two are not read by the query, so nothing asks for their values.
         var names = Connection.Query<string>("SELECT Name FROM ext_counted()").ToList();
 
         names.Should().HaveCount(rowCount);
         names.Should().OnlyContain(name => name.StartsWith("Employee"));
         nameReads.Should().Be(rowCount);
-        idReads.Should().BeLessThanOrEqualTo(rowCount);
-        salaryReads.Should().BeLessThanOrEqualTo(rowCount);
+        idReads.Should().Be(0);
+        salaryReads.Should().Be(0);
+
+        (idReads, nameReads, salaryReads) = (0, 0, 0);
+
+        // The same columns again in a second query, and another set of columns after it: each set has its own
+        // compiled method, and the method of a set is found again.
+        Connection.Query<string>("SELECT Name FROM ext_counted()").Should().HaveCount(rowCount);
+        Connection.QuerySingle<long>("SELECT sum(Id)::BIGINT FROM ext_counted()").Should().Be((long)rowCount * (rowCount + 1) / 2);
+
+        nameReads.Should().Be(rowCount);
+        idReads.Should().Be(rowCount);
+        salaryReads.Should().Be(0);
     }
 
     private struct Measurement
@@ -517,7 +528,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
             rows.Should().OnlyContain(row => row.Name == "Employee" + row.Id, function);
             rows.Select(row => row.Id).Should().BeInAscendingOrder(function);
 
-            // One column, so that the other has the writer of a column that is not read.
+            // One column: the other is not read, so the scan has no writer for it and writes nothing for it.
             Connection.QuerySingle<long>($"SELECT sum(Id)::BIGINT FROM {function}()").Should().Be(expectedIds, function);
 
             Connection.QuerySingle<long>($"SELECT count(*) FROM {function}() a JOIN {function}() b USING (Id)").Should().Be(rowCount, function);
@@ -743,5 +754,25 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
         Connection.Invoking(connection => connection.Query<int>("SELECT Value FROM tracked_projection_fails()").ToList())
             .Should().Throw<DuckDBException>().WithMessage("*the projection failed*");
         (failingProjection.Created, failingProjection.Disposed).Should().Be((1, 1));
+    }
+
+    // A query that reads no column of the function, such as count(*). DuckDB asks for the first column then, so
+    // the expression of the first column is the one that is evaluated, and the others are not.
+    [Fact]
+    public void RegisterTableFunctionSimplifiedEvaluatesTheFirstColumnForAQueryThatReadsNone()
+    {
+        const int rowCount = 5000;
+
+        Connection.RegisterTableFunction("ext_counted_none",
+            () => GetEmployees(rowCount),
+            e => new { Id = CountedId(e), Name = CountedName(e), Salary = CountedSalary(e) });
+
+        (idReads, nameReads, salaryReads) = (0, 0, 0);
+
+        Connection.QuerySingle<long>("SELECT count(*) FROM ext_counted_none()").Should().Be(rowCount);
+
+        idReads.Should().Be(rowCount);
+        nameReads.Should().Be(0);
+        salaryReads.Should().Be(0);
     }
 }
