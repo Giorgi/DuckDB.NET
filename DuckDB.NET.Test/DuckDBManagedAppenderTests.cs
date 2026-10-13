@@ -334,7 +334,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     [Fact]
     public void HighScaleDecimals()
     {
-        // Scale 30 exceeds .NET decimal's max scale (28), exercising the BigInteger rescaling
+        // Scale 30 exceeds .NET decimal's max scale (28), exercising the 128-bit rescaling
         // path in DecimalVectorDataWriter. Before the fix, this would crash with IndexOutOfRangeException.
         Command.CommandText = "CREATE TABLE managedAppenderHighScaleDecimals(value DECIMAL(38, 30))";
         Command.ExecuteNonQuery();

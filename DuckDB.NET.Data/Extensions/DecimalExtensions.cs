@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace DuckDB.NET.Data.Extensions;
@@ -18,6 +19,14 @@ internal static class DecimalExtensions
     /// </summary>
     internal static readonly Int128[] Int128PowersOfTen = Enumerable.Range(0, 39)
         .Select(i => (Int128)BigInteger.Pow(10, i))
+        .ToArray();
+
+    /// <summary>
+    /// The powers of 10 that 64 bits hold, 10^0 to 10^19. A decimal whose integer fits 64 bits is rescaled with these
+    /// for a column of any storage size, which is the common case of a write.
+    /// </summary>
+    internal static readonly ulong[] UInt64PowersOfTen = Enumerable.Range(0, 20)
+        .Select(i => (ulong)BigInteger.Pow(10, i))
         .ToArray();
 
     /// <summary>
@@ -68,6 +77,25 @@ internal static class DecimalExtensions
 
     extension(decimal value)
     {
+        /// <summary>
+        /// Takes the decimal apart. A decimal is an integer of 96 bits, a sign and a scale, and its value is the
+        /// integer divided by 10^scale. Nothing is computed and nothing is allocated: the parts are read from the
+        /// bits of the decimal. Everything that writes a decimal to DuckDB starts here.
+        /// </summary>
+        /// <param name="low">The lower 64 bits of the integer.</param>
+        /// <param name="high">The upper 32 bits of the integer. Zero for every value of up to 19 digits.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void GetParts(out ulong low, out uint high, out bool isNegative, out byte scale)
+        {
+            Span<int> bits = stackalloc int[4];
+            decimal.GetBits(value, bits);
+
+            low = (uint)bits[0] | (ulong)(uint)bits[1] << 32;
+            high = (uint)bits[2];
+            isNegative = bits[3] < 0;
+            scale = (byte)(bits[3] >> 16);
+        }
+
         /// <summary>
         /// Extracts the signed mantissa from the decimal's binary representation.
         /// The mantissa equals value × 10^Scale, avoiding arithmetic reconstruction.
