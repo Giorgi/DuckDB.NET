@@ -261,19 +261,118 @@ between two runs.
   execution and for a list of 10,000 decimals, in runs where four BIGINT parameters, the control, gave 0.95 and
   1.05, and the same allocation. An execution costs about 450 µs, and the conversion is a small part of it.
 
+### 11. A string is encoded by the writer, and a short one is written into the vector
+
+- **What:** `StringVectorDataWriter.AppendString` encodes the string to UTF-8 itself. A string of up to 12 bytes
+  is written straight into the vector, in the layout of DuckDB's `string_t`: the length, then 12 bytes with zeros
+  after the string. No native call is made for it. A longer one is encoded on the stack, or into a rented array
+  above 170 characters, and handed to `duckdb_unsafe_vector_assign_string_element_len` with its length.
+  (`4ef7efb`)
+- **Why:** the string was passed to `duckdb_vector_assign_string_element`. The marshaller of the call encoded it
+  with a terminator, into a buffer on the stack or, for a long string, on the heap. DuckDB then measured it
+  again and checked the UTF-8.
+- **The check of the UTF-8 is skipped** because what the .NET encoder writes is always valid: a surrogate
+  without its pair becomes the replacement character.
+- **The short string uses `DuckDBStringInlined`,** the struct the reader's `DuckDBString` is made of, so the
+  layout is declared once for both directions. The bytes after the string have to be zero: DuckDB compares and
+  hashes a short string by its 16 bytes.
+- **Kept:** a string ends at its first NUL character, as it did when DuckDB measured it as a C string. A
+  parameter does the same.
+- **Checked:** 27,016 strings appended to a VARCHAR, a VARCHAR[] and a BLOB column and returned from a scalar
+  function are stored byte for byte as before, on both runtimes. `StringWriteConversionTests` guards the layout
+  by comparing with the bytes DuckDB reads back and with strings DuckDB made.
+- **Measured** against the build before, 100,000 rows of four columns, two runs on each runtime. The BIGINT
+  control was between 0.84 and 1.16 in these runs, so a ratio is good to about a tenth:
+
+  | Strings | .NET 10 | .NET 8 |
+  |---|---|---|
+  | 5 to 8 ASCII characters | 0.69, 0.77 | 0.51, 0.73 |
+  | 12 ASCII characters | 0.72, 0.74 | 0.58, 0.67 |
+  | 40 ASCII characters | 0.90, 0.94 | 0.87, 0.93 |
+  | 300 ASCII characters | 0.81, 0.80 | 0.82, 0.89 |
+  | 4 Georgian characters, 12 bytes | 0.67, 0.74 | 0.65, 0.68 |
+  | 30 Georgian characters, 90 bytes | 0.59, 0.59 | 0.60, 0.55 |
+
+  Nothing is allocated on the managed heap, before or after. Why text that is not ASCII gains most was not
+  measured; DuckDB's check of the UTF-8, which is no longer made, is the likely part.
+
+### 12. The items of a `List<T>` and of an array are walked as a span
+
+- **What:** `CollectionVectorDataWriter.WriteItems<T>` takes a `List<T>` (`CollectionsMarshal.AsSpan`) and a
+  `T[]` as a read-only span and writes the items in a `for` loop. Every other collection keeps the `foreach`
+  over `IEnumerable<T>`. (`69e1205`)
+- **Why, and on which runtime:** .NET 8 allocates the enumerator for every list. .NET 10 removes it by itself,
+  but only while `WriteItems<T>` sees one type of collection for a `T`. A process that appends a `List<int>`, an
+  `int[]` and a `Collection<int>` allocated 40 bytes per list on .NET 10 too, until this change. So the gain is
+  on .NET 8, and on .NET 10 for a mix of collections. That is why the code is not under `#if`.
+- **Read in the compiled code:** on .NET 10 the final code of the loop before the change has the enumerator of
+  the list inlined and no allocation; on .NET 8 it calls the allocation helper. The loop over the span is 72
+  bytes and calls `WriteValue<T>` once per item.
+- **Measured** against the build before, 100,000 lists of ten items:
+
+  | | .NET 8 | .NET 10 |
+  |---|---|---|
+  | Allocated, `List<int>` and `List<int?>` | 3,915 KB to 8.6 KB | 8.65 KB, the same |
+  | Allocated, `int?[]` | 3,134 KB to 8.6 KB | the same |
+  | Allocated, `List<double?>` | 4,696 KB to 8.6 KB | the same |
+  | Time, `List<int?>` | 0.78 and 0.79 in two runs | no change |
+  | Time, the other three | 0.83 to 1.29, not the same twice | no change |
+
+- **A read-only span** because it also takes an array of a derived type, such as a `string[]` that arrives as
+  items of `object`. A writable span would throw there.
+- **Changed with it:** a `List<T>` that is modified while it is appended no longer throws.
+- **Not done:** the outer list of a `List<List<int>>` still goes through its enumerator, because it arrives as
+  items of `object`.
+
+### 13. The mapped appender gives its mappings the row as its class
+
+- **What:** `IPropertyMapping<T>.AppendToRow` takes `DuckDBAppenderRow`, the sealed class, where it took
+  `IDuckDBAppenderRow`. The mappings are an array walked by index, where they were a `List` walked with
+  `foreach`. (`c7da3b7`)
+- **Why:** every value was appended through the interface, one interface call per value.
+- **A `DateOnly` or a `TimeOnly` property now reaches the arithmetic of decision 6.** The class has
+  `AppendValue(DateOnly?)` and `AppendValue(TimeOnly?)`, which the interface lacks, and the mappings call them.
+  A property of the DuckDB types is written as before. Because both kinds of overload are in reach, the calls
+  for a value that is not nullable name the overload with a cast; without it they are ambiguous.
+- **Rejected: one method compiled for the map from an expression tree.** Built and measured (branch
+  `mapped-appender`). It was ahead only for nullable properties on .NET 8 (0.66 and 0.70 against 0.85 and
+  0.81), level or behind elsewhere, doubled what an appender allocates when it is created, and needs
+  `Expression.Compile`, which runs interpreted under Native AOT.
+- **Measured** against the build before, 100,000 records, two runs, before the change for `DateOnly` and
+  `TimeOnly`, which was not measured. The BIGINT control moved between 0.78 and 1.20, so these are indications:
+
+  | Record | .NET 10 | .NET 8 |
+  |---|---|---|
+  | 8 `int` properties | 0.87, 0.87 | 0.83, 0.89 |
+  | 8 `int?` properties | 0.85, 0.91 | 0.85, 0.81 |
+  | 5 properties of different types | 0.92, 0.92 | 0.94, 0.91 |
+
+- **The cast of the row is inside the call.** Read in the compiled code: .NET 10 moves it out of the loop, and
+  .NET 8 tests the type once per property, a compare and a branch.
+- **Left:** two indirect calls per value, to the mapping and to the getter. The getter is a `Func`, so it cannot
+  be made part of a compiled method without a change of `Map`.
+
 ## Costs that are known and not yet removed
 
 - **A callback written against the interfaces pays the lookups of decision 8:** 11.0 ms where the typed form of
   the same function takes 3.6 ms. Non-generic methods on the interfaces would remove them.
 - **A typed function reads a nullable argument through a delegate and tests it for NULL twice.** After decision 9
   an `int?` function takes 13.9 ms where an `int` function takes 6.2 ms.
-- **A list is walked through its enumerator:** one allocated for every list, and two interface calls per item.
-  The collection is also tested against about 45 interfaces, for every list, to find its item type.
+- **A list that is not a `List<T>` or an array is walked through its enumerator:** one allocated for every list,
+  and two interface calls per item (decision 12).
+- **A collection is tested against about 45 interfaces, for every list, to find its item type.** The types of
+  text, dates and times are at the end. Trying the types of the column first halved the time of a list of three
+  timestamps on .NET 8 and did nothing clear on .NET 10; it is on the branch `list-column-first`, not merged.
+- **The appender creates its writers again for every chunk.** Keeping them took an ENUM with 200 names written
+  by name to 0.62 of the time and changed nothing else; it is on the branch `keep-writers`, not merged, because
+  a list writer then depends on what DuckDB does to a list vector when it resets a chunk.
+- **A mapped property costs two indirect calls,** to its mapping and to its getter (decision 13).
 - **A C# enum is boxed twice** on its way into an ENUM column, 48 bytes per value, and `AppendEnum<TEnum>` is
   looked up at run time.
 - **A table function gets its rows as `object`:** a row that is a value type is boxed, and every row costs two
   interface calls on the enumerator and a delegate call.
-- **A `DateOnly` or `TimeOnly` appended to a row** goes through the DuckDB struct (decision 6).
+- **A `DateOnly` or `TimeOnly` appended to a row** goes through the DuckDB struct (decision 6). The mapped
+  appender does not (decision 13).
 - **Every chained `AppendValue` is a call through `IDuckDBAppenderRow`,** because the fluent methods return the
   interface.
 - **`decimal.GetBits` needs four integers on the stack,** which is the 16 bytes cleared for every decimal and a
@@ -293,6 +392,7 @@ between two runs.
 - **A TIMESTAMP_S and a TIMESTAMP_MS round toward zero before 1970,** so 1969-12-31 23:59:59.9999999 is stored
   as 1970-01-01 00:00:00. DuckDB's own cast rounds down.
 - **A `DateTime` outside 1677 to 2262 wraps around in a TIMESTAMP_NS,** with no error.
+- **A string ends at its first NUL character** (decision 11).
 - **A typed scalar function with no nullable parameter is called for a NULL in a column.** DuckDB answers a
   constant NULL itself; for a column it passes every row. A value-type parameter then fails with "value is null"
   and a `string` parameter gets `null`.

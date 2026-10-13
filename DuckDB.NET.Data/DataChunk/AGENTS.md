@@ -39,6 +39,9 @@ directions together, so a round trip does not show a mistake; the tests that com
 - The code that calls the writers is part of the write path: `DuckDBAppenderRow`, the mapped appender in
   `Mapping`, and the registration of scalar and table functions. `Writer/DESIGN.md` covers it.
 - What a .NET date or time is stored as is pinned by `DuckDB.NET.Test/TemporalWriteConversionTests.cs`.
+- What a decimal is stored as, and which one is refused, is pinned by
+  `DuckDB.NET.Test/DecimalWriteConversionTests.cs`; the bytes of a string by
+  `DuckDB.NET.Test/StringWriteConversionTests.cs`.
 - Take allocation figures from a Release build. A Debug build boxes every value once in `WriteValue<T>`.
 
 ## Before proposing a change as faster
