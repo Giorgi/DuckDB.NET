@@ -144,10 +144,9 @@ between two runs.
   that no signature states.
 - **The compiled loop** of an `int` function (.NET 10): the read and the user's function are inlined, the second
   behind a type check, and one direct call is left, to `WriteValue<int>` (decision 3).
-- **Table functions:** the method compiled from the projection tests the writer of each column for
-  `VectorDataWriterBase` and calls its `WriteValue<T>`; any other writer takes the call through the interface. A
-  column that the query does not read has a `NullDataWriter`, which is not a `VectorDataWriterBase`. The value of
-  such a column is still worked out, once per row, as before.
+- **Table functions:** the method compiled from the projection tested the writer of each column for
+  `VectorDataWriterBase` and called its `WriteValue<T>`; any other writer took the call through the interface,
+  as the writer of a column that the query does not read did. Decision 14 replaced that method.
 - **Measured** against `1.5.6-alpha.66`, 1,000,000 rows, one thread, .NET 10:
 
   | Function | Ratio |
@@ -352,6 +351,78 @@ between two runs.
 - **Left:** two indirect calls per value, to the mapping and to the getter. The getter is a `Func`, so it cannot
   be made part of a compiled method without a change of `Map`.
 
+### 14. A table function is read by a scan that knows the type of its rows and the columns of the query
+
+- **What, in two steps.**
+  1. *The rows keep their type.* A scan is a `TableFunctionScan`: the rows and the method that
+     writes one, both typed. The callback that DuckDB calls is static and cannot be generic, so it sees the
+     non-generic base and calls `Fill` once for a chunk. The type comes from `RegisterTableFunction<TData, ...>`,
+     which stores a factory for the scan in the extra info of the function. An array and a `List<T>` are read by
+     position; any other source as `IEnumerator<TData>`. The types of the columns are created once for a scan.
+     A list that has another length than when the scan started is refused, before every chunk and after it:
+     its enumerator refused a list that was changed, and read by position a row that is added or removed would
+     shift the rows that follow without a word. After the chunk too, because a query with a `LIMIT` may not ask
+     for another one. A change that keeps the length is not noticed.
+  2. *The method that writes a row is compiled for the columns the query reads.* DuckDB says which
+     those are when it starts a scan. The method is compiled then and kept for the function by its list of
+     columns. A scan gets the writers of those columns only, in the order of the chunk.
+- **Why:** a scan held a non-generic `IEnumerator` and a method that took an `object`. Every row was fetched as
+  an object and cast back, and a row that is a struct was boxed. The method that writes a row was compiled once
+  for every column, so it tested the writer of each column for every row, and the value of a column that the
+  query does not read was still worked out and handed to a writer that does nothing, through the interface.
+- **Read in the compiled code** (.NET 10; .NET 8 has the same shape):
+  - the method that writes a row was 449 bytes for four columns, with two calls for a column: a helper of the
+    runtime for the type test, because the writers are classes derived from `VectorDataWriterBase`, and
+    `WriteValue<int>`. It is 125 bytes now, one call for a column, and 39 bytes when the query reads one column;
+  - `Fill` for an array is 148 bytes: load the row, call the method that writes it, count.
+- **Measured** against the commit before, a million rows, on the performance cores, with the same query over a
+  table as the control (0.99 and 1.03 on .NET 10; 1.00 and 0.84 on .NET 8):
+
+  | Query | .NET 10 | .NET 8 |
+  |---|---|---|
+  | One column of a function that has eight | 0.07 (62.1 to 4.5 ns a row) | 0.07 (61.1 to 4.6 ns) |
+  | Rows of a class from an array, one column | 0.38 | 0.43 |
+  | The same, four columns | 0.47 | 0.43 |
+  | The same rows from an iterator, one column | 0.50 | 0.67 |
+  | The same, four columns | 0.59 | 0.54 |
+  | Rows that are a struct, one column | 0.23 | 0.12 |
+  | The same, four columns | 0.43 | 0.26 |
+
+  Rows that are a struct allocated 47 MB for a million rows and allocate 0.1 MB. Step 1 alone, .NET 10: 0.51,
+  0.60 and 0.31 for one column, and 0.90, 0.94 and 0.67 for four, where the method that writes a row was most
+  of the time.
+- **What a row costs now:** about 4.5 ns for one column and 11.5 to 13 ns for four, on both runtimes. The same
+  query over a table costs 0.8 and 2.6 ns.
+- **Changed with it:** the expression of a column that the query does not read is not evaluated. It was
+  evaluated once for a row, and its value thrown away.
+- **Not changed:** the registration with a method that takes an `object` and an array of writers. That method
+  chooses a writer by the index of the column, so it still gets a writer for every column, and the
+  `NullDataWriter` for the ones the query does not read (`ObjectTableFunctionScan`).
+- **Rejected, each built and measured:**
+  - the method compiled once, with a test of the type of the writer that does nothing in place of the test for
+    `VectorDataWriterBase`. The expression compiler turned the test into a call of `Object.GetType`: no gain;
+  - the same with a comparison against the one instance of that writer: 0.54 for four columns. The method
+    compiled for the columns of the query replaced it: no test at all, and nothing for a column that is not
+    read.
+- **Tell DuckDB the length of an array.** When the data of a function is an array and the function gives no
+  `CardinalityHint`, its length is passed on. Only for an array, whose length cannot change:
+  `duckdb_bind_set_cardinality` sets the number as the most rows the function can return when `is_exact` is
+  false, and as an estimate only when it is true (read at v1.5.6), the reverse of what the names say. DuckDB
+  then adds integers without a check for overflow when that many rows cannot overflow, so a function that
+  returns more rows than it said gets a wrong sum: 3 rows of 4,000,000,000,000,000,000 after a count of 2 gave
+  -6,446,744,073,709,551,616. DuckDB 2.0 has the two the right way round (commit `90cb1904ca5` of DuckDB, read
+  on the `v2.0-cyanoptera` branch), and there a maximum that is too small also removes a `LIMIT` that is larger
+  (read, not run). The length of an array is true either way.
+- **A `CardinalityHint` of a function has the same trap** with `IsExact: false` on DuckDB 1.5. It is passed on
+  as it is and not swapped: the comment on the type says what each value does, and 2.0 corrects it.
+- **Pinned by:** `RegisterTableFunctionSimplifiedReadsEverySourceTheSameWay` (an array, a `List`, an iterator
+  and a set; a class and a struct; three chunks; two scans in one query),
+  `RegisterTableFunctionSimplifiedReadsEachColumnOnceForARow` (no value is asked for a column that is not read,
+  and each set of columns has its own method), `RegisterTableFunctionSimplifiedRefusesAListThatChangesLength`,
+  and `RegisterTableFunctionOverAnArray_LengthAppearsInQueryPlan`.
+- **Under Native AOT** the compiled methods are interpreted, as the one compiled at registration was. The
+  registration with a method that takes an `object` uses no expression tree.
+
 ## Costs that are known and not yet removed
 
 - **A callback written against the interfaces pays the lookups of decision 8:** 11.0 ms where the typed form of
@@ -369,8 +440,13 @@ between two runs.
 - **A mapped property costs two indirect calls,** to its mapping and to its getter (decision 13).
 - **A C# enum is boxed twice** on its way into an ENUM column, 48 bytes per value, and `AppendEnum<TEnum>` is
   looked up at run time.
-- **A table function gets its rows as `object`:** a row that is a value type is boxed, and every row costs two
-  interface calls on the enumerator and a delegate call.
+- **A row of a table function costs a delegate call,** from the loop of the scan to the method that writes the
+  row, and a column a call to `WriteValue<T>` (decision 14). A source that is not an array or a `List<T>` also
+  costs two interface calls on its enumerator. Compiling the loop of a chunk for a scan would remove the
+  delegate call; it was not built.
+- **A table function with a method that takes an `object`** boxes a row that is a struct and gives a column
+  that the query does not read a writer that does nothing (decision 14).
+- **The writers of a table function and of a scalar function are created for every chunk.**
 - **A `DateOnly` or `TimeOnly` appended to a row** goes through the DuckDB struct (decision 6). The mapped
   appender does not (decision 13).
 - **Every chained `AppendValue` is a call through `IDuckDBAppenderRow`,** because the fluent methods return the
@@ -393,6 +469,9 @@ between two runs.
   as 1970-01-01 00:00:00. DuckDB's own cast rounds down.
 - **A `DateTime` outside 1677 to 2262 wraps around in a TIMESTAMP_NS,** with no error.
 - **A string ends at its first NUL character** (decision 11).
+- **The expression of a column of a table function is not evaluated when the query does not read the column**
+  (decision 14). A table function registered with a method that takes an `object` is still called for every
+  row, and decides itself what to write.
 - **A typed scalar function with no nullable parameter is called for a NULL in a column.** DuckDB answers a
   constant NULL itself; for a column it passes every row. A value-type parameter then fails with "value is null"
   and a `string` parameter gets `null`.
