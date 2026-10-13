@@ -88,7 +88,7 @@ public class MappedAppenderBenchmark
         var row = appender.CreateRow();
         foreach (var mapping in mappings)
         {
-            mapping.AppendToRow(row, record);
+            mapping.AppendToRow((DuckDBAppenderRow)row, record);
         }
 
         row.EndRow();
