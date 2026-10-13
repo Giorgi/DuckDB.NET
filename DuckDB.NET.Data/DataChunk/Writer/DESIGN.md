@@ -202,6 +202,65 @@ between two runs.
 - **Pinned by:** `SimplifiedScalarFunctionReturnsNullableOfEveryType`, a function for each of the 21 types, and
   `NullableItemsAppendedAfterAFailedListReplaceItsNulls`, for a value written where a NULL was.
 
+### 10. A decimal is written by integer arithmetic, and one that is too wide is refused
+
+- **What:** a `decimal` is an integer of 96 bits, a sign and a scale. `DecimalVectorDataWriter` takes those parts
+  out (`GetParts`, one call to `decimal.GetBits`), multiplies or divides the integer by a power of ten to get
+  the integer for the scale of the column, and stores it. It is the reader's conversion in the other direction.
+- **Two methods.** `AppendDecimal` is for an integer that fits 64 bits (every value of up to 19 digits) whose
+  scale is less than 20 away from the scale of the column: one 64-bit multiplication (`Math.BigMul`) or
+  division, for every storage size. `AppendLongDecimal` does the same steps on `UInt128` for the rest: a longer
+  integer, such as the 28 digits of `1m / 7m`, or `1m` into a DECIMAL(38,20). It is a method of its own for the
+  reason the reader has `GetWideDecimal`: 128-bit arithmetic needs a large stack frame, and in the first method
+  that frame was reserved and partly cleared for every value: 200 bytes reserved and 80 cleared, against 72 and
+  16 now (.NET 10). `AppendDecimal` compiles to 564 bytes with one `mulx` and one `div`, and its only calls are
+  to the long method and to the exception.
+- **Why:** every value was multiplied with `decimal.Multiply` and then cast, and a column of more than 18 digits
+  went through `BigInteger`, which allocated for the value and for the power of ten.
+- **A value with more digits than the width of the column is refused** with `OverflowException`, which names the
+  value and the column. DuckDB does not check a chunk that is appended. Until this change the writer checked only
+  that the integer fit the storage size, so `10000000.00` went into a DECIMAL(9,2) and `1` into a
+  DECIMAL(38,38), and DuckDB printed garbage for them.
+- **The check is also what keeps the long method short.** A value fits when the digits in front of its point
+  fit, which is one comparison on the decimal, made first. A value that passes is below 10^38 when it is
+  rescaled, so the 128-bit multiplication after it cannot overflow and needs no guard.
+- **Rejected, each built and measured:**
+  - everything through `UInt128` in one method: correct, half the old time, and the frame above on every value;
+  - a third method, the old code, kept to throw the old exceptions. It was needed only while a value that did not
+    fit still had to fail in the old way. With the width check there is one exception, thrown here;
+  - the old code for long values, to save the 128-bit method: long values stayed at the old speed and kept
+    allocating in a wide column.
+- **Kept:** digits after the point that the column has no room for are dropped, toward zero. DuckDB rounds them
+  when it casts a parameter. That difference is deliberate; `DecimalsTruncateExcessScale` pins it.
+- **Parameters start from the same parts** (`DecimalToDuckDBValue`), and pass the exact number of digits as the
+  width. The earlier count, from `BigInteger.Log10`, was wrong near a power of ten: it took 1000 for three
+  digits. DuckDB then stored a value one digit too long for its column, which it refuses now.
+- **Checked:** 96,570 decimals into 15 column types, with the build before and with this one, by DuckDB's
+  `hash()` of what was stored, on both runtimes. Every value that fits was stored as before (1,055,860), every
+  one that does not is refused (392,690, of which 22,275 used to be stored), and none is on the wrong side.
+  What fits was worked out apart from the code, with exact arithmetic. Not as text: DuckDB prints a decimal
+  that is too wide differently from one run to the next.
+- **Measured** against the build before, 100,000 rows of four columns, with the BIGINT control at 1.01 on .NET 10
+  and 1.05 on .NET 8:
+
+  | Write | .NET 10 | .NET 8 | Allocated |
+  |---|---|---|---|
+  | The scale of the column, DECIMAL(18,4) | 0.49 | 0.56 | 11.9 KB to 14.9 KB |
+  | Fewer digits after the point than the column | 0.44 | 0.60 | 11.9 KB to 14.9 KB |
+  | DECIMAL(9,2) | 0.46 | 0.53 | 11.9 KB to 14.9 KB |
+  | DECIMAL(38,10) | 0.50 | 0.40 | 12,512 KB to 14.9 KB |
+  | 28 digits into DECIMAL(18,4) | 0.81 | 0.81 | 11.9 KB to 14.9 KB |
+  | 28 digits into DECIMAL(38,10) | 0.37 | 0.52 | 25,894 KB to 14.9 KB |
+
+  An earlier run on .NET 10 gave the same ratios within 0.05.
+
+  The 3 KB more is 3,136 bytes, which equals 16 bytes, the two fields of the limit, for each of the four writers
+  that the appender creates again for each of the 49 chunks. Where the bytes go was not measured.
+
+  A parameter shows no change that can be measured, on either runtime: 0.90 to 1.02 for four decimals per
+  execution and for a list of 10,000 decimals, in runs where four BIGINT parameters, the control, gave 0.95 and
+  1.05, and the same allocation. An execution costs about 450 µs, and the conversion is a small part of it.
+
 ## Costs that are known and not yet removed
 
 - **A callback written against the interfaces pays the lookups of decision 8:** 11.0 ms where the typed form of
@@ -217,14 +276,20 @@ between two runs.
 - **A `DateOnly` or `TimeOnly` appended to a row** goes through the DuckDB struct (decision 6).
 - **Every chained `AppendValue` is a call through `IDuckDBAppenderRow`,** because the fluent methods return the
   interface.
-- **A `decimal` in a column of more than 18 digits** allocates 32 bytes per value, and a list 80 to 100 bytes
-  per list. Neither has been looked at.
+- **`decimal.GetBits` needs four integers on the stack,** which is the 16 bytes cleared for every decimal and a
+  check of the stack guard. There is no public way to read the parts of a decimal without a buffer.
+- **A decimal whose integer does not fit 64 bits, or whose scale is 20 or more away from the column's, is divided
+  or multiplied on 128 bits,** and the division is a call into the runtime: 0.81 of the old time where a shorter
+  value takes 0.49.
 
 ## Behaviour that is kept on purpose
 
 - **The appender does no type checking.** It writes the bytes of the .NET type it is given. `AppendValue(1)`
   into an INTEGER column stores garbage, and a `DateTime` appended to a TIME column stores the microseconds of
-  the timestamp. The mapped appender checks types when it is created.
+  the timestamp. The mapped appender checks types when it is created. A value of the right type that is out of
+  range is another matter: a decimal is checked against the width of its column (decision 10).
+- **A decimal loses the digits after the point that its column has no room for, toward zero,** where DuckDB
+  rounds a parameter (decision 10).
 - **A TIMESTAMP_S and a TIMESTAMP_MS round toward zero before 1970,** so 1969-12-31 23:59:59.9999999 is stored
   as 1970-01-01 00:00:00. DuckDB's own cast rounds down.
 - **A `DateTime` outside 1677 to 2262 wraps around in a TIMESTAMP_NS,** with no error.
