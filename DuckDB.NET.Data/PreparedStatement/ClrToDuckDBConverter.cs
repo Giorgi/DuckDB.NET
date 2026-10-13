@@ -137,8 +137,10 @@ internal static class ClrToDuckDBConverter
 
         var values = BuildValues(childType, collection, dbType);
 
-        return isList ? NativeMethods.Value.DuckDBCreateListValue(childType, values, collection.Count)
-                      : NativeMethods.Value.DuckDBCreateArrayValue(childType, values, collection.Count);
+        var value = isList ? NativeMethods.Value.DuckDBCreateListValue(childType, values, collection.Count)
+                           : NativeMethods.Value.DuckDBCreateArrayValue(childType, values, collection.Count);
+
+        return ThrowIfNotCreated(value, values, childType, isList ? "list" : "array");
     }
 
     private static DuckDBValue CreateListFromClrType(ICollection collection, DbType dbType)
@@ -153,7 +155,31 @@ internal static class ClrToDuckDBConverter
         using var childType = elementType.GetLogicalType();
         var values = BuildValues(childType, collection, dbType);
 
-        return NativeMethods.Value.DuckDBCreateListValue(childType, values, collection.Count);
+        return ThrowIfNotCreated(NativeMethods.Value.DuckDBCreateListValue(childType, values, collection.Count), values, childType, "list");
+    }
+
+    // DuckDB converts every item to the type of the items of the list or array. When one cannot be converted, an
+    // item out of range for example, it returns no value and does not say which item or why. Binding that would
+    // crash the process: duckdb_bind_value reads the value without testing for it.
+    private static DuckDBValue ThrowIfNotCreated(DuckDBValue value, DuckDBValue[] items, DuckDBLogicalType itemType, string kind)
+    {
+        if (!value.IsInvalid)
+        {
+            return value;
+        }
+
+        // A value that was not created does not own its items, so they are released here.
+        foreach (var item in items)
+        {
+            item.Dispose();
+        }
+
+        value.Dispose();
+
+        var itemTypeName = NativeMethods.LogicalType.DuckDBGetTypeId(itemType);
+
+        throw new DuckDBException($"Cannot create the {kind} value of a parameter: DuckDB could not convert every item to {itemTypeName}, the type of its items. " +
+                                  "An item may be out of range for that type.");
     }
 
     private static DuckDBValue[] BuildValues(DuckDBLogicalType childType, ICollection collection, DbType dbType)
