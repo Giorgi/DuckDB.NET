@@ -93,7 +93,12 @@ partial class DuckDBConnection
         RegisterTableFunctionInternal(name, (positional, _) => resultCallback(positional), mapperCallback, logicalTypes, []);
     }
 
-    internal unsafe void RegisterTableFunctionInternal(string name, Func<IReadOnlyList<IDuckDBValueReader>, IReadOnlyDictionary<string, IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback, DuckDBLogicalType[] positionalLogicalTypes, NamedParameterDefinition[] namedParameters)
+    internal void RegisterTableFunctionInternal(string name, Func<IReadOnlyList<IDuckDBValueReader>, IReadOnlyDictionary<string, IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback, DuckDBLogicalType[] positionalLogicalTypes, NamedParameterDefinition[] namedParameters)
+    {
+        RegisterTableFunctionInternal(name, resultCallback, data => new ObjectTableFunctionScan(data.GetEnumerator(), mapperCallback), positionalLogicalTypes, namedParameters);
+    }
+
+    internal unsafe void RegisterTableFunctionInternal(string name, Func<IReadOnlyList<IDuckDBValueReader>, IReadOnlyDictionary<string, IDuckDBValueReader>, TableFunction> resultCallback, Func<IEnumerable, TableFunctionScan> createScan, DuckDBLogicalType[] positionalLogicalTypes, NamedParameterDefinition[] namedParameters)
     {
         var function = NativeMethods.TableFunction.DuckDBCreateTableFunction();
         NativeMethods.TableFunction.DuckDBTableFunctionSetName(function, name);
@@ -110,7 +115,7 @@ partial class DuckDBConnection
             NativeMethods.TableFunction.DuckDBTableFunctionAddNamedParameter(function, param.Name, logicalType);
         }
 
-        var tableFunctionInfo = new TableFunctionInfo(resultCallback, mapperCallback, Array.ConvertAll(namedParameters, p => p.Name));
+        var tableFunctionInfo = new TableFunctionInfo(resultCallback, createScan, Array.ConvertAll(namedParameters, p => p.Name));
 
         NativeMethods.TableFunction.DuckDBTableFunctionSetBind(function, &Bind);
         NativeMethods.TableFunction.DuckDBTableFunctionSetInit(function, &Init);
@@ -225,10 +230,15 @@ partial class DuckDBConnection
                 projected[i] = (int)NativeMethods.TableFunction.DuckDBInitGetColumnIndex(info, (ulong)i);
             }
 
-            // The enumerator must be created per init, not per bind: DuckDB re-initializes a scan
+            if (GCHandle.FromIntPtr(NativeMethods.TableFunction.DuckDBInitGetExtraInfo(info)).Target is not TableFunctionInfo functionInfo)
+            {
+                throw new InvalidOperationException("User defined table function init failed. Function extra info is null");
+            }
+
+            // The scan must be created per init, not per bind: DuckDB re-initializes a scan
             // without re-binding when it re-executes a pipeline (e.g. on every iteration of a
-            // recursive CTE), and each scan must enumerate the data from the beginning.
-            IEnumerator? enumerator;
+            // recursive CTE), and each scan must read the data from the beginning.
+            IEnumerable? rows;
             if (bindData.DataFactory is { } factory)
             {
                 var projectedColumns = new ProjectedColumn[count];
@@ -237,16 +247,24 @@ partial class DuckDBConnection
                     var column = bindData.Columns[projected[i]];
                     projectedColumns[i] = new ProjectedColumn(projected[i], column.Name, column.Type);
                 }
-                // ReSharper disable once GenericEnumeratorNotDisposed This is disposed in TableFunctionInitData.Dispose
-                enumerator = factory(projectedColumns).GetEnumerator();
+
+                rows = factory(projectedColumns);
             }
             else
             {
-                // ReSharper disable once GenericEnumeratorNotDisposed This is disposed in TableFunctionInitData.Dispose
-                enumerator = bindData.Data?.GetEnumerator();
+                rows = bindData.Data;
             }
 
-            var initData = new TableFunctionInitData(projected, enumerator);
+            // The scan is disposed in TableFunctionInitData.Dispose.
+            var scan = rows is null ? null : functionInfo.CreateScan(rows);
+
+            var logicalTypes = new DuckDBLogicalType[count];
+            for (var i = 0; i < count; i++)
+            {
+                logicalTypes[i] = bindData.Columns[projected[i]].Type.GetLogicalType();
+            }
+
+            var initData = new TableFunctionInitData(projected, scan, logicalTypes, bindData.Columns.Count);
             NativeMethods.TableFunction.DuckDBInitSetInitData(info, initData.ToHandle(), &DestroyExtraInfo);
         }
         catch (Exception ex)
@@ -263,22 +281,9 @@ partial class DuckDBConnection
     private static void TableFunction(IntPtr info, IntPtr chunk)
     {
         IDuckDBDataWriter[] writers = [];
-        DuckDBLogicalType[] logicalTypes = [];
         try
         {
-            var bindData = GCHandle.FromIntPtr(NativeMethods.TableFunction.DuckDBFunctionGetBindData(info));
-            var extraInfo = GCHandle.FromIntPtr(NativeMethods.TableFunction.DuckDBFunctionGetExtraInfo(info));
             var initHandle = GCHandle.FromIntPtr(NativeMethods.TableFunction.DuckDBFunctionGetInitData(info));
-
-            if (bindData.Target is not TableFunctionBindData tableFunctionBindData)
-            {
-                throw new InvalidOperationException("User defined table function failed. Function bind data is null");
-            }
-
-            if (extraInfo.Target is not TableFunctionInfo tableFunctionInfo)
-            {
-                throw new InvalidOperationException("User defined table function failed. Function extra info is null");
-            }
 
             if (initHandle.Target is not TableFunctionInitData tableFunctionInitData)
             {
@@ -286,43 +291,24 @@ partial class DuckDBConnection
             }
 
             var dataChunk = new DuckDBDataChunk(chunk);
+            var projected = tableFunctionInitData.Projected;
 
-            var totalColumnCount = tableFunctionBindData.Columns.Count;
-            var projectedCount = tableFunctionInitData.Projected.Length;
-
-            writers = new IDuckDBDataWriter[totalColumnCount];
+            writers = tableFunctionInitData.Writers;
             Array.Fill(writers, NullDataWriter.Instance);
 
-            logicalTypes = new DuckDBLogicalType[projectedCount];
-
-            for (var columnIndex = 0; columnIndex < projectedCount; columnIndex++)
+            for (var columnIndex = 0; columnIndex < projected.Length; columnIndex++)
             {
-                var originalColumnIndex = tableFunctionInitData.Projected[columnIndex];
-                var column = tableFunctionBindData.Columns[originalColumnIndex];
                 var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(dataChunk, columnIndex);
 
-                logicalTypes[columnIndex] = column.Type.GetLogicalType();
-                writers[originalColumnIndex] = VectorDataWriterFactory.CreateWriter(vector, logicalTypes[columnIndex]);
+                writers[projected[columnIndex]] = VectorDataWriterFactory.CreateWriter(vector, tableFunctionInitData.LogicalTypes[columnIndex]);
             }
 
-            if (tableFunctionInitData.Enumerator is null)
+            if (tableFunctionInitData.Scan is not { } scan)
             {
                 throw new InvalidOperationException("User defined table function failed. No data source available");
             }
 
-            ulong size = 0;
-
-            for (; size < DuckDBGlobalData.VectorSize; size++)
-            {
-                if (tableFunctionInitData.Enumerator.MoveNext())
-                {
-                    tableFunctionInfo.Mapper(tableFunctionInitData.Enumerator.Current, writers, size);
-                }
-                else
-                {
-                    break;
-                }
-            }
+            var size = scan.Fill(writers, DuckDBGlobalData.VectorSize);
 
             NativeMethods.DataChunks.DuckDBDataChunkSetSize(dataChunk, size);
         }
@@ -348,11 +334,6 @@ partial class DuckDBConnection
             foreach (var writer in writers)
             {
                 (writer as IDisposable)?.Dispose();
-            }
-
-            foreach (var logicalType in logicalTypes)
-            {
-                logicalType?.Dispose();
             }
         }
     }
