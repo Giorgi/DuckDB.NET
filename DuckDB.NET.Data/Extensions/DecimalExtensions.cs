@@ -6,15 +6,9 @@ namespace DuckDB.NET.Data.Extensions;
 internal static class DecimalExtensions
 {
     /// <summary>
-    /// Pre-computed powers of 10 as BigInteger values for scales 0-38 (the full range of DuckDB DECIMAL).
-    /// </summary>
-    internal static readonly BigInteger[] BigIntPowersOfTen = Enumerable.Range(0, 39)
-        .Select(i => BigInteger.Pow(10, i))
-        .ToArray();
-
-    /// <summary>
-    /// The same powers of 10 as <see cref="Int128"/> values (10^38 fits). The reader divides by these,
-    /// because a HUGEINT is an Int128 and dividing one allocates nothing, unlike a BigInteger.
+    /// The powers of 10 for scales 0 to 38, the full range of a DuckDB DECIMAL, as <see cref="Int128"/> values
+    /// (10^38 fits). The reader divides by these, because a HUGEINT is an Int128 and dividing one allocates
+    /// nothing, unlike a BigInteger.
     /// </summary>
     internal static readonly Int128[] Int128PowersOfTen = Enumerable.Range(0, 39)
         .Select(i => (Int128)BigInteger.Pow(10, i))

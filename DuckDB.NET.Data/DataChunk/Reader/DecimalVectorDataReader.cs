@@ -100,9 +100,9 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
     {
         // A HUGEINT is an Int128. Dividing it as one allocates nothing; a BigInteger allocates for
         // the value, the quotient and the remainder.
-        var raw = GetFieldData<DuckDBHugeInt>(offset);
+        var raw = GetFieldData<DuckDBHugeInt>(offset).ToInt128();
 
-        var (quotient, remainder) = Int128.DivRem(new Int128((ulong)raw.Upper, raw.Lower), DecimalExtensions.Int128PowersOfTen[Scale]);
+        var (quotient, remainder) = Int128.DivRem(raw, DecimalExtensions.Int128PowersOfTen[Scale]);
 
         try
         {
@@ -137,9 +137,10 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
             return unscaledValue;
         }
 
-        var quotient = BigInteger.DivRem(unscaledValue, DecimalExtensions.BigIntPowersOfTen[Scale], out var remainder);
+        // Divided as an Int128, as in GetWideDecimal: every DECIMAL fits one, and so does every power of ten.
+        var (quotient, remainder) = Int128.DivRem(unscaledValue, DecimalExtensions.Int128PowersOfTen[Scale]);
 
-        if (!remainder.IsZero)
+        if (remainder != 0)
         {
             throw new InvalidCastException($"Cannot cast a value with a non-zero fractional part to {nameof(BigInteger)} in column {ColumnName}");
         }
@@ -161,18 +162,21 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
         return new DuckDBDecimal(Precision, Scale, value);
     }
 
-    private BigInteger GetUnscaledValue(ulong offset) => decimalType switch
+    private Int128 GetUnscaledValue(ulong offset)
     {
-        DuckDBType.SmallInt => GetFieldData<short>(offset),
-        DuckDBType.Integer => GetFieldData<int>(offset),
-        DuckDBType.BigInt => GetFieldData<long>(offset),
-        DuckDBType.HugeInt => GetFieldData<DuckDBHugeInt>(offset).ToBigInteger(),
-        _ => throw InvalidStorageType()
-    };
+        return decimalType switch
+        {
+            DuckDBType.SmallInt => GetFieldData<short>(offset),
+            DuckDBType.Integer => GetFieldData<int>(offset),
+            DuckDBType.BigInt => GetFieldData<long>(offset),
+            DuckDBType.HugeInt => GetFieldData<DuckDBHugeInt>(offset).ToInt128(),
+            _ => throw InvalidStorageType()
+        };
+    }
 
     // A method, so that the message is not built inside GetDecimal: the buffer for it would be part of that
     // method's stack frame and be cleared on every call.
-    private DuckDBException InvalidStorageType() => new DuckDBException($"Invalid storage type {decimalType} ({(int)decimalType}) for decimal column {ColumnName}");
+    private DuckDBException InvalidStorageType() => new($"Invalid storage type {decimalType} ({(int)decimalType}) for decimal column {ColumnName}");
 
     private static DuckDBHugeInt ToHugeInt(long value) => new(unchecked((ulong)value), value < 0 ? -1 : 0);
 }

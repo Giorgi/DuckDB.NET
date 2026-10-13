@@ -72,6 +72,7 @@ public class DuckDBHugeIntTests
         ((BigInteger)hugeInt.Upper).Should().Be(upper);
         ((BigInteger)hugeInt.Lower).Should().Be(lower);
         hugeInt.ToBigInteger().Should().Be(value);
+        hugeInt.ToInt128().Should().Be(Int128.Parse(text, CultureInfo.InvariantCulture));
     }
 
     [Theory]
@@ -93,6 +94,7 @@ public class DuckDBHugeIntTests
         ((BigInteger)hugeInt.Upper).Should().Be(upper);
         ((BigInteger)hugeInt.Lower).Should().Be(lower);
         hugeInt.ToBigInteger().Should().Be(value);
+        hugeInt.ToUInt128().Should().Be(UInt128.Parse(text, CultureInfo.InvariantCulture));
     }
 
     // The conversion to Int128 or UInt128 throws OverflowException by itself. Callers get the exception and the

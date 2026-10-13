@@ -87,7 +87,7 @@ internal sealed class BigIntegerVectorDataReader : VectorDataReaderBase
 
         try
         {
-            return NumericConverter.Convert<Int128, T>(new Int128((ulong)value.Upper, value.Lower));
+            return NumericConverter.Convert<Int128, T>(value.ToInt128());
         }
         catch (OverflowException)
         {
@@ -106,7 +106,7 @@ internal sealed class BigIntegerVectorDataReader : VectorDataReaderBase
 
         try
         {
-            return NumericConverter.Convert<UInt128, T>(new UInt128(value.Upper, value.Lower));
+            return NumericConverter.Convert<UInt128, T>(value.ToUInt128());
         }
         catch (OverflowException)
         {
