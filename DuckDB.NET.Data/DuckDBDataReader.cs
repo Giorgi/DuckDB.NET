@@ -419,6 +419,7 @@ public class DuckDBDataReader : DbDataReader
         // Finish the reader's own cleanup first, so an exception from closing the connection cannot skip it.
         closed = true;
         resultEnumerator.Dispose();
+        command.ReaderClosed();
 
         if (behavior == CommandBehavior.CloseConnection)
         {

@@ -23,7 +23,7 @@ public class DuckDBParameterCollection : DbParameterCollection
     
     public override int Add(object value)
     {
-        parameters.Add((DuckDBParameter)value);
+        parameters.Add(RequireParameter(value));
         return parameters.Count - 1;
     }
 
@@ -33,9 +33,9 @@ public class DuckDBParameterCollection : DbParameterCollection
 
     public override int IndexOf(object value) => parameters.IndexOf((DuckDBParameter) value);
 
-    public override void Insert(int index, object value) => parameters.Insert(index, (DuckDBParameter) value);
+    public override void Insert(int index, object value) => parameters.Insert(index, RequireParameter(value));
 
-    public override void Remove(object value) => parameters.Remove((DuckDBParameter) value);
+    public override void Remove(object value) => parameters.Remove(RequireParameter(value));
 
     public int Add(DuckDBParameter value)
     {
@@ -61,12 +61,12 @@ public class DuckDBParameterCollection : DbParameterCollection
     }
 
     protected override void SetParameter(int index, DbParameter value)
-        => parameters[index] = (DuckDBParameter)value;
+        => parameters[index] = RequireParameter(value);
 
     protected override void SetParameter(string parameterName, DbParameter value)
     {
         var index = IndexOfSafe(parameterName);
-        parameters[index] = (DuckDBParameter)value;
+        parameters[index] = RequireParameter(value);
     }
 
     public override int IndexOf(string parameterName)
@@ -100,4 +100,7 @@ public class DuckDBParameterCollection : DbParameterCollection
             throw new IndexOutOfRangeException($"Parameter '{parameterName}' not found");
         return index;
     }
+
+    private static DuckDBParameter RequireParameter(object? value) =>
+        value as DuckDBParameter ?? throw new ArgumentNullException(nameof(value));
 }

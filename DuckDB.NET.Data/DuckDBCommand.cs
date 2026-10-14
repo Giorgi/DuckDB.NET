@@ -12,6 +12,7 @@ public class DuckDBCommand : DbCommand
 {
     private DuckDBConnection? connection;
     private readonly DuckDBParameterCollection parameters = new();
+    private bool readerOpen;
 
     protected override DbTransaction? DbTransaction { get; set; }
     protected override DbParameterCollection DbParameterCollection => parameters;
@@ -19,7 +20,7 @@ public class DuckDBCommand : DbCommand
     public new virtual DuckDBParameterCollection Parameters => parameters;
 
     public override int CommandTimeout { get; set; }
-    public override CommandType CommandType { get; set; }
+    public override CommandType CommandType { get; set; } = CommandType.Text;
     public override bool DesignTimeVisible { get; set; }
     public override UpdateRowSource UpdatedRowSource { get; set; }
 
@@ -39,7 +40,8 @@ public class DuckDBCommand : DbCommand
         get;
         set
         {
-            // TODO: We shouldn't be able to change the CommandText when the command is in execution (requires CommandState implementation)
+            if (readerOpen)
+                throw new InvalidOperationException("CommandText cannot be changed while a reader is open.");
             field = value ?? string.Empty;
         }
     } = string.Empty;
@@ -47,7 +49,12 @@ public class DuckDBCommand : DbCommand
     protected override DbConnection? DbConnection
     {
         get => connection;
-        set => connection = (DuckDBConnection?)value;
+        set
+        {
+            if (readerOpen)
+                throw new InvalidOperationException("Connection cannot be changed while a reader is open.");
+            connection = (DuckDBConnection?)value;
+        }
     }
 
     public DuckDBCommand()
@@ -64,7 +71,11 @@ public class DuckDBCommand : DbCommand
         Connection = connection;
     }
 
-    public override void Cancel() => connection?.NativeConnection.Interrupt();
+    public override void Cancel()
+    {
+        if (connection?.State == ConnectionState.Open)
+            connection.NativeConnection.Interrupt();
+    }
 
     public override int ExecuteNonQuery()
     {
@@ -73,15 +84,19 @@ public class DuckDBCommand : DbCommand
         var results = PreparedStatement.PreparedStatement.PrepareMultiple(connection!.NativeConnection, CommandText, parameters, UseStreamingMode);
 
         var count = 0;
+        var returnedRows = false;
 
         foreach (var result in results)
         {
             var current = result;
-            count += (int)NativeMethods.Query.DuckDBRowsChanged(ref current);
+            if (NativeMethods.Query.DuckDBResultReturnType(current) == DuckDBResultType.QueryResult)
+                returnedRows = true;
+            else
+                count += (int)NativeMethods.Query.DuckDBRowsChanged(ref current);
             result.Close();
         }
 
-        return count;
+        return returnedRows ? -1 : count;
     }
 
     public override object? ExecuteScalar()
@@ -105,12 +120,20 @@ public class DuckDBCommand : DbCommand
     protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
     {
         EnsureConnectionOpen();
+        if (readerOpen)
+            throw new InvalidOperationException("A reader is already open for this command.");
 
         var results = PreparedStatement.PreparedStatement.PrepareMultiple(connection!.NativeConnection, CommandText, parameters, UseStreamingMode);
-
-        var reader = new DuckDBDataReader(this, results, behavior);
-
-        return reader;
+        readerOpen = true;
+        try
+        {
+            return new DuckDBDataReader(this, results, behavior);
+        }
+        catch
+        {
+            readerOpen = false;
+            throw;
+        }
     }
 
     /// <summary>
@@ -164,11 +187,18 @@ public class DuckDBCommand : DbCommand
         }
     }
 
-    public override void Prepare() { }
+    public override void Prepare()
+    {
+        EnsureConnectionOpen();
+        if (string.IsNullOrWhiteSpace(CommandText))
+            throw new InvalidOperationException("CommandText is required.");
+    }
 
     protected override DbParameter CreateDbParameter() => new DuckDBParameter();
 
     internal void CloseConnection() => Connection!.Close();
+
+    internal void ReaderClosed() => readerOpen = false;
 
     private void EnsureConnectionOpen([CallerMemberName] string operation = "")
     {
@@ -176,5 +206,12 @@ public class DuckDBCommand : DbCommand
         {
             throw new InvalidOperationException($"{operation} requires an open connection");
         }
+        if (string.IsNullOrWhiteSpace(CommandText))
+            throw new InvalidOperationException("CommandText is required.");
+        var openConnection = connection!;
+        if (DbTransaction is not null && !ReferenceEquals(DbTransaction.Connection, openConnection))
+            throw new InvalidOperationException("The command transaction belongs to a different connection.");
+        if (openConnection.Transaction is not null && !ReferenceEquals(DbTransaction, openConnection.Transaction))
+            throw new InvalidOperationException("The command transaction does not match the active connection transaction.");
     }
 }

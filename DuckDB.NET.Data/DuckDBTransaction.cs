@@ -35,7 +35,10 @@ public class DuckDBTransaction : DbTransaction
 
         try
         {
-            connection.ExecuteNonQuery(finalizer);
+            using var command = connection.CreateCommand();
+            command.Transaction = this;
+            command.CommandText = finalizer;
+            command.ExecuteNonQuery();
             Cleanup();
         }
         // If something goes wrong with the transaction, to match the

@@ -6,15 +6,21 @@ namespace DuckDB.NET.Data;
 
 public class DuckDBParameter : DbParameter
 {
-    private const DbType DefaultDbType = DbType.String;
+    private const DbType DefaultDbType = DbType.Object;
 
     private object? value;
+    private string parameterName = string.Empty;
+    private string sourceColumn = string.Empty;
 
     public override DbType DbType { get; set; }
 
     [AllowNull]
     [DefaultValue("")]
-    public override string ParameterName { get; set; }
+    public override string ParameterName
+    {
+        get => parameterName;
+        set => parameterName = value ?? string.Empty;
+    }
 
     public override object? Value
     {
@@ -29,12 +35,17 @@ public class DuckDBParameter : DbParameter
         }
     }
 
-    public override ParameterDirection Direction { get; set; }
+    public override ParameterDirection Direction { get; set; } = ParameterDirection.Input;
     public override bool IsNullable { get; set; }
 
     [AllowNull]
     [DefaultValue("")]
-    public override string SourceColumn { get; set; }
+    public override string SourceColumn
+    {
+        get => sourceColumn;
+        set => sourceColumn = value ?? string.Empty;
+    }
+    public override DataRowVersion SourceVersion { get; set; } = DataRowVersion.Current;
     public override bool SourceColumnNullMapping { get; set; }
     public override int Size { get; set; }
 

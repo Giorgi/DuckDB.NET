@@ -38,7 +38,31 @@ public partial class DuckDBConnection : DbConnection
 
     [AllowNull]
     [DefaultValue("")]
-    public override string ConnectionString { get; set; }
+    public override string ConnectionString
+    {
+        get;
+        set
+        {
+            if (connectionState != ConnectionState.Closed)
+                throw new InvalidOperationException("The connection string cannot be changed while the connection is open.");
+
+            var normalized = value ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(normalized))
+            {
+                try
+                {
+                    _ = DuckDBConnectionStringBuilder.Parse(normalized);
+                }
+                catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
+                {
+                    throw new ArgumentException("The connection string is invalid.", nameof(value), ex);
+                }
+            }
+
+            field = normalized;
+            parsedConnection = null;
+        }
+    }
 
     public override string Database
     {
@@ -49,7 +73,7 @@ public partial class DuckDBConnection : DbConnection
                 return ParsedConnection.DataSource;
             }
 
-            throw new InvalidOperationException("Connection string must be specified.");
+            return string.Empty;
         }
     }
 
@@ -62,7 +86,7 @@ public partial class DuckDBConnection : DbConnection
                 return ParsedConnection!.DataSource;
             }
 
-            throw new InvalidOperationException("Connection string must be specified.");
+            return string.Empty;
         }
     }
 
@@ -72,7 +96,9 @@ public partial class DuckDBConnection : DbConnection
     public DuckDBNativeConnection NativeConnection => connectionReference?.NativeConnection
                                                       ?? throw new InvalidOperationException("The DuckDBConnection must be open to access the native connection.");
 
-    public override string ServerVersion => NativeMethods.Startup.DuckDBLibraryVersion();
+    public override string ServerVersion => connectionState == ConnectionState.Open
+        ? NativeMethods.Startup.DuckDBLibraryVersion()
+        : throw new InvalidOperationException("The connection must be open.");
 
     public override ConnectionState State => connectionState;
 
@@ -85,7 +111,7 @@ public partial class DuckDBConnection : DbConnection
     {
         if (connectionState == ConnectionState.Closed)
         {
-            throw new InvalidOperationException("Connection is already closed.");
+            return;
         }
 
         if (connectionReference is not null) //Should always be the case
@@ -142,8 +168,7 @@ public partial class DuckDBConnection : DbConnection
     {
         return new DuckDBCommand
         {
-            Connection = this,
-            Transaction = Transaction
+            Connection = this
         };
     }
 

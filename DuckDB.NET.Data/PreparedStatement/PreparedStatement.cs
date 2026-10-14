@@ -98,7 +98,8 @@ internal sealed class PreparedStatement : IDisposable
             for (var i = 0; i < count; i++)
             {
                 var param = parameterCollection[i];
-                var state = NativeMethods.PreparedStatements.DuckDBBindParameterIndex(preparedStatement, out var index, param.ParameterName);
+                var state = NativeMethods.PreparedStatements.DuckDBBindParameterIndex(
+                    preparedStatement, out var index, param.ParameterName.TrimStart('$'));
                 if (state.IsSuccess())
                 {
                     BindParameter(preparedStatement, index, param);
