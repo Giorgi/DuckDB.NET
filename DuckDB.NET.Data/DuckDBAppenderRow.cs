@@ -104,13 +104,21 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
     {
         var writer = GetCurrentWriter();
 
-        if (value != null)
+        if (value == null)
         {
-            writer.WriteValue(value, ChunkRowIndex);
+            writer.WriteNull(ChunkRowIndex);
+        }
+        // An enum type, and not System.Enum itself: its number is read as the integer the enum is stored as. Through
+        // WriteValue it would be boxed to be tested against Enum.
+        else if (typeof(TEnum).IsValueType)
+        {
+            TEnum number = value;
+            writer.AppendEnum(EnumValue<TEnum>.ToUInt64(ref number), ChunkRowIndex);
+            writer.MarkValid(ChunkRowIndex);
         }
         else
         {
-            writer.WriteNull(ChunkRowIndex);
+            writer.WriteValue(value, ChunkRowIndex);
         }
 
         ValueCount++;

@@ -25,6 +25,8 @@ DuckDBAppenderRow.AppendValue(int?)                        the appender; the map
   the class. A callback written against `IDuckDBDataWriter` calls it through the interface.
 - **A list or an array** is written by `CollectionVectorDataWriter`, which calls `WriteValue<T>` of the writer of
   its items for every item.
+- **A C# enum** does not go through `WriteValue<T>`: the appender row reads its number and calls `AppendEnum` of
+  the writer (decision 15).
 - **A parameter of a command does not use the writers.** `ClrToDuckDBConverter` makes a DuckDB value for it. The
   two share the conversion of dates and times (decision 6).
 
@@ -44,7 +46,7 @@ everything here avoids" in `../Reader/DESIGN.md`.
   types 0.75 to 0.86.
 - **Rejected:** a non-virtual method with a flag set by the constructor ("this writer takes numeric values"). It
   measured the same within the noise and was dropped as less clear.
-- **Still generic and virtual:** `AppendEnum<TEnum>`.
+- **`AppendEnum<TEnum>` was the last generic virtual method of the writers.** Decision 15 replaced it.
 
 ### 2. The appender row checks the column and gets the writer in one step
 
@@ -423,6 +425,48 @@ between two runs.
 - **Under Native AOT** the compiled methods are interpreted, as the one compiled at registration was. The
   registration with a method that takes an `object` uses no expression tree.
 
+### 15. A C# enum is appended as its number, without a box
+
+- **What:** `DuckDBAppenderRow.AppendValue<TEnum>` reads the number of the enum value itself, with
+  `EnumValue<TEnum>.ToUInt64`, and calls `AppendEnum(ulong, ulong)` of the writer and then `MarkValid`, which
+  `WriteValue<T>` would have called. `AppendEnum<TEnum>(TEnum, ulong)`, generic and virtual, became
+  `AppendEnum(ulong, ulong)`. When `TEnum` is `System.Enum` itself, the value is already boxed and goes through
+  `WriteValue<T>` as before; so does a boxed enum anywhere else, converted by `EnumValue.ToUInt64(Enum)`, the
+  code that was in `EnumVectorDataWriter`.
+- **Why:** an enum went through the switch of `WriteValue<T>`, which tested it against `Enum` and boxed it. Then
+  `AppendEnum<TEnum>` was looked up at run time, and ran as shared generic code, with another lookup. It read the
+  number with `Enum.GetTypeCode`, `Enum.GetValue`, which boxes again, and `Convert`, through `IConvertible`. Two
+  boxes, 48 bytes, for every value.
+- **How the number is read:** `EnumValue<TEnum>` keeps the type code of the enum in a static readonly field. At
+  Tier 1 a static readonly field of a class that is already initialized is a constant, so one line of the switch
+  is left: a load, `movzx` or `movsx`. A signed number is widened as a cast widens it, so a negative value is a
+  number past the last name and is refused, as it was. `ToUInt64` is `AggressiveInlining`: the JIT judges inlining
+  by the switch as written, before it folds it, and called a method of two instructions for every value.
+- **Why in the appender row and not in `WriteValue<T>`:** it was built first in `WriteValue<T>`, with a test of
+  `typeof(T).IsEnum`, which both runtimes fold (read in the compiled code). The maintainer asked to keep code for
+  enums out of `VectorDataWriterBase`. The appender row is the only caller with an enum type in hand: a scalar
+  function, a table function and the mapped appender have no path for enums. What it cost: `MarkValid` is
+  internal, and an enum that reaches `WriteValue<T>` some other way would be boxed.
+- **Read in the compiled code** (Tier 1): `AppendValue<TEnum>` is 161 bytes on .NET 10 and 172 on .NET 8, with one
+  call, to `EnumVectorDataWriter.AppendEnum`, guessed by the JIT with the virtual call as the fallback, and
+  `MarkValid` inlined. Before, `WriteValue<TEnum>` called the allocation helper and `CORINFO_HELP_VIRTUAL_FUNC_PTR`,
+  and the conversion it reached was 697 bytes.
+- **Measured** against the commit before, 100,000 rows of four ENUM columns, on the performance cores, one run
+  each. Five names written by name, 200 names by name and BIGINT were the controls; they stayed between 0.96 and
+  1.04, except BIGINT on .NET 8 at 1.13 (standard deviation 0.17), so the .NET 8 figure is an indication:
+
+  | | .NET 10 | .NET 8 |
+  |---|---|---|
+  | A C# enum | 0.35 (14.0 to 4.9 ms) | 0.40 (15.8 to 6.3 ms) |
+  | Allocated | 18,780 KB to 30 KB | 18,780 KB to 30 KB |
+
+  A C# enum now costs about what a BIGINT costs, and less than the same value written by its name.
+- **Kept:** an enum written to a column that is not an ENUM is refused with a message that names `System.Enum`,
+  not the type of the enum, as before, when the value reached the writer boxed.
+- **Pinned by:** `EnumWriteConversionTests` (every integer an enum can be based on, the numbers that are refused,
+  the enum as itself and as a `System.Enum`, the message for another column), which passes on the build before
+  and on the build after.
+
 ## Costs that are known and not yet removed
 
 - **A callback written against the interfaces pays the lookups of decision 8:** 11.0 ms where the typed form of
@@ -438,8 +482,8 @@ between two runs.
   by name to 0.62 of the time and changed nothing else; it is on the branch `keep-writers`, not merged, because
   a list writer then depends on what DuckDB does to a list vector when it resets a chunk.
 - **A mapped property costs two indirect calls,** to its mapping and to its getter (decision 13).
-- **A C# enum is boxed twice** on its way into an ENUM column, 48 bytes per value, and `AppendEnum<TEnum>` is
-  looked up at run time.
+- **A C# enum that reaches `WriteValue<T>` is still boxed:** a `System.Enum`, an `object`, or a nullable enum
+  (decision 15). Only the appender row has an enum type in hand, and it does not go that way.
 - **A row of a table function costs a delegate call,** from the loop of the scan to the method that writes the
   row, and a column a call to `WriteValue<T>` (decision 14). A source that is not an array or a `List<T>` also
   costs two interface calls on its enumerator. Compiling the loop of a chunk for a scan would remove the

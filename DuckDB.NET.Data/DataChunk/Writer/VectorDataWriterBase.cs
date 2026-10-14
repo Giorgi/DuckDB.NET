@@ -58,7 +58,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
             decimal val => AppendDecimal(val, rowIndex),
             BigInteger val => AppendBigInteger(val, rowIndex),
 
-            Enum val => AppendEnum(val, rowIndex),
+            Enum val => AppendEnum(EnumValue.ToUInt64(val), rowIndex),
 
             string val => AppendString(val, rowIndex),
             Guid val => AppendGuid(val, rowIndex),
@@ -79,7 +79,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
     // A value can land where a NULL was written before: a collection that failed part way can have
     // marked some of its items NULL, and retrying it writes the same items again.
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void MarkValid(ulong rowIndex)
+    internal void MarkValid(ulong rowIndex)
     {
         if (validity != default)
         {
@@ -125,7 +125,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
         {
             _ = (object)value! switch
             {
-                Enum val => AppendEnum(val, rowIndex),
+                Enum val => AppendEnum(EnumValue.ToUInt64(val), rowIndex),
                 ICollection val => AppendCollection(val, rowIndex),
                 _ => ThrowException<T>()
             };
@@ -180,7 +180,9 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
 
     internal virtual bool AppendBigInteger(BigInteger value, ulong rowIndex) => ThrowException<BigInteger>();
 
-    internal virtual bool AppendEnum<TEnum>(TEnum value, ulong rowIndex) where TEnum : Enum => ThrowException<TEnum>();
+    // The number of an enum value (EnumValue). The message names System.Enum and not the type of the enum, as it did
+    // when every enum was boxed on its way here.
+    internal virtual bool AppendEnum(ulong value, ulong rowIndex) => ThrowException<Enum>();
 
     internal virtual bool AppendCollection(ICollection value, ulong rowIndex) => ThrowException<ICollection>();
 
