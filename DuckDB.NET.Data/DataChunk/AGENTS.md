@@ -32,6 +32,8 @@ directions together, so a round trip does not show a mistake; the tests that com
 - A new reader class is registered in `VectorDataReaderFactory`, and overrides `Reset` if it has child readers.
 - Behaviour of numeric conversions is pinned by `DuckDB.NET.Test/NumericReaderConversionTests.cs`, and of dates
   and times by `DuckDB.NET.Test/TemporalConversionTests.cs`.
+- The list, struct and map readers keep what they worked out for the last target type. A column read as different
+  types in turn is pinned by `DuckDB.NET.Test/CompositeReadTargetTypeTests.cs`.
 
 ## Rules for the writers
 

@@ -351,6 +351,47 @@ not use profile data to guess the target as it does for a plain virtual call.
   The test for infinity alone, before the arithmetic, measured 0.65 and 0.85 on the two DATE reads and nothing
   measurable on timestamps (.NET 10).
 
+### 9. The list, struct and map readers look at the target type once per column
+
+- **What:** each of the three readers keeps what it worked out about the type it was asked for last, and works it
+  out again only when the type changes. A column is read as the same type row after row.
+  - **Lists** (`ListVectorDataReader`): the element type, whether an item can be NULL, and which loop to take
+    (`CreatePlan`). `List<int>`, `List<float>`, `List<double>`, `List<decimal>` and their nullable forms are created
+    as `new List<T>(length)` and filled by `BuildList<T>` or `BuildNullableList<T>`, which test an item for NULL once
+    and read it with `ReadValidValue<T>`. It was tested twice, three times for a nullable item, and the list was made
+    by `Activator.CreateInstance` and grew. Any other type, and a class derived from a list type, is created as
+    before. `ReadValidValue<T>` is internal for this.
+  - **Structs** (`StructVectorDataReader`): the properties of the target type, each paired with the reader of its
+    field (`PairPropertiesWithReaders`). It was a case-insensitive dictionary lookup for every property of every row,
+    and a lookup in the process-wide cache of types. The lambda for that cache is static: one that used the
+    parameter of the method made C# allocate a closure at the start of the method, for every row, also on the path
+    for `Dictionary<string, object>`, which never reaches the lambda; on .NET 8 a delegate as well.
+  - **Maps** (`MapVectorDataReader`): the types a key and a value are read as, and whether a value can be NULL
+    (`CreatePlan`). `GetGenericArguments` allocated an array for every row.
+- **`CreatePlan` of the list reader is `NoInlining`.** Inlined, its reflection made `GetList` set up a frame for a
+  native call and clear a 184-byte frame on every row (Tier 1, both runtimes): 2,749 bytes of code against 965. An
+  A/B of the attribute alone measured no difference, 1.01 and 0.94 (.NET 10). Kept because it is one line and the
+  work it removes is in the listing.
+- **Measured** against the commit before, 200,000 rows, on the performance cores; .NET 10 in two runs, .NET 8 in
+  one. The control is an INTEGER column read as `int` (1.00 to 1.03):
+
+  | Read | .NET 10 | .NET 8 | Allocated per row |
+  |---|---|---|---|
+  | `INTEGER[5]` as `List<int>` | 0.30, 0.33 | 0.38 | 160 to 80 B |
+  | `INTEGER[]` with NULL items as `List<int?>` | 0.30 | 0.32 | 240 to 96 B |
+  | `INTEGER[]` of 0 to 9 items as `List<int>` | 0.41 | 0.43 | 137 to 74 B |
+  | `INTEGER[5]` as `List<long>` | 0.69, 0.67 | 0.77 | 448 to 416 B |
+  | STRUCT as a class | 0.63, 0.64 | 0.62 | 148 to 124 B; 207 to 124 B on .NET 8 |
+  | STRUCT as `Dictionary<string, object>` | 0.97, 0.95 | 1.05 | 324 to 300 B |
+  | MAP as `Dictionary<int, string>` | 0.53, 0.57 | 0.68 | 316 to 276 B |
+
+- **Nothing that is read changed.** `CompositeReadTargetTypeTests` reads one column as different types in turn,
+  and as a class derived from a list type; it passes on the build before and on the build after.
+- **Left for 2.0** (`issues/deferred-to-2.0.md`, item 4): every item of a list of another type, every key and value
+  of a map and every field of a struct is still read as an object and boxed, and such a list is still made by
+  `Activator` and grows. Reading them on the typed path changes what some reads return, which is why it waits for
+  the shared conversion.
+
 ### Smaller decisions
 
 - **`BigIntegerVectorDataReader` is a separate, non-generic class.** HUGEINT, UHUGEINT and VARINT read as

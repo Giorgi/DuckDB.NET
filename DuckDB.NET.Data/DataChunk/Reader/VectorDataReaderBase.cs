@@ -102,7 +102,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
     internal virtual Stream ReadStream(ulong offset) => GetValidValue<Stream>(offset);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private unsafe T ReadValidValue<T>(ulong offset)
+    internal unsafe T ReadValidValue<T>(ulong offset)
     {
         // typeof(T).IsValueType is a constant for the JIT, so a reference type does not keep this test.
         if (typeof(T).IsValueType && typeof(T) == StorageType)
