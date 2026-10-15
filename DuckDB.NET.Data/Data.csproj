@@ -3,28 +3,53 @@
   <PropertyGroup>
     <Description>DuckDB ADO.NET Provider for C#.</Description>
     <PackageReleaseNotes>
-- Updated to DuckDB v1.5.6
+- Built on DuckDB v1.5.6
 
 New features:
-- Typed properties for 24 DuckDB configuration options on DuckDBConnectionStringBuilder
-- Read DECIMAL values that do not fit System.Decimal as BigInteger or DuckDBDecimal
-- Bind BigInteger parameters wider than 128 bits to VARINT columns
+- Read a TIME column as TimeSpan
+- Read FLOAT as double, DOUBLE as float, and both as decimal, in columns, list items, maps and structs
+- Read HUGEINT and UHUGEINT columns as DuckDBHugeInt and DuckDBUHugeInt with GetFieldValue and GetProviderSpecificValue
+- The mapped appender now accepts DuckDBDateOnly and DuckDBTimeOnly properties, and scalar functions accept them as parameters and results
+- BigInteger values can now be bound and appended to UHUGEINT columns as unsigned values, including through the mapped appender
+- A table function over an array now uses the length of the array as its cardinality hint when none is given
+
+Performance (measured against 1.5.6 on .NET 10 with a million rows; the gains are in moving values between DuckDB and .NET, so bulk appends, reading large results and queries that call C# functions benefit most, while queries dominated by DuckDB's own work change little):
+- Reading numbers and booleans through GetInt32, GetFieldValue&lt;T&gt; and the other typed getters 3.5 to 6 times faster, an integer column read as double 12 times faster
+- Reading short strings up to 1.35 times faster
+- Reading dates, times and timestamps 3 to 12 times faster, appending a DateTime 14 to 26 times faster
+- UUID, DECIMAL and HUGEINT reads 1.7 to 7 times faster
+- Typed scalar functions 5 to 8 times faster, 1.6 times with a string argument
+- Table functions 2.5 to 6 times faster
+- With projection pushdown, the columns a query does not read are no longer computed: a query that reads one column of a four-column table function is about 6 times faster, and the gain grows with the number of unread columns
+- LIST, STRUCT and MAP columns read into .NET types up to 6 times faster
+- Appending BigInteger, lists, strings, C# enums and through the mapped appender 1.3 to 4 times faster; numbers 1.2 to 1.4 times faster; decimals of up to 18 digits 1.3 to 2 times faster depending on the CPU, wider decimals more than twice as fast
+
+Memory (per million rows, against 1.5.6):
+- Appending no longer allocates for each value. 1.5.6 allocated about 750 bytes for every DateTime (2.9 GB for four TIMESTAMP columns), 756 MB for a record of mixed types in the mapped appender, 211 MB for lists of int?, 188 MB for C# enums and up to 315 MB for BigInteger; each is now about 0.1 MB
+- Scalar functions with nullable arguments or results, and table functions over structs or rows with nullable columns, no longer allocate for each row: 21 to 47 MB in 1.5.6, now about 0.1 MB
+- An integer read as double no longer allocates (375 MB for eight million values in 1.5.6), a DECIMAL wider than 18 digits is read without a BigInteger (107 MB, now none), and a large HUGEINT read as BigInteger allocates a third as much
+- LIST, STRUCT and MAP reads allocate up to 60% less, and GetValues 9 to 17% less
 
 Fixes:
-- Fixed possible data loss on Linux and macOS when a reader opened with CommandBehavior.CloseConnection closed the last connection to a file database (#357)
-- Errors in later chunks of a streaming result are now thrown instead of silently ending the result, in DuckDBDataReader and the Arrow stream (#356)
-- Fixed a memory leak where results skipped with NextResult were never released
-- Fixed incomplete appender rows being written with uninitialized values (#355)
-- Fixed ARRAY values shifted by one row after a NULL array in the appender
-- Fixed the appender writing to freed memory when a list of arrays grows
-- Fixed table functions returning no rows after the first iteration of a recursive CTE (#348)
+- A Read() after the end of a streaming result, and the first Read() of an empty streaming result, no longer throw (#358)
+- Reading an ENUM column as a type other than string no longer reads past the stored value
+- Reading a BIT column as an unsupported type throws InvalidCastException instead of ending the process with a stack overflow
+- Negative intervals can be read as TimeSpan, bound and appended
+- A TIMETZ read as DateTimeOffset no longer throws for a time earlier in the day than its positive offset
+- -2^127 is accepted as a HUGEINT value, and the HUGEINT limits no longer fail under cultures with another minus sign
+- A decimal parameter is sent with the exact number of its digits; 1000 was sent as DECIMAL(3,0)
+- A list parameter that DuckDB cannot build is refused instead of crashing the process
+- The exception of a scalar function that throws in WHERE or HAVING is now the InnerException of the error
+- A table function projection that calls a constructor (a record or a tuple) is refused with a clear message instead of a NullReferenceException
+- The mapped appender disposes its appender when validation fails
+- DuckDBClientFactory.CanCreateCommandBuilder and CanCreateDataAdapter return false instead of throwing
 
 Behavior changes:
-- GetFieldValue&lt;object&gt; now returns the same value as GetValue
-- Reading a LIST or MAP into an untyped target (object, ArrayList, List&lt;object&gt;, or a Dictionary with object keys or values) throws InvalidCastException; use GetValue instead
-- A failed ExecuteReader with CommandBehavior.CloseConnection now closes the connection, as in Npgsql
-- Moving on from an incomplete appender row discards it and faults the appender: the next CreateRow or AppendRow throws, and rows completed before it are still written. Close, Dispose and Clear discard an incomplete row without an error
-- A blob Stream from GetStream is valid only until the reader moves to the next result set
+- Appending a decimal too wide for its column throws instead of storing a value the column cannot hold
+- A TimeSpan parameter where DuckDB cannot infer the type is bound as an INTERVAL instead of as text; declare DbType.Time to bind it as a time
+- Looking up a missing parameter by name through DbParameterCollection throws IndexOutOfRangeException, as the typed indexer does
+- A TIMETZ read as DateTimeOffset is placed on 0001-01-02 instead of 0001-01-01
+- A BigInteger parameter where DuckDB cannot infer the type is bound as HUGEINT if it fits, as UHUGEINT up to 2^128 - 1 and as BIGNUM beyond, instead of throwing for values outside the HUGEINT range
     </PackageReleaseNotes>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
