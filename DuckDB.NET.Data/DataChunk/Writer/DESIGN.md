@@ -467,12 +467,51 @@ between two runs.
   the enum as itself and as a `System.Enum`, the message for another column), which passes on the build before
   and on the build after.
 
+### 16. A typed function writes a nullable result as the type under it
+
+- **What:** the loops of the typed scalar functions (`DuckDBConnection.ScalarFunction.Extensions.cs`) write a
+  nullable result through `WriteResult<TResult>`: one line per nullable type, `(int?)(object?)result`, then
+  `WriteValue<int>` of the value or `WriteNull`. Any other result goes straight to `WriteValue`, as before. The 21
+  lines are the value types a function can return, the value types of `TypeExtensions.ClrToDuckDBTypeMap` and the
+  same list as `WriteNullable` in `VectorDataWriterBase`.
+- **Why, found in the compiled code and measured with a micro-benchmark of the writer** (.NET 10, x64):
+  - `WriteValue<int?>` passes the value by reference to `WriteNullable<int?>`, which is not inlined: about 1.2 ns per
+    value (`WriteValue<int>` 1.5 ns, `WriteValue<int?>` with the value loaded from an array 2.8 ns).
+  - When the JIT inlines the user's lambda, it builds the `int?` on the stack with a 1-byte and a 4-byte store and
+    reads it back as one 8-byte value to pass it to `WriteValue<int?>`. A load that spans two stores still in flight
+    cannot be forwarded from them, and waits: the same `int?` returned by an inlined delegate cost 6.0 ns against
+    2.7 ns when it was built in a register.
+- **How the value is taken out.** `ref Unsafe.As<TResult, int?>(ref result)` takes the address of the result, and the
+  JIT then copies it with the same 8-byte load: the stall stays (read in the listing). The cast through `object?` is
+  folded by the JIT, boxes nothing, and leaves the two fields to be read one at a time.
+- **Why the call sites test the type first.** The .NET 8 JIT does not inline `WriteResult` into the loops, nor
+  `ReadValue` and the user's lambda. A version that sent every result through `WriteResult` made an `int` function
+  1.17 and 1.20 there, for a call that only passed the value on. With the test, which the JIT folds, an `int` result
+  goes to `WriteValue` directly, and the loop is the same as before (156 bytes, read in the listing).
+- **Measured** against the commit before, a million rows, on the performance cores, with an `int` and a `double`
+  function as controls (0.97 and 0.99 on .NET 10; 0.94 and 0.88 on .NET 8):
+
+  | Function | .NET 10 | .NET 8 |
+  |---|---|---|
+  | `int` -> `int?` | 0.46 (9.3 to 4.3 ms) | 1.06 |
+  | `int?` -> `int?`, one NULL in ten | 0.63 (11.8 to 7.4 ms) | 1.02 |
+
+  On .NET 10 a nullable result now costs what an `int` result costs. On .NET 8 there is no gain: the lambda is not
+  inlined there, the result comes back in a register, and there is no stall to remove.
+- **Pinned by:** `ScalarFunctionNullableTypesTests`: a function that returns its argument for all 21 types, with
+  values and NULLs, compared by DuckDB with the column; and a varargs function with a nullable result. Both pass on
+  the build before and on the build after.
+- **Not changed:** a nullable argument is still read through the delegate of reader decision 6. Measured on its own
+  it costs about 1 ns (`int?` -> `int` 4.8 against 3.8 ms for `int` -> `int`, .NET 10); `performance-open-items.md`,
+  item 20.
+
 ## Costs that are known and not yet removed
 
 - **A callback written against the interfaces pays the lookups of decision 8:** 11.0 ms where the typed form of
   the same function takes 3.6 ms. Non-generic methods on the interfaces would remove them.
-- **A typed function reads a nullable argument through a delegate and tests it for NULL twice.** After decision 9
-  an `int?` function takes 13.9 ms where an `int` function takes 6.2 ms.
+- **A typed function reads a nullable argument through a delegate and tests it for NULL twice:** about 1 ns per
+  argument on .NET 10. Most of the gap this line used to give (13.9 against 6.2 ms) was the nullable result, which
+  decision 16 removed.
 - **A list that is not a `List<T>` or an array is walked through its enumerator:** one allocated for every list,
   and two interface calls per item (decision 12).
 - **A collection is tested against about 45 interfaces, for every list, to find its item type.** The types of

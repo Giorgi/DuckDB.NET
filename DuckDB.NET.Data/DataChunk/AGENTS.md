@@ -44,7 +44,8 @@ directions together, so a round trip does not show a mistake; the tests that com
 - What a decimal is stored as, and which one is refused, is pinned by
   `DuckDB.NET.Test/DecimalWriteConversionTests.cs`; the bytes of a string by
   `DuckDB.NET.Test/StringWriteConversionTests.cs`; the number of a C# enum by
-  `DuckDB.NET.Test/EnumWriteConversionTests.cs`.
+  `DuckDB.NET.Test/EnumWriteConversionTests.cs`; a nullable result of a typed scalar function, for every type it can
+  have, by `DuckDB.NET.Test/ScalarFunctionNullableTypesTests.cs`.
 - Take allocation figures from a Release build. A Debug build boxes every value once in `WriteValue<T>`.
 
 ## Before proposing a change as faster

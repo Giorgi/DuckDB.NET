@@ -21,7 +21,8 @@ public static class DuckDBConnectionScalarFunctionExtensions
             {
                 for (ulong index = 0; index < rowCount; index++)
                 {
-                    writer.WriteValue(func(), index);
+                    var result = func();
+                    if (typeof(TResult).IsValueType && default(TResult) is null) WriteResult(writer, result, index); else writer.WriteValue(result, index);
                 }
             }, LogicalType<TResult>(), varargs: false, options: null);
         }
@@ -37,7 +38,8 @@ public static class DuckDBConnectionScalarFunctionExtensions
 
                 for (ulong index = 0; index < rowCount; index++)
                 {
-                    writer.WriteValue(func(ReadValue<T>(reader, index, nullable, anyNullable)), index);
+                    var result = func(ReadValue<T>(reader, index, nullable, anyNullable));
+                    if (typeof(TResult).IsValueType && default(TResult) is null) WriteResult(writer, result, index); else writer.WriteValue(result, index);
                 }
             }, LogicalType<TResult>(), varargs: false, new() { HandlesNulls = anyNullable }, LogicalType<T>());
         }
@@ -62,7 +64,8 @@ public static class DuckDBConnectionScalarFunctionExtensions
 
                 for (ulong index = 0; index < rowCount; index++)
                 {
-                    writer.WriteValue(func(ReadValue<T1>(reader1, index, nullable1, anyNullable), ReadValue<T2>(reader2, index, nullable2, anyNullable)), index);
+                    var result = func(ReadValue<T1>(reader1, index, nullable1, anyNullable), ReadValue<T2>(reader2, index, nullable2, anyNullable));
+                    if (typeof(TResult).IsValueType && default(TResult) is null) WriteResult(writer, result, index); else writer.WriteValue(result, index);
                 }
             }, LogicalType<TResult>(), varargs: false, new() { HandlesNulls = anyNullable },
             LogicalType<T1>(), LogicalType<T2>());
@@ -81,8 +84,9 @@ public static class DuckDBConnectionScalarFunctionExtensions
 
                 for (ulong index = 0; index < rowCount; index++)
                 {
-                    writer.WriteValue(func(ReadValue<T1>(reader1, index, nullable1, anyNullable), ReadValue<T2>(reader2, index, nullable2, anyNullable),
-                                           ReadValue<T3>(reader3, index, nullable3, anyNullable)), index);
+                    var result = func(ReadValue<T1>(reader1, index, nullable1, anyNullable), ReadValue<T2>(reader2, index, nullable2, anyNullable),
+                                    ReadValue<T3>(reader3, index, nullable3, anyNullable));
+                    if (typeof(TResult).IsValueType && default(TResult) is null) WriteResult(writer, result, index); else writer.WriteValue(result, index);
                 }
             }, LogicalType<TResult>(), varargs: false, new() { HandlesNulls = anyNullable },
             LogicalType<T1>(), LogicalType<T2>(), LogicalType<T3>());
@@ -102,8 +106,9 @@ public static class DuckDBConnectionScalarFunctionExtensions
 
                 for (ulong index = 0; index < rowCount; index++)
                 {
-                    writer.WriteValue(func(ReadValue<T1>(reader1, index, nullable1, anyNullable), ReadValue<T2>(reader2, index, nullable2, anyNullable),
-                                           ReadValue<T3>(reader3, index, nullable3, anyNullable), ReadValue<T4>(reader4, index, nullable4, anyNullable)), index);
+                    var result = func(ReadValue<T1>(reader1, index, nullable1, anyNullable), ReadValue<T2>(reader2, index, nullable2, anyNullable),
+                                    ReadValue<T3>(reader3, index, nullable3, anyNullable), ReadValue<T4>(reader4, index, nullable4, anyNullable));
+                    if (typeof(TResult).IsValueType && default(TResult) is null) WriteResult(writer, result, index); else writer.WriteValue(result, index);
                 }
             }, LogicalType<TResult>(), varargs: false, new() { HandlesNulls = anyNullable },
             LogicalType<T1>(), LogicalType<T2>(), LogicalType<T3>(), LogicalType<T4>());
@@ -112,6 +117,65 @@ public static class DuckDBConnectionScalarFunctionExtensions
 
     // System.Reflection has a TypeExtensions class too, so the one of this library is named in full, once.
     private static DuckDBLogicalType LogicalType<T>() => Extensions.TypeExtensions.GetLogicalType<T>();
+
+    // The result of a function. A nullable result is taken apart here and its value written as the type under it, or
+    // a NULL. Passed on whole as WriteValue<int?>, it cost about 4 ns more per row than an int (.NET 10, x64,
+    // FunctionBenchmark), for two reasons. About 3 ns: when the JIT inlines the function, it builds the int? on the
+    // stack with two narrow stores and reads it back as one 8-byte value for the call, and the processor has to wait
+    // for the two stores to finish before that load can be served. About 1 ns: WriteValue<int?> hands it on by
+    // reference to WriteNullable, which is not inlined. Here the two fields are read one at a time and the value goes
+    // to WriteValue of the type under it. The cast through object is folded by the JIT and boxes nothing; Unsafe.As
+    // takes the address of the result, and the JIT then copies it with the same 8-byte load.
+    //
+    // The lines are the value types a function can return: those of ClrToDuckDBTypeMap in TypeExtensions, and the
+    // same as in VectorDataWriterBase.WriteNullable. Keep the three in step; a type missing here is still written,
+    // through WriteValue as before.
+    //
+    // The loops call it for a nullable result only, and send any other result straight to WriteValue: the .NET 8 JIT
+    // does not inline it into the loops, and a call that only passes the value on cost about 17% on an int function.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void WriteResult<TResult>(VectorDataWriterBase writer, TResult result, ulong index)
+    {
+        if (typeof(TResult).IsValueType && default(TResult) is null)
+        {
+            if (typeof(TResult) == typeof(bool?)) { WriteNullableResult(writer, (bool?)(object?)result, index); return; }
+            if (typeof(TResult) == typeof(sbyte?)) { WriteNullableResult(writer, (sbyte?)(object?)result, index); return; }
+            if (typeof(TResult) == typeof(short?)) { WriteNullableResult(writer, (short?)(object?)result, index); return; }
+            if (typeof(TResult) == typeof(int?)) { WriteNullableResult(writer, (int?)(object?)result, index); return; }
+            if (typeof(TResult) == typeof(long?)) { WriteNullableResult(writer, (long?)(object?)result, index); return; }
+            if (typeof(TResult) == typeof(byte?)) { WriteNullableResult(writer, (byte?)(object?)result, index); return; }
+            if (typeof(TResult) == typeof(ushort?)) { WriteNullableResult(writer, (ushort?)(object?)result, index); return; }
+            if (typeof(TResult) == typeof(uint?)) { WriteNullableResult(writer, (uint?)(object?)result, index); return; }
+            if (typeof(TResult) == typeof(ulong?)) { WriteNullableResult(writer, (ulong?)(object?)result, index); return; }
+            if (typeof(TResult) == typeof(float?)) { WriteNullableResult(writer, (float?)(object?)result, index); return; }
+            if (typeof(TResult) == typeof(double?)) { WriteNullableResult(writer, (double?)(object?)result, index); return; }
+            if (typeof(TResult) == typeof(decimal?)) { WriteNullableResult(writer, (decimal?)(object?)result, index); return; }
+            if (typeof(TResult) == typeof(BigInteger?)) { WriteNullableResult(writer, (BigInteger?)(object?)result, index); return; }
+            if (typeof(TResult) == typeof(Guid?)) { WriteNullableResult(writer, (Guid?)(object?)result, index); return; }
+            if (typeof(TResult) == typeof(DateTime?)) { WriteNullableResult(writer, (DateTime?)(object?)result, index); return; }
+            if (typeof(TResult) == typeof(TimeSpan?)) { WriteNullableResult(writer, (TimeSpan?)(object?)result, index); return; }
+            if (typeof(TResult) == typeof(DuckDBDateOnly?)) { WriteNullableResult(writer, (DuckDBDateOnly?)(object?)result, index); return; }
+            if (typeof(TResult) == typeof(DuckDBTimeOnly?)) { WriteNullableResult(writer, (DuckDBTimeOnly?)(object?)result, index); return; }
+            if (typeof(TResult) == typeof(DateOnly?)) { WriteNullableResult(writer, (DateOnly?)(object?)result, index); return; }
+            if (typeof(TResult) == typeof(TimeOnly?)) { WriteNullableResult(writer, (TimeOnly?)(object?)result, index); return; }
+            if (typeof(TResult) == typeof(DateTimeOffset?)) { WriteNullableResult(writer, (DateTimeOffset?)(object?)result, index); return; }
+        }
+
+        writer.WriteValue(result, index);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void WriteNullableResult<TValue>(VectorDataWriterBase writer, TValue? value, ulong index) where TValue : struct
+    {
+        if (value.HasValue)
+        {
+            writer.WriteValue(value.GetValueOrDefault(), index);
+        }
+        else
+        {
+            writer.WriteNull(index);
+        }
+    }
 
     // checksNulls: true when any parameter in the function is nullable (special handling active).
     // Needed because set_special_handling is function-level — DuckDB sends NULLs for ALL params,
@@ -149,7 +213,8 @@ public static class DuckDBConnectionScalarFunctionExtensions
                     args[r] = ReadValue<T>(readers[r], index, elementNullable, elementNullable);
                 }
 
-                writer.WriteValue(func(args), index);
+                var result = func(args);
+                if (typeof(TResult).IsValueType && default(TResult) is null) WriteResult(writer, result, index); else writer.WriteValue(result, index);
             }
         };
     }
