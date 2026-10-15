@@ -102,10 +102,38 @@ jobs:
         "@
         "DuckDBVersion=$([DuckDBLibrary]::Version)" >> $env:GITHUB_ENV
 
+    # The connection stress tests took 272 of about 300 s of the tests on Windows. They run when code that opens,
+    # shares or closes the native database changed, for every push to main or a tag, for scheduled and manual runs,
+    # and whenever there is no earlier commit to compare with.
+    - name: Decide whether to run the connection stress tests
+      shell: bash
+      env:
+        EVENT: ${{ github.event_name }}
+        REF: ${{ github.ref }}
+        BEFORE: ${{ github.event.before }}
+        PR_BASE: ${{ github.event.pull_request.base.sha }}
+      run: |
+        base=""
+        if [ "$EVENT" = "pull_request" ]; then base="$PR_BASE"; fi
+        if [ "$EVENT" = "push" ] && [ "$REF" != "refs/heads/main" ] && [[ "$REF" != refs/tags/* ]]; then base="$BEFORE"; fi
+        if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+          echo "Connection stress tests run: $EVENT on $REF, or no earlier commit to compare with"
+          exit 0
+        fi
+        paths='^(DuckDB\.NET\.Data/Connection/|DuckDB\.NET\.Data/DuckDBConnection\.cs$|DuckDB\.NET\.Data/DuckDBDataReader\.cs$|DuckDB\.NET\.Data/DuckDBCommand\.cs$|DuckDB\.NET\.Data/PreparedStatement/|DuckDB\.NET\.Bindings/DuckDBWrapperObjects\.cs$|DuckDB\.NET\.Bindings/Bindings\.csproj$|DuckDB\.NET\.Test/DuckDBConnectionTests\.cs$|\.github/workflows/ci\.yml$)'
+        changed=$(git diff --name-only "$base" HEAD | grep -E "$paths" || true)
+        if [ -n "$changed" ]; then
+          echo "Connection stress tests run, because of:"
+          echo "$changed"
+        else
+          echo "TestFilter=Stress!=Connection" >> "$GITHUB_ENV"
+          echo "Connection stress tests skipped: no connection code changed since $base"
+        fi
+
     - name: Run tests (DuckDB ${{ env.DuckDBVersion }})
       env:
         CoverletOutputFormat: lcov
-      run: dotnet test --configuration Release --verbosity normal --logger GitHubActions /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:BuildType=Full /p:DoesNotReturnAttribute="DoesNotReturnAttribute"
+      run: dotnet test --configuration Release --verbosity normal --logger GitHubActions /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:BuildType=Full /p:DoesNotReturnAttribute="DoesNotReturnAttribute" ${{ env.TestFilter && format('--filter "{0}"', env.TestFilter) || '' }}
 
     - name: Upload coverage reports to Coveralls Parallel
       uses: coverallsapp/github-action@v2
