@@ -77,4 +77,11 @@
                    '$(BUDDY)' == 'true' or
                    '$(CODEBUILD_CI)' == 'true'">true</CI>
   </PropertyGroup>
+
+  <!-- A version entered when the Build workflow is run by hand replaces the one GitVersion works out,
+       for a version GitVersion cannot express, such as 1.5.6.1. -->
+  <PropertyGroup Condition="'$(ReleaseVersion)' != ''">
+    <UpdateVersionProperties>false</UpdateVersionProperties>
+    <Version>$(ReleaseVersion)</Version>
+  </PropertyGroup>
 </Project>
