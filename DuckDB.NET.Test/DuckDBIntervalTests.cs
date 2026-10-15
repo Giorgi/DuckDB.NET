@@ -47,6 +47,50 @@ public class DuckDBIntervalTests
         Assert.Throws<ArgumentOutOfRangeException>(() => (TimeSpan)interval);
     }
 
+    // DuckDB stores an interval's micros as a signed 64-bit value (duckdb_interval.micros is int64_t).
+    [Theory]
+    [InlineData(0, -5_400_000_000L, "-01:30:00")]
+    [InlineData(0, -17L, "-00:00:00.000017")]
+    [InlineData(-1, -3_600_000_000L, "-1.01:00:00")]
+    [InlineData(1, -3_600_000_000L, "23:00:00")]
+    [InlineData(-2, 0L, "-2.00:00:00")]
+    [InlineData(-1, 25 * 3_600_000_000L, "01:00:00")]
+    public void ToTimeSpan_NegativeValue_ExpectedResult(int days, long micros, string ts)
+    {
+        var interval = new DuckDBInterval(0, days, unchecked((ulong)micros));
+        Assert.True(interval.TryConvert(out var timeSpan));
+        Assert.Equal(TimeSpan.Parse(ts), timeSpan);
+        Assert.Equal(TimeSpan.Parse(ts), (TimeSpan)interval);
+    }
+
+    [Fact]
+    public void ToTimeSpan_NegativeMonthInterval_Exception()
+    {
+        var interval = new DuckDBInterval(-1, 0, 0);
+        Assert.False(interval.TryConvert(out var ts));
+        Assert.Throws<ArgumentOutOfRangeException>(() => (TimeSpan)interval);
+    }
+
+    [Fact]
+    public void ToTimeSpan_TooSmall_Exception()
+    {
+        var interval = new DuckDBInterval(0, int.MinValue, unchecked((ulong)long.MinValue));
+        Assert.False(interval.TryConvert(out var ts));
+        Assert.Throws<ArgumentOutOfRangeException>(() => (TimeSpan)interval);
+    }
+
+    [Theory]
+    [InlineData("-01:30:00", 0, -5_400_000_000L)]
+    [InlineData("-1.01:00:00", -1, -3_600_000_000L)]
+    [InlineData("-00:00:00.0000017", 0, -1L)]
+    public void ToDuckDBInterval_NegativeValue_ExpectedResult(string ts, int days, long micros)
+    {
+        DuckDBInterval interval = TimeSpan.Parse(ts);
+        Assert.Equal(0, interval.Months);
+        Assert.Equal(days, interval.Days);
+        Assert.Equal(micros, unchecked((long)interval.Micros));
+    }
+
     [Fact]
     public void ToDuckDBInterval_ValidValue_ExpectedResult()
     {
@@ -54,5 +98,23 @@ public class DuckDBIntervalTests
         Assert.Equal(0, ts.Months);
         Assert.Equal(5, ts.Days);
         Assert.Equal(((17 * 60 + 12) * 60 + 45) * (ulong)1e6, ts.Micros);
+    }
+
+    [Fact]
+    public void IntervalsAreEqualWhenTheirThreePartsAre()
+    {
+        var interval = new DuckDBInterval(1, 2, 3);
+
+        interval.Equals(new DuckDBInterval(1, 2, 3)).Should().BeTrue();
+        interval.Equals((object)new DuckDBInterval(1, 2, 3)).Should().BeTrue();
+        interval.GetHashCode().Should().Be(new DuckDBInterval(1, 2, 3).GetHashCode());
+
+        interval.Equals(new DuckDBInterval(2, 2, 3)).Should().BeFalse();
+        interval.Equals(new DuckDBInterval(1, 3, 3)).Should().BeFalse();
+        interval.Equals(new DuckDBInterval(1, 2, 4)).Should().BeFalse();
+        interval.Equals("1 month").Should().BeFalse();
+
+        // A month is not thirty days: DuckDB stores the three parts separately, and so are they compared.
+        new DuckDBInterval(1, 0, 0).Equals(new DuckDBInterval(0, 30, 0)).Should().BeFalse();
     }
 }

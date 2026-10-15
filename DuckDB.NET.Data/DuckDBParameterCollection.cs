@@ -85,11 +85,7 @@ public class DuckDBParameterCollection : DbParameterCollection
 
     protected override DbParameter GetParameter(int index) => parameters[index];
 
-    protected override DbParameter GetParameter(string parameterName)
-    {
-        var index = IndexOf(parameterName);
-        return parameters[index];
-    }
+    protected override DbParameter GetParameter(string parameterName) => parameters[IndexOfSafe(parameterName)];
 
     public override void AddRange(Array values)
         => AddRange(values.Cast<DuckDBParameter>());

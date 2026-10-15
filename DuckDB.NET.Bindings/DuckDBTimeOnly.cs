@@ -3,7 +3,7 @@ using DuckDB.NET.Native.Extensions;
 namespace DuckDB.NET.Native;
 
 [StructLayout(LayoutKind.Sequential)]
-public readonly struct DuckDBTimeOnly(byte hour, byte min, byte sec, int microsecond)
+public readonly struct DuckDBTimeOnly(byte hour, byte min, byte sec, int microsecond) : IEquatable<DuckDBTimeOnly>
 {
     public DuckDBTimeOnly(byte hour, byte min, byte sec) : this(hour, min, sec, 0)
     {
@@ -19,12 +19,8 @@ public readonly struct DuckDBTimeOnly(byte hour, byte min, byte sec, int microse
 
     public long Ticks => DateTimeExtensions.GetTicks(Hour, Min, Sec, Microsecond);
 
-    public DateTime ToDateTime()
-    {
-        var date = DuckDBDateOnly.MinValue;
-
-        return new DateTime(date.Year, date.Month, date.Day).AddTicks(Ticks);
-    }
+    // The time on the first day a DateTime holds, 0001-01-01
+    public DateTime ToDateTime() => new DateTime(Ticks);
 
     internal static DuckDBTimeOnly FromDateTime(DateTime dateTime)
     {
@@ -32,6 +28,12 @@ public readonly struct DuckDBTimeOnly(byte hour, byte min, byte sec, int microse
         var microsecond = timeOfDay.GetMicrosecond();
         return new DuckDBTimeOnly((byte)timeOfDay.Hours, (byte)timeOfDay.Minutes, (byte)timeOfDay.Seconds, microsecond);
     }
+
+    public bool Equals(DuckDBTimeOnly other) => Hour == other.Hour && Min == other.Min && Sec == other.Sec && Microsecond == other.Microsecond;
+
+    public override bool Equals(object? obj) => obj is DuckDBTimeOnly other && Equals(other);
+
+    public override int GetHashCode() => HashCode.Combine(Hour, Min, Sec, Microsecond);
 
     public static explicit operator DateTime(DuckDBTimeOnly timeOnly) => timeOnly.ToDateTime();
     public static explicit operator DuckDBTimeOnly(DateTime dateTime) => FromDateTime(dateTime);

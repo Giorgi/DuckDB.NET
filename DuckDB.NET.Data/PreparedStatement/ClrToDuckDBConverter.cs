@@ -18,7 +18,7 @@ internal static class ClrToDuckDBConverter
         { DbType.Single, value => NativeMethods.Value.DuckDBCreateFloat((float)value) },
         { DbType.Double, value => NativeMethods.Value.DuckDBCreateDouble((double)value) },
         { DbType.String, value => NativeMethods.Value.DuckDBCreateVarchar((string?)value) },
-        { DbType.VarNumeric, value => NativeMethods.Value.DuckDBCreateHugeInt(new((BigInteger)value)) },
+        { DbType.VarNumeric, value => BigIntegerWithoutTargetType((BigInteger)value) },
         { DbType.Binary, value =>
             {
                 var bytes = (byte[])value;
@@ -27,19 +27,25 @@ internal static class ClrToDuckDBConverter
         },
         { DbType.Date, value =>
             {
-                var date = (value is DateOnly dateOnly ? (DuckDBDateOnly)dateOnly : (DuckDBDateOnly)value).ToDuckDBDate();
+                var date = value is DateOnly dateOnly ? dateOnly.ToDuckDBDate() : ((DuckDBDateOnly)value).ToDuckDBDate();
                 return NativeMethods.Value.DuckDBCreateDate(date);
             }
         },
         { DbType.Time, value =>
             {
-                var time = NativeMethods.DateTimeHelpers.DuckDBToTime(value is TimeOnly timeOnly ? (DuckDBTimeOnly)timeOnly : (DuckDBTimeOnly)value);
+                // A TimeSpan is a time of day here: TimeOnly.FromTimeSpan refuses a negative one or one of a day or more.
+                var time = value switch
+                {
+                    TimeOnly timeOnly => timeOnly.ToDuckDBTime(),
+                    TimeSpan timeSpan => TimeOnly.FromTimeSpan(timeSpan).ToDuckDBTime(),
+                    _ => NativeMethods.DateTimeHelpers.DuckDBToTime((DuckDBTimeOnly)value)
+                };
                 return NativeMethods.Value.DuckDBCreateTime(time);
             }
         },
         { DbType.DateTime, value =>
             {
-                var dateTime = (value is DateTime dt ? (DuckDBTimestamp)dt : (DuckDBTimestamp)value).ToDuckDBTimestampStruct();
+                var dateTime = value is DateTime dt ? dt.ToTimestampStruct(DuckDBType.Timestamp) : ((DuckDBTimestamp)value).ToDuckDBTimestampStruct();
                 return NativeMethods.Value.DuckDBCreateTimestamp(dateTime);
             }
         },
@@ -72,6 +78,7 @@ internal static class ClrToDuckDBConverter
 
             (DuckDBType.Decimal, decimal value) => DecimalToDuckDBValue(value),
             (DuckDBType.HugeInt, BigInteger value) => NativeMethods.Value.DuckDBCreateHugeInt(new DuckDBHugeInt(value)),
+            (DuckDBType.UnsignedHugeInt, BigInteger value) => NativeMethods.Value.DuckDBCreateUHugeInt(new DuckDBUHugeInt(value)),
             (DuckDBType.VarInt, BigInteger value) => BigIntegerToDuckDBValue(value),
 
             (DuckDBType.Varchar, string value) => NativeMethods.Value.DuckDBCreateVarchar(value),
@@ -84,12 +91,15 @@ internal static class ClrToDuckDBConverter
             (DuckDBType.TimestampTz, DateTime value) => NativeMethods.Value.DuckDBCreateTimestampTz(value.ToTimestampStruct(duckDBType)),
             (DuckDBType.TimestampTz, DateTimeOffset value) => NativeMethods.Value.DuckDBCreateTimestampTz(value.ToTimestampStruct()),
             (DuckDBType.Interval, TimeSpan value) => NativeMethods.Value.DuckDBCreateInterval(value),
-            (DuckDBType.Date, DateTime value) => NativeMethods.Value.DuckDBCreateDate(((DuckDBDateOnly)value).ToDuckDBDate()),
+            // No inferred type (a bare "?"): TimeSpan has no DbType, and its ToString() isn't interval text
+            // DuckDB can parse once there are days ("1.01:01:01"). DbType.Time sends it as a time instead.
+            (DuckDBType.Invalid, TimeSpan value) when dbType != DbType.Time => NativeMethods.Value.DuckDBCreateInterval(value),
+            (DuckDBType.Date, DateTime value) => NativeMethods.Value.DuckDBCreateDate(value.ToDuckDBDate()),
             (DuckDBType.Date, DuckDBDateOnly value) => NativeMethods.Value.DuckDBCreateDate(value.ToDuckDBDate()),
-            (DuckDBType.Time, DateTime value) => NativeMethods.Value.DuckDBCreateTime(NativeMethods.DateTimeHelpers.DuckDBToTime((DuckDBTimeOnly)value)),
+            (DuckDBType.Time, DateTime value) => NativeMethods.Value.DuckDBCreateTime(value.ToDuckDBTime()),
             (DuckDBType.Time, DuckDBTimeOnly value) => NativeMethods.Value.DuckDBCreateTime(NativeMethods.DateTimeHelpers.DuckDBToTime(value)),
-            (DuckDBType.Date, DateOnly value) => NativeMethods.Value.DuckDBCreateDate(((DuckDBDateOnly)value).ToDuckDBDate()),
-            (DuckDBType.Time, TimeOnly value) => NativeMethods.Value.DuckDBCreateTime(NativeMethods.DateTimeHelpers.DuckDBToTime(value)),
+            (DuckDBType.Date, DateOnly value) => NativeMethods.Value.DuckDBCreateDate(value.ToDuckDBDate()),
+            (DuckDBType.Time, TimeOnly value) => NativeMethods.Value.DuckDBCreateTime(value.ToDuckDBTime()),
             (DuckDBType.TimeTz, DateTimeOffset value) => NativeMethods.Value.DuckDBCreateTimeTz(value.ToTimeTzStruct()),
             (DuckDBType.Blob, byte[] value) => NativeMethods.Value.DuckDBCreateBlob(value, value.Length),
             (DuckDBType.List, ICollection value) => CreateCollectionValue(logicalType, value, true, dbType),
@@ -127,8 +137,10 @@ internal static class ClrToDuckDBConverter
 
         var values = BuildValues(childType, collection, dbType);
 
-        return isList ? NativeMethods.Value.DuckDBCreateListValue(childType, values, collection.Count)
-                      : NativeMethods.Value.DuckDBCreateArrayValue(childType, values, collection.Count);
+        var value = isList ? NativeMethods.Value.DuckDBCreateListValue(childType, values, collection.Count)
+                           : NativeMethods.Value.DuckDBCreateArrayValue(childType, values, collection.Count);
+
+        return ThrowIfNotCreated(value, values, childType, isList ? "list" : "array");
     }
 
     private static DuckDBValue CreateListFromClrType(ICollection collection, DbType dbType)
@@ -143,7 +155,31 @@ internal static class ClrToDuckDBConverter
         using var childType = elementType.GetLogicalType();
         var values = BuildValues(childType, collection, dbType);
 
-        return NativeMethods.Value.DuckDBCreateListValue(childType, values, collection.Count);
+        return ThrowIfNotCreated(NativeMethods.Value.DuckDBCreateListValue(childType, values, collection.Count), values, childType, "list");
+    }
+
+    // DuckDB converts every item to the type of the items of the list or array. When one cannot be converted, an
+    // item out of range for example, it returns no value and does not say which item or why. Binding that would
+    // crash the process: duckdb_bind_value reads the value without testing for it.
+    private static DuckDBValue ThrowIfNotCreated(DuckDBValue value, DuckDBValue[] items, DuckDBLogicalType itemType, string kind)
+    {
+        if (!value.IsInvalid)
+        {
+            return value;
+        }
+
+        // A value that was not created does not own its items, so they are released here.
+        foreach (var item in items)
+        {
+            item.Dispose();
+        }
+
+        value.Dispose();
+
+        var itemTypeName = NativeMethods.LogicalType.DuckDBGetTypeId(itemType);
+
+        throw new DuckDBException($"Cannot create the {kind} value of a parameter: DuckDB could not convert every item to {itemTypeName}, the type of its items. " +
+                                  "An item may be out of range for that type.");
     }
 
     private static DuckDBValue[] BuildValues(DuckDBLogicalType childType, ICollection collection, DbType dbType)
@@ -158,6 +194,23 @@ internal static class ClrToDuckDBConverter
         }
 
         return values;
+    }
+
+    // DuckDB reported no type for the parameter, for example in "SELECT $1" or "$1::UHUGEINT", so pick the smallest
+    // type that holds the value exactly: HUGEINT, then UHUGEINT, then BIGNUM.
+    private static DuckDBValue BigIntegerWithoutTargetType(BigInteger value)
+    {
+        if (value >= DuckDBHugeInt.HugeIntMinValue && value <= DuckDBHugeInt.HugeIntMaxValue)
+        {
+            return NativeMethods.Value.DuckDBCreateHugeInt(new DuckDBHugeInt(value));
+        }
+
+        if (value >= DuckDBUHugeInt.HugeIntMinValue && value <= DuckDBUHugeInt.HugeIntMaxValue)
+        {
+            return NativeMethods.Value.DuckDBCreateUHugeInt(new DuckDBUHugeInt(value));
+        }
+
+        return BigIntegerToDuckDBValue(value);
     }
 
     private static unsafe DuckDBValue BigIntegerToDuckDBValue(BigInteger value)
@@ -176,12 +229,16 @@ internal static class ClrToDuckDBConverter
 
     private static DuckDBValue DecimalToDuckDBValue(decimal value)
     {
-        var mantissa = value.GetMantissa();
+        // The value goes to DuckDB as it is in the decimal: the integer, with the scale of the decimal. The writer of
+        // the appender starts from the same parts (DecimalVectorDataWriter).
+        value.GetParts(out var low, out var high, out var isNegative, out var scale);
+        var magnitude = new UInt128(high, low);
 
-        var width = mantissa.IsZero
-            ? value.Scale + 1
-            : Math.Max((int)BigInteger.Log10(BigInteger.Abs(mantissa)) + 1, value.Scale + 1);
+        // The width is the number of digits. A value below one has a zero in front of its fraction.
+        var width = Math.Max(DecimalExtensions.CountDigits(magnitude), scale + 1);
 
-        return NativeMethods.Value.DuckDBCreateDecimal(new DuckDBDecimal((byte)width, value.Scale, new DuckDBHugeInt(mantissa)));
+        var integer = isNegative ? -(Int128)magnitude : (Int128)magnitude;
+
+        return NativeMethods.Value.DuckDBCreateDecimal(new DuckDBDecimal((byte)width, scale, new DuckDBHugeInt((ulong)integer, (long)(integer >> 64))));
     }
 }

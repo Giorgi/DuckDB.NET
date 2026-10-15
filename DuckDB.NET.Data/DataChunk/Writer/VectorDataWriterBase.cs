@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Data.DataChunk.Writer;
@@ -17,7 +18,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
             validity = NativeMethods.Vectors.DuckDBVectorGetValidity(Vector);
         }
 
-        NativeMethods.ValidityMask.DuckDBValiditySetRowValidity(validity, rowIndex, false);
+        ValidityMask.SetInvalid(validity, rowIndex);
     }
 
     public void WriteValue<T>(T value, ulong rowIndex)
@@ -25,6 +26,15 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
         if (value == null)
         {
             WriteNull(rowIndex);
+            return;
+        }
+
+        // Both tests are constants for the JIT, so a T that is not a nullable value type does not keep this branch.
+        // A nullable value type must not reach the switch below: testing its type there boxes it, for every value.
+        if (typeof(T).IsValueType && default(T) is null)
+        {
+            WriteNullable(ref value, rowIndex);
+            MarkValid(rowIndex);
             return;
         }
 
@@ -48,7 +58,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
             decimal val => AppendDecimal(val, rowIndex),
             BigInteger val => AppendBigInteger(val, rowIndex),
 
-            Enum val => AppendEnum(val, rowIndex),
+            Enum val => AppendEnum(EnumValue.ToUInt64(val), rowIndex),
 
             string val => AppendString(val, rowIndex),
             Guid val => AppendGuid(val, rowIndex),
@@ -63,11 +73,62 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
             _ => ThrowException<T>()
         };
 
-        // A value can land where a NULL was written before: a collection that failed part way can have
-        // marked some of its items NULL, and retrying it writes the same items again.
+        MarkValid(rowIndex);
+    }
+
+    // A value can land where a NULL was written before: a collection that failed part way can have
+    // marked some of its items NULL, and retrying it writes the same items again.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal void MarkValid(ulong rowIndex)
+    {
         if (validity != default)
         {
-            validity[rowIndex / 64] |= 1UL << (int)(rowIndex % 64);
+            ValidityMask.SetValid(validity, rowIndex);
+        }
+    }
+
+    // T is a nullable value type and the value is not null. A test of T against a type is a constant for the JIT,
+    // so one line is left, which calls the method that the switch in WriteValue calls for the underlying type.
+    // The lines are in the order of that switch.
+    private void WriteNullable<T>(ref T value, ulong rowIndex)
+    {
+        if (typeof(T) == typeof(bool?)) AppendBool(Unsafe.As<T, bool?>(ref value).GetValueOrDefault(), rowIndex);
+
+        else if (typeof(T) == typeof(sbyte?)) AppendNumeric(Unsafe.As<T, sbyte?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(short?)) AppendNumeric(Unsafe.As<T, short?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(int?)) AppendNumeric(Unsafe.As<T, int?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(long?)) AppendNumeric(Unsafe.As<T, long?>(ref value).GetValueOrDefault(), rowIndex);
+
+        else if (typeof(T) == typeof(byte?)) AppendNumeric(Unsafe.As<T, byte?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(ushort?)) AppendNumeric(Unsafe.As<T, ushort?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(uint?)) AppendNumeric(Unsafe.As<T, uint?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(ulong?)) AppendNumeric(Unsafe.As<T, ulong?>(ref value).GetValueOrDefault(), rowIndex);
+
+        else if (typeof(T) == typeof(float?)) AppendNumeric(Unsafe.As<T, float?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(double?)) AppendNumeric(Unsafe.As<T, double?>(ref value).GetValueOrDefault(), rowIndex);
+
+        else if (typeof(T) == typeof(decimal?)) AppendDecimal(Unsafe.As<T, decimal?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(BigInteger?)) AppendBigInteger(Unsafe.As<T, BigInteger?>(ref value).GetValueOrDefault(), rowIndex);
+
+        else if (typeof(T) == typeof(Guid?)) AppendGuid(Unsafe.As<T, Guid?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(DateTime?)) AppendDateTime(Unsafe.As<T, DateTime?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(TimeSpan?)) AppendTimeSpan(Unsafe.As<T, TimeSpan?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(DuckDBDateOnly?)) AppendDateOnly(Unsafe.As<T, DuckDBDateOnly?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(DuckDBTimeOnly?)) AppendTimeOnly(Unsafe.As<T, DuckDBTimeOnly?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(DateOnly?)) AppendDateOnly(Unsafe.As<T, DateOnly?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(TimeOnly?)) AppendTimeOnly(Unsafe.As<T, TimeOnly?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(DateTimeOffset?)) AppendDateTimeOffset(Unsafe.As<T, DateTimeOffset?>(ref value).GetValueOrDefault(), rowIndex);
+
+        // What is left of the switch for a value type: an enum, a struct that is a collection, and the error.
+        // These are boxed, as they were.
+        else
+        {
+            _ = (object)value! switch
+            {
+                Enum val => AppendEnum(EnumValue.ToUInt64(val), rowIndex),
+                ICollection val => AppendCollection(val, rowIndex),
+                _ => ThrowException<T>()
+            };
         }
     }
 
@@ -95,14 +156,37 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
 
     internal virtual bool AppendDateTimeOffset(DateTimeOffset value, ulong rowIndex) => ThrowException<DateTimeOffset>();
 
-    internal virtual bool AppendNumeric<T>(T value, ulong rowIndex) where T : unmanaged => ThrowException<T>();
+    // One overload per numeric type instead of a generic virtual method: a generic virtual method is looked up
+    // at run time on every call, which costs several times more than storing the value.
+    internal virtual bool AppendNumeric(sbyte value, ulong rowIndex) => ThrowException<sbyte>();
+
+    internal virtual bool AppendNumeric(short value, ulong rowIndex) => ThrowException<short>();
+
+    internal virtual bool AppendNumeric(int value, ulong rowIndex) => ThrowException<int>();
+
+    internal virtual bool AppendNumeric(long value, ulong rowIndex) => ThrowException<long>();
+
+    internal virtual bool AppendNumeric(byte value, ulong rowIndex) => ThrowException<byte>();
+
+    internal virtual bool AppendNumeric(ushort value, ulong rowIndex) => ThrowException<ushort>();
+
+    internal virtual bool AppendNumeric(uint value, ulong rowIndex) => ThrowException<uint>();
+
+    internal virtual bool AppendNumeric(ulong value, ulong rowIndex) => ThrowException<ulong>();
+
+    internal virtual bool AppendNumeric(float value, ulong rowIndex) => ThrowException<float>();
+
+    internal virtual bool AppendNumeric(double value, ulong rowIndex) => ThrowException<double>();
 
     internal virtual bool AppendBigInteger(BigInteger value, ulong rowIndex) => ThrowException<BigInteger>();
 
-    internal virtual bool AppendEnum<TEnum>(TEnum value, ulong rowIndex) where TEnum : Enum => ThrowException<TEnum>();
+    // The number of an enum value (EnumValue). The message names System.Enum and not the type of the enum, as it did
+    // when every enum was boxed on its way here.
+    internal virtual bool AppendEnum(ulong value, ulong rowIndex) => ThrowException<Enum>();
 
     internal virtual bool AppendCollection(ICollection value, ulong rowIndex) => ThrowException<ICollection>();
 
+    [DoesNotReturn]
     private bool ThrowException<T>()
     {
         throw new InvalidOperationException($"Cannot write {typeof(T).Name} to {columnType} column");

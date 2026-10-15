@@ -1,35 +1,95 @@
-using BenchmarkDotNet.Attributes;
+﻿using BenchmarkDotNet.Attributes;
 using DuckDB.NET.Data;
 using DuckDB.NET.Data.Mapping;
 
 namespace DuckDB.NET.Benchmarks;
 
+// The mapped appender: the same eight INTEGER columns written from int and from int? properties, and a record of
+// mixed types. Up to 1.5.6, a nullable property was boxed for every value.
 [MemoryDiagnoser]
 public class MappedAppenderBenchmark
 {
     private DuckDBConnection connection = null!;
-    private BenchRow[] rows = null!;
-    private IPropertyMapping<BenchRow>[] mappings = null!;
+    private Row[] rows = null!;
+    private NullableRow[] nullableRows = null!;
+    private MixedRow[] mixedRows = null!;
 
     [Params(1_000_000)]
     public int RowCount { get; set; }
 
-    public sealed class BenchRow
+    public sealed class Row
     {
-        public int Id { get; init; }
-        public long Score { get; init; }
-        public double Value { get; init; }
-        public bool Active { get; init; }
+        public int A { get; init; }
+        public int B { get; init; }
+        public int C { get; init; }
+        public int D { get; init; }
+        public int E { get; init; }
+        public int F { get; init; }
+        public int G { get; init; }
+        public int H { get; init; }
     }
 
-    public sealed class BenchRowMap : DuckDBAppenderMap<BenchRow>
+    public sealed class NullableRow
     {
-        public BenchRowMap()
+        public int? A { get; init; }
+        public int? B { get; init; }
+        public int? C { get; init; }
+        public int? D { get; init; }
+        public int? E { get; init; }
+        public int? F { get; init; }
+        public int? G { get; init; }
+        public int? H { get; init; }
+    }
+
+    // Five columns of different kinds, as a record of an application has them.
+    public sealed class MixedRow
+    {
+        public int Id { get; init; }
+        public string Name { get; init; } = "";
+        public double Score { get; init; }
+        public DateTime Created { get; init; }
+        public long? Parent { get; init; }
+    }
+
+    public sealed class MixedRowMap : DuckDBAppenderMap<MixedRow>
+    {
+        public MixedRowMap()
         {
             Map(row => row.Id);
+            Map(row => row.Name);
             Map(row => row.Score);
-            Map(row => row.Value);
-            Map(row => row.Active);
+            Map(row => row.Created);
+            Map(row => row.Parent);
+        }
+    }
+
+    public sealed class RowMap : DuckDBAppenderMap<Row>
+    {
+        public RowMap()
+        {
+            Map(row => row.A);
+            Map(row => row.B);
+            Map(row => row.C);
+            Map(row => row.D);
+            Map(row => row.E);
+            Map(row => row.F);
+            Map(row => row.G);
+            Map(row => row.H);
+        }
+    }
+
+    public sealed class NullableRowMap : DuckDBAppenderMap<NullableRow>
+    {
+        public NullableRowMap()
+        {
+            Map(row => row.A);
+            Map(row => row.B);
+            Map(row => row.C);
+            Map(row => row.D);
+            Map(row => row.E);
+            Map(row => row.F);
+            Map(row => row.G);
+            Map(row => row.H);
         }
     }
 
@@ -39,13 +99,23 @@ public class MappedAppenderBenchmark
         connection = new DuckDBConnection("DataSource=:memory:");
         connection.Open();
 
-        rows = new BenchRow[RowCount];
+        LoadedLibrary.Print(connection);
+
+        rows = new Row[RowCount];
+        nullableRows = new NullableRow[RowCount];
+        mixedRows = new MixedRow[RowCount];
+
+        var start = new DateTime(2024, 1, 1);
+
         for (var i = 0; i < RowCount; i++)
         {
-            rows[i] = new BenchRow { Id = i, Score = i, Value = i, Active = i % 2 == 0 };
-        }
+            rows[i] = new Row { A = i, B = i, C = i, D = i, E = i, F = i, G = i, H = i };
 
-        mappings = new BenchRowMap().PropertyMappings.ToArray();
+            // Every tenth value of the first property is NULL, so the NULL path runs too.
+            nullableRows[i] = new NullableRow { A = i % 10 == 0 ? null : i, B = i, C = i, D = i, E = i, F = i, G = i, H = i };
+
+            mixedRows[i] = new MixedRow { Id = i, Name = "name" + i % 1000, Score = i / 7d, Created = start.AddSeconds(i), Parent = i % 10 == 0 ? null : i - 1 };
+        }
     }
 
     [GlobalCleanup]
@@ -54,43 +124,40 @@ public class MappedAppenderBenchmark
         connection.Dispose();
     }
 
-    [IterationSetup]
-    public void IterationSetup()
+    [IterationSetup(Target = nameof(AppendMixedProperties))]
+    public void MixedSetup()
     {
         using var command = connection.CreateCommand();
-        command.CommandText = "DROP TABLE IF EXISTS bench_mapped; CREATE TABLE bench_mapped (a INTEGER, b BIGINT, c DOUBLE, d BOOLEAN);";
+        command.CommandText = "DROP TABLE IF EXISTS bench; CREATE TABLE bench (id INTEGER, name VARCHAR, score DOUBLE, created TIMESTAMP, parent BIGINT);";
         command.ExecuteNonQuery();
     }
 
-    // Mirrors the mapped appender loop before it adopted AppendRow.
-    [Benchmark(Baseline = true)]
-    public void AppendMappedRowsWithCreateRow()
+    [IterationSetup(Targets = [nameof(AppendIntProperties), nameof(AppendNullableIntProperties)])]
+    public void IterationSetup()
     {
-        using var appender = connection.CreateAppender("bench_mapped");
-
-        foreach (var record in rows)
-        {
-            AppendRecordWithCreateRow(appender, record);
-        }
+        using var command = connection.CreateCommand();
+        command.CommandText = "DROP TABLE IF EXISTS bench; CREATE TABLE bench (a INTEGER, b INTEGER, c INTEGER, d INTEGER, e INTEGER, f INTEGER, g INTEGER, h INTEGER);";
+        command.ExecuteNonQuery();
     }
 
     [Benchmark]
-    public void AppendMappedRowsWithAppendRow()
+    public void AppendIntProperties()
     {
-        using var appender = connection.CreateAppender<BenchRow, BenchRowMap>("bench_mapped");
+        using var appender = connection.CreateAppender<Row, RowMap>("bench");
         appender.AppendRecords(rows);
     }
 
-    private void AppendRecordWithCreateRow(DuckDBAppender appender, BenchRow record)
+    [Benchmark]
+    public void AppendNullableIntProperties()
     {
-        ArgumentNullException.ThrowIfNull(record);
+        using var appender = connection.CreateAppender<NullableRow, NullableRowMap>("bench");
+        appender.AppendRecords(nullableRows);
+    }
 
-        var row = appender.CreateRow();
-        foreach (var mapping in mappings)
-        {
-            mapping.AppendToRow(row, record);
-        }
-
-        row.EndRow();
+    [Benchmark]
+    public void AppendMixedProperties()
+    {
+        using var appender = connection.CreateAppender<MixedRow, MixedRowMap>("bench");
+        appender.AppendRecords(mixedRows);
     }
 }

@@ -182,8 +182,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     public void StreamingReadFailureClosesConnectionOnlyWhenReaderIsDisposed()
     {
         // Matches Npgsql: a failed Read() leaves the connection open, and disposing the reader closes it.
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Open();
+        using var connection = OpenConnectionForLateStreamingErrors();
         using var command = connection.CreateCommand();
         command.UseStreamingMode = true;
         command.CommandText = "SELECT CAST(CASE WHEN i < 500000 THEN CAST(i AS VARCHAR) ELSE 'not a number' END AS INTEGER) FROM range(1000000) t(i)";
@@ -454,14 +453,73 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.NextResult().Should().BeFalse();
     }
 
+    // Regression tests for https://github.com/Giorgi/DuckDB.NET/issues/358
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ReadAfterEndOfResultReturnsFalse(bool useStreamingMode)
+    {
+        Command.UseStreamingMode = useStreamingMode;
+        Command.CommandText = "SELECT i FROM range(5000) t(i)";
+
+        using var reader = Command.ExecuteReader();
+
+        var rows = 0;
+        while (reader.Read())
+        {
+            rows++;
+        }
+
+        rows.Should().Be(5000);
+        reader.Read().Should().BeFalse();
+        reader.Read().Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ReadOnEmptyResultReturnsFalse(bool useStreamingMode)
+    {
+        Command.UseStreamingMode = useStreamingMode;
+        Command.CommandText = "SELECT i FROM range(0) t(i)";
+
+        using var reader = Command.ExecuteReader();
+
+        reader.HasRows.Should().BeFalse();
+        reader.Read().Should().BeFalse();
+        reader.Read().Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void NextResultAfterReadingPastEndReturnsNextResultSet(bool useStreamingMode)
+    {
+        Command.UseStreamingMode = useStreamingMode;
+        Command.CommandText = "SELECT i FROM range(0) t(i); SELECT 42";
+
+        using var reader = Command.ExecuteReader();
+
+        reader.Read().Should().BeFalse();
+        reader.Read().Should().BeFalse();
+
+        reader.NextResult().Should().BeTrue();
+        reader.Read().Should().BeTrue();
+        reader.GetInt32(0).Should().Be(42);
+        reader.Read().Should().BeFalse();
+        reader.Read().Should().BeFalse();
+    }
+
     [Fact]
     public void StreamingReadThrowsWhenLaterChunkFails()
     {
         // The first chunks convert fine; the error is raised only while producing a later chunk.
-        Command.UseStreamingMode = true;
-        Command.CommandText = "SELECT CAST(CASE WHEN i < 500000 THEN CAST(i AS VARCHAR) ELSE 'not a number' END AS INTEGER) FROM range(1000000) t(i)";
+        using var connection = OpenConnectionForLateStreamingErrors();
+        using var command = connection.CreateCommand();
+        command.UseStreamingMode = true;
+        command.CommandText = "SELECT CAST(CASE WHEN i < 500000 THEN CAST(i AS VARCHAR) ELSE 'not a number' END AS INTEGER) FROM range(1000000) t(i)";
 
-        using var reader = Command.ExecuteReader();
+        using var reader = command.ExecuteReader();
 
         var rows = 0;
         var act = () =>
@@ -651,5 +709,114 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         var reader = Command.ExecuteReader();
         reader.Read();
         var value = (BigInteger)reader.GetValue(0);
+    }
+
+    [Fact]
+    public void ReadBooleanAsObject()
+    {
+        Command.CommandText = "SELECT true, false, NULL::BOOLEAN, true";
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetValue(0).Should().Be(true);
+        reader.GetValue(1).Should().Be(false);
+        reader.GetValue(2).Should().Be(DBNull.Value);
+        reader[3].Should().Be(true);
+        reader.GetBoolean(0).Should().BeTrue();
+        reader.GetBoolean(1).Should().BeFalse();
+        reader.GetFieldValue<bool?>(2).Should().BeNull();
+
+        // The reader hands out the same two boxed values instead of allocating one per read.
+        reader.GetValue(0).Should().BeSameAs(reader.GetValue(3));
+    }
+
+    // DuckDB keeps a string of up to 12 bytes inside the vector and points to a longer one.
+    [Fact]
+    public void ReadStringsOfDifferentLengths()
+    {
+        Command.CommandText = "SELECT '', 'a', repeat('x', 12), repeat('x', 13), repeat('y', 5000), 'ქართული 🦆', NULL::VARCHAR";
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetString(0).Should().BeEmpty();
+        reader.GetString(1).Should().Be("a");
+        reader.GetString(2).Should().Be(new string('x', 12));
+        reader.GetString(3).Should().Be(new string('x', 13));
+        reader.GetString(4).Should().Be(new string('y', 5000));
+        reader.GetString(5).Should().Be("ქართული 🦆");
+        reader.GetValue(0).Should().Be("");
+        reader.GetValue(5).Should().Be("ქართული 🦆");
+        reader.GetFieldValue<string>(3).Should().Be(new string('x', 13));
+        reader.IsDBNull(6).Should().BeTrue();
+    }
+
+    [Fact]
+    public void ReadHugeIntAsDuckDBHugeInt()
+    {
+        Command.CommandText = "SELECT 170141183460469231731687303715884105727::HUGEINT, (-170141183460469231731687303715884105728)::HUGEINT, (-5)::HUGEINT, " +
+                              "340282366920938463463374607431768211455::UHUGEINT, 42::UHUGEINT, NULL::HUGEINT";
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetFieldValue<DuckDBHugeInt>(0).ToBigInteger().Should().Be(DuckDBHugeInt.HugeIntMaxValue);
+        reader.GetFieldValue<DuckDBHugeInt>(1).ToBigInteger().Should().Be(DuckDBHugeInt.HugeIntMinValue);
+        reader.GetFieldValue<DuckDBHugeInt>(2).ToBigInteger().Should().Be(new BigInteger(-5));
+        reader.GetFieldValue<DuckDBHugeInt?>(2).Value.ToBigInteger().Should().Be(new BigInteger(-5));
+
+        reader.GetFieldValue<DuckDBUHugeInt>(3).ToBigInteger().Should().Be(DuckDBUHugeInt.HugeIntMaxValue);
+        reader.GetFieldValue<DuckDBUHugeInt>(4).ToBigInteger().Should().Be(new BigInteger(42));
+
+        reader.GetFieldValue<DuckDBHugeInt?>(5).Should().BeNull();
+        reader.Invoking(r => r.GetFieldValue<DuckDBHugeInt>(5)).Should().Throw<InvalidCastException>();
+
+        // The two structs are not interchangeable: the signed one cannot hold every unsigned value.
+        reader.Invoking(r => r.GetFieldValue<DuckDBUHugeInt>(2)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetFieldValue<DuckDBHugeInt>(4)).Should().Throw<InvalidCastException>();
+
+        // The reader names the structs as the provider-specific types, so it has to return them.
+        reader.GetProviderSpecificFieldType(0).Should().Be(typeof(DuckDBHugeInt));
+        reader.GetProviderSpecificValue(0).Should().BeOfType<DuckDBHugeInt>().Which.ToBigInteger().Should().Be(DuckDBHugeInt.HugeIntMaxValue);
+        reader.GetProviderSpecificValue(1).Should().BeOfType<DuckDBHugeInt>().Which.ToBigInteger().Should().Be(DuckDBHugeInt.HugeIntMinValue);
+        reader.GetProviderSpecificValue(2).Should().BeOfType<DuckDBHugeInt>().Which.ToBigInteger().Should().Be(new BigInteger(-5));
+        reader.GetProviderSpecificFieldType(3).Should().Be(typeof(DuckDBUHugeInt));
+        reader.GetProviderSpecificValue(3).Should().BeOfType<DuckDBUHugeInt>().Which.ToBigInteger().Should().Be(DuckDBUHugeInt.HugeIntMaxValue);
+        reader.GetProviderSpecificValue(4).Should().BeOfType<DuckDBUHugeInt>().Which.ToBigInteger().Should().Be(new BigInteger(42));
+        reader.GetProviderSpecificValue(5).Should().Be(DBNull.Value);
+
+        // Reading as BigInteger is unchanged.
+        reader.GetValue(0).Should().Be(DuckDBHugeInt.HugeIntMaxValue);
+        reader.GetValue(3).Should().Be(DuckDBUHugeInt.HugeIntMaxValue);
+        reader.GetFieldValue<BigInteger>(0).Should().Be(DuckDBHugeInt.HugeIntMaxValue);
+        reader.GetFieldValue<BigInteger>(3).Should().Be(DuckDBUHugeInt.HugeIntMaxValue);
+    }
+
+    // An integer column can be read as another integer type when the value fits it.
+    [Fact]
+    public void ReadIntegerAsAnotherIntegerType()
+    {
+        Command.CommandText = "SELECT 5000000000::BIGINT AS big, (-1)::INTEGER AS negative, 300::SMALLINT AS small, 42::BIGINT AS fits";
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        // Widening: every value of the column type fits.
+        reader.GetInt64(1).Should().Be(-1);
+        reader.GetInt64(2).Should().Be(300);
+        reader.GetInt32(2).Should().Be(300);
+        reader.GetFieldValue<BigInteger>(0).Should().Be(new BigInteger(5000000000));
+
+        // Narrowing, with a value that fits.
+        reader.GetInt32(3).Should().Be(42);
+        reader.GetFieldValue<byte>(3).Should().Be(42);
+        reader.GetFieldValue<ulong>(0).Should().Be(5000000000);
+
+        // Narrowing, with a value that does not fit.
+        reader.Invoking(r => r.GetInt32(0)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Int64 to Int32 in column big");
+        reader.Invoking(r => r.GetFieldValue<uint>(1)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Int32 to UInt32 in column negative");
+        reader.Invoking(r => r.GetFieldValue<ulong>(1)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Int32 to UInt64 in column negative");
+        reader.Invoking(r => r.GetFieldValue<byte>(2)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Int16 to Byte in column small");
     }
 }

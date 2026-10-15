@@ -180,7 +180,7 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
     public override bool ContainsKey(string keyword) => base.ContainsKey(Normalize(keyword));
 
     /// <inheritdoc />
-    public override bool TryGetValue(string keyword, out object value) => base.TryGetValue(Normalize(keyword), out value);
+    public override bool TryGetValue(string keyword, [NotNullWhen(true)] out object? value) => base.TryGetValue(Normalize(keyword), out value);
 
     /// <inheritdoc />
     public override bool Remove(string keyword) => base.Remove(Normalize(keyword));

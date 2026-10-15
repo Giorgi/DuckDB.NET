@@ -33,4 +33,26 @@ public class DuckDBBitStringReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
 
         expected.Xor(value).OfType<bool>().All(b => !b).Should().BeTrue();
     }
+
+    // Each of these reads used to call itself until the stack overflowed, which ends the process.
+    [Fact]
+    public void ReadBitStringAsUnsupportedTypeThrows()
+    {
+        Command.CommandText = "SELECT '101'::BIT";
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.Invoking(r => r.GetFieldValue<int>(0)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetFieldValue<int?>(0)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetInt64(0)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetBoolean(0)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetDecimal(0)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetGuid(0)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetDateTime(0)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetFieldValue<byte[]>(0)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetFieldValue<List<int>>(0)).Should().Throw<InvalidCastException>();
+
+        reader.GetString(0).Should().Be("101");
+        reader.GetFieldValue<object>(0).Should().Be("101");
+    }
 }

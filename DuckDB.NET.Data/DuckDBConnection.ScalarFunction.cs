@@ -37,8 +37,12 @@ partial class DuckDBConnection
             TypeExtensions.GetLogicalType<T3>(), TypeExtensions.GetLogicalType<T4>());
     }
 
-    private unsafe void RegisterScalarMethod(string name, Action<IReadOnlyList<IDuckDBDataReader>, IDuckDBDataWriter, ulong> action, DuckDBLogicalType returnType,
-                                             bool varargs, ScalarFunctionOptions? options, params DuckDBLogicalType[] parameterTypes)
+    // Every scalar function is registered here. The action gets the readers and the writer as the classes they are.
+    // The public methods above take an action over the interfaces, which is an action over the classes as well.
+    // The typed functions in DuckDBConnectionScalarFunctionExtensions call this method with the classes: through an
+    // interface, GetValue<T> and WriteValue<T> are looked up at run time on every call.
+    internal unsafe void RegisterScalarMethod(string name, Action<VectorDataReaderBase[], VectorDataWriterBase, ulong> action, DuckDBLogicalType returnType,
+                                              bool varargs, ScalarFunctionOptions? options, params DuckDBLogicalType[] parameterTypes)
     {
         var function = NativeMethods.ScalarFunction.DuckDBCreateScalarFunction();
         NativeMethods.ScalarFunction.DuckDBScalarFunctionSetName(function, name);
@@ -99,10 +103,30 @@ partial class DuckDBConnection
         {
             var connectionId = UdfExceptionStore.GetScalarFunctionBindConnectionId(info);
             NativeMethods.ScalarFunction.DuckDBScalarFunctionSetBindData(info, connectionId.ToHandle(), &DestroyExtraInfo);
+
+            // DuckDB copies a bound expression, for a filter in WHERE or HAVING for example, and without this
+            // callback the copy has no bind data. The function then cannot tell which connection it runs on, and
+            // an exception it throws reaches the caller without its InnerException.
+            NativeMethods.ScalarFunction.DuckDBScalarFunctionSetBindDataCopy(info, &CopyBindData);
         }
         catch
         {
             // If we can't get the connection ID, we still allow the function to proceed
+        }
+    }
+
+    // Each copy of the bind data is destroyed by itself, so each gets a handle of its own to the connection ID.
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static IntPtr CopyBindData(IntPtr bindData)
+    {
+        try
+        {
+            return bindData != IntPtr.Zero && GCHandle.FromIntPtr(bindData).Target is { } connectionId ? connectionId.ToHandle() : IntPtr.Zero;
+        }
+        catch
+        {
+            // Without bind data the function still runs; only the InnerException is lost.
+            return IntPtr.Zero;
         }
     }
 

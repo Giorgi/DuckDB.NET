@@ -3,10 +3,19 @@
   <PropertyGroup>
     <Description>DuckDB Bindings for C#.</Description>
     <PackageReleaseNotes>
-- Updated to DuckDB v1.5.6
+- Built on DuckDB v1.5.6
 
 New features:
-- Added binding for duckdb_create_bignum and the DuckDBBignum struct
+- DuckDBHugeInt.ToInt128 and DuckDBUHugeInt.ToUInt128
+- Equality without boxing for DuckDBDateOnly, DuckDBTimeOnly, DuckDBTimestamp, DuckDBInterval and DuckDBTimeTz (IEquatable&lt;T&gt;)
+- Bindings for duckdb_scalar_function_set_bind_data_copy and duckdb_unsafe_vector_assign_string_element_len
+
+Performance:
+- Creating a DuckDBHugeInt or DuckDBUHugeInt from a BigInteger is faster and no longer allocates
+
+Fixes:
+- DuckDBInterval reads and writes negative days and microseconds
+- DuckDBHugeInt accepts -2^127, and its limits no longer fail under cultures with another minus sign
     </PackageReleaseNotes>
     <RootNamespace>DuckDB.NET.Native</RootNamespace>
     <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx</RuntimeIdentifiers>

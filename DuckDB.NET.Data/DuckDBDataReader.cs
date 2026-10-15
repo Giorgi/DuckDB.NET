@@ -1,10 +1,11 @@
 ﻿using DuckDB.NET.Data.DataChunk.Reader;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Data;
 
-public class DuckDBDataReader : DbDataReader
+public sealed class DuckDBDataReader : DbDataReader
 {
     private readonly DuckDBCommand command;
     private readonly CommandBehavior behavior;
@@ -21,6 +22,7 @@ public class DuckDBDataReader : DbDataReader
     private bool closed;
     private bool hasRows;
     private bool streamingResult;
+    private bool streamEnded;
     private long currentChunkIndex;
 
     private readonly IEnumerator<DuckDBResult> resultEnumerator;
@@ -67,6 +69,7 @@ public class DuckDBDataReader : DbDataReader
                 currentResult.Close();
 
                 currentChunkIndex = 0;
+                streamEnded = false;
                 currentResult = result;
 
                 columnMapping = [];
@@ -95,6 +98,13 @@ public class DuckDBDataReader : DbDataReader
 
     private bool InitChunkData()
     {
+        // DuckDB closes a streaming result when a fetch reaches its end, and every later fetch then fails with a
+        // "closed pending query result" error. Stop fetching after a clean end, so that error is not reported.
+        if (streamEnded)
+        {
+            return false;
+        }
+
         var canReuse = vectorReaders.Length > 0;
 
         // Reset before fetching: if the fetch throws, the readers still point into the chunk freed here,
@@ -107,7 +117,9 @@ public class DuckDBDataReader : DbDataReader
 
         if (streamingResult && currentChunk.IsInvalid)
         {
+            // No chunk and no error is the clean end of the stream; an error from producing the chunk still throws.
             currentResult.ThrowOnError(nativeConnection);
+            streamEnded = true;
         }
 
         currentChunkRowCount = NativeMethods.DataChunks.DuckDBDataChunkGetSize(currentChunk);
@@ -424,6 +436,7 @@ public class DuckDBDataReader : DbDataReader
         }
     }
 
+    [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void ThrowNoRowRead()
     {

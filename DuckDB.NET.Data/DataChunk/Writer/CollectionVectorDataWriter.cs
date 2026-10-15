@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 namespace DuckDB.NET.Data.DataChunk.Writer;
 
 /// <summary>
@@ -85,11 +87,36 @@ internal abstract class CollectionVectorDataWriter : VectorDataWriterBase
 
     private int WriteItems<T>(IEnumerable<T> items, ulong start)
     {
+        // A List<T> and an array are walked as a span: no enumerator is allocated for the collection and no
+        // interface is called for an item. .NET 8 allocates the enumerator for every list. .NET 10 removes it
+        // by itself, but only while this method sees one type of collection for T. See DESIGN.md, decision 12.
+        // A read-only span, because it also takes an array of a derived type, such as a string[] that arrives
+        // as items of object.
+        if (items is List<T> list)
+        {
+            return WriteSpan(CollectionsMarshal.AsSpan(list), start);
+        }
+
+        if (items is T[] array)
+        {
+            return WriteSpan(new ReadOnlySpan<T>(array), start);
+        }
+
         var index = 0ul;
 
         foreach (var item in items)
         {
             ItemWriter.WriteValue(item, start + (index++));
+        }
+
+        return 0;
+    }
+
+    private int WriteSpan<T>(ReadOnlySpan<T> items, ulong start)
+    {
+        for (var index = 0; index < items.Length; index++)
+        {
+            ItemWriter.WriteValue(items[index], start + (ulong)index);
         }
 
         return 0;

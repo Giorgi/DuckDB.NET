@@ -12,6 +12,11 @@ internal sealed class StructVectorDataReader : VectorDataReaderBase
     private readonly Dictionary<string, VectorDataReaderBase> structDataReaders;
     private readonly VectorDataReaderBase[] orderedReaders;
 
+    // The properties of the type GetStruct was asked for last, each with the reader of its field. A column is read as
+    // the same type row after row, so each property is matched with its field once and not for every row.
+    private Type? pairedType;
+    private PropertyReader[] propertyReaders = [];
+
     internal unsafe StructVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
         using var logicalType = NativeMethods.Vectors.DuckDBVectorGetColumnType(vector);
@@ -56,9 +61,38 @@ internal sealed class StructVectorDataReader : VectorDataReaderBase
             return result;
         }
 
-        var typeDetails = TypeCache.GetOrAdd(returnType, type =>
+        if (returnType != pairedType)
         {
-            var propertyInfos = returnType.GetProperties();
+            propertyReaders = PairPropertiesWithReaders(returnType);
+            pairedType = returnType;
+        }
+
+        foreach (var (name, property, reader) in propertyReaders)
+        {
+            if (reader.IsValid(offset))
+            {
+                var value = reader.GetValue(offset, property.NullableType ?? property.PropertyType);
+                property.Setter(result!, value);
+            }
+            else
+            {
+                if (!property.Nullable)
+                {
+                    throw new InvalidCastException($"Property '{name}' is not nullable but struct contains null value");
+                }
+            }
+        }
+
+        return result!;
+    }
+
+    // In the order of the properties of the type. A property with no field of its name is left as it is.
+    private PropertyReader[] PairPropertiesWithReaders(Type returnType)
+    {
+        // A static lambda: one that used returnType allocated a closure and a delegate for every call.
+        var typeDetails = TypeCache.GetOrAdd(returnType, static type =>
+        {
+            var propertyInfos = type.GetProperties();
             var details = new TypeDetails();
 
             foreach (var propertyInfo in propertyInfos)
@@ -84,37 +118,20 @@ internal sealed class StructVectorDataReader : VectorDataReaderBase
             return details;
         });
 
+        var pairs = new List<PropertyReader>(typeDetails.Properties.Count);
+
         foreach (var property in typeDetails.Properties)
         {
-            structDataReaders.TryGetValue(property.Key, out var reader);
-            var isNullable = property.Value.Nullable;
-
-            if (reader == null)
+            if (structDataReaders.TryGetValue(property.Key, out var reader))
             {
-                //if (!isNullable)
-                //{
-                //    throw new NullReferenceException($"Property '{properties.Key}' not found in struct");
-                //}
-
-                continue;
-            }
-
-            if (reader.IsValid(offset))
-            {
-                var value = reader.GetValue(offset, property.Value.NullableType ?? property.Value.PropertyType);
-                property.Value.Setter(result!, value);
-            }
-            else
-            {
-                if (!isNullable)
-                {
-                    throw new InvalidCastException($"Property '{property.Key}' is not nullable but struct contains null value");
-                }
+                pairs.Add(new PropertyReader(property.Key, property.Value, reader));
             }
         }
 
-        return result!;
+        return [.. pairs];
     }
+
+    private readonly record struct PropertyReader(string Name, PropertyDetails Property, VectorDataReaderBase Reader);
 
     internal override void Reset(IntPtr vector)
     {

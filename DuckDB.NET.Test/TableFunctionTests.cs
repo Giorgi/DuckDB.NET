@@ -306,6 +306,41 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    public void RegisterFunctionWithDuckDBDateOnlyTimeOnlyParametersAndColumns()
+    {
+        Connection.RegisterTableFunction<DuckDBDateOnly, DuckDBTimeOnly>("duckdb_date_time_rows", parameters =>
+        {
+            var date = parameters[0].GetValue<DuckDBDateOnly>();
+            var time = parameters[1].GetValue<DuckDBTimeOnly>();
+
+            return new TableFunction(new List<ColumnInfo>
+            {
+                new("d", typeof(DuckDBDateOnly)),
+                new("t", typeof(DuckDBTimeOnly)),
+            }, new[] { (date, time), (DuckDBDateOnly.PositiveInfinity, time) });
+        }, (item, writers, rowIndex) =>
+        {
+            var (date, time) = ((DuckDBDateOnly, DuckDBTimeOnly))item;
+
+            writers[0].WriteValue(date, rowIndex);
+            writers[1].WriteValue(time, rowIndex);
+        });
+
+        Command.CommandText = "SELECT d::VARCHAR, t::VARCHAR, typeof(d), typeof(t) FROM duckdb_date_time_rows(DATE '2024-11-06', TIME '10:30:24.123456')";
+        using var reader = Command.ExecuteReader();
+
+        reader.Read().Should().BeTrue();
+        reader.GetString(0).Should().Be("2024-11-06");
+        reader.GetString(1).Should().Be("10:30:24.123456");
+        reader.GetString(2).Should().Be("DATE");
+        reader.GetString(3).Should().Be("TIME");
+
+        reader.Read().Should().BeTrue();
+        reader.GetString(0).Should().Be("infinity");
+        reader.GetString(1).Should().Be("10:30:24.123456");
+    }
+
+    [Fact]
     public void RegisterTableFunctionWithExplicitTimestampTypes()
     {
         Connection.RegisterTableFunction("demo_explicit_timestamps",
@@ -372,6 +407,8 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
                 timeTz.Minute.Should().Be(30);
                 timeTz.Second.Should().Be(45);
                 timeTz.Offset.Should().Be(TimeSpan.FromHours(2));
+                // On the second day a DateTime holds, like a TIMETZ read from a column
+                timeTz.Date.Should().Be(new DateTime(1, 1, 2));
 
                 return new TableFunction(new List<ColumnInfo>
                 {
@@ -470,6 +507,45 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             .GetString();
 
         reported.Should().Be(cardinality.ToString());
+    }
+
+    // A function that gives no number of rows: for an array DuckDB is told its length. Not for a List, which can
+    // be longer when it is read: DuckDB takes the number as the most rows there can be, and a sum over more rows
+    // than that is wrong. A number that the function gives itself is passed on as it is.
+    [Fact]
+    public void RegisterTableFunctionOverAnArray_LengthAppearsInQueryPlan()
+    {
+        var rows = Enumerable.Range(0, 1234).ToArray();
+
+        Connection.RegisterTableFunction("plan_array", _ => new TableFunction([new ColumnInfo("value", typeof(int))], rows),
+            (item, writers, rowIndex) => writers[0].WriteValue((int)item, rowIndex));
+
+        Connection.RegisterTableFunction("plan_list", _ => new TableFunction([new ColumnInfo("value", typeof(int))], rows.ToList()),
+            (item, writers, rowIndex) => writers[0].WriteValue((int)item, rowIndex));
+
+        Connection.RegisterTableFunction("plan_array_with_hint", _ => new TableFunction([new ColumnInfo("value", typeof(int))], rows, new CardinalityHint(77)),
+            (item, writers, rowIndex) => writers[0].WriteValue((int)item, rowIndex));
+
+        Connection.RegisterTableFunction("plan_typed", () => rows, row => new { Value = row });
+
+        EstimatedCardinality("plan_array").Should().Be("1234");
+        EstimatedCardinality("plan_typed").Should().Be("1234");
+        EstimatedCardinality("plan_list").Should().NotBe("1234");
+        EstimatedCardinality("plan_array_with_hint").Should().Be("77");
+
+        Connection.Query<int>("SELECT * FROM plan_array()").Should().Equal(rows);
+
+        // A sum that needs more than 64 bits: DuckDB adds without a check for overflow when the number of rows
+        // it was told cannot reach that, so the number must not be too small. It is the length of the array.
+        Connection.RegisterTableFunction("plan_three_rows", () => new[] { 1, 2, 3 }, row => new { Value = row });
+        Connection.QuerySingle<string>("SELECT sum(4000000000000000000)::VARCHAR FROM plan_three_rows()").Should().Be("12000000000000000000");
+
+        string EstimatedCardinality(string function)
+        {
+            var plan = Connection.Query<(string, string)>($"EXPLAIN (FORMAT JSON) SELECT * FROM {function}();").First();
+
+            return JsonDocument.Parse(plan.Item2).RootElement[0].GetProperty("extra_info").GetProperty("Estimated Cardinality").GetString();
+        }
     }
 
     [Fact]

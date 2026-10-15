@@ -9,6 +9,9 @@ internal sealed class StringVectorDataReader : VectorDataReaderBase
     {
     }
 
+    internal override string ReadString(ulong offset) => GetValidValue<string>(offset);
+    internal override Stream ReadStream(ulong offset) => GetValidValue<Stream>(offset);
+
     protected override T GetValidValue<T>(ulong offset)
     {
         return DuckDBType switch
@@ -43,7 +46,8 @@ internal sealed class StringVectorDataReader : VectorDataReaderBase
             return (T)(object)GetBitStringAsBitArray(offset);
         }
 
-        return GetValueStrict<T>(offset);
+        //Not GetValueStrict<T>: that comes back to this method
+        return base.GetValidValue<T>(offset);
     }
 
     private string GetBitString(ulong offset)
@@ -90,7 +94,9 @@ internal sealed class StringVectorDataReader : VectorDataReaderBase
     {
         var data = (DuckDBString*)DataPointer + offset;
 
-        return new string(data->Data, 0, data->Length, Encoding.UTF8);
+        // The string constructor that takes an encoding validates more, wraps the pointer in a span and ends in the
+        // same decoder, so this is the shorter way to it.
+        return Encoding.UTF8.GetString((byte*)data->Data, data->Length);
     }
 
     private unsafe Stream GetStream(ulong offset)

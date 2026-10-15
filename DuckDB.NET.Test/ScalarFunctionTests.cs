@@ -113,13 +113,15 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void RegisterScalarFunctionCallbackThrowsInLaterStreamingChunk()
     {
-        Connection.RegisterScalarFunction<long, long>("throwing_late_scalar",
+        using var connection = OpenConnectionForLateStreamingErrors();
+        connection.RegisterScalarFunction<long, long>("throwing_late_scalar",
             x => x < 500_000 ? x : throw new InvalidOperationException("Scalar callback failed late"));
 
-        Command.UseStreamingMode = true;
-        Command.CommandText = "SELECT throwing_late_scalar(i) FROM range(1000000) t(i)";
+        using var command = connection.CreateCommand();
+        command.UseStreamingMode = true;
+        command.CommandText = "SELECT throwing_late_scalar(i) FROM range(1000000) t(i)";
 
-        using (var reader = Command.ExecuteReader())
+        using (var reader = command.ExecuteReader())
         {
             var rows = 0;
             var act = () =>
@@ -137,12 +139,33 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         }
 
         // The stored callback exception was consumed, so it must not leak into the next error on this connection.
-        Command.UseStreamingMode = false;
-        Command.CommandText = "SELECT CAST('not a number' AS INTEGER)";
+        command.UseStreamingMode = false;
+        command.CommandText = "SELECT CAST('not a number' AS INTEGER)";
 
-        Command.Invoking(command => command.ExecuteScalar())
+        command.Invoking(c => c.ExecuteScalar())
                .Should().Throw<DuckDBException>()
                .Where(e => e.InnerException == null);
+    }
+
+    [Fact]
+    public void RegisterScalarFunctionWithDuckDBDateOnlyAndTimeOnly()
+    {
+        Connection.RegisterScalarFunction<DuckDBDateOnly, DuckDBDateOnly>("same_duckdb_date", date => date);
+        Connection.RegisterScalarFunction<DuckDBTimeOnly, DuckDBTimeOnly>("same_duckdb_time", time => time);
+
+        Command.CommandText = """
+                              SELECT same_duckdb_date(DATE '2024-05-17')::VARCHAR, same_duckdb_date('infinity'::DATE)::VARCHAR,
+                                     same_duckdb_time(TIME '13:45:30.123456')::VARCHAR,
+                                     typeof(same_duckdb_date(DATE '2024-05-17')), typeof(same_duckdb_time(TIME '13:45:30'))
+                              """;
+        using var reader = Command.ExecuteReader();
+
+        reader.Read().Should().BeTrue();
+        reader.GetString(0).Should().Be("2024-05-17");
+        reader.GetString(1).Should().Be("infinity");
+        reader.GetString(2).Should().Be("13:45:30.123456");
+        reader.GetString(3).Should().Be("DATE");
+        reader.GetString(4).Should().Be("TIME");
     }
 
     [Fact]
@@ -639,6 +662,187 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         ex.InnerException.Should().BeOfType<InvalidOperationException>();
         ex.InnerException!.Message.Should().Be("custom scalar error");
         ex.InnerException.Should().BeSameAs(originalException);
+    }
+
+    // A function that returns a nullable value type writes it without boxing it, through one line per type in
+    // VectorDataWriterBase.WriteNullable. Every type that has a line is here, with a value and a NULL, over more
+    // rows than one chunk holds.
+    [Fact]
+    public void SimplifiedScalarFunctionReturnsNullableOfEveryType()
+    {
+        ReturnsNullable<bool>(true);
+        ReturnsNullable<sbyte>(-5);
+        ReturnsNullable<short>(-1234);
+        ReturnsNullable<int>(-123456);
+        ReturnsNullable<long>(-12345678901);
+        ReturnsNullable<byte>(200);
+        ReturnsNullable<ushort>(60000);
+        ReturnsNullable<uint>(4000000000);
+        ReturnsNullable<ulong>(18000000000000000000);
+        ReturnsNullable<float>(1.5f);
+        ReturnsNullable<double>(2.25);
+        ReturnsNullable<decimal>(12.5m);
+        ReturnsNullable<BigInteger>(BigInteger.Pow(2, 100));
+        ReturnsNullable<Guid>(Guid.Parse("0f8fad5b-d9cb-469f-a165-70867728950e"));
+        ReturnsNullable<DateTime>(new DateTime(2024, 2, 29, 12, 30, 45));
+        ReturnsNullable<TimeSpan>(new TimeSpan(1, 2, 3, 4));
+        ReturnsNullable<DuckDBDateOnly>(new DuckDBDateOnly(2024, 2, 29));
+        ReturnsNullable<DuckDBTimeOnly>(new DuckDBTimeOnly(12, 30, 45));
+        ReturnsNullable<DateOnly>(new DateOnly(2024, 2, 29));
+        ReturnsNullable<TimeOnly>(new TimeOnly(12, 30, 45));
+        ReturnsNullable<DateTimeOffset>(new DateTimeOffset(2024, 2, 29, 12, 30, 45, TimeSpan.Zero));
+    }
+
+    private void ReturnsNullable<T>(T value) where T : struct
+    {
+        const int rowCount = 5000;
+        var name = "nullable_" + typeof(T).Name.ToLowerInvariant();
+
+        Connection.RegisterScalarFunction<int, T?>(name, number => number % 3 == 0 ? null : value);
+
+        Command.CommandText = $"SELECT {name}(i::INT) FROM range({rowCount}) t(i) ORDER BY i";
+        using var reader = Command.ExecuteReader();
+
+        for (var row = 0; row < rowCount; row++)
+        {
+            reader.Read().Should().BeTrue();
+
+            if (row % 3 == 0)
+            {
+                reader.IsDBNull(0).Should().BeTrue($"row {row} of {name} is NULL");
+            }
+            else if (!reader.GetFieldValue<T>(0).Equals(value))
+            {
+                Assert.Fail($"Row {row} of {name}: expected {value}, read {reader.GetFieldValue<T>(0)}");
+            }
+        }
+    }
+
+    // DuckDB copies the expression of a filter, and the function has to know its connection in the copy as well.
+    [Theory]
+    [InlineData("where", "SELECT i FROM range(5) t(i) WHERE {0}(i) > 0")]
+    [InlineData("having", "SELECT i FROM range(5) t(i) GROUP BY i HAVING {0}(i) > 0")]
+    public void ScalarFunctionError_PreservesInnerExceptionInAFilter(string place, string sql)
+    {
+        var originalException = new InvalidOperationException("custom filter error");
+
+        // A name of its own for each case: the cases share one connection, and a name is registered once.
+        var name = "scalar_err_in_" + place;
+        Connection.RegisterScalarFunction<long, long>(name, (_, _, _) => throw originalException);
+
+        Command.CommandText = string.Format(sql, name);
+        var exception = Command.Invoking(command => command.ExecuteScalar()).Should().Throw<DuckDBException>().Which;
+
+        exception.Message.Should().Contain("custom filter error");
+        exception.InnerException.Should().BeSameAs(originalException);
+    }
+
+    // The typed forms each have their own loop over the rows. The tests below give every parameter a type of its
+    // own and more rows than one chunk holds, so that a loop that reads the wrong column or the wrong row shows.
+    [Fact]
+    public void SimplifiedScalarFunctionOneParamOverSeveralChunks()
+    {
+        Connection.RegisterScalarFunction<int, long>("chunks_one", value => value * 3L + 1);
+
+        var rows = Connection.Query<(int Input, long Result)>("SELECT i::INT, chunks_one(i::INT) FROM range(5000) t(i) ORDER BY i").ToList();
+
+        rows.Should().HaveCount(5000);
+        rows.Should().OnlyContain(row => row.Result == row.Input * 3L + 1);
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionTwoParamsOverSeveralChunks()
+    {
+        Connection.RegisterScalarFunction<int, string, string>("chunks_two", (number, text) => $"{number}:{text}");
+
+        var rows = Connection.Query<(int Input, string Result)>("SELECT i::INT, chunks_two(i::INT, 'row ' || (i * 7)) FROM range(5000) t(i) ORDER BY i").ToList();
+
+        rows.Should().HaveCount(5000);
+        rows.Should().OnlyContain(row => row.Result == $"{row.Input}:row {row.Input * 7}");
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionThreeParamsOfDifferentTypes()
+    {
+        Connection.RegisterScalarFunction<int, long?, double, string>("three_mixed",
+            (number, optional, ratio) => $"{number}|{optional?.ToString() ?? "none"}|{ratio.ToString(CultureInfo.InvariantCulture)}");
+
+        var rows = Connection.Query<(int Input, string Result)>(
+            "SELECT i::INT, three_mixed(i::INT, CASE WHEN i % 3 = 0 THEN NULL ELSE i * 1000000000 END, i + 0.5) FROM range(5000) t(i) ORDER BY i").ToList();
+
+        rows.Should().HaveCount(5000);
+        rows.Should().OnlyContain(row => row.Result == $"{row.Input}|{(row.Input % 3 == 0 ? "none" : (row.Input * 1000000000L).ToString())}|{row.Input}.5");
+
+        // The second parameter takes a NULL. The third does not, and says so.
+        Command.CommandText = "SELECT three_mixed(1, NULL, 2.5)";
+        Command.ExecuteScalar().Should().Be("1|none|2.5");
+
+        Command.CommandText = "SELECT three_mixed(1, 2, NULL)";
+        Command.Invoking(command => command.ExecuteScalar()).Should().Throw<DuckDBException>().WithMessage("*'Double' received NULL*");
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionFourParams()
+    {
+        Connection.RegisterScalarFunction<int, long, string, double, string>("four_mixed",
+            (number, large, text, ratio) => $"{number}|{large}|{text}|{ratio.ToString(CultureInfo.InvariantCulture)}");
+
+        var rows = Connection.Query<(int Input, string Result)>(
+            "SELECT i::INT, four_mixed(i::INT, i * 1000000000, 'row ' || (i * 7), i + 0.25) FROM range(5000) t(i) ORDER BY i").ToList();
+
+        rows.Should().HaveCount(5000);
+        rows.Should().OnlyContain(row => row.Result == $"{row.Input}|{row.Input * 1000000000L}|row {row.Input * 7}|{row.Input}.25");
+
+        // No parameter takes a NULL, so DuckDB gives NULL for a constant NULL without calling the function.
+        Command.CommandText = "SELECT four_mixed(1, 2, NULL, 4.5)";
+        Command.ExecuteScalar().Should().Be(DBNull.Value);
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionFourParamsWithNulls()
+    {
+        Connection.RegisterScalarFunction<int?, long, double?, short, string>("four_nulls",
+            (first, second, third, fourth) => $"{first?.ToString() ?? "none"}|{second}|{third?.ToString(CultureInfo.InvariantCulture) ?? "none"}|{fourth}");
+
+        var rows = Connection.Query<(int Input, string Result)>(
+            "SELECT i::INT, four_nulls(CASE WHEN i % 2 = 0 THEN NULL ELSE i::INT END, i * 1000000000, CASE WHEN i % 3 = 0 THEN NULL ELSE i + 0.5 END, (i % 100)::SMALLINT) " +
+            "FROM range(5000) t(i) ORDER BY i").ToList();
+
+        rows.Should().HaveCount(5000);
+        rows.Should().OnlyContain(row => row.Result ==
+            $"{(row.Input % 2 == 0 ? "none" : row.Input.ToString())}|{row.Input * 1000000000L}|{(row.Input % 3 == 0 ? "none" : row.Input + ".5")}|{row.Input % 100}");
+
+        // The second and the fourth parameter do not take a NULL. The arguments are read in order, so with a NULL in
+        // both it is the second that is reported.
+        Command.CommandText = "SELECT four_nulls(1, 2, 3.5, NULL)";
+        Command.Invoking(command => command.ExecuteScalar()).Should().Throw<DuckDBException>().WithMessage("*'Int16' received NULL*");
+
+        Command.CommandText = "SELECT four_nulls(1, NULL, 3.5, NULL)";
+        Command.Invoking(command => command.ExecuteScalar()).Should().Throw<DuckDBException>().WithMessage("*'Int64' received NULL*");
+    }
+
+    // A function with parameters gives the same result for the same arguments, as far as DuckDB is told, and one
+    // without parameters does not. DuckDB calls the first kind once for a constant argument.
+    [Fact]
+    public void SimplifiedScalarFunctionsWithParametersArePure()
+    {
+        Connection.RegisterScalarFunction("stable_zero", () => 1);
+        Connection.RegisterScalarFunction<int, int>("stable_one", a => a);
+        Connection.RegisterScalarFunction<int, int, int>("stable_two", (a, b) => a + b);
+        Connection.RegisterScalarFunction<int, int, int, int>("stable_three", (a, b, c) => a + b + c);
+        Connection.RegisterScalarFunction<int, int, int, int, int>("stable_four", (a, b, c, d) => a + b + c + d);
+        Connection.RegisterScalarFunction("stable_params", (int[] values) => values.Sum());
+
+        var stability = Connection.Query<(string Name, string Stability)>(
+            "SELECT function_name, stability FROM duckdb_functions() WHERE function_name LIKE 'stable\\_%' ESCAPE '\\' ORDER BY function_name").ToList();
+
+        stability.Should().Equal(
+            ("stable_four", "CONSISTENT"),
+            ("stable_one", "CONSISTENT"),
+            ("stable_params", "CONSISTENT"),
+            ("stable_three", "CONSISTENT"),
+            ("stable_two", "CONSISTENT"),
+            ("stable_zero", "VOLATILE"));
     }
 
     private static bool IsPrime(int value)

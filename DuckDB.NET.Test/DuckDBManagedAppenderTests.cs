@@ -147,6 +147,92 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    public void EmptyByteArrayIsEmptyBlobAndDefaultSpanIsNull()
+    {
+        // Only a BLOB column, ordered by rowid: an integer literal such as AppendValue(1) binds to the byte? overload,
+        // which the low-level appender would write into one byte of an INTEGER slot.
+        Command.CommandText = "CREATE TABLE blobAppenderEmptyTest(b blob)";
+        Command.ExecuteNonQuery();
+
+        using (var appender = Connection.CreateAppender("blobAppenderEmptyTest"))
+        {
+            appender.CreateRow().AppendValue(Array.Empty<byte>()).EndRow();
+            appender.CreateRow().AppendValue(new Span<byte>(Array.Empty<byte>())).EndRow();
+            appender.CreateRow().AppendValue(default(Span<byte>)).EndRow();
+        }
+
+        var results = Connection.Query<(bool IsNull, long? Length)>(
+            "SELECT b IS NULL, octet_length(b) FROM blobAppenderEmptyTest ORDER BY rowid").ToList();
+
+        results.Should().Equal((false, 0L), (false, 0L), (true, null));
+    }
+
+    [Fact]
+    public void UnsignedHugeIntAboveSignedHugeIntRange()
+    {
+        // Only UHUGEINT columns, ordered by rowid: the low-level appender does no type checking.
+        Command.CommandText = "CREATE TABLE uhugeintAppenderTest(a UHUGEINT, b UHUGEINT[])";
+        Command.ExecuteNonQuery();
+
+        BigInteger?[] values =
+        [
+            BigInteger.Zero,
+            DuckDBHugeInt.HugeIntMaxValue,
+            BigInteger.Pow(2, 127) + 42,
+            DuckDBUHugeInt.HugeIntMaxValue,
+        ];
+
+        using (var appender = Connection.CreateAppender("uhugeintAppenderTest"))
+        {
+            foreach (var value in values)
+            {
+                appender.CreateRow().AppendValue(value).AppendValue(new List<BigInteger> { value.Value, value.Value }).EndRow();
+            }
+        }
+
+        Command.CommandText = "SELECT a, b, a::VARCHAR FROM uhugeintAppenderTest ORDER BY rowid";
+        using var reader = Command.ExecuteReader();
+
+        foreach (var value in values)
+        {
+            reader.Read().Should().BeTrue();
+            reader.GetFieldValue<BigInteger>(0).Should().Be(value.Value);
+            reader.GetFieldValue<List<BigInteger>>(1).Should().Equal(value.Value, value.Value);
+            reader.GetString(2).Should().Be(value.Value.ToString());
+        }
+
+        reader.Read().Should().BeFalse();
+    }
+
+    [Fact]
+    public void UnsignedHugeIntRejectsValuesOutOfRange()
+    {
+        Command.CommandText = "CREATE TABLE uhugeintAppenderRangeTest(a UHUGEINT)";
+        Command.ExecuteNonQuery();
+
+        BigInteger? negative = BigInteger.MinusOne;
+        BigInteger? tooLarge = DuckDBUHugeInt.HugeIntMaxValue + 1;
+        BigInteger? valid = BigInteger.Pow(2, 127);
+
+        using (var appender = Connection.CreateAppender("uhugeintAppenderRangeTest"))
+        {
+            var row = appender.CreateRow();
+
+            row.Invoking(r => r.AppendValue(negative)).Should().Throw<ArgumentOutOfRangeException>();
+            row.Invoking(r => r.AppendValue(tooLarge)).Should().Throw<ArgumentOutOfRangeException>();
+
+            row.AppendValue(valid).EndRow();
+        }
+
+        Command.CommandText = "SELECT a::VARCHAR FROM uhugeintAppenderRangeTest";
+        using var reader = Command.ExecuteReader();
+
+        reader.Read().Should().BeTrue();
+        reader.GetString(0).Should().Be(valid.Value.ToString());
+        reader.Read().Should().BeFalse();
+    }
+
+    [Fact]
     public void Decimals()
     {
         Command.CommandText = "CREATE TABLE managedAppenderDecimals(a INTEGER, b decimal(3, 1), c decimal (9, 4), d decimal (18, 6), e decimal(38, 12));";
@@ -248,7 +334,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     [Fact]
     public void HighScaleDecimals()
     {
-        // Scale 30 exceeds .NET decimal's max scale (28), exercising the BigInteger rescaling
+        // Scale 30 exceeds .NET decimal's max scale (28), exercising the 128-bit rescaling
         // path in DecimalVectorDataWriter. Before the fix, this would crash with IndexOutOfRangeException.
         Command.CommandText = "CREATE TABLE managedAppenderHighScaleDecimals(value DECIMAL(38, 30))";
         Command.ExecuteNonQuery();
@@ -870,6 +956,29 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    public void NumericValueForNonNumericColumnThrows()
+    {
+        Command.CommandText = "CREATE TABLE managedAppenderNumericToVarchar(a VARCHAR, b INTEGER)";
+        Command.ExecuteNonQuery();
+
+        using (var appender = Connection.CreateAppender("managedAppenderNumericToVarchar"))
+        {
+            appender.CreateRow().AppendValue("completed").AppendValue((int?)1).EndRow();
+
+            var row = appender.CreateRow();
+            row.Invoking(r => r.AppendValue((int?)5))
+                .Should().Throw<InvalidOperationException>()
+                .WithMessage("Cannot write Int32 to Varchar column");
+
+            row.Invoking(r => r.AppendValue((double?)5))
+                .Should().Throw<InvalidOperationException>()
+                .WithMessage("Cannot write Double to Varchar column");
+        }
+
+        VerifyOnlyCompletedRowWritten("managedAppenderNumericToVarchar");
+    }
+
+    [Fact]
     public void CreateRowWithoutValuesIsNotWrittenOnDispose()
     {
         Command.CommandText = "CREATE TABLE managedAppenderCreateRowNoValues(a VARCHAR, b INTEGER)";
@@ -935,7 +1044,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         using (var appender = Connection.CreateAppender(table))
         {
             var row = appender.CreateRow();
-            row.Invoking(r => r.AppendValue(new List<object?> { null, "bad" })).Should().Throw<InvalidOperationException>();
+            row.Invoking(r => r.AppendValue(new List<object> { null, "bad" })).Should().Throw<InvalidOperationException>();
 
             row.AppendValue(new List<int> { 1, 2 }).AppendValue("retried").EndRow();
         }
@@ -961,7 +1070,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         using (var appender = Connection.CreateAppender(table))
         {
             var row = appender.CreateRow();
-            row.Invoking(r => r.AppendValue(new List<object?> { null, "bad" })).Should().Throw<InvalidOperationException>();
+            row.Invoking(r => r.AppendValue(new List<object> { null, "bad" })).Should().Throw<InvalidOperationException>();
 
             row.AppendValue(new List<List<int>> { new() { 1, 2 }, new() { 3, 4 } }).AppendValue("retried").EndRow();
         }
@@ -988,7 +1097,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         using (var appender = Connection.CreateAppender("managedAppenderListRetryGrows"))
         {
             var row = appender.CreateRow();
-            row.Invoking(r => r.AppendValue(new List<object?> { null, "bad" })).Should().Throw<InvalidOperationException>();
+            row.Invoking(r => r.AppendValue(new List<object> { null, "bad" })).Should().Throw<InvalidOperationException>();
 
             row.AppendValue(items).AppendValue("retried").EndRow();
         }
@@ -1013,7 +1122,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         using (var appender = Connection.CreateAppender("managedAppenderListOfArraysRetryGrows"))
         {
             var row = appender.CreateRow();
-            row.Invoking(r => r.AppendValue(new List<object?> { null, "bad" })).Should().Throw<InvalidOperationException>();
+            row.Invoking(r => r.AppendValue(new List<object> { null, "bad" })).Should().Throw<InvalidOperationException>();
 
             row.AppendValue(items).AppendValue("retried").EndRow();
         }
@@ -1188,7 +1297,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
             appender.CreateRow().AppendValue(new List<int> { 1 }).AppendValue("completed").EndRow();
 
             var row = appender.CreateRow();
-            row.Invoking(r => r.AppendValue(new List<object?> { 5, "bad" })).Should().Throw<InvalidOperationException>();
+            row.Invoking(r => r.AppendValue(new List<object> { 5, "bad" })).Should().Throw<InvalidOperationException>();
         }
 
         Command.CommandText = "SELECT a, b FROM managedAppenderIncompleteList";
@@ -1210,7 +1319,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
             appender.CreateRow().AppendValue(new List<int> { 1, 2 }).AppendValue("completed").EndRow();
 
             var row = appender.CreateRow();
-            row.Invoking(r => r.AppendValue(new List<object?> { null, "bad" })).Should().Throw<InvalidOperationException>();
+            row.Invoking(r => r.AppendValue(new List<object> { null, "bad" })).Should().Throw<InvalidOperationException>();
         }
 
         Command.CommandText = "SELECT a, b FROM managedAppenderIncompleteArray";
@@ -1593,5 +1702,39 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     private enum EnumNotValidValueTestEnum
     {
         NotValid = 12345,
+    }
+
+    // Each date or timestamp used to allocate several hundred bytes, because the infinity checks compared structs
+    // through ValueType.Equals.
+    [Fact]
+    public void AppendingDatesAndTimestampsDoesNotAllocatePerValue()
+    {
+        Command.CommandText = "CREATE TABLE managedAppenderDateAllocations(a TIMESTAMP, b DATE, c DATE, d TIMESTAMPTZ)";
+        Command.ExecuteNonQuery();
+
+        const int rows = 20_000;
+        var dateTime = new DateTime(2024, 1, 15, 12, 30, 45);
+        var state = (DateTime: (DateTime?)dateTime, DateOnly: (DateOnly?)DateOnly.FromDateTime(dateTime), Offset: (DateTimeOffset?)new DateTimeOffset(dateTime, TimeSpan.Zero));
+
+        using var appender = Connection.CreateAppender("managedAppenderDateAllocations");
+
+        long Append()
+        {
+            var before = GC.GetAllocatedBytesForCurrentThread();
+
+            for (var i = 0; i < rows; i++)
+            {
+                appender.AppendRow(state, static (row, value) => row.AppendValue(value.DateTime).AppendValue(value.DateTime).AppendValue(value.DateOnly).AppendValue(value.Offset));
+            }
+
+            return GC.GetAllocatedBytesForCurrentThread() - before;
+        }
+
+        // The first pass pays for one-time allocations such as the cached delegate.
+        Append();
+
+        // Before the fix this was about 2,400 bytes per row. A Release build allocates nothing; a Debug build
+        // boxes each value once in WriteValue, about 100 bytes per row here, so the limit leaves room for that.
+        Append().Should().BeLessThan(rows * 500);
     }
 }

@@ -34,9 +34,8 @@ internal sealed unsafe class EnumVectorDataWriter(IntPtr vector, void* vectorDat
         throw new InvalidOperationException($"Failed to write Enum column because the value \"{value}\" is not valid.");
     }
 
-    internal override bool AppendEnum<TEnum>(TEnum value, ulong rowIndex)
+    internal override bool AppendEnum(ulong enumValue, ulong rowIndex)
     {
-        var enumValue = ConvertEnumValueToUInt64(value);
         if (enumValue < enumDictionarySize)
         {
             // The following casts to byte, ushort and uint are safe because we ensure in the constructor that the value enumDictionarySize is not too high.
@@ -50,22 +49,6 @@ internal sealed unsafe class EnumVectorDataWriter(IntPtr vector, void* vectorDat
         }
 
         throw new InvalidOperationException($"Failed to write Enum column because the value is outside the range (0-{enumDictionarySize - 1}).");
-    }
-
-    private static ulong ConvertEnumValueToUInt64<TEnum>(TEnum value) where TEnum : Enum
-    {
-        return value.GetTypeCode() switch
-        {
-            TypeCode.SByte => (ulong)Convert.ToSByte(value),
-            TypeCode.Byte => Convert.ToByte(value),
-            TypeCode.Int16 => (ulong)Convert.ToInt16(value),
-            TypeCode.UInt16 => Convert.ToUInt16(value),
-            TypeCode.Int32 => (ulong)Convert.ToInt32(value),
-            TypeCode.UInt32 => Convert.ToUInt32(value),
-            TypeCode.Int64 => (ulong)Convert.ToInt64(value),
-            TypeCode.UInt64 => Convert.ToUInt64(value),
-            _ => throw new InvalidOperationException($"Failed to convert the enum value {value} to ulong."),
-        };
     }
 
 }

@@ -217,7 +217,17 @@ public partial class DuckDBConnection : DbConnection
         where TMap : Mapping.DuckDBAppenderMap<T>, new()
     {
         var appender = CreateAppender(catalog, schema, table);
-        return new DuckDBMappedAppender<T, TMap>(appender);
+
+        try
+        {
+            return new DuckDBMappedAppender<T, TMap>(appender);
+        }
+        catch
+        {
+            // The mapping did not pass validation, so nobody else gets to dispose the appender.
+            appender.Dispose();
+            throw;
+        }
     }
 
     protected override void Dispose(bool disposing)

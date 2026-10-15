@@ -10,7 +10,7 @@ namespace DuckDB.NET.Data;
 public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBAppenderMap<T>, new()
 {
     private readonly DuckDBAppender appender;
-    private readonly List<IPropertyMapping<T>> mappings;
+    private readonly IPropertyMapping<T>[] mappings;
 
     internal DuckDBMappedAppender(DuckDBAppender appender)
     {
@@ -18,21 +18,21 @@ public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBAppe
         var classMap = new TMap();
 
         // Get mappings as List<T> to avoid interface enumerator boxing
-        mappings = classMap.PropertyMappings;
+        mappings = classMap.PropertyMappings.ToArray();
 
         // Validate mappings match the table structure
-        if (mappings.Count == 0)
+        if (mappings.Length == 0)
         {
             throw new InvalidOperationException($"AppenderMap {typeof(TMap).Name} has no property mappings defined");
         }
 
         var columnTypes = appender.LogicalTypes;
-        if (mappings.Count != columnTypes.Count)
+        if (mappings.Length != columnTypes.Count)
         {
-            throw new InvalidOperationException($"AppenderMap {typeof(TMap).Name} has {mappings.Count} mappings but table has {columnTypes.Count} columns");
+            throw new InvalidOperationException($"AppenderMap {typeof(TMap).Name} has {mappings.Length} mappings but table has {columnTypes.Count} columns");
         }
 
-        for (int index = 0; index < mappings.Count; index++)
+        for (int index = 0; index < mappings.Length; index++)
         {
             var mapping = mappings[index];
 
@@ -42,12 +42,12 @@ public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBAppe
             }
 
             var columnType = NativeMethods.LogicalType.DuckDBGetTypeId(columnTypes[index]);
-            var expectedType = GetExpectedDuckDBType(mapping.PropertyType);
+            var acceptedTypes = GetAcceptedDuckDBTypes(mapping.PropertyType);
 
-            if (expectedType != columnType)
+            if (Array.IndexOf(acceptedTypes, columnType) < 0)
             {
                 throw new InvalidOperationException(
-                    $"Type mismatch at column index {index}: Mapped type is {mapping.PropertyType.Name} (expected DuckDB type: {expectedType}) but actual column type is {columnType}");
+                    $"Type mismatch at column index {index}: Mapped type is {mapping.PropertyType.UnderlyingTypeOrSelf().Name} (expected DuckDB type: {string.Join(" or ", acceptedTypes)}) but actual column type is {columnType}");
             }
         }
     }
@@ -79,21 +79,33 @@ public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBAppe
         // Pass both values as state so the callback does not capture per record.
         appender.AppendRow((Record: record, Mappings: mappings), static (row, state) =>
         {
-            foreach (var mapping in state.Mappings)
+            var mappings = state.Mappings;
+
+            for (var index = 0; index < mappings.Length; index++)
             {
-                mapping.AppendToRow(row, state.Record);
+                mappings[index].AppendToRow((DuckDBAppenderRow)row, state.Record);
             }
         });
     }
 
-    private static DuckDBType GetExpectedDuckDBType(Type type)
+    // The column types a property of the given type can be appended to.
+    private static DuckDBType[] GetAcceptedDuckDBTypes(Type type)
     {
-        var duckDBType = type.UnderlyingTypeOrSelf().GetDuckDBType();
+        var underlyingType = type.UnderlyingTypeOrSelf();
+
+        // BigInteger is the .NET type for both 128-bit integer columns. The writer stores the value signed or
+        // unsigned to match the column, and rejects a value outside the column's range when it is appended.
+        if (underlyingType == typeof(BigInteger))
+        {
+            return [DuckDBType.HugeInt, DuckDBType.UnsignedHugeInt];
+        }
+
+        var duckDBType = underlyingType.GetDuckDBType();
 
         return duckDBType switch
         {
             DuckDBType.Invalid => throw new NotSupportedException($"Type {type.Name} is not supported for mapping"),
-            _ => duckDBType
+            _ => [duckDBType]
         };
     }
 

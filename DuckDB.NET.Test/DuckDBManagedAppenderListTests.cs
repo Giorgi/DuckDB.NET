@@ -222,7 +222,7 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     [Fact]
     public void ListOfArraysAfterNullArrayStayAligned()
     {
-        VerifyArrayRowsAfterNull<List<int>?>("managedAppenderListOfArraysAfterNull", "INTEGER[2][]",
+        VerifyArrayRowsAfterNull<List<int>>("managedAppenderListOfArraysAfterNull", "INTEGER[2][]",
             [[[1, 2], [3, 4]], [[5, 6], null, [7, 8]], [[9, 10]]]);
     }
 
@@ -232,7 +232,7 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     [Fact]
     public void ArrayOfListsAfterNullArrayStayAligned()
     {
-        VerifyArrayRowsAfterNull<List<int>?>("managedAppenderArrayOfListsAfterNull", "INTEGER[][2]",
+        VerifyArrayRowsAfterNull<List<int>>("managedAppenderArrayOfListsAfterNull", "INTEGER[][2]",
             [[[1], [2, 3]], null, [[4], [5]], [[6, 7], [8]], [[9], null]]);
     }
 
@@ -253,7 +253,7 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     [Fact]
     public void VarcharArrayValuesWithNullItemsAfterNullArrayStayAligned()
     {
-        VerifyArrayRowsAfterNull<string?>("managedAppenderVarcharArrayNullItemsAfterNull", "VARCHAR[2]",
+        VerifyArrayRowsAfterNull<string>("managedAppenderVarcharArrayNullItemsAfterNull", "VARCHAR[2]",
             [["a", null], null, [null, "d"], ["e", "f"]]);
     }
 
@@ -283,7 +283,7 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
         var batchSize = (int)DuckDBGlobalData.VectorSize;
 
         // Three arrays per row take the list past its initial VectorSize items a third of the way in.
-        var rows = Enumerable.Range(0, batchSize).Select(List<List<int?>?>? (i) => i switch
+        var rows = Enumerable.Range(0, batchSize).Select(List<List<int?>> (i) => i switch
         {
             1000 => null,
             1500 => [[i * 10, null], null, [i * 10 + 2, -(i * 10 + 2)]],
@@ -301,7 +301,7 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
         var batchSize = (int)DuckDBGlobalData.VectorSize;
 
         // Three items per row take the list past its initial VectorSize items a third of the way in.
-        var rows = Enumerable.Range(0, batchSize).Select(List<List<List<int?>?>?>? (i) =>
+        var rows = Enumerable.Range(0, batchSize).Select(List<List<List<int?>>> (i) =>
         {
             var x = i * 10;
 
@@ -324,7 +324,7 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
         var batchSize = (int)DuckDBGlobalData.VectorSize;
 
         // Three items per row take the outer list past its initial VectorSize items a third of the way in.
-        var rows = Enumerable.Range(0, batchSize).Select(List<List<List<int?>?>?>? (i) =>
+        var rows = Enumerable.Range(0, batchSize).Select(List<List<List<int?>>> (i) =>
         {
             var x = i * 10;
 
@@ -339,7 +339,7 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
         VerifyArrayRowsAfterNull("managedAppenderListOfArraysOfListsAfterGrowth", "INTEGER[][2][]", rows);
     }
 
-    private void VerifyArrayRowsAfterNull<T>(string table, string columnType, List<T>?[] rows)
+    private void VerifyArrayRowsAfterNull<T>(string table, string columnType, List<T>[] rows)
     {
         Command.CommandText = $"CREATE TABLE {table} (a INTEGER, b {columnType});";
         Command.ExecuteNonQuery();
@@ -538,6 +538,97 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
                     .Should().Throw<InvalidOperationException>().Where(exception => exception.Message.Contains(length.ToString()));
             }
         }
+    }
+
+    // A list that fails part way has already written some of its items, a NULL among them. The value appended in
+    // its place puts a number where that NULL was, and the item has to stop being NULL.
+    [Fact]
+    public void NullableItemsAppendedAfterAFailedListReplaceItsNulls()
+    {
+        Command.CommandText = "CREATE TABLE list_retry_nullable (l INTEGER[])";
+        Command.ExecuteNonQuery();
+
+        using (var appender = Connection.CreateAppender("list_retry_nullable"))
+        {
+            var row = appender.CreateRow();
+
+            row.Invoking(r => r.AppendValue(new NullThenFailure())).Should().Throw<InvalidOperationException>().WithMessage("no more items");
+            row.AppendValue(new List<int?> { 7, null, 9 }).EndRow();
+        }
+
+        Command.CommandText = "SELECT l FROM list_retry_nullable";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        reader.GetFieldValue<List<int?>>(0).Should().Equal(7, null, 9);
+    }
+
+    // A List<T> and an array are written as a span, and every other collection through its enumerator. The same
+    // items have to be stored whichever way they come.
+    [Fact]
+    public void ItemsAreTheSameFromAListAnArrayAndAnotherCollection()
+    {
+        Command.CommandText = "CREATE TABLE list_kinds (i INTEGER[], n INTEGER[], s VARCHAR[], fixed INTEGER[3], nested INTEGER[][])";
+        Command.ExecuteNonQuery();
+
+        var ints = new List<int> { 1, -2, 3 };
+        var nullableInts = new List<int?> { 4, null, 6 };
+        var strings = new List<string> { "one", null, "a string of more than twelve bytes" };
+        var nested = new List<List<int>> { new() { 1, 2 }, new(), new() { 3 } };
+
+        using (var appender = Connection.CreateAppender("list_kinds"))
+        {
+            appender.CreateRow().AppendValue(ints).AppendValue(nullableInts).AppendValue(strings).AppendValue(ints).AppendValue(nested).EndRow();
+
+            appender.CreateRow().AppendValue(ints.ToArray()).AppendValue(nullableInts.ToArray()).AppendValue(strings.ToArray())
+                .AppendValue(ints.ToArray()).AppendValue(nested.ToArray()).EndRow();
+
+            appender.CreateRow().AppendValue(new System.Collections.ObjectModel.Collection<int>(ints))
+                .AppendValue(new System.Collections.ObjectModel.Collection<int?>(nullableInts))
+                .AppendValue(new System.Collections.ObjectModel.Collection<string>(strings))
+                .AppendValue(new System.Collections.ObjectModel.Collection<int>(ints))
+                .AppendValue(new System.Collections.ObjectModel.Collection<List<int>>(nested)).EndRow();
+
+            // An array of strings that arrives as items of object, and a list with room for more items than it has.
+            IEnumerable<object> objects = strings.ToArray();
+            var withCapacity = new List<int>(100) { 1, -2, 3 };
+
+            appender.CreateRow().AppendValue(withCapacity).AppendValue(nullableInts).AppendValue(objects).AppendValue(withCapacity).AppendValue(nested).EndRow();
+        }
+
+        Command.CommandText = "SELECT i::VARCHAR, n::VARCHAR, s::VARCHAR, fixed::VARCHAR, nested::VARCHAR FROM list_kinds ORDER BY rowid";
+        using var reader = Command.ExecuteReader();
+
+        for (var row = 0; row < 4; row++)
+        {
+            reader.Read().Should().BeTrue();
+
+            reader.GetString(0).Should().Be("[1, -2, 3]", $"row {row}");
+            reader.GetString(1).Should().Be("[4, NULL, 6]", $"row {row}");
+            reader.GetString(2).Should().Be("[one, NULL, a string of more than twelve bytes]", $"row {row}");
+            reader.GetString(3).Should().Be("[1, -2, 3]", $"row {row}");
+            reader.GetString(4).Should().Be("[[1, 2], [], [3]]", $"row {row}");
+        }
+
+        reader.Read().Should().BeFalse();
+    }
+
+    // Says it has three items, gives a NULL and then fails.
+    private sealed class NullThenFailure : System.Collections.ICollection, IEnumerable<int?>
+    {
+        public int Count => 3;
+        public bool IsSynchronized => false;
+        public object SyncRoot => this;
+
+        public void CopyTo(Array array, int index) => throw new NotSupportedException();
+
+        public IEnumerator<int?> GetEnumerator()
+        {
+            yield return null;
+            throw new InvalidOperationException("no more items");
+        }
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
     private enum TestEnum

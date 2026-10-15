@@ -167,6 +167,41 @@ public class ListParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         TestInsertSelect("Date", faker => ((DuckDBDateOnly)faker.Date.Past().Date).OrNull(faker));
     }
 
+    // DuckDB gives no value for a list with an item it cannot convert to the type of the items. Binding that
+    // crashed the process with an access violation.
+    [Fact]
+    public void ListWithAnItemThatDoesNotFitTheColumnIsRefused()
+    {
+        Command.CommandText = "CREATE OR REPLACE TABLE ParameterListRefused (wide DECIMAL(38,10)[], nested DECIMAL(9,2)[][], fixed DECIMAL(9,2)[2], narrow DECIMAL(3,0)[]);";
+        Command.ExecuteNonQuery();
+
+        // 29 digits in front of the point, where the column has room for 28.
+        var tooLarge = 39614081257132168796771975169m;
+
+        Refused("INSERT INTO ParameterListRefused (wide) VALUES ($1)", new List<decimal> { 1.5m, tooLarge });
+        Refused("INSERT INTO ParameterListRefused (nested) VALUES ($1)", new List<List<decimal>> { new() { 1.5m }, new() { 123456789.12m } });
+        Refused("INSERT INTO ParameterListRefused (fixed) VALUES ($1)", new List<decimal> { 1.5m, 123456789.12m });
+        Refused("SELECT len($1)", new List<decimal> { 1.5m, tooLarge });
+
+        // One digit too many. Sent with a width of three, as it was once, DuckDB took it for a value that fits.
+        Refused("INSERT INTO ParameterListRefused (narrow) VALUES ($1)", new List<decimal> { 1000m });
+
+        // The connection is as it was, and a list that fits is stored.
+        Command.CommandText = "INSERT INTO ParameterListRefused (wide) VALUES ($1) RETURNING len(wide)";
+        Command.Parameters.Clear();
+        Command.Parameters.Add(new DuckDBParameter(new List<decimal> { 1.5m, 2.5m }));
+        Command.ExecuteScalar().Should().Be(2L);
+
+        void Refused(string sql, object list)
+        {
+            Command.CommandText = sql;
+            Command.Parameters.Clear();
+            Command.Parameters.Add(new DuckDBParameter(list));
+
+            Command.Invoking(command => command.ExecuteNonQuery()).Should().Throw<DuckDBException>().WithMessage("Cannot create the * value of a parameter*Decimal*");
+        }
+    }
+
     [Fact]
     public void CanBindDuckDBTimeOnlyList()
     {
