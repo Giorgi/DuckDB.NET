@@ -2,27 +2,39 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>net10.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Optimize>true</Optimize>
     <BuildType>Full</BuildType>
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
+    <!-- BenchmarkDotNet finds the project file by the assembly name, so the assembly is named after this file.
+         Directory.Build.props would otherwise name it DuckDB.NET.Benchmarks. -->
+    <AssemblyName>Benchmarks</AssemblyName>
+    <RootNamespace>DuckDB.NET.Benchmarks</RootNamespace>
+    <!-- /p:UseNuGet=true benchmarks a published package instead of the code in this repository. -->
+    <DuckDBNuGetVersion Condition="'$(DuckDBNuGetVersion)' == ''">1.5.6</DuckDBNuGetVersion>
+    <!-- Packages that are not on nuget.org, such as a CI build of the develop branch, can be put in the packages
+         folder next to this file. The folder is ignored by git. -->
+    <RestoreAdditionalProjectSources Condition="Exists('$(MSBuildThisFileDirectory)packages')">$(RestoreAdditionalProjectSources);$(MSBuildThisFileDirectory)packages</RestoreAdditionalProjectSources>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.4" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(UseNuGet)' != 'true'">
     <ProjectReference Include="..\DuckDB.NET.Data\Data.csproj" />
     <ProjectReference Include="..\DuckDB.NET.Bindings\Bindings.csproj" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(UseNuGet)' == 'true'">
+    <PackageReference Include="DuckDB.NET.Data.Full" Version="$(DuckDBNuGetVersion)" />
+  </ItemGroup>
+
   <!-- Copy the already-downloaded native DuckDB library into the benchmark output so it can be
-       loaded via runtimes/{rid}/native/. -->
-  <ItemGroup>
+       loaded via runtimes/{rid}/native/. The NuGet package brings its own. -->
+  <ItemGroup Condition="'$(UseNuGet)' != 'true'">
     <None Include="..\DuckDB.NET.Bindings\obj\runtimes\**\*.dll;..\DuckDB.NET.Bindings\obj\runtimes\**\*.so;..\DuckDB.NET.Bindings\obj\runtimes\**\*.dylib;">
       <Visible>false</Visible>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

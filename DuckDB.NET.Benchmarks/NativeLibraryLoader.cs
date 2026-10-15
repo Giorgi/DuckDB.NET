@@ -5,7 +5,8 @@ using System.Runtime.InteropServices;
 namespace DuckDB.NET.Benchmarks;
 
 /// <summary>
-/// Loads the platform-native DuckDB library for the benchmark process.
+/// Loads the platform-native DuckDB library for the benchmark process. The Local job needs it: the project file
+/// copies the native library into runtimes/{rid}/native, which deps.json does not list. A package brings its own.
 /// </summary>
 internal static class NativeLibraryLoader
 {

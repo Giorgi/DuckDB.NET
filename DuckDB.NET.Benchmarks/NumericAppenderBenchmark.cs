@@ -3,8 +3,10 @@ using DuckDB.NET.Data;
 
 namespace DuckDB.NET.Benchmarks;
 
+// Eight numeric columns of eight types and nothing else, so the time is dominated by the per-value write path.
+// RowCostBenchmark writes eight INTEGER columns.
 [MemoryDiagnoser]
-public class AppenderBenchmark
+public class NumericAppenderBenchmark
 {
     private DuckDBConnection connection = null!;
 
@@ -16,6 +18,8 @@ public class AppenderBenchmark
     {
         connection = new DuckDBConnection("DataSource=:memory:");
         connection.Open();
+
+        LoadedLibrary.Print(connection);
     }
 
     [GlobalCleanup]
@@ -25,31 +29,15 @@ public class AppenderBenchmark
     }
 
     [IterationSetup]
-    public void IterationSetup()
+    public void CreateTable()
     {
         using var command = connection.CreateCommand();
-        command.CommandText = "DROP TABLE IF EXISTS bench; CREATE TABLE bench (a INTEGER, b BIGINT, c DOUBLE, d BOOLEAN);";
+        command.CommandText = "DROP TABLE IF EXISTS bench; CREATE TABLE bench (a TINYINT, b SMALLINT, c INTEGER, d BIGINT, e UINTEGER, f UBIGINT, g FLOAT, h DOUBLE);";
         command.ExecuteNonQuery();
     }
 
-    [Benchmark(Baseline = true)]
-    public void AppendRowsWithCreateRow()
-    {
-        using var appender = connection.CreateAppender("bench");
-
-        for (var i = 0; i < RowCount; i++)
-        {
-            appender.CreateRow()
-                .AppendValue(i)
-                .AppendValue((long)i)
-                .AppendValue((double)i)
-                .AppendValue(i % 2 == 0)
-                .EndRow();
-        }
-    }
-
     [Benchmark]
-    public void AppendRowsWithAppendRow()
+    public void AppendMixedNumerics()
     {
         using var appender = connection.CreateAppender("bench");
 
@@ -57,10 +45,14 @@ public class AppenderBenchmark
         {
             appender.AppendRow(i, static (row, value) =>
             {
-                row.AppendValue(value)
+                row.AppendValue((sbyte)(value % 100))
+                    .AppendValue((short)(value % 1000))
+                    .AppendValue(value)
                     .AppendValue((long)value)
-                    .AppendValue((double)value)
-                    .AppendValue(value % 2 == 0);
+                    .AppendValue((uint)value)
+                    .AppendValue((ulong)value)
+                    .AppendValue((float)value)
+                    .AppendValue((double)value);
             });
         }
     }
