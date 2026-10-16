@@ -17,16 +17,16 @@ dotnet build --configuration Release /p:BuildType=Full
 # Run all tests (CI also adds /p:CollectCoverage=true /p:CoverletOutputFormat=lcov)
 dotnet test DuckDB.NET.Test/Test.csproj --configuration Release /p:BuildType=Full
 
-# One class, one test, or everything except the slow VARINT parameter tests
+# One class, one test, or everything except the slow VARINT parameter tests and the connection stress tests
 dotnet test DuckDB.NET.Test/Test.csproj --filter "FullyQualifiedName~DuckDB.NET.Test.TableFunctionTests"
 dotnet test DuckDB.NET.Test/Test.csproj --filter "FullyQualifiedName~DuckDB.NET.Test.TableFunctionTests.TestTableFunction"
-dotnet test DuckDB.NET.Test/Test.csproj --filter "FullyQualifiedName!~VarintTest"
+dotnet test DuckDB.NET.Test/Test.csproj --filter "FullyQualifiedName!~VarintTest&Stress!=Connection"
 
 # Packages: the plain packages need a separately installed native library; /p:BuildType=Full produces the .Full variants
 dotnet pack DuckDB.NET.Data/Data.csproj --configuration Release /p:BuildType=Full
 
-# Benchmarks
-dotnet run -c Release --project DuckDB.NET.Benchmarks
+# Benchmarks: each one runs against the released NuGet package and against this working tree
+dotnet run -c Release -f net10.0 --project DuckDB.NET.Benchmarks -- --filter "*NumericAppenderBenchmark*"
 ```
 
 ### Native libraries
@@ -45,10 +45,14 @@ dotnet run -c Release --project DuckDB.NET.Benchmarks
 
 - **Current target: DuckDB v1.5.6.** The version is set in `DuckDB.NET.Bindings/Bindings.csproj`
   (`DuckDbArtifactRoot`). The "Updated to DuckDB vX" line in the `PackageReleaseNotes` of both `Bindings.csproj` and
-  `Data.csproj` also needs updating. Every `LibraryImport` names its `EntryPoint`, so after an update, compare those
-  names with the library's exports to catch removed functions.
+  `Data.csproj` also needs updating; a release on the same DuckDB version says "Built on DuckDB vX". Every
+  `LibraryImport` names its `EntryPoint`, so after an update, compare those names with the library's exports to
+  catch removed functions.
 - **Package version:** comes from git tags through GitVersion (`GitVersion.yml`). DuckDB.NET versions follow the
-  DuckDB version (tag `1.5.6`).
+  DuckDB version (tag `1.5.6`). A second release on the same DuckDB version gets a fourth part (`1.5.6.1`), which
+  GitVersion cannot express: it ignores such a tag and works out the previous version again. Run the "Build"
+  workflow by hand on `main` with that version in its `version` input; it reaches MSBuild as `ReleaseVersion`
+  (`Directory.Build.props`), which sets the package and assembly versions. Check the artifact before step 4.
 - **Release steps:**
   1. Update the release notes in both project files.
   2. Merge `develop` into `main` and tag.
@@ -181,6 +185,15 @@ Rules for every new or changed test (both have caused tests that passed locally 
   the column.
 - **To check row order, use `ORDER BY rowid`** instead of adding an ordering column.
 - **Run a new test at least 5 times before committing.** One pass proves nothing.
+
+**What CI runs:**
+- **The connection stress tests** (`MultiThreadedStress`, `ConnectionSpeed`, trait `Stress=Connection`) took most of
+  the test time on Windows. CI leaves them out unless the change touches the code that opens, shares or closes the
+  native database: `Connection/`, `DuckDBConnection.cs`, `DuckDBDataReader.cs`, `DuckDBCommand.cs`,
+  `PreparedStatement/`, `DuckDBWrapperObjects.cs`, the DuckDB version in `Bindings.csproj`, `DuckDBConnectionTests.cs`
+  or `ci.yml`. They always run for `main`, tags, scheduled and manual runs. Run them locally only for such a change.
+- **On Windows** the NuGet cache and the temporary folder are moved to `D:`, where the workspace is; on `C:` the build
+  took about 2.5 times as long. Defender's real-time scanning is already off on the hosted runners.
 
 **Known flaky failure:** with DuckDB 1.5.x, a later-chunk error test can fail with `OperationCanceledException`.
 A worker-thread error sets the interrupt flag, and a streaming fetch can report that flag instead of the real error.
