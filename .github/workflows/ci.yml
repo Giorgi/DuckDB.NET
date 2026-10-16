@@ -23,8 +23,13 @@ concurrency:
   group: ${{ github.ref }}
   cancel-in-progress: true
 
+# No permissions by default; each job asks for what it needs.
+permissions: {}
+
 jobs:
   build:
+    permissions:
+      contents: read
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-14]
@@ -158,6 +163,8 @@ jobs:
     needs: build
     name: Publish Packages
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
     if: github.ref == 'refs/heads/develop' && github.event_name != 'pull_request' && github.event_name != 'schedule'
     steps:
     - name: Download nuget package artifact
@@ -184,6 +191,8 @@ jobs:
     needs: build
     name: Finish Coveralls Collection
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     if: github.event_name != 'schedule'
     steps:
     - name: Coveralls Finished

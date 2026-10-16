@@ -2,6 +2,9 @@ name: "NuGet"
 
 on: [workflow_dispatch]
 
+# No permissions by default; the job asks for what it needs.
+permissions: {}
+
 jobs:
   publish:
     name: Publish Packages

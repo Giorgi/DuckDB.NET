@@ -24,6 +24,9 @@ concurrency:
   group: ${{ github.ref }}
   cancel-in-progress: true
 
+# No permissions by default; the job asks for what it needs.
+permissions: {}
+
 jobs:
   analyze:
     name: Analyze
