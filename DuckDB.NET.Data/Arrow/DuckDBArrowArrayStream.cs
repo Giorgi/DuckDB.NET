@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -49,6 +50,7 @@ internal sealed class DuckDBArrowArrayStream : IArrowArrayStream
         }
     }
 
+    [SuppressMessage("Reliability", "S3869", Justification = "The logicalTypes array keeps the logical types alive until the finally block, after the native call.")]
     private unsafe Schema BuildSchema()
     {
         var columnCount = NativeMethods.Query.DuckDBColumnCount(ref result);

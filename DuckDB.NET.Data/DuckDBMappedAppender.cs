@@ -71,7 +71,7 @@ public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBAppe
 
     private void AppendRecord(T record)
     {
-        if (record == null)
+        if (record is null)
         {
             throw new ArgumentNullException(nameof(record));
         }

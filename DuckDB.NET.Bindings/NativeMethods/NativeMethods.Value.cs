@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 namespace DuckDB.NET.Native;
@@ -239,6 +240,7 @@ public partial class NativeMethods
         [return: MarshalAs(UnmanagedType.I1)]
         public static partial bool DuckDBIsNullValue(DuckDBValue value);
 
+        [SuppressMessage("Reliability", "S3869", Justification = "SetChildValues keeps the child values alive as long as the list value.")]
         public static DuckDBValue DuckDBCreateListValue(DuckDBLogicalType logicalType, DuckDBValue[] values, int count)
         {
             var duckDBValue = DuckDBCreateListValue(logicalType, values.Select(item => item.DangerousGetHandle()).ToArray(), count);
@@ -248,6 +250,7 @@ public partial class NativeMethods
             return duckDBValue;
         }
 
+        [SuppressMessage("Reliability", "S3869", Justification = "SetChildValues keeps the child values alive as long as the array value.")]
         public static DuckDBValue DuckDBCreateArrayValue(DuckDBLogicalType logicalType, DuckDBValue[] values, int count)
         {
             var duckDBValue = DuckDBCreateArrayValue(logicalType, values.Select(item => item.DangerousGetHandle()).ToArray(), count);

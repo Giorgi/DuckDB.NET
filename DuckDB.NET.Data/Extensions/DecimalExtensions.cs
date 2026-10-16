@@ -97,7 +97,7 @@ internal static class DecimalExtensions
         internal void GetParts(out ulong low, out uint high, out bool isNegative, out byte scale)
         {
             Span<int> bits = stackalloc int[4];
-            decimal.GetBits(value, bits);
+            _ = decimal.GetBits(value, bits);
 
             low = (uint)bits[0] | (ulong)(uint)bits[1] << 32;
             high = (uint)bits[2];

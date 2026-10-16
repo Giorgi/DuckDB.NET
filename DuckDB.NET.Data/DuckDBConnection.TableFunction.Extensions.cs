@@ -1,6 +1,7 @@
 using DuckDB.NET.Data.Connection;
 using DuckDB.NET.Data.DataChunk.Writer;
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -369,6 +370,10 @@ public static class DuckDBConnectionTableFunctionExtensions
     //
     // WriteValue<T> is called on the class. Called through IDuckDBDataWriter it is a generic method of an
     // interface, which is looked up at run time for every column of every row.
+    //
+    // DuckDB asks for at least one column today, even for count(*), but its C API does not promise it, and
+    // Expression.Block throws on an empty list.
+    [SuppressMessage("Reliability", "S2583", Justification = "DuckDB's C API does not promise at least one projected column.")]
     private static Action<TData, VectorDataWriterBase[], ulong> CompileRowWriter<TData>(int[] projected, Type[] types, Expression[] accessors, ParameterExpression originalParam)
     {
         var dataParam = Expression.Parameter(typeof(TData), "data");

@@ -100,6 +100,7 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
 
     #region Append Enum
 
+    [SuppressMessage("Reliability", "S2583", Justification = "TEnum can be System.Enum itself, a class, and then the value can be null.")]
     public IDuckDBAppenderRow AppendValue<TEnum>(TEnum? value) where TEnum : Enum
     {
         var writer = GetCurrentWriter();
