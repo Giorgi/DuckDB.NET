@@ -86,12 +86,15 @@ internal static class DecimalExtensions
 
     // EXPERIMENT: the fields of System.Decimal, in its order since .NET Core 3.0: the flags (sign and scale), the upper
     // 32 bits of the integer, the lower 64 bits. Read in place, so no buffer is needed.
+    // Filled only by Unsafe.BitCast, which the compiler does not see as an assignment.
+#pragma warning disable CS0649
     private readonly struct DecimalBits
     {
         public readonly int Flags;
         public readonly uint High;
         public readonly ulong Low;
     }
+#pragma warning restore CS0649
 
     extension(decimal value)
     {
