@@ -6,6 +6,8 @@ internal sealed class GuidVectorDataReader : VectorDataReaderBase
     {
     }
 
+    internal override Guid ReadGuid(ulong offset) => GetValidValue<Guid>(offset);
+
     protected override T GetValidValue<T>(ulong offset)
     {
         if (DuckDBType != DuckDBType.Uuid)

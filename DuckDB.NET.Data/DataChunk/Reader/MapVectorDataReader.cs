@@ -5,6 +5,11 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
     private readonly VectorDataReaderBase keyReader;
     private readonly VectorDataReaderBase valueReader;
 
+    // What GetValue found out about the type it was asked for last: the types a key and a value are read as, and
+    // whether a value can be NULL. A column is read as the same type row after row, so it is worked out once.
+    private Type? planType;
+    private (Type Key, Type Value, bool AllowsNullValues) plan;
+
     internal unsafe MapVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, DuckDBLogicalType logicalColumnType, string columnName) 
                     : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
@@ -42,25 +47,13 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
             throw new InvalidOperationException($"Cannot read Map column {ColumnName} in a non-dictionary type");
         }
 
-        var arguments = targetType.GetGenericArguments();
-
-        var keyTargetType = keyReader.ClrType;
-        var valueTargetType = valueReader.ClrType;
-        var allowsNullValues = false;
-
-        if (arguments.Length == 2)
+        if (targetType != planType)
         {
-            if (arguments[0] == typeof(object) || arguments[1] == typeof(object))
-            {
-                throw new InvalidCastException($"Cannot read Map column {ColumnName} as a dictionary with object keys or values. Use a dictionary with concrete key and value types, or GetValue().");
-            }
-
-            arguments[0].AllowsNullValue(out _, out var underlyingKeyType);
-            keyTargetType = underlyingKeyType ?? arguments[0];
-
-            allowsNullValues = arguments[1].AllowsNullValue(out _, out var underlyingValueType);
-            valueTargetType = underlyingValueType ?? arguments[1];
+            plan = CreatePlan(targetType);
+            planType = targetType;
         }
+
+        var (keyTargetType, valueTargetType, allowsNullValues) = plan;
 
         var listData = (DuckDBListEntry*)DataPointer + offset;
 
@@ -82,6 +75,31 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
         }
 
         return instance;
+    }
+
+    private (Type Key, Type Value, bool AllowsNullValues) CreatePlan(Type targetType)
+    {
+        var arguments = targetType.GetGenericArguments();
+
+        var keyTargetType = keyReader.ClrType;
+        var valueTargetType = valueReader.ClrType;
+        var allowsNullValues = false;
+
+        if (arguments.Length == 2)
+        {
+            if (arguments[0] == typeof(object) || arguments[1] == typeof(object))
+            {
+                throw new InvalidCastException($"Cannot read Map column {ColumnName} as a dictionary with object keys or values. Use a dictionary with concrete key and value types, or GetValue().");
+            }
+
+            arguments[0].AllowsNullValue(out _, out var underlyingKeyType);
+            keyTargetType = underlyingKeyType ?? arguments[0];
+
+            allowsNullValues = arguments[1].AllowsNullValue(out _, out var underlyingValueType);
+            valueTargetType = underlyingValueType ?? arguments[1];
+        }
+
+        return (keyTargetType, valueTargetType, allowsNullValues);
     }
 
     internal override void Reset(IntPtr vector)

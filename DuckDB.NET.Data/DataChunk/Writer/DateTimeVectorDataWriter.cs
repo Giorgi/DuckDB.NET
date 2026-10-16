@@ -6,37 +6,32 @@ internal sealed unsafe class DateTimeVectorDataWriter(IntPtr vector, void* vecto
     {
         if (ColumnType == DuckDBType.Date)
         {
-            return AppendValueInternal(((DuckDBDateOnly)value.Date).ToDuckDBDate(), rowIndex);
+            return AppendValueInternal(value.ToDuckDBDate(), rowIndex);
         }
 
-        var timestamp = value.ToTimestampStruct(ColumnType);
-
-        return AppendValueInternal(timestamp, rowIndex);
+        return AppendValueInternal(value.ToTimestampStruct(ColumnType), rowIndex);
     }
 
     internal override bool AppendDateTimeOffset(DateTimeOffset value, ulong rowIndex)
     {
         if (ColumnType == DuckDBType.TimeTz)
         {
-            var timeTz = value.ToTimeTzStruct();
-
-            return AppendValueInternal(timeTz, rowIndex);
+            return AppendValueInternal(value.ToTimeTzStruct(), rowIndex);
         }
 
         if (ColumnType == DuckDBType.TimestampTz)
         {
-            var timestamp = value.ToTimestampStruct();
-
-            return AppendValueInternal(timestamp, rowIndex);
+            return AppendValueInternal(value.ToTimestampStruct(), rowIndex);
         }
 
         return base.AppendDateTimeOffset(value, rowIndex);
     }
 
-    internal override bool AppendDateOnly(DateOnly value, ulong rowIndex) => AppendValueInternal(((DuckDBDateOnly)value).ToDuckDBDate(), rowIndex);
+    internal override bool AppendDateOnly(DateOnly value, ulong rowIndex) => AppendValueInternal(value.ToDuckDBDate(), rowIndex);
 
-    internal override bool AppendTimeOnly(TimeOnly value, ulong rowIndex) => AppendValueInternal(NativeMethods.DateTimeHelpers.DuckDBToTime(value), rowIndex);
+    internal override bool AppendTimeOnly(TimeOnly value, ulong rowIndex) => AppendValueInternal(value.ToDuckDBTime(), rowIndex);
 
+    // The DuckDB types hold a year, a month and a day, or an hour, a minute and a second. DuckDB puts them together.
     internal override bool AppendDateOnly(DuckDBDateOnly value, ulong rowIndex) => AppendValueInternal(value.ToDuckDBDate(), rowIndex);
 
     internal override bool AppendTimeOnly(DuckDBTimeOnly value, ulong rowIndex) => AppendValueInternal(NativeMethods.DateTimeHelpers.DuckDBToTime(value), rowIndex);

@@ -1,4 +1,5 @@
-﻿using DuckDB.NET.Test.Helpers;
+﻿using System.Data.Common;
+using DuckDB.NET.Test.Helpers;
 
 namespace DuckDB.NET.Test.Parameters;
 
@@ -107,6 +108,61 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
 
         parameters.RemoveAt("param1");
         parameters.Count.Should().Be(0);
+    }
+
+    // Generic data code holds the collection as DbParameterCollection, which routes to the object-typed members.
+    [Fact]
+    public void ParameterCollectionWorksThroughTheBaseType()
+    {
+        DbParameterCollection parameters = new DuckDBParameterCollection();
+        var first = new DuckDBParameter("first", 1);
+        var second = new DuckDBParameter("second", 2);
+        var third = new DuckDBParameter("third", 3);
+
+        parameters.AddRange(new DbParameter[] { first, third });
+        parameters.Insert(1, second);
+
+        parameters.Count.Should().Be(3);
+        parameters.SyncRoot.Should().NotBeNull();
+        parameters.Cast<DbParameter>().Should().Equal(first, second, third);
+
+        parameters.Contains((object)second).Should().BeTrue();
+        parameters.Contains("second").Should().BeTrue();
+        parameters.IndexOf((object)third).Should().Be(2);
+        parameters[1].Should().BeSameAs(second);
+        parameters["third"].Should().BeSameAs(third);
+
+        var copy = new DuckDBParameter[4];
+        parameters.CopyTo(copy, 1);
+        copy.Should().Equal(new DuckDBParameter[] { null, first, second, third });
+
+        var typedCopy = new DuckDBParameter[3];
+        ((DuckDBParameterCollection)parameters).CopyTo(typedCopy, 0);
+        typedCopy.Should().Equal(first, second, third);
+
+        var replacement = new DuckDBParameter("replacement", 4);
+        parameters[0] = replacement;
+        parameters["second"] = first;
+        parameters.Cast<DbParameter>().Should().Equal(replacement, first, third);
+
+        parameters.Remove((object)third);
+        parameters.Contains((object)third).Should().BeFalse();
+        parameters.Count.Should().Be(2);
+    }
+
+    [Fact]
+    public void MissingParameterNameIsReportedTheSameWayOnEveryPath()
+    {
+        var typedParameters = new DuckDBParameterCollection { new DuckDBParameter("present", 1) };
+        DbParameterCollection parameters = typedParameters;
+
+        parameters.Invoking(p => p["missing"]).Should().Throw<IndexOutOfRangeException>().WithMessage("*'missing'*");
+        parameters.Invoking(p => p["missing"] = new DuckDBParameter("other", 2)).Should().Throw<IndexOutOfRangeException>().WithMessage("*'missing'*");
+        parameters.Invoking(p => p.RemoveAt("missing")).Should().Throw<IndexOutOfRangeException>().WithMessage("*'missing'*");
+        typedParameters.Invoking(p => p["missing"]).Should().Throw<IndexOutOfRangeException>().WithMessage("*'missing'*");
+
+        parameters.Contains("missing").Should().BeFalse();
+        parameters.IndexOf("missing").Should().Be(-1);
     }
 
     [Theory]

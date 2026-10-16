@@ -24,15 +24,14 @@ public class DuckDBClientFactory : DbProviderFactory
 
     #region Methods
 
-    public override DbCommand CreateCommand() => new DuckDBCommand();
+    // DuckDB.NET has no command builder or data adapter. CreateCommandBuilder and CreateDataAdapter are not
+    // overridden, so they return null and CanCreateCommandBuilder and CanCreateDataAdapter report false.
 
-    public override DbCommandBuilder CreateCommandBuilder() => throw new NotImplementedException();
+    public override DbCommand CreateCommand() => new DuckDBCommand();
 
     public override DbConnection CreateConnection() => new DuckDBConnection();
 
     public override DbConnectionStringBuilder CreateConnectionStringBuilder() => new DuckDBConnectionStringBuilder();
-
-    public override DbDataAdapter CreateDataAdapter() => throw new NotImplementedException();
 
     public override DbParameter CreateParameter() => new DuckDBParameter();
 

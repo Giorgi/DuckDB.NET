@@ -356,4 +356,58 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     #endregion
+
+    #region Equality
+
+    [Fact]
+    public void DuckDBDateOnlyEquality()
+    {
+        var date = new DuckDBDateOnly(2024, 1, 15);
+
+        date.Equals(new DuckDBDateOnly(2024, 1, 15)).Should().BeTrue();
+        date.Equals((object)new DuckDBDateOnly(2024, 1, 15)).Should().BeTrue();
+        date.GetHashCode().Should().Be(new DuckDBDateOnly(2024, 1, 15).GetHashCode());
+
+        date.Equals(new DuckDBDateOnly(2025, 1, 15)).Should().BeFalse();
+        date.Equals(new DuckDBDateOnly(2024, 2, 15)).Should().BeFalse();
+        date.Equals(new DuckDBDateOnly(2024, 1, 16)).Should().BeFalse();
+        date.Equals((object)"2024-01-15").Should().BeFalse();
+        date.Equals(null).Should().BeFalse();
+    }
+
+    [Fact]
+    public void DuckDBTimeOnlyEquality()
+    {
+        var time = new DuckDBTimeOnly(12, 30, 45, 123456);
+
+        time.Equals(new DuckDBTimeOnly(12, 30, 45, 123456)).Should().BeTrue();
+        time.Equals((object)new DuckDBTimeOnly(12, 30, 45, 123456)).Should().BeTrue();
+        time.GetHashCode().Should().Be(new DuckDBTimeOnly(12, 30, 45, 123456).GetHashCode());
+
+        time.Equals(new DuckDBTimeOnly(13, 30, 45, 123456)).Should().BeFalse();
+        time.Equals(new DuckDBTimeOnly(12, 31, 45, 123456)).Should().BeFalse();
+        time.Equals(new DuckDBTimeOnly(12, 30, 46, 123456)).Should().BeFalse();
+        time.Equals(new DuckDBTimeOnly(12, 30, 45, 123457)).Should().BeFalse();
+        time.Equals(null).Should().BeFalse();
+    }
+
+    [Fact]
+    public void DuckDBTimestampEquality()
+    {
+        var timestamp = new DuckDBTimestamp(new DuckDBDateOnly(2024, 1, 15), new DuckDBTimeOnly(12, 30, 45));
+
+        timestamp.Equals(new DuckDBTimestamp(new DuckDBDateOnly(2024, 1, 15), new DuckDBTimeOnly(12, 30, 45))).Should().BeTrue();
+        timestamp.Equals((object)new DuckDBTimestamp(new DuckDBDateOnly(2024, 1, 15), new DuckDBTimeOnly(12, 30, 45))).Should().BeTrue();
+        timestamp.GetHashCode().Should().Be(new DuckDBTimestamp(new DuckDBDateOnly(2024, 1, 15), new DuckDBTimeOnly(12, 30, 45)).GetHashCode());
+
+        timestamp.Equals(new DuckDBTimestamp(new DuckDBDateOnly(2024, 1, 16), new DuckDBTimeOnly(12, 30, 45))).Should().BeFalse();
+        timestamp.Equals(new DuckDBTimestamp(new DuckDBDateOnly(2024, 1, 15), new DuckDBTimeOnly(12, 30, 46))).Should().BeFalse();
+        timestamp.Equals(null).Should().BeFalse();
+
+        DuckDBTimestamp.PositiveInfinity.IsPositiveInfinity.Should().BeTrue();
+        DuckDBTimestamp.NegativeInfinity.IsNegativeInfinity.Should().BeTrue();
+        timestamp.IsInfinity.Should().BeFalse();
+    }
+
+    #endregion
 }

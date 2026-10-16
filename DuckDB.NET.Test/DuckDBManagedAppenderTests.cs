@@ -334,7 +334,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     [Fact]
     public void HighScaleDecimals()
     {
-        // Scale 30 exceeds .NET decimal's max scale (28), exercising the BigInteger rescaling
+        // Scale 30 exceeds .NET decimal's max scale (28), exercising the 128-bit rescaling
         // path in DecimalVectorDataWriter. Before the fix, this would crash with IndexOutOfRangeException.
         Command.CommandText = "CREATE TABLE managedAppenderHighScaleDecimals(value DECIMAL(38, 30))";
         Command.ExecuteNonQuery();
@@ -953,6 +953,29 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         }
 
         VerifyOnlyCompletedRowWritten("managedAppenderCreateRowFailedWrite");
+    }
+
+    [Fact]
+    public void NumericValueForNonNumericColumnThrows()
+    {
+        Command.CommandText = "CREATE TABLE managedAppenderNumericToVarchar(a VARCHAR, b INTEGER)";
+        Command.ExecuteNonQuery();
+
+        using (var appender = Connection.CreateAppender("managedAppenderNumericToVarchar"))
+        {
+            appender.CreateRow().AppendValue("completed").AppendValue((int?)1).EndRow();
+
+            var row = appender.CreateRow();
+            row.Invoking(r => r.AppendValue((int?)5))
+                .Should().Throw<InvalidOperationException>()
+                .WithMessage("Cannot write Int32 to Varchar column");
+
+            row.Invoking(r => r.AppendValue((double?)5))
+                .Should().Throw<InvalidOperationException>()
+                .WithMessage("Cannot write Double to Varchar column");
+        }
+
+        VerifyOnlyCompletedRowWritten("managedAppenderNumericToVarchar");
     }
 
     [Fact]
@@ -1679,5 +1702,39 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     private enum EnumNotValidValueTestEnum
     {
         NotValid = 12345,
+    }
+
+    // Each date or timestamp used to allocate several hundred bytes, because the infinity checks compared structs
+    // through ValueType.Equals.
+    [Fact]
+    public void AppendingDatesAndTimestampsDoesNotAllocatePerValue()
+    {
+        Command.CommandText = "CREATE TABLE managedAppenderDateAllocations(a TIMESTAMP, b DATE, c DATE, d TIMESTAMPTZ)";
+        Command.ExecuteNonQuery();
+
+        const int rows = 20_000;
+        var dateTime = new DateTime(2024, 1, 15, 12, 30, 45);
+        var state = (DateTime: (DateTime?)dateTime, DateOnly: (DateOnly?)DateOnly.FromDateTime(dateTime), Offset: (DateTimeOffset?)new DateTimeOffset(dateTime, TimeSpan.Zero));
+
+        using var appender = Connection.CreateAppender("managedAppenderDateAllocations");
+
+        long Append()
+        {
+            var before = GC.GetAllocatedBytesForCurrentThread();
+
+            for (var i = 0; i < rows; i++)
+            {
+                appender.AppendRow(state, static (row, value) => row.AppendValue(value.DateTime).AppendValue(value.DateTime).AppendValue(value.DateOnly).AppendValue(value.Offset));
+            }
+
+            return GC.GetAllocatedBytesForCurrentThread() - before;
+        }
+
+        // The first pass pays for one-time allocations such as the cached delegate.
+        Append();
+
+        // Before the fix this was about 2,400 bytes per row. A Release build allocates nothing; a Debug build
+        // boxes each value once in WriteValue, about 100 bytes per row here, so the limit leaves room for that.
+        Append().Should().BeLessThan(rows * 500);
     }
 }

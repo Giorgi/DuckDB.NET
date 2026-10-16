@@ -60,6 +60,11 @@ public partial class NativeMethods
         public static unsafe partial void DuckDBScalarFunctionSetBindData(IntPtr info, IntPtr bindData, delegate* unmanaged[Cdecl]<IntPtr, void> destroy);
 
         [SuppressGCTransition]
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_set_bind_data_copy")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static unsafe partial void DuckDBScalarFunctionSetBindDataCopy(IntPtr info, delegate* unmanaged[Cdecl]<IntPtr, IntPtr> copy);
+
+        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_scalar_function_set_function")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static unsafe partial void DuckDBScalarFunctionSetFunction(IntPtr scalarFunction, delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, void> callback);

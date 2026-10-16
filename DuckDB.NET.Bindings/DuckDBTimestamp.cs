@@ -1,7 +1,7 @@
 namespace DuckDB.NET.Native;
 
 [StructLayout(LayoutKind.Sequential)]
-public readonly struct DuckDBTimestamp(DuckDBDateOnly date, DuckDBTimeOnly time)
+public readonly struct DuckDBTimestamp(DuckDBDateOnly date, DuckDBTimeOnly time) : IEquatable<DuckDBTimestamp>
 {
     /// <summary>
     /// Represents positive infinity for DuckDB timestamps.
@@ -72,6 +72,12 @@ public readonly struct DuckDBTimestamp(DuckDBDateOnly date, DuckDBTimeOnly time)
 
         return NativeMethods.DateTimeHelpers.DuckDBToTimestamp(this);
     }
+
+    public bool Equals(DuckDBTimestamp other) => Date.Equals(other.Date) && Time.Equals(other.Time);
+
+    public override bool Equals(object? obj) => obj is DuckDBTimestamp other && Equals(other);
+
+    public override int GetHashCode() => HashCode.Combine(Date, Time);
 
     public static implicit operator DateTime(DuckDBTimestamp timestamp) => timestamp.ToDateTime();
     public static implicit operator DuckDBTimestamp(DateTime timestamp) => DuckDBTimestamp.FromDateTime(timestamp);

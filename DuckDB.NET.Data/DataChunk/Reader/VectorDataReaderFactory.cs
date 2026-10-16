@@ -32,7 +32,21 @@ internal static class VectorDataReaderFactory
             DuckDBType.TimestampMs => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.TimestampNs => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.TimestampTz => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
-            _ => new NumericVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName)
+            DuckDBType.TinyInt => new NumericVectorDataReader<sbyte>(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.SmallInt => new NumericVectorDataReader<short>(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.Integer => new NumericVectorDataReader<int>(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.BigInt => new NumericVectorDataReader<long>(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.UnsignedTinyInt => new NumericVectorDataReader<byte>(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.UnsignedSmallInt => new NumericVectorDataReader<ushort>(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.UnsignedInteger => new NumericVectorDataReader<uint>(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.UnsignedBigInt => new NumericVectorDataReader<ulong>(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.Float => new NumericVectorDataReader<float>(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.Double => new NumericVectorDataReader<double>(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.HugeInt => new BigIntegerVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.UnsignedHugeInt => new BigIntegerVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.VarInt => new BigIntegerVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
+            // A type with no reader: reading its values or asking for its .NET type throws.
+            _ => new VectorDataReaderBase(dataPointer, validityMaskPointer, columnType, columnName)
         };
     }
 }

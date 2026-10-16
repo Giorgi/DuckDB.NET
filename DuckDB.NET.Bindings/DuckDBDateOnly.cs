@@ -1,7 +1,7 @@
 namespace DuckDB.NET.Native;
 
 [StructLayout(LayoutKind.Sequential)]
-public readonly struct DuckDBDateOnly(int year, byte month, byte day)
+public readonly struct DuckDBDateOnly(int year, byte month, byte day) : IEquatable<DuckDBDateOnly>
 {
     /// <summary>
     /// Represents positive infinity for DuckDB dates.
@@ -28,8 +28,6 @@ public readonly struct DuckDBDateOnly(int year, byte month, byte day)
     public byte Month { get; } = month;
 
     public byte Day { get; } = day;
-
-    internal static readonly DuckDBDateOnly MinValue = FromDateTime(DateTime.MinValue);
 
     /// <summary>
     /// Returns true if this date represents positive or negative infinity.
@@ -79,6 +77,14 @@ public readonly struct DuckDBDateOnly(int year, byte month, byte day)
 
         return NativeMethods.DateTimeHelpers.DuckDBToDate(this);
     }
+
+    // Without these, Equals is ValueType.Equals(object), which boxes and, because of the padding between the
+    // fields, compares them through reflection. The infinity checks call Equals for every value that is written.
+    public bool Equals(DuckDBDateOnly other) => Year == other.Year && Month == other.Month && Day == other.Day;
+
+    public override bool Equals(object? obj) => obj is DuckDBDateOnly other && Equals(other);
+
+    public override int GetHashCode() => HashCode.Combine(Year, Month, Day);
 
     public static explicit operator DateTime(DuckDBDateOnly dateOnly) => dateOnly.ToDateTime();
 

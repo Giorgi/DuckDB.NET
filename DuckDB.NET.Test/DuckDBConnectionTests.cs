@@ -7,6 +7,7 @@ public class DuckDBConnectionTests
 {
     [Fact]
     [Trait("Category", "Long Running")]
+    [Trait("Stress", "Connection")]
     public async Task ConnectionSpeed()
     {
         const int taskCount = 5;
@@ -84,6 +85,7 @@ public class DuckDBConnectionTests
     /// <returns></returns>
     [Fact]
     [Trait("Category", "Long Running")]
+    [Trait("Stress", "Connection")]
     public async Task MultiThreadedStress()
     {
         //with 1 task per file, should be good mix of reusing connections

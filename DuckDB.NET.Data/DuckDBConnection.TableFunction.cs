@@ -8,6 +8,18 @@ namespace DuckDB.NET.Data;
 
 public record ColumnInfo(string Name, Type Type);
 
+/// <summary>
+/// The number of rows a table function returns, for the optimizer of DuckDB.
+/// </summary>
+/// <param name="Value">The number of rows.</param>
+/// <param name="IsExact">
+/// Passed to DuckDB as it is. With DuckDB 1.5 and older the meaning is the reverse of the name: <c>false</c>, the
+/// default, makes <paramref name="Value"/> the most rows the function can return, and <c>true</c> makes it an
+/// estimate only. DuckDB relies on a maximum: a function that returns more rows than that can get a wrong
+/// <c>sum</c>. So with DuckDB 1.5 pass <c>false</c> only when the function never returns more than
+/// <paramref name="Value"/> rows, and <c>true</c> for a guess. DuckDB 2.0 corrects this: there <c>true</c> sets
+/// the maximum and <c>false</c> is an estimate, and a maximum that is too small can also remove a <c>LIMIT</c>.
+/// </param>
 public record CardinalityHint(ulong Value, bool IsExact = false);
 
 public record ProjectedColumn(int Index, string Name, Type Type);
@@ -93,7 +105,12 @@ partial class DuckDBConnection
         RegisterTableFunctionInternal(name, (positional, _) => resultCallback(positional), mapperCallback, logicalTypes, []);
     }
 
-    internal unsafe void RegisterTableFunctionInternal(string name, Func<IReadOnlyList<IDuckDBValueReader>, IReadOnlyDictionary<string, IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback, DuckDBLogicalType[] positionalLogicalTypes, NamedParameterDefinition[] namedParameters)
+    internal void RegisterTableFunctionInternal(string name, Func<IReadOnlyList<IDuckDBValueReader>, IReadOnlyDictionary<string, IDuckDBValueReader>, TableFunction> resultCallback, Action<object?, IDuckDBDataWriter[], ulong> mapperCallback, DuckDBLogicalType[] positionalLogicalTypes, NamedParameterDefinition[] namedParameters)
+    {
+        RegisterTableFunctionInternal(name, resultCallback, (data, projected, columnCount) => new ObjectTableFunctionScan(data.GetEnumerator(), mapperCallback, projected, columnCount), positionalLogicalTypes, namedParameters);
+    }
+
+    internal unsafe void RegisterTableFunctionInternal(string name, Func<IReadOnlyList<IDuckDBValueReader>, IReadOnlyDictionary<string, IDuckDBValueReader>, TableFunction> resultCallback, TableFunctionScanFactory createScan, DuckDBLogicalType[] positionalLogicalTypes, NamedParameterDefinition[] namedParameters)
     {
         var function = NativeMethods.TableFunction.DuckDBCreateTableFunction();
         NativeMethods.TableFunction.DuckDBTableFunctionSetName(function, name);
@@ -110,7 +127,7 @@ partial class DuckDBConnection
             NativeMethods.TableFunction.DuckDBTableFunctionAddNamedParameter(function, param.Name, logicalType);
         }
 
-        var tableFunctionInfo = new TableFunctionInfo(resultCallback, mapperCallback, Array.ConvertAll(namedParameters, p => p.Name));
+        var tableFunctionInfo = new TableFunctionInfo(resultCallback, createScan, Array.ConvertAll(namedParameters, p => p.Name));
 
         NativeMethods.TableFunction.DuckDBTableFunctionSetBind(function, &Bind);
         NativeMethods.TableFunction.DuckDBTableFunctionSetInit(function, &Init);
@@ -167,7 +184,20 @@ partial class DuckDBConnection
                 NativeMethods.TableFunction.DuckDBBindAddResultColumn(info, columnInfo.Name, logicalType);
             }
 
-            if (tableFunctionData.Cardinality is { } cardinality)
+            // The number of rows of an array is known without reading it and cannot change, so DuckDB is told
+            // it when the function gives no number of its own. Only for an array: DuckDB 1.5 takes the number
+            // as the most rows the function can return (there duckdb_bind_set_cardinality sets the maximum
+            // when is_exact is false, and only the estimate when it is true; DuckDB 2.0 has it the other way
+            // round), and a sum over more rows than that is wrong. Any other collection can be longer when it
+            // is read than it is now. The length of an array is true as a maximum and as an estimate.
+            var cardinality = tableFunctionData.Cardinality;
+
+            if (cardinality is null && tableFunctionData.Data is Array array)
+            {
+                cardinality = new CardinalityHint((ulong)array.LongLength);
+            }
+
+            if (cardinality is not null)
             {
                 NativeMethods.TableFunction.DuckDBBindSetCardinality(info, cardinality.Value, isExact: cardinality.IsExact);
             }
@@ -225,10 +255,15 @@ partial class DuckDBConnection
                 projected[i] = (int)NativeMethods.TableFunction.DuckDBInitGetColumnIndex(info, (ulong)i);
             }
 
-            // The enumerator must be created per init, not per bind: DuckDB re-initializes a scan
+            if (GCHandle.FromIntPtr(NativeMethods.TableFunction.DuckDBInitGetExtraInfo(info)).Target is not TableFunctionInfo functionInfo)
+            {
+                throw new InvalidOperationException("User defined table function init failed. Function extra info is null");
+            }
+
+            // The scan must be created per init, not per bind: DuckDB re-initializes a scan
             // without re-binding when it re-executes a pipeline (e.g. on every iteration of a
-            // recursive CTE), and each scan must enumerate the data from the beginning.
-            IEnumerator? enumerator;
+            // recursive CTE), and each scan must read the data from the beginning.
+            IEnumerable? rows;
             if (bindData.DataFactory is { } factory)
             {
                 var projectedColumns = new ProjectedColumn[count];
@@ -237,16 +272,24 @@ partial class DuckDBConnection
                     var column = bindData.Columns[projected[i]];
                     projectedColumns[i] = new ProjectedColumn(projected[i], column.Name, column.Type);
                 }
-                // ReSharper disable once GenericEnumeratorNotDisposed This is disposed in TableFunctionInitData.Dispose
-                enumerator = factory(projectedColumns).GetEnumerator();
+
+                rows = factory(projectedColumns);
             }
             else
             {
-                // ReSharper disable once GenericEnumeratorNotDisposed This is disposed in TableFunctionInitData.Dispose
-                enumerator = bindData.Data?.GetEnumerator();
+                rows = bindData.Data;
             }
 
-            var initData = new TableFunctionInitData(projected, enumerator);
+            // The scan is disposed in TableFunctionInitData.Dispose.
+            var scan = rows is null ? null : functionInfo.CreateScan(rows, projected, bindData.Columns.Count);
+
+            var logicalTypes = new DuckDBLogicalType[count];
+            for (var i = 0; i < count; i++)
+            {
+                logicalTypes[i] = bindData.Columns[projected[i]].Type.GetLogicalType();
+            }
+
+            var initData = new TableFunctionInitData(scan, logicalTypes);
             NativeMethods.TableFunction.DuckDBInitSetInitData(info, initData.ToHandle(), &DestroyExtraInfo);
         }
         catch (Exception ex)
@@ -262,23 +305,10 @@ partial class DuckDBConnection
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void TableFunction(IntPtr info, IntPtr chunk)
     {
-        IDuckDBDataWriter[] writers = [];
-        DuckDBLogicalType[] logicalTypes = [];
+        VectorDataWriterBase?[] writers = [];
         try
         {
-            var bindData = GCHandle.FromIntPtr(NativeMethods.TableFunction.DuckDBFunctionGetBindData(info));
-            var extraInfo = GCHandle.FromIntPtr(NativeMethods.TableFunction.DuckDBFunctionGetExtraInfo(info));
             var initHandle = GCHandle.FromIntPtr(NativeMethods.TableFunction.DuckDBFunctionGetInitData(info));
-
-            if (bindData.Target is not TableFunctionBindData tableFunctionBindData)
-            {
-                throw new InvalidOperationException("User defined table function failed. Function bind data is null");
-            }
-
-            if (extraInfo.Target is not TableFunctionInfo tableFunctionInfo)
-            {
-                throw new InvalidOperationException("User defined table function failed. Function extra info is null");
-            }
 
             if (initHandle.Target is not TableFunctionInitData tableFunctionInitData)
             {
@@ -286,43 +316,23 @@ partial class DuckDBConnection
             }
 
             var dataChunk = new DuckDBDataChunk(chunk);
+            var logicalTypes = tableFunctionInitData.LogicalTypes;
 
-            var totalColumnCount = tableFunctionBindData.Columns.Count;
-            var projectedCount = tableFunctionInitData.Projected.Length;
+            writers = tableFunctionInitData.Writers;
 
-            writers = new IDuckDBDataWriter[totalColumnCount];
-            Array.Fill(writers, NullDataWriter.Instance);
-
-            logicalTypes = new DuckDBLogicalType[projectedCount];
-
-            for (var columnIndex = 0; columnIndex < projectedCount; columnIndex++)
+            for (var columnIndex = 0; columnIndex < logicalTypes.Length; columnIndex++)
             {
-                var originalColumnIndex = tableFunctionInitData.Projected[columnIndex];
-                var column = tableFunctionBindData.Columns[originalColumnIndex];
                 var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(dataChunk, columnIndex);
 
-                logicalTypes[columnIndex] = column.Type.GetLogicalType();
-                writers[originalColumnIndex] = VectorDataWriterFactory.CreateWriter(vector, logicalTypes[columnIndex]);
+                writers[columnIndex] = VectorDataWriterFactory.CreateWriter(vector, logicalTypes[columnIndex]);
             }
 
-            if (tableFunctionInitData.Enumerator is null)
+            if (tableFunctionInitData.Scan is not { } scan)
             {
                 throw new InvalidOperationException("User defined table function failed. No data source available");
             }
 
-            ulong size = 0;
-
-            for (; size < DuckDBGlobalData.VectorSize; size++)
-            {
-                if (tableFunctionInitData.Enumerator.MoveNext())
-                {
-                    tableFunctionInfo.Mapper(tableFunctionInitData.Enumerator.Current, writers, size);
-                }
-                else
-                {
-                    break;
-                }
-            }
+            var size = scan.Fill(tableFunctionInitData.Writers, DuckDBGlobalData.VectorSize);
 
             NativeMethods.DataChunks.DuckDBDataChunkSetSize(dataChunk, size);
         }
@@ -345,14 +355,12 @@ partial class DuckDBConnection
         }
         finally
         {
-            foreach (var writer in writers)
+            // The writers of a chunk are not used for the next one. A slot is cleared, so that a chunk that fails
+            // before it has made all its writers does not dispose one of the chunk before again.
+            for (var index = 0; index < writers.Length; index++)
             {
-                (writer as IDisposable)?.Dispose();
-            }
-
-            foreach (var logicalType in logicalTypes)
-            {
-                logicalType?.Dispose();
+                writers[index]?.Dispose();
+                writers[index] = null;
             }
         }
     }
