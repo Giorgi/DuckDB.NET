@@ -84,6 +84,15 @@ internal static class DecimalExtensions
         return MaxDecimalScale + 1;
     }
 
+    // EXPERIMENT: the fields of System.Decimal, in its order since .NET Core 3.0: the flags (sign and scale), the upper
+    // 32 bits of the integer, the lower 64 bits. Read in place, so no buffer is needed.
+    private readonly struct DecimalBits
+    {
+        public readonly int Flags;
+        public readonly uint High;
+        public readonly ulong Low;
+    }
+
     extension(decimal value)
     {
         /// <summary>
@@ -96,13 +105,12 @@ internal static class DecimalExtensions
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void GetParts(out ulong low, out uint high, out bool isNegative, out byte scale)
         {
-            Span<int> bits = stackalloc int[4];
-            _ = decimal.GetBits(value, bits);
+            var bits = Unsafe.BitCast<decimal, DecimalBits>(value);
 
-            low = (uint)bits[0] | (ulong)(uint)bits[1] << 32;
-            high = (uint)bits[2];
-            isNegative = bits[3] < 0;
-            scale = (byte)(bits[3] >> 16);
+            low = bits.Low;
+            high = bits.High;
+            isNegative = bits.Flags < 0;
+            scale = (byte)(bits.Flags >> 16);
         }
     }
 }
