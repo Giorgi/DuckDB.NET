@@ -58,7 +58,7 @@ jobs:
         echo "NightlyBuild=true" >> $env:GITHUB_ENV
     
     - name: Checkout
-      uses: actions/checkout@v6
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       with:
         fetch-depth: 0
         ref: ${{ env.BuildBranch }}
@@ -75,7 +75,7 @@ jobs:
         'TMP=D:\tmp' >> $env:GITHUB_ENV
 
     - name: Setup .NET Core SDK
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
       with:
         global-json-file: global.json
 
@@ -152,7 +152,7 @@ jobs:
 
     - name: Upload Artifacts
       if: matrix.os == 'ubuntu-latest' && github.event_name != 'pull_request' && github.actor == 'Giorgi'
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: nugetPackages-${{github.ref_name}}
         path: ./**/bin/Release/*.nupkg
@@ -168,7 +168,7 @@ jobs:
     if: github.ref == 'refs/heads/develop' && github.event_name != 'pull_request' && github.event_name != 'schedule'
     steps:
     - name: Download nuget package artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
         name: nugetPackages-${{github.ref_name}}
 
