@@ -87,5 +87,5 @@ jobs:
             "/d:sonar.issue.ignore.multicriteria.unsafe.ruleKey=csharpsquid:S6640" `
             "/d:sonar.issue.ignore.multicriteria.unsafe.resourceKey=**/*.cs"
           dotnet build
-          dotnet test --configuration Release --verbosity normal --logger GitHubActions /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:BuildType=Full /p:DoesNotReturnAttribute="DoesNotReturnAttribute"
+          dotnet test --configuration Release --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:BuildType=Full /p:DoesNotReturnAttribute="DoesNotReturnAttribute"
           ./.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"

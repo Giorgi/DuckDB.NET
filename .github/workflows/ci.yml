@@ -141,7 +141,7 @@ jobs:
     - name: Run tests (DuckDB ${{ env.DuckDBVersion }}, connection stress tests ${{ env.TestFilter && 'skipped' || 'included' }})
       env:
         CoverletOutputFormat: lcov
-      run: dotnet test --configuration Release --verbosity normal --logger GitHubActions /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:BuildType=Full /p:DoesNotReturnAttribute="DoesNotReturnAttribute" ${{ env.TestFilter && format('--filter "{0}"', env.TestFilter) || '' }}
+      run: dotnet test --configuration Release --verbosity normal --logger "GitHubActions;summary-include-passed=false;summary-include-skipped=false" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:BuildType=Full /p:DoesNotReturnAttribute="DoesNotReturnAttribute" ${{ env.TestFilter && format('--filter "{0}"', env.TestFilter) || '' }}
 
     - name: Upload coverage reports to Coveralls Parallel
       uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
