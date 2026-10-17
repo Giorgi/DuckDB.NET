@@ -184,7 +184,9 @@ jobs:
       run: ls -R
 
     - name: Prep packages
-      run: dotnet nuget add source --username Giorgi --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/Giorgi/index.json"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: dotnet nuget add source --username Giorgi --password "$GITHUB_TOKEN" --store-password-in-clear-text --name github "https://nuget.pkg.github.com/Giorgi/index.json"
 
     - name: Get package version
       run: |
@@ -193,7 +195,10 @@ jobs:
         echo "PackageVersion=${version#DuckDB.NET.Data.}" >> "$GITHUB_ENV"
 
     - name: Push package to GitHub packages (${{ env.PackageVersion }})
-      run: dotnet nuget push "**/*.nupkg" --api-key ${{ secrets.GITHUB_TOKEN }}  --source "github"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # A re-run pushes the same version again, which the feed refuses.
+      run: dotnet nuget push "**/*.nupkg" --api-key "$GITHUB_TOKEN" --source "github" --skip-duplicate
       
   Finish-Coveralls-Collection:
     needs: build
