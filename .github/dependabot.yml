@@ -9,3 +9,30 @@ updates:
       github-actions:
         patterns:
           - "*"
+
+  # Test, build and benchmark packages, monthly in one pull request.
+  - package-ecosystem: "nuget"
+    directories:
+      - "/"
+      - "/DuckDB.NET.Bindings"
+      - "/DuckDB.NET.Data"
+      - "/DuckDB.NET.Test"
+      - "/DuckDB.NET.Benchmarks"
+      - "/DuckDB.NET.Samples"
+    schedule:
+      interval: "monthly"
+    groups:
+      nuget:
+        patterns:
+          - "*"
+    ignore:
+      # From version 8 FluentAssertions needs a commercial license; 7.x is Apache-2.0.
+      - dependency-name: "FluentAssertions"
+        versions: [">= 8.0.0"]
+      # The package version comes from GitVersion, and a major version can change how it is worked out.
+      - dependency-name: "GitVersion.MsBuild"
+        update-types: ["version-update:semver-major"]
+      # The lowest version users of DuckDB.NET.Data must have; raised by hand when a newer one is needed.
+      - dependency-name: "Apache.Arrow"
+      # The released package the benchmarks compare against, chosen on purpose.
+      - dependency-name: "DuckDB.NET.Data.Full"
