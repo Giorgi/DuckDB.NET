@@ -1,6 +1,13 @@
 name: "NuGet"
 
-on: [workflow_dispatch]
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Find and download the packages, but do not publish them'
+        required: false
+        type: boolean
+        default: false
 
 # No permissions by default; the job asks for what it needs.
 permissions: {}
@@ -15,23 +22,71 @@ jobs:
       contents: read
     steps:
 
+    # The packages are the nugetPackages-<branch> artifact of the Build workflow. Only a build of that branch
+    # uploads it, so the newest one is the latest build. It is published only if it is a build of the commit
+    # this workflow runs on and its run succeeded: started before the build of the latest commit finished,
+    # this workflow would otherwise publish an older build.
+    - name: Find the build to publish
+      id: build
+      env:
+        GH_TOKEN: ${{ github.token }}
+        ARTIFACT: nugetPackages-${{ github.ref_name }}
+      run: |
+        artifact=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=$ARTIFACT&per_page=100" \
+          --jq '[.artifacts[] | select(.expired | not)] | sort_by(.created_at) | last')
+        if [ -z "$artifact" ] || [ "$artifact" = "null" ]; then
+          echo "::error::No $ARTIFACT artifact found."
+          exit 1
+        fi
+
+        run_id=$(jq -r '.workflow_run.id' <<< "$artifact")
+        sha=$(jq -r '.workflow_run.head_sha' <<< "$artifact")
+        branch=$(jq -r '.workflow_run.head_branch' <<< "$artifact")
+        run=$(gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --json workflowName,event,status,conclusion,url)
+        echo "Newest $ARTIFACT: run $(jq -r .url <<< "$run"), branch $branch, commit $sha"
+
+        if [ "$(jq -r .workflowName <<< "$run")" != "Build" ]; then
+          echo "::error::The artifact was not uploaded by the Build workflow."
+          exit 1
+        fi
+        # A scheduled run builds nightly-builds but is recorded as a run of the default branch.
+        if [ "$(jq -r .event <<< "$run")" = "schedule" ] || [ "$branch" != "$GITHUB_REF_NAME" ]; then
+          echo "::error::The artifact comes from a scheduled run or from another branch than $GITHUB_REF_NAME."
+          exit 1
+        fi
+        if [ "$sha" != "$GITHUB_SHA" ]; then
+          # A push that changes only Markdown files or this workflow does not start a Build.
+          echo "::error::The newest build is of $sha, not of $GITHUB_SHA. Wait for the Build run of $GITHUB_SHA to finish, or start the Build workflow on $GITHUB_REF_NAME if it did not run."
+          exit 1
+        fi
+        if [ "$(jq -r .status <<< "$run")" != "completed" ]; then
+          echo "::error::The Build run of $GITHUB_SHA is still running. Wait for it to finish."
+          exit 1
+        fi
+        if [ "$(jq -r .conclusion <<< "$run")" != "success" ]; then
+          echo "::error::The Build run of $GITHUB_SHA did not succeed."
+          exit 1
+        fi
+
+        echo "run-id=$run_id" >> "$GITHUB_OUTPUT"
+
     - name: Download Artifacts
-      uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151 # v21
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        workflow: ci.yml
-        workflow_conclusion: success
-        branch: ${{github.ref_name}}
-        name: nugetPackages-${{github.ref_name}}
+        name: nugetPackages-${{ github.ref_name }}
+        run-id: ${{ steps.build.outputs.run-id }}
+        github-token: ${{ github.token }}
 
     - name: Display structure of downloaded files
       run: ls -R
 
     - name: NuGet login (OIDC → temp API key)
+      if: ${{ !inputs.dry-run }}
       uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
       id: login
       with:
         user: Giorgi
 
     - name: Push package to NuGet.org
+      if: ${{ !inputs.dry-run }}
       run: dotnet nuget push "**/*.nupkg" -k ${{ steps.login.outputs.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json

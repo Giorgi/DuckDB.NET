@@ -52,14 +52,17 @@ dotnet run -c Release -f net10.0 --project DuckDB.NET.Benchmarks -- --filter "*N
   DuckDB version (tag `1.5.6`). A second release on the same DuckDB version gets a fourth part (`1.5.6.1`), which
   GitVersion cannot express: it ignores such a tag and works out the previous version again. Run the "Build"
   workflow by hand on `main` with that version in its `version` input; it reaches MSBuild as `ReleaseVersion`
-  (`Directory.Build.props`), which sets the package and assembly versions. Check the artifact before step 4.
+  (`Directory.Build.props`), which sets the package and assembly versions. Check the packages with a dry run of the
+  `NuGet` workflow before step 4.
 - **Release steps:**
   1. Update the release notes in both project files.
   2. Merge `develop` into `main` and tag.
   3. Wait for the "Build" run on `main` to succeed.
   4. Start the `NuGet` workflow (`.github/workflows/NuGet.yml`, manual) on `main`. It publishes the
-     `nugetPackages-main` artifact of the latest *successful* main build, so starting it earlier publishes an old
-     build. Pushes to `develop` publish to GitHub Packages only.
+     `nugetPackages-main` artifact only if it comes from a successful Build run of the commit it runs on; otherwise
+     it stops and says why. A push that changes only Markdown files or `NuGet.yml` starts no Build, so start the
+     Build workflow by hand then. The `dry-run` input finds and downloads the packages without publishing them.
+     Pushes to `develop` publish to GitHub Packages only.
 
 ## Architecture
 

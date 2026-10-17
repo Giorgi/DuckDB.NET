@@ -9,7 +9,3 @@ updates:
       github-actions:
         patterns:
           - "*"
-    ignore:
-      # NuGet.yml uses it to find the CI run whose packages are published, and v23 rewrote how it finds runs.
-      # Stay on v21 until that is tested or the action is replaced.
-      - dependency-name: "dawidd6/action-download-artifact"
