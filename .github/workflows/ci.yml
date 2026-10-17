@@ -19,8 +19,10 @@ on:
   schedule:
       - cron: "15 */12 * * *"
 
+# Concurrency groups are shared by all workflows, so the group names the workflow: with the branch alone, a
+# Build run and a CodeQL run of the same push cancelled each other.
 concurrency:
-  group: ${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 # No permissions by default; each job asks for what it needs.

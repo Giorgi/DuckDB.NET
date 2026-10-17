@@ -13,15 +13,17 @@ name: "CodeQL"
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
   pull_request:
     # The branches below must be a subset of the branches above
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
   schedule:
     - cron: '20 1 * * 0'
 
+# Concurrency groups are shared by all workflows, so the group names the workflow: with the branch alone, a
+# CodeQL run and a Build run of the same push cancelled each other.
 concurrency:
-  group: ${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 # No permissions by default; the job asks for what it needs.
