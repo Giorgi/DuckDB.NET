@@ -16,6 +16,7 @@ jobs:
   publish:
     name: Publish Packages
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       id-token: write # enable GitHub OIDC token issuance for trusted publishing
       actions: read

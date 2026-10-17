@@ -40,6 +40,7 @@ jobs:
 
     name: Build library (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     env:
       ReleaseVersion: ${{ inputs.version }}
     steps:
@@ -169,6 +170,7 @@ jobs:
     needs: build
     name: Publish Packages
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       packages: write
     if: github.ref == 'refs/heads/develop' && github.event_name != 'pull_request' && github.event_name != 'schedule'
@@ -197,6 +199,7 @@ jobs:
     needs: build
     name: Finish Coveralls Collection
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     if: github.event_name != 'schedule'
