@@ -80,12 +80,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: pwsh
         run: |
-          # S6640 reports every unsafe block, and a native interop library cannot work without them.
-          # The patterns are quoted so that pwsh does not expand them as file globs.
-          ./.sonar/scanner/dotnet-sonarscanner begin /k:"Giorgi_DuckDB.NET" /o:"giorgi" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.cs.opencover.reportsPaths=DuckDB.NET.Test/coverage.net8.0.opencover.xml /d:sonar.host.url="https://sonarcloud.io" `
-            /d:sonar.issue.ignore.multicriteria=unsafe `
-            "/d:sonar.issue.ignore.multicriteria.unsafe.ruleKey=csharpsquid:S6640" `
-            "/d:sonar.issue.ignore.multicriteria.unsafe.resourceKey=**/*.cs"
+          ./.sonar/scanner/dotnet-sonarscanner begin /k:"Giorgi_DuckDB.NET" /o:"giorgi" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.cs.opencover.reportsPaths=DuckDB.NET.Test/coverage.net8.0.opencover.xml /d:sonar.host.url="https://sonarcloud.io"
           dotnet build
           dotnet test --configuration Release --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:BuildType=Full /p:DoesNotReturnAttribute="DoesNotReturnAttribute"
           ./.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
