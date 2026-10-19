@@ -126,7 +126,7 @@ internal static class DuckDBSchema
         }
 
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT type_name, logical_type FROM duckdb_types() ORDER BY type_name";
+        command.CommandText = "SELECT DISTINCT type_name, logical_type FROM duckdb_types() ORDER BY type_name";
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
