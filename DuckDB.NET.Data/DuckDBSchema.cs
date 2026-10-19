@@ -21,7 +21,7 @@ internal static class DuckDBSchema
         {
             "METADATACOLLECTIONS" => GetMetaDataCollections(),
             "DATASOURCEINFORMATION" => GetDataSourceInformation(connection),
-            "DATATYPES" => GetDataTypes(),
+            "DATATYPES" => GetDataTypes(connection),
             "RESTRICTIONS" => GetRestrictions(),
             "RESERVEDWORDS" => GetReservedWords(connection),
             "TABLES" => GetTables(connection, restrictionValues),
@@ -103,7 +103,7 @@ internal static class DuckDBSchema
             }
         };
 
-    private static DataTable GetDataTypes()
+    private static DataTable GetDataTypes(DuckDBConnection connection)
     {
         var table = new DataTable(DbMetaDataCollectionNames.DataTypes);
         foreach (var column in new (string Name, Type Type)[]
@@ -125,40 +125,98 @@ internal static class DuckDBSchema
             table.Columns.Add(column.Name, column.Type);
         }
 
-        AddType(table, "BOOLEAN", DuckDBType.Boolean, typeof(bool), isBestMatch: true);
-        AddType(table, "TINYINT", DuckDBType.TinyInt, typeof(sbyte), isBestMatch: true);
-        AddType(table, "SMALLINT", DuckDBType.SmallInt, typeof(short), isBestMatch: true);
-        AddType(table, "INTEGER", DuckDBType.Integer, typeof(int), isBestMatch: true);
-        AddType(table, "BIGINT", DuckDBType.BigInt, typeof(long), isBestMatch: true);
-        AddType(table, "UTINYINT", DuckDBType.UnsignedTinyInt, typeof(byte), isUnsigned: true, isBestMatch: true);
-        AddType(table, "USMALLINT", DuckDBType.UnsignedSmallInt, typeof(ushort), isUnsigned: true, isBestMatch: true);
-        AddType(table, "UINTEGER", DuckDBType.UnsignedInteger, typeof(uint), isUnsigned: true, isBestMatch: true);
-        AddType(table, "UBIGINT", DuckDBType.UnsignedBigInt, typeof(ulong), isUnsigned: true, isBestMatch: true);
-        AddType(table, "FLOAT", DuckDBType.Float, typeof(float), isBestMatch: true);
-        AddType(table, "DOUBLE", DuckDBType.Double, typeof(double), isBestMatch: true);
-        AddType(table, "DECIMAL", DuckDBType.Decimal, typeof(decimal), createFormat: "DECIMAL({0},{1})", createParameters: "precision,scale", isBestMatch: true);
-        AddType(table, "VARCHAR", DuckDBType.Varchar, typeof(string), long.MaxValue, isCaseSensitive: true, isBestMatch: true);
-        AddType(table, "BLOB", DuckDBType.Blob, typeof(byte[]), long.MaxValue, isLong: true, isBestMatch: true);
-        AddType(table, "UUID", DuckDBType.Uuid, typeof(Guid), isBestMatch: true);
-        AddType(table, "DATE", DuckDBType.Date, typeof(DateOnly), isBestMatch: true);
-        AddType(table, "TIME", DuckDBType.Time, typeof(TimeOnly), isBestMatch: true);
-        AddType(table, "TIMETZ", DuckDBType.TimeTz, typeof(DateTimeOffset), isBestMatch: true);
-        AddType(table, "TIMESTAMP", DuckDBType.Timestamp, typeof(DateTime), isBestMatch: true);
-        AddType(table, "TIMESTAMPTZ", DuckDBType.TimestampTz, typeof(DateTimeOffset), isBestMatch: true);
-        AddType(table, "INTERVAL", DuckDBType.Interval, typeof(TimeSpan), isBestMatch: true);
-        AddType(table, "HUGEINT", DuckDBType.HugeInt, typeof(System.Numerics.BigInteger), isBestMatch: true);
-        AddType(table, "UHUGEINT", DuckDBType.UnsignedHugeInt, typeof(System.Numerics.BigInteger), isUnsigned: true);
-        AddType(table, "VARINT", DuckDBType.VarInt, typeof(System.Numerics.BigInteger));
-        AddType(table, "LIST", DuckDBType.List, typeof(object));
-        AddType(table, "ARRAY", DuckDBType.Array, typeof(object));
-        AddType(table, "STRUCT", DuckDBType.Struct, typeof(object));
-        AddType(table, "MAP", DuckDBType.Map, typeof(object));
-        AddType(table, "UNION", DuckDBType.Union, typeof(object));
-        AddType(table, "ENUM", DuckDBType.Enum, typeof(string));
-        AddType(table, "BIT", DuckDBType.Bit, typeof(string));
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT type_name, logical_type FROM duckdb_types() ORDER BY type_name";
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var typeName = reader.GetString(0);
+            var logicalTypeName = reader.GetString(1);
+            var providerType = ParseDuckDBType(logicalTypeName);
+
+            AddType(
+                table, typeName, providerType, GetClrType(providerType),
+                createFormat: providerType == DuckDBType.Decimal ? "DECIMAL({0},{1})" : null,
+                createParameters: providerType == DuckDBType.Decimal ? "precision,scale" : null,
+                isUnsigned: providerType is DuckDBType.UnsignedTinyInt or DuckDBType.UnsignedSmallInt
+                    or DuckDBType.UnsignedInteger or DuckDBType.UnsignedBigInt or DuckDBType.UnsignedHugeInt,
+                isCaseSensitive: providerType == DuckDBType.Varchar,
+                isLong: providerType == DuckDBType.Blob,
+                isBestMatch: typeName.Equals(logicalTypeName, StringComparison.OrdinalIgnoreCase),
+                nativeTypeName: logicalTypeName);
+        }
 
         return table;
     }
+
+    private static DuckDBType ParseDuckDBType(string typeName) => typeName.ToUpperInvariant().Replace(" WITH TIME ZONE", "_TZ") switch
+    {
+        "BOOLEAN" => DuckDBType.Boolean,
+        "TINYINT" => DuckDBType.TinyInt,
+        "SMALLINT" => DuckDBType.SmallInt,
+        "INTEGER" => DuckDBType.Integer,
+        "BIGINT" => DuckDBType.BigInt,
+        "UTINYINT" => DuckDBType.UnsignedTinyInt,
+        "USMALLINT" => DuckDBType.UnsignedSmallInt,
+        "UINTEGER" => DuckDBType.UnsignedInteger,
+        "UBIGINT" => DuckDBType.UnsignedBigInt,
+        "FLOAT" => DuckDBType.Float,
+        "DOUBLE" => DuckDBType.Double,
+        "DECIMAL" => DuckDBType.Decimal,
+        "VARCHAR" => DuckDBType.Varchar,
+        "BLOB" => DuckDBType.Blob,
+        "UUID" => DuckDBType.Uuid,
+        "DATE" => DuckDBType.Date,
+        "TIME" => DuckDBType.Time,
+        "TIME_TZ" => DuckDBType.TimeTz,
+        "TIMESTAMP" => DuckDBType.Timestamp,
+        "TIMESTAMP_S" => DuckDBType.TimestampS,
+        "TIMESTAMP_MS" => DuckDBType.TimestampMs,
+        "TIMESTAMP_NS" => DuckDBType.TimestampNs,
+        "TIMESTAMP_TZ" => DuckDBType.TimestampTz,
+        "INTERVAL" => DuckDBType.Interval,
+        "HUGEINT" => DuckDBType.HugeInt,
+        "UHUGEINT" => DuckDBType.UnsignedHugeInt,
+        "VARINT" => DuckDBType.VarInt,
+        "LIST" => DuckDBType.List,
+        "ARRAY" => DuckDBType.Array,
+        "STRUCT" => DuckDBType.Struct,
+        "MAP" => DuckDBType.Map,
+        "UNION" => DuckDBType.Union,
+        "ENUM" => DuckDBType.Enum,
+        "BIT" => DuckDBType.Bit,
+        "ANY" => DuckDBType.Any,
+        "SQLNULL" => DuckDBType.SqlNull,
+        _ => DuckDBType.Invalid
+    };
+
+    private static Type GetClrType(DuckDBType type) => type switch
+    {
+        DuckDBType.Boolean => typeof(bool),
+        DuckDBType.TinyInt => typeof(sbyte),
+        DuckDBType.SmallInt => typeof(short),
+        DuckDBType.Integer => typeof(int),
+        DuckDBType.BigInt => typeof(long),
+        DuckDBType.UnsignedTinyInt => typeof(byte),
+        DuckDBType.UnsignedSmallInt => typeof(ushort),
+        DuckDBType.UnsignedInteger => typeof(uint),
+        DuckDBType.UnsignedBigInt => typeof(ulong),
+        DuckDBType.Float => typeof(float),
+        DuckDBType.Double => typeof(double),
+        DuckDBType.Decimal => typeof(decimal),
+        DuckDBType.Varchar => typeof(string),
+        DuckDBType.Blob => typeof(byte[]),
+        DuckDBType.Uuid => typeof(Guid),
+        DuckDBType.Date => typeof(DateOnly),
+        DuckDBType.Time => typeof(TimeOnly),
+        DuckDBType.TimeTz or DuckDBType.TimestampTz => typeof(DateTimeOffset),
+        DuckDBType.Timestamp or DuckDBType.TimestampS or DuckDBType.TimestampMs or DuckDBType.TimestampNs => typeof(DateTime),
+        DuckDBType.Interval => typeof(TimeSpan),
+        DuckDBType.HugeInt or DuckDBType.UnsignedHugeInt or DuckDBType.VarInt => typeof(System.Numerics.BigInteger),
+        DuckDBType.Enum or DuckDBType.Bit => typeof(string),
+        DuckDBType.SqlNull => typeof(DBNull),
+        _ => typeof(object)
+    };
 
     private static void AddType(
         DataTable table,
@@ -171,14 +229,15 @@ internal static class DuckDBSchema
         bool isUnsigned = false,
         bool isCaseSensitive = false,
         bool isLong = false,
-        bool isBestMatch = false)
+        bool isBestMatch = false,
+        string? nativeTypeName = null)
     {
         table.Rows.Add(
             typeName, (int)providerType, dataType.FullName!, columnSize,
             createFormat ?? (object)DBNull.Value, createParameters ?? (object)DBNull.Value,
             false, isBestMatch, isCaseSensitive, false, false, false, true, isLong,
             true, true, isCaseSensitive, isUnsigned ? (object)true : DBNull.Value,
-            DBNull.Value, DBNull.Value, DBNull.Value, DBNull.Value, typeName);
+            DBNull.Value, DBNull.Value, DBNull.Value, DBNull.Value, nativeTypeName ?? typeName);
     }
 
     private static string NormalizeVersion(string serverVersion)

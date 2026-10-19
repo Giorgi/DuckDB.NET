@@ -160,6 +160,22 @@ public class SchemaTests : DuckDBTestBase
     }
 
     [Fact]
+    public void DataTypesExposeEveryDuckDbType()
+    {
+        var schema = Connection.GetSchema("DataTypes");
+        var providerTypes = schema.Rows.Cast<DataRow>()
+            .Select(row => (DuckDBType)(int)row["ProviderDbType"])
+            .ToHashSet();
+
+        var expectedTypes = Enum.GetValues<DuckDBType>()
+            .Where(type => type is not (DuckDBType.Invalid or DuckDBType.Any or DuckDBType.VarInt or DuckDBType.SqlNull))
+            .ToHashSet();
+
+        Assert.True(expectedTypes.IsSubsetOf(providerTypes),
+            $"Missing: {string.Join(", ", expectedTypes.Except(providerTypes))}");
+    }
+
+    [Fact]
     public void ColumnsTooManyRestrictions()
     {
         Assert.Throws<ArgumentException>(() => Connection.GetSchema("Columns", new string [5]));
