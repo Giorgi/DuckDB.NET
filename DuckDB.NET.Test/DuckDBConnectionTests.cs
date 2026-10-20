@@ -75,6 +75,21 @@ public class DuckDBConnectionTests
 
     [Fact]
     [Trait("Category", "Baseline")]
+    public async Task CloseNeverOpenedConnectionDoesNotThrow()
+    {
+        await using var duckDBConnection = new DuckDBConnection("DataSource=:memory:");
+        var stateChanges = 0;
+        duckDBConnection.StateChange += (_, _) => stateChanges++;
+
+        duckDBConnection.Close();
+        await duckDBConnection.CloseAsync();
+
+        duckDBConnection.State.Should().Be(ConnectionState.Closed);
+        stateChanges.Should().Be(0, "a connection that was never opened does not change state");
+    }
+
+    [Fact]
+    [Trait("Category", "Baseline")]
     public async Task CloseAfterDisposeDoesNotThrow()
     {
         using var dbInfo = DisposableFile.GenerateInTemp("db");
