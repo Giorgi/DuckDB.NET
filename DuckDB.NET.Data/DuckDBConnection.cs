@@ -83,9 +83,10 @@ public partial class DuckDBConnection : DbConnection
 
     public override void Close()
     {
+        // DbConnection.Close: "An application can call Close or CloseAsync more than one time. No exception is generated."
         if (connectionState == ConnectionState.Closed)
         {
-            throw new InvalidOperationException("Connection is already closed.");
+            return;
         }
 
         if (connectionReference is not null) //Should always be the case
