@@ -167,9 +167,39 @@ public sealed class DuckDBDataReader : DbDataReader
         return GetFieldValue<byte>(ordinal);
     }
 
+    /// <summary>
+    /// IDataRecord.GetBytes: reads "from the specified column offset into the buffer as an array, starting at the given
+    /// buffer offset", and "If you pass a buffer that is null, GetBytes returns the length of the row in bytes."
+    /// </summary>
     public override long GetBytes(int ordinal, long dataOffset, byte[]? buffer, int bufferOffset, int length)
     {
-        throw new NotImplementedException();
+        using var stream = GetStream(ordinal);
+        if (buffer is null)
+        {
+            return stream.Length;
+        }
+
+        ValidateBufferArguments(dataOffset, buffer.Length, bufferOffset, length);
+        if (dataOffset >= stream.Length)
+        {
+            return 0;
+        }
+
+        stream.Position = dataOffset;
+        var count = (int)Math.Min(length, stream.Length - dataOffset);
+        var read = 0;
+        while (read < count)
+        {
+            var chunk = stream.Read(buffer, bufferOffset + read, count - read);
+            if (chunk == 0)
+            {
+                break;
+            }
+
+            read += chunk;
+        }
+
+        return read;
     }
 
     public override char GetChar(int ordinal)
@@ -177,9 +207,46 @@ public sealed class DuckDBDataReader : DbDataReader
         throw new NotSupportedException();
     }
 
+    /// <summary>
+    /// IDataRecord.GetChars: reads characters "from the specified column offset into the buffer as an array, starting at
+    /// the given buffer offset", and "If you pass a buffer that is null, GetChars returns the length of the field in
+    /// characters."
+    /// </summary>
     public override long GetChars(int ordinal, long dataOffset, char[]? buffer, int bufferOffset, int length)
     {
-        throw new NotSupportedException();
+        var value = GetString(ordinal);
+        if (buffer is null)
+        {
+            return value.Length;
+        }
+
+        ValidateBufferArguments(dataOffset, buffer.Length, bufferOffset, length);
+        if (dataOffset >= value.Length)
+        {
+            return 0;
+        }
+
+        var count = (int)Math.Min(length, value.Length - dataOffset);
+        value.CopyTo((int)dataOffset, buffer, bufferOffset, count);
+        return count;
+    }
+
+    private static void ValidateBufferArguments(long dataOffset, int bufferLength, int bufferOffset, int length)
+    {
+        if (dataOffset < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(dataOffset), dataOffset, "The data offset cannot be negative.");
+        }
+
+        if (bufferOffset < 0 || bufferOffset > bufferLength)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bufferOffset), bufferOffset, "The buffer offset must be within the buffer.");
+        }
+
+        if (length < 0 || length > bufferLength - bufferOffset)
+        {
+            throw new ArgumentOutOfRangeException(nameof(length), length, "The length must fit in the buffer after the buffer offset.");
+        }
     }
 
     public override string GetDataTypeName(int ordinal)

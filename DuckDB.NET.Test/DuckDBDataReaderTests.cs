@@ -819,4 +819,64 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.Invoking(r => r.GetFieldValue<ulong>(1)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Int32 to UInt64 in column negative");
         reader.Invoking(r => r.GetFieldValue<byte>(2)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Int16 to Byte in column small");
     }
+
+    // https://learn.microsoft.com/dotnet/api/system.data.idatarecord.getbytes: reads "from the specified column offset
+    // into the buffer as an array, starting at the given buffer offset"; "If you pass a buffer that is null, GetBytes
+    // returns the length of the row in bytes."
+    [Fact]
+    public void GetBytesReadsABlobWholeOrInParts()
+    {
+        Command.CommandText = "SELECT '\\x01\\x02\\x03\\x04'::BLOB";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        reader.GetBytes(0, 0, null, 0, 0).Should().Be(4);
+
+        var whole = new byte[6];
+        reader.GetBytes(0, 0, whole, 0, 6).Should().Be(4);
+        whole.Should().Equal(1, 2, 3, 4, 0, 0);
+
+        var part = new byte[5];
+        reader.GetBytes(0, 1, part, 2, 2).Should().Be(2);
+        part.Should().Equal(0, 0, 2, 3, 0);
+
+        reader.GetBytes(0, 4, part, 0, 1).Should().Be(0, "there is nothing past the end of the value");
+    }
+
+    // https://learn.microsoft.com/dotnet/api/system.data.idatarecord.getchars: "If you pass a buffer that is null,
+    // GetChars returns the length of the field in characters."
+    [Fact]
+    public void GetCharsReadsAStringWholeOrInParts()
+    {
+        Command.CommandText = "SELECT 'ab¢d'";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        reader.GetChars(0, 0, null, 0, 0).Should().Be(4, "the length is in characters, not UTF-8 bytes");
+
+        var whole = new char[6];
+        reader.GetChars(0, 0, whole, 0, 6).Should().Be(4);
+        whole.Should().Equal('a', 'b', '¢', 'd', '\0', '\0');
+
+        var part = new char[5];
+        reader.GetChars(0, 1, part, 2, 2).Should().Be(2);
+        part.Should().Equal('\0', '\0', 'b', '¢', '\0');
+
+        reader.GetChars(0, 4, part, 0, 1).Should().Be(0);
+    }
+
+    [Fact]
+    public void GetBytesAndGetCharsRejectOffsetsOutsideTheBuffer()
+    {
+        Command.CommandText = "SELECT '\\x01\\x02'::BLOB, 'ab'";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        reader.Invoking(r => r.GetBytes(0, -1, new byte[2], 0, 2)).Should().Throw<ArgumentOutOfRangeException>();
+        reader.Invoking(r => r.GetBytes(0, 0, new byte[2], 3, 1)).Should().Throw<ArgumentOutOfRangeException>();
+        reader.Invoking(r => r.GetBytes(0, 0, new byte[2], 1, 2)).Should().Throw<ArgumentOutOfRangeException>();
+        reader.Invoking(r => r.GetChars(1, -1, new char[2], 0, 2)).Should().Throw<ArgumentOutOfRangeException>();
+        reader.Invoking(r => r.GetChars(1, 0, new char[2], 1, 2)).Should().Throw<ArgumentOutOfRangeException>();
+    }
 }
+
