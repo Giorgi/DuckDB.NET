@@ -18,6 +18,13 @@ public class DuckDBCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         cmd.Connection.Should().Be(Connection);
     }
 
+    // https://learn.microsoft.com/dotnet/api/system.data.idbcommand.commandtype: "The default is Text."
+    [Fact]
+    public void CommandTypeDefaultsToText()
+    {
+        new DuckDBCommand().CommandType.Should().Be(CommandType.Text);
+    }
+
     // https://learn.microsoft.com/dotnet/api/system.data.idbcommand.prepare, Exceptions: InvalidOperationException,
     // "The Connection is not set. -or- The Connection is not Open()."
     [Fact]
@@ -31,4 +38,3 @@ public class DuckDBCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         new DuckDBCommand("SELECT 1", Connection).Invoking(c => c.Prepare()).Should().NotThrow();
     }
 }
-
