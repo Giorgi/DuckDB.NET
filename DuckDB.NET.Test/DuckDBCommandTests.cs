@@ -17,4 +17,11 @@ public class DuckDBCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         cmd.CommandText.Should().Be("Select 1");
         cmd.Connection.Should().Be(Connection);
     }
+
+    // https://learn.microsoft.com/dotnet/api/system.data.idbcommand.commandtype: "The default is Text."
+    [Fact]
+    public void CommandTypeDefaultsToText()
+    {
+        new DuckDBCommand().CommandType.Should().Be(CommandType.Text);
+    }
 }
