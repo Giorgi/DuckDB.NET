@@ -1,4 +1,6 @@
-﻿namespace DuckDB.NET.Test;
+﻿using DuckDB.NET.Test.Helpers;
+
+namespace DuckDB.NET.Test;
 
 public class ExecuteNonQueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
@@ -71,6 +73,51 @@ public class ExecuteNonQueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Command.ExecuteNonQuery().Should().Be(1);
     }
 
+    [Fact]
+    public void MergeReportsItsRowCount()
+    {
+        Command.CommandText = "CREATE TABLE merge_counted (id INTEGER, name VARCHAR); INSERT INTO merge_counted VALUES (1, 'old');";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "MERGE INTO merge_counted AS target USING (VALUES (1, 'updated'), (2, 'inserted')) AS source(id, name) ON target.id = source.id WHEN MATCHED THEN UPDATE SET name = source.name WHEN NOT MATCHED THEN INSERT (id, name) VALUES (source.id, source.name);";
+        Command.ExecuteNonQuery().Should().Be(2);
+    }
+
+    [Fact]
+    public void CopyReportsItsRowCount()
+    {
+        using var file = DisposableFile.GenerateInTemp("csv");
+        Command.CommandText = "CREATE TABLE copy_counted (id INTEGER); INSERT INTO copy_counted VALUES (1), (2), (3);";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = $"COPY copy_counted TO '{file.FileName}' (FORMAT CSV);";
+        Command.ExecuteNonQuery().Should().Be(3);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ReturningReportsItsRowCount(bool useStreamingMode)
+    {
+        var tableName = useStreamingMode ? "returning_counted_streaming" : "returning_counted_materialized";
+        using var command = new DuckDBCommand
+        {
+            Connection = Connection,
+            UseStreamingMode = useStreamingMode,
+            CommandText = $"CREATE TABLE {tableName} (id INTEGER); INSERT INTO {tableName} VALUES (1), (2);"
+        };
+        command.ExecuteNonQuery();
+
+        command.CommandText = $"INSERT INTO {tableName} VALUES (3), (4) RETURNING id;";
+        command.ExecuteNonQuery().Should().Be(2);
+
+        command.CommandText = $"UPDATE {tableName} SET id = id + 10 WHERE id <= 2 RETURNING id;";
+        using var reader = command.ExecuteReader();
+        while (reader.Read()) { }
+        reader.Close();
+        reader.RecordsAffected.Should().Be(2);
+    }
+
     // https://learn.microsoft.com/dotnet/api/system.data.common.dbdatareader.recordsaffected:
     // "The number of rows changed, inserted, or deleted. -1 for SELECT statements; 0 if no rows were affected"
     [Fact]
@@ -102,4 +149,3 @@ public class ExecuteNonQueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         }
     }
 }
-

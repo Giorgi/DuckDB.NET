@@ -81,7 +81,7 @@ public class DuckDBCommand : DbCommand
             var current = result;
             if (CountsRows(NativeMethods.Query.DuckDBResultStatementType(current)))
             {
-                count = Math.Max(count, 0) + (int)NativeMethods.Query.DuckDBRowsChanged(ref current);
+                count = Math.Max(count, 0) + (int)GetRowsAffected(ref current);
             }
 
             result.Close();
@@ -92,7 +92,12 @@ public class DuckDBCommand : DbCommand
 
     /// <summary>The statements whose affected-row count ADO.NET reports; every other statement reports -1.</summary>
     internal static bool CountsRows(DuckDBStatementType statementType) =>
-        statementType is DuckDBStatementType.Insert or DuckDBStatementType.Update or DuckDBStatementType.Delete;
+        statementType is DuckDBStatementType.Insert or DuckDBStatementType.Update or DuckDBStatementType.Delete or DuckDBStatementType.Copy or DuckDBStatementType.MergeInto;
+
+    internal static long GetRowsAffected(ref DuckDBResult result) =>
+        NativeMethods.Query.DuckDBResultReturnType(result) == DuckDBResultType.QueryResult
+            ? NativeMethods.Query.DuckDBRowCount(ref result)
+            : NativeMethods.Query.DuckDBRowsChanged(ref result);
 
     public override object? ExecuteScalar()
     {

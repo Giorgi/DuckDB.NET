@@ -57,7 +57,7 @@ public sealed class DuckDBDataReader : DbDataReader
             var result = resultEnumerator.Current;
             if (DuckDBCommand.CountsRows(NativeMethods.Query.DuckDBResultStatementType(result)))
             {
-                recordsAffected = Math.Max(recordsAffected, 0) + (int)NativeMethods.Query.DuckDBRowsChanged(ref result);
+                recordsAffected = Math.Max(recordsAffected, 0) + (int)DuckDBCommand.GetRowsAffected(ref result);
             }
 
             if (NativeMethods.Query.DuckDBResultReturnType(result) == DuckDBResultType.QueryResult)
@@ -348,8 +348,8 @@ public sealed class DuckDBDataReader : DbDataReader
     public override object this[string name] => GetValue(GetOrdinal(name));
 
     /// <summary>
-    /// The rows inserted, updated or deleted by the statements read so far; -1 when none of them was an INSERT, UPDATE
-    /// or DELETE. DbDataReader.RecordsAffected: "-1 for SELECT statements; 0 if no rows were affected".
+    /// The rows inserted, updated, deleted, or copied by the statements read so far; -1 when none of them reports an
+    /// affected-row count. DbDataReader.RecordsAffected: "-1 for SELECT statements; 0 if no rows were affected".
     /// </summary>
     public override int RecordsAffected => recordsAffected;
 
