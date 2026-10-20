@@ -53,7 +53,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.GetOrdinal("key").Should().Be(0);
         reader.GetOrdinal("value").Should().Be(1);
 
-        reader.Invoking(dataReader => dataReader.GetOrdinal("Random")).Should().Throw<DuckDBException>();
+        reader.Invoking(dataReader => dataReader.GetOrdinal("Random")).Should().Throw<IndexOutOfRangeException>();
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.GetOrdinal("key").Should().Be(1);
         reader.GetOrdinal("value").Should().Be(0);
 
-        reader.Invoking(dataReader => dataReader.GetOrdinal("Random")).Should().Throw<DuckDBException>();
+        reader.Invoking(dataReader => dataReader.GetOrdinal("Random")).Should().Throw<IndexOutOfRangeException>();
     }
 
     [Fact]
@@ -819,4 +819,29 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.Invoking(r => r.GetFieldValue<ulong>(1)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Int32 to UInt64 in column negative");
         reader.Invoking(r => r.GetFieldValue<byte>(2)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Int16 to Byte in column small");
     }
+
+    // https://learn.microsoft.com/dotnet/api/system.data.idatarecord.getordinal: "GetOrdinal performs a case-sensitive
+    // lookup first. If it fails, a second case-insensitive search is made. GetOrdinal is kana-width insensitive. If the
+    // index of the named field is not found, an IndexOutOfRangeException is thrown."
+    [Fact]
+    public void GetOrdinalFallsBackToACaseInsensitiveMatch()
+    {
+        Command.CommandText = "SELECT 1 AS Id, 2 AS id, 3 AS \"Name\"";
+        using var reader = Command.ExecuteReader();
+
+        reader.GetOrdinal("Id").Should().Be(0);
+        reader.GetOrdinal("id").Should().Be(1, "an exact match wins over a case-insensitive one");
+        reader.GetOrdinal("NAME").Should().Be(2);
+        reader.GetOrdinal("ｎａｍｅ").Should().Be(2, "the lookup is width insensitive");
+    }
+
+    [Fact]
+    public void GetOrdinalThrowsIndexOutOfRangeForAnUnknownName()
+    {
+        Command.CommandText = "SELECT 1 AS Id";
+        using var reader = Command.ExecuteReader();
+
+        reader.Invoking(r => r.GetOrdinal("missing")).Should().Throw<IndexOutOfRangeException>();
+    }
 }
+
