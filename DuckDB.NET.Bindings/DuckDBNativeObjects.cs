@@ -77,10 +77,20 @@ public enum DuckDBType
     TimestampTz = 31,
     // ANY type
     Any = 34,
-    // duckdb_varint
+    // duckdb_bignum (named VARINT before DuckDB 1.4)
     VarInt = 35,
     // SQLNULL type
     SqlNull = 36,
+    // string literal type, only useful as logical type
+    StringLiteral = 37,
+    // integer literal type, only useful as logical type
+    IntegerLiteral = 38,
+    // duckdb_time_ns
+    TimeNs = 39,
+    // GEOMETRY type, WKB blob
+    Geometry = 40,
+    // VARIANT type
+    Variant = 41,
 }
 
 [StructLayout(LayoutKind.Sequential)]
