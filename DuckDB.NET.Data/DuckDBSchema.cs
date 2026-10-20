@@ -1,4 +1,5 @@
 using System.Linq;
+using System.IO;
 using System.Text;
 using DuckDB.NET.Native;
 
@@ -128,15 +129,26 @@ internal static class DuckDBSchema
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT DISTINCT type_name, logical_type FROM duckdb_types() ORDER BY type_name";
         using var reader = command.ExecuteReader();
+        var types = new Dictionary<string, (string TypeName, string LogicalType)>(StringComparer.OrdinalIgnoreCase);
         while (reader.Read())
         {
             var typeName = reader.GetString(0);
             var logicalTypeName = reader.GetString(1);
+
+            if (!types.TryGetValue(typeName, out var existing)
+                || typeName.Equals(logicalTypeName, StringComparison.Ordinal) && !existing.TypeName.Equals(existing.LogicalType, StringComparison.Ordinal))
+            {
+                types[typeName] = (typeName, logicalTypeName);
+            }
+        }
+
+        foreach (var (typeName, logicalTypeName) in types.Values.OrderBy(type => type.TypeName, StringComparer.OrdinalIgnoreCase))
+        {
             var providerType = ParseDuckDBType(logicalTypeName);
 
             AddType(
                 table, typeName, providerType, GetClrType(providerType),
-                createFormat: providerType == DuckDBType.Decimal ? "DECIMAL({0},{1})" : null,
+                createFormat: providerType == DuckDBType.Decimal ? "DECIMAL({0},{1})" : typeName,
                 createParameters: providerType == DuckDBType.Decimal ? "precision,scale" : null,
                 isUnsigned: providerType is DuckDBType.UnsignedTinyInt or DuckDBType.UnsignedSmallInt
                     or DuckDBType.UnsignedInteger or DuckDBType.UnsignedBigInt or DuckDBType.UnsignedHugeInt,
@@ -177,7 +189,7 @@ internal static class DuckDBSchema
         "INTERVAL" => DuckDBType.Interval,
         "HUGEINT" => DuckDBType.HugeInt,
         "UHUGEINT" => DuckDBType.UnsignedHugeInt,
-        "VARINT" => DuckDBType.VarInt,
+        "VARINT" or "BIGNUM" => DuckDBType.VarInt,
         "LIST" => DuckDBType.List,
         "ARRAY" => DuckDBType.Array,
         "STRUCT" => DuckDBType.Struct,
@@ -186,7 +198,12 @@ internal static class DuckDBSchema
         "ENUM" => DuckDBType.Enum,
         "BIT" => DuckDBType.Bit,
         "ANY" => DuckDBType.Any,
-        "SQLNULL" => DuckDBType.SqlNull,
+        "SQLNULL" or "NULL" => DuckDBType.SqlNull,
+        "STRING_LITERAL" => DuckDBType.StringLiteral,
+        "INTEGER_LITERAL" => DuckDBType.IntegerLiteral,
+        "TIME_NS" => DuckDBType.TimeNs,
+        "GEOMETRY" => DuckDBType.Geometry,
+        "VARIANT" => DuckDBType.Variant,
         _ => DuckDBType.Invalid
     };
 
@@ -205,11 +222,12 @@ internal static class DuckDBSchema
         DuckDBType.Double => typeof(double),
         DuckDBType.Decimal => typeof(decimal),
         DuckDBType.Varchar => typeof(string),
-        DuckDBType.Blob => typeof(byte[]),
+        DuckDBType.Blob => typeof(Stream),
         DuckDBType.Uuid => typeof(Guid),
         DuckDBType.Date => typeof(DateOnly),
         DuckDBType.Time => typeof(TimeOnly),
-        DuckDBType.TimeTz or DuckDBType.TimestampTz => typeof(DateTimeOffset),
+        DuckDBType.TimeTz => typeof(DateTimeOffset),
+        DuckDBType.TimestampTz => typeof(DateTime),
         DuckDBType.Timestamp or DuckDBType.TimestampS or DuckDBType.TimestampMs or DuckDBType.TimestampNs => typeof(DateTime),
         DuckDBType.Interval => typeof(TimeSpan),
         DuckDBType.HugeInt or DuckDBType.UnsignedHugeInt or DuckDBType.VarInt => typeof(System.Numerics.BigInteger),

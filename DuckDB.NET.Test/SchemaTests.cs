@@ -155,8 +155,22 @@ public class SchemaTests : DuckDBTestBase
 
         Assert.Equal(typeof(int).FullName, integer["DataType"]);
         Assert.Equal((int)DuckDBType.Integer, integer["ProviderDbType"]);
+        Assert.Equal("INTEGER", integer["CreateFormat"]);
         Assert.True((bool)integer["IsBestMatch"]);
         Assert.True((bool)integer["IsSearchable"]);
+
+        var blob = schema.Rows.Cast<DataRow>().First(row => (int)row["ProviderDbType"] == (int)DuckDBType.Blob);
+        Assert.Equal(typeof(Stream).FullName, blob["DataType"]);
+
+        var timestampTz = schema.Rows.Cast<DataRow>().First(row => (int)row["ProviderDbType"] == (int)DuckDBType.TimestampTz);
+        Assert.Equal(typeof(DateTime).FullName, timestampTz["DataType"]);
+
+        var bignum = schema.Rows.Cast<DataRow>().First(row => (int)row["ProviderDbType"] == (int)DuckDBType.VarInt);
+        Assert.Equal(typeof(System.Numerics.BigInteger).FullName, bignum["DataType"]);
+
+        Assert.DoesNotContain(
+            schema.Rows.Cast<DataRow>().GroupBy(row => (string)row["TypeName"], StringComparer.OrdinalIgnoreCase),
+            group => group.Count() > 1);
     }
 
     [Fact]
@@ -168,7 +182,7 @@ public class SchemaTests : DuckDBTestBase
             .ToHashSet();
 
         var expectedTypes = Enum.GetValues<DuckDBType>()
-            .Where(type => type is not (DuckDBType.Invalid or DuckDBType.Any or DuckDBType.VarInt or DuckDBType.SqlNull))
+            .Where(type => type is not (DuckDBType.Invalid or DuckDBType.Any or DuckDBType.StringLiteral or DuckDBType.IntegerLiteral))
             .ToHashSet();
 
         Assert.True(expectedTypes.IsSubsetOf(providerTypes),
