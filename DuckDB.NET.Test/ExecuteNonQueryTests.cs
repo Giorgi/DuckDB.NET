@@ -41,4 +41,65 @@ public class ExecuteNonQueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             results.Should().BeEquivalentTo(words);
         }
     }
+
+    // https://learn.microsoft.com/dotnet/api/system.data.common.dbcommand.executenonquery:
+    // "For UPDATE, INSERT, and DELETE statements, the return value is the number of rows affected by the command.
+    // For all other types of statements, the return value is -1."
+    [Theory]
+    [InlineData("SELECT 42")]
+    [InlineData("CREATE TABLE minus_one (id INTEGER)")]
+    [InlineData("SET threads = 1")]
+    public async Task NonDmlStatementsReturnMinusOne(string sql)
+    {
+        Command.CommandText = sql;
+        Command.ExecuteNonQuery().Should().Be(-1);
+
+        Command.CommandText = sql.Replace("minus_one", "minus_one_async");
+        (await Command.ExecuteNonQueryAsync()).Should().Be(-1);
+    }
+
+    [Fact]
+    public void DmlStatementsReturnTheirRowCountIncludingZero()
+    {
+        Command.CommandText = "CREATE TABLE counted (id INTEGER); INSERT INTO counted VALUES (1), (2), (3);";
+        Command.ExecuteNonQuery().Should().Be(3, "only the INSERT is counted");
+
+        Command.CommandText = "UPDATE counted SET id = id + 10 WHERE id > 100";
+        Command.ExecuteNonQuery().Should().Be(0);
+
+        Command.CommandText = "DELETE FROM counted WHERE id = 2";
+        Command.ExecuteNonQuery().Should().Be(1);
+    }
+
+    // https://learn.microsoft.com/dotnet/api/system.data.common.dbdatareader.recordsaffected:
+    // "The number of rows changed, inserted, or deleted. -1 for SELECT statements; 0 if no rows were affected"
+    [Fact]
+    public void RecordsAffectedCountsDmlRunThroughExecuteReader()
+    {
+        Command.CommandText = "CREATE TABLE through_reader (id INTEGER); INSERT INTO through_reader VALUES (1), (2);";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "DELETE FROM through_reader WHERE id = 2";
+        using (var reader = Command.ExecuteReader())
+        {
+            reader.Close();
+            reader.RecordsAffected.Should().Be(1);
+        }
+
+        Command.CommandText = "DELETE FROM through_reader WHERE id = 99";
+        using (var reader = Command.ExecuteReader())
+        {
+            reader.Close();
+            reader.RecordsAffected.Should().Be(0);
+        }
+
+        Command.CommandText = "SELECT id FROM through_reader";
+        using (var reader = Command.ExecuteReader())
+        {
+            while (reader.Read()) { }
+            reader.Close();
+            reader.RecordsAffected.Should().Be(-1);
+        }
+    }
 }
+

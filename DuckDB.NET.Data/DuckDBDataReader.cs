@@ -21,6 +21,7 @@ public sealed class DuckDBDataReader : DbDataReader
     private ulong rowsReadFromCurrentChunk;
 
     private bool closed;
+    private int recordsAffected = -1;
     private bool hasRows;
     private bool streamingResult;
     private bool streamEnded;
@@ -54,6 +55,11 @@ public sealed class DuckDBDataReader : DbDataReader
         while (resultEnumerator.MoveNext())
         {
             var result = resultEnumerator.Current;
+            if (DuckDBCommand.CountsRows(NativeMethods.Query.DuckDBResultStatementType(result)))
+            {
+                recordsAffected = Math.Max(recordsAffected, 0) + (int)NativeMethods.Query.DuckDBRowsChanged(ref result);
+            }
+
             if (NativeMethods.Query.DuckDBResultReturnType(result) == DuckDBResultType.QueryResult)
             {
                 // Release the previous result set before replacing it: nothing else holds it, and a materialized
@@ -341,7 +347,11 @@ public sealed class DuckDBDataReader : DbDataReader
 
     public override object this[string name] => GetValue(GetOrdinal(name));
 
-    public override int RecordsAffected => -1;
+    /// <summary>
+    /// The rows inserted, updated or deleted by the statements read so far; -1 when none of them was an INSERT, UPDATE
+    /// or DELETE. DbDataReader.RecordsAffected: "-1 for SELECT statements; 0 if no rows were affected".
+    /// </summary>
+    public override int RecordsAffected => recordsAffected;
 
     public override bool HasRows => hasRows;
 

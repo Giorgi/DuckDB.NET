@@ -72,17 +72,27 @@ public class DuckDBCommand : DbCommand
 
         var results = PreparedStatement.PreparedStatement.PrepareMultiple(connection!.NativeConnection, CommandText, parameters, UseStreamingMode);
 
-        var count = 0;
+        // DbCommand.ExecuteNonQuery: "For UPDATE, INSERT, and DELETE statements, the return value is the number of
+        // rows affected by the command. For all other types of statements, the return value is -1."
+        var count = -1;
 
         foreach (var result in results)
         {
             var current = result;
-            count += (int)NativeMethods.Query.DuckDBRowsChanged(ref current);
+            if (CountsRows(NativeMethods.Query.DuckDBResultStatementType(current)))
+            {
+                count = Math.Max(count, 0) + (int)NativeMethods.Query.DuckDBRowsChanged(ref current);
+            }
+
             result.Close();
         }
 
         return count;
     }
+
+    /// <summary>The statements whose affected-row count ADO.NET reports; every other statement reports -1.</summary>
+    internal static bool CountsRows(DuckDBStatementType statementType) =>
+        statementType is DuckDBStatementType.Insert or DuckDBStatementType.Update or DuckDBStatementType.Delete;
 
     public override object? ExecuteScalar()
     {
