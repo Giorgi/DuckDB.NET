@@ -29,7 +29,7 @@ public class DuckDBParameter : DbParameter
         }
     }
 
-    public override ParameterDirection Direction { get; set; }
+    public override ParameterDirection Direction { get; set; } = ParameterDirection.Input;
     public override bool IsNullable { get; set; }
 
     [AllowNull]

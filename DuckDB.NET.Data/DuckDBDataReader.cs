@@ -1,5 +1,6 @@
 ﻿using DuckDB.NET.Data.DataChunk.Reader;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
 
@@ -249,7 +250,19 @@ public sealed class DuckDBDataReader : DbDataReader
             return index;
         }
 
-        throw new DuckDBException($"Column with name {name} was not found.");
+        // IDataRecord.GetOrdinal: "performs a case-sensitive lookup first. If it fails, a second case-insensitive search
+        // is made. GetOrdinal is kana-width insensitive. If the index of the named field is not found, an
+        // IndexOutOfRangeException is thrown."
+        var compareInfo = CultureInfo.InvariantCulture.CompareInfo;
+        for (var i = 0; i < vectorReaders.Length; i++)
+        {
+            if (compareInfo.Compare(vectorReaders[i].ColumnName, name, CompareOptions.IgnoreCase | CompareOptions.IgnoreKanaType | CompareOptions.IgnoreWidth) == 0)
+            {
+                return i;
+            }
+        }
+
+        throw new IndexOutOfRangeException($"Column with name {name} was not found.");
     }
 
     public override string GetString(int ordinal)
@@ -292,6 +305,7 @@ public sealed class DuckDBDataReader : DbDataReader
 
     public override int GetValues(object[] values)
     {
+        ArgumentNullException.ThrowIfNull(values);
         CheckRowRead();
 
         var offset = rowsReadFromCurrentChunk - 1;
