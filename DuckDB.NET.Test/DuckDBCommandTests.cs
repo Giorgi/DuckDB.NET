@@ -24,4 +24,17 @@ public class DuckDBCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     {
         new DuckDBCommand().CommandType.Should().Be(CommandType.Text);
     }
+
+    // https://learn.microsoft.com/dotnet/api/system.data.idbcommand.prepare, Exceptions: InvalidOperationException,
+    // "The Connection is not set. -or- The Connection is not Open()."
+    [Fact]
+    public void PrepareThrowsWithoutAnOpenConnection()
+    {
+        new DuckDBCommand("SELECT 1").Invoking(c => c.Prepare()).Should().Throw<InvalidOperationException>();
+
+        using var closed = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
+        new DuckDBCommand("SELECT 1", closed).Invoking(c => c.Prepare()).Should().Throw<InvalidOperationException>();
+
+        new DuckDBCommand("SELECT 1", Connection).Invoking(c => c.Prepare()).Should().NotThrow();
+    }
 }
