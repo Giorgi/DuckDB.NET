@@ -753,6 +753,37 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    public void GetCharsReadsLargeUtf8ValuesInUtf16Chunks()
+    {
+        var expected = string.Concat(Enumerable.Repeat("aéქართული😀𐐷", 2_000));
+        Command.CommandText = "SELECT ?::VARCHAR";
+        Command.Parameters.Add(new DuckDBParameter(expected));
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetChars(0, 0, null, 0, 0).Should().Be(expected.Length);
+
+        var buffer = new char[1_024];
+        var result = new StringBuilder(expected.Length);
+        for (var dataOffset = 0L; dataOffset < expected.Length;)
+        {
+            var read = reader.GetChars(0, dataOffset, buffer, 0, buffer.Length);
+            result.Append(buffer, 0, (int)read);
+            dataOffset += read;
+        }
+
+        result.ToString().Should().Be(expected);
+
+        var surrogateOffset = expected.IndexOf("😀", StringComparison.Ordinal) + 1;
+        var splitBuffer = new char[1];
+        reader.GetChars(0, surrogateOffset, splitBuffer, 0, 1).Should().Be(1);
+        splitBuffer[0].Should().Be(expected[surrogateOffset]);
+        reader.GetChars(0, surrogateOffset + 1, splitBuffer, 0, 1).Should().Be(1);
+        splitBuffer[0].Should().Be(expected[surrogateOffset + 1]);
+    }
+
+    [Fact]
     public void ReadHugeIntAsDuckDBHugeInt()
     {
         Command.CommandText = "SELECT 170141183460469231731687303715884105727::HUGEINT, (-170141183460469231731687303715884105728)::HUGEINT, (-5)::HUGEINT, " +

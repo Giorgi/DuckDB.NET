@@ -215,21 +215,19 @@ public sealed class DuckDBDataReader : DbDataReader
     /// </summary>
     public override long GetChars(int ordinal, long dataOffset, char[]? buffer, int bufferOffset, int length)
     {
-        var value = GetString(ordinal);
-        if (buffer is null)
+        CheckRowRead();
+
+        if (buffer != null)
         {
-            return value.Length;
+            ValidateBufferArguments(dataOffset, buffer.Length, bufferOffset, length);
         }
 
-        ValidateBufferArguments(dataOffset, buffer.Length, bufferOffset, length);
-        if (dataOffset >= value.Length)
+        if (vectorReaders[ordinal] is not StringVectorDataReader reader)
         {
-            return 0;
+            throw new NotSupportedException($"GetChars is not supported for {vectorReaders[ordinal].DuckDBType} columns");
         }
 
-        var count = (int)Math.Min(length, value.Length - dataOffset);
-        value.CopyTo((int)dataOffset, buffer, bufferOffset, count);
-        return count;
+        return reader.GetChars(rowsReadFromCurrentChunk - 1, dataOffset, buffer, bufferOffset, length);
     }
 
     private static void ValidateBufferArguments(long dataOffset, int bufferLength, int bufferOffset, int length)
