@@ -164,7 +164,11 @@ public class DuckDBCommand : DbCommand
         }
     }
 
-    public override void Prepare() { }
+    /// <summary>
+    /// Statements are prepared when the command executes, so this only checks what IDbCommand.Prepare documents:
+    /// InvalidOperationException when "The Connection is not set. -or- The Connection is not Open()."
+    /// </summary>
+    public override void Prepare() => EnsureConnectionOpen();
 
     protected override DbParameter CreateDbParameter() => new DuckDBParameter();
 

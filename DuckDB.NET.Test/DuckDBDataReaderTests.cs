@@ -933,4 +933,28 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.Invoking(r => r.GetChars(1, -1, new char[2], 0, 2)).Should().Throw<ArgumentOutOfRangeException>();
         reader.Invoking(r => r.GetChars(1, 0, new char[2], 1, 2)).Should().Throw<ArgumentOutOfRangeException>();
     }
+
+    // https://learn.microsoft.com/dotnet/api/system.data.idatarecord.getvalues: "You can pass an Object array that
+    // contains fewer than the number of columns that are contained in the resulting row. Only the amount of data the
+    // Object array holds is copied to the array. You can also pass an Object array whose length is more than the
+    // number of columns that are contained in the resulting row."
+    [Fact]
+    public void GetValuesCopiesOnlyWhatTheArrayHolds()
+    {
+        Command.CommandText = "SELECT 1 AS a, 2 AS b, 3 AS c";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        reader.GetValues(new object[0]).Should().Be(0);
+        reader.Invoking(r => r.GetValues(null!)).Should().Throw<ArgumentNullException>();
+
+        var shorter = new object[2];
+        reader.GetValues(shorter).Should().Be(2);
+        shorter.Should().Equal(1, 2);
+
+        var longer = new object[5];
+        reader.GetValues(longer).Should().Be(3);
+        longer.Take(3).Should().Equal(1, 2, 3);
+        longer.Skip(3).Should().AllSatisfy(value => value.Should().BeNull());
+    }
 }

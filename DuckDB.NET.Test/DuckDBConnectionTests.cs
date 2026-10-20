@@ -53,30 +53,38 @@ public class DuckDBConnectionTests
         files.Dispose();
     }
 
+    // https://learn.microsoft.com/dotnet/api/system.data.common.dbconnection.close:
+    // "An application can call Close or CloseAsync more than one time. No exception is generated."
     [Fact]
     [Trait("Category", "Baseline")]
-    public async Task ExceptionOnDoubleClose()
+    public async Task CloseCanBeCalledMoreThanOnce()
     {
         using var dbInfo = DisposableFile.GenerateInTemp("db");
         await using var duckDBConnection = new DuckDBConnection(dbInfo.ConnectionString);
         await duckDBConnection.OpenAsync();
+        var stateChanges = 0;
+        duckDBConnection.StateChange += (_, _) => stateChanges++;
 
         await duckDBConnection.CloseAsync();
-        await duckDBConnection.Invoking(async connection => await connection.CloseAsync())
-            .Should().ThrowAsync<InvalidOperationException>();
+        await duckDBConnection.CloseAsync();
+        duckDBConnection.Close();
+
+        duckDBConnection.State.Should().Be(ConnectionState.Closed);
+        stateChanges.Should().Be(1, "only the first Close changes the state");
     }
 
     [Fact]
     [Trait("Category", "Baseline")]
-    public async Task ExceptionOnDisposeThenClose()
+    public async Task CloseAfterDisposeDoesNotThrow()
     {
         using var dbInfo = DisposableFile.GenerateInTemp("db");
         await using var duckDBConnection = new DuckDBConnection(dbInfo.ConnectionString);
         await duckDBConnection.OpenAsync();
 
         await duckDBConnection.DisposeAsync();
-        await duckDBConnection.Invoking(async connection => await connection.CloseAsync())
-            .Should().ThrowAsync<InvalidOperationException>();
+        await duckDBConnection.CloseAsync();
+
+        duckDBConnection.State.Should().Be(ConnectionState.Closed);
     }
 
     /// <summary>
