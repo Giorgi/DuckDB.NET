@@ -40,7 +40,6 @@ internal static class DuckDBSchema
         {
             throw new ArgumentException("This collection does not support restrictions.", nameof(restrictionValues));
         }
-
     }
 
     private static DataTable GetMetaDataCollections() =>
