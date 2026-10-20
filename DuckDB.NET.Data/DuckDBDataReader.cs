@@ -296,13 +296,17 @@ public sealed class DuckDBDataReader : DbDataReader
 
         var offset = rowsReadFromCurrentChunk - 1;
 
-        for (var i = 0; i < FieldCount; i++)
+        // IDataRecord.GetValues: "You can pass an Object array that contains fewer than the number of columns that are
+        // contained in the resulting row. Only the amount of data the Object array holds is copied to the array."
+        var count = Math.Min(values.Length, FieldCount);
+
+        for (var i = 0; i < count; i++)
         {
             var reader = vectorReaders[i];
             values[i] = reader.IsValid(offset) ? reader.GetValue(offset) : DBNull.Value;
         }
 
-        return FieldCount;
+        return count;
     }
 
     public override Stream GetStream(int ordinal)

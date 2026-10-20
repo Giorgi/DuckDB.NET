@@ -819,4 +819,26 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.Invoking(r => r.GetFieldValue<ulong>(1)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Int32 to UInt64 in column negative");
         reader.Invoking(r => r.GetFieldValue<byte>(2)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Int16 to Byte in column small");
     }
+
+    // https://learn.microsoft.com/dotnet/api/system.data.idatarecord.getvalues: "You can pass an Object array that
+    // contains fewer than the number of columns that are contained in the resulting row. Only the amount of data the
+    // Object array holds is copied to the array. You can also pass an Object array whose length is more than the
+    // number of columns that are contained in the resulting row."
+    [Fact]
+    public void GetValuesCopiesOnlyWhatTheArrayHolds()
+    {
+        Command.CommandText = "SELECT 1 AS a, 2 AS b, 3 AS c";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        var shorter = new object[2];
+        reader.GetValues(shorter).Should().Be(2);
+        shorter.Should().Equal(1, 2);
+
+        var longer = new object[5];
+        reader.GetValues(longer).Should().Be(3);
+        longer.Take(3).Should().Equal(1, 2, 3);
+        longer.Skip(3).Should().AllSatisfy(value => value.Should().BeNull());
+    }
 }
+
