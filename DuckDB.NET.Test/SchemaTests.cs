@@ -20,6 +20,17 @@ public class SchemaTests : DuckDBTestBase
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => Connection.GetSchema("Invalid"));
     }
+
+    [Theory]
+    [InlineData("MetaDataCollections")]
+    [InlineData("DataSourceInformation")]
+    [InlineData("DataTypes")]
+    [InlineData("Restrictions")]
+    [InlineData("ReservedWords")]
+    public void CollectionsWithoutRestrictionsRejectRestrictionValues(string collectionName)
+    {
+        Assert.Throws<ArgumentException>(() => Connection.GetSchema(collectionName, ["unexpected"]));
+    }
     
     [Fact]
     public void MetaDataCollections()
@@ -117,6 +128,79 @@ public class SchemaTests : DuckDBTestBase
         Assert.Equal(1, schema.Rows.Count);
         Assert.Equal("foo", schema.Rows[0]["table_name"]);
         Assert.Equal("foo_id", schema.Rows[0]["column_name"]);
+    }
+
+    [Fact]
+    public void ColumnsExposeDataType()
+    {
+        var schema = Connection.GetSchema("Columns", [null, null, "foo", "foo_id"]);
+        Assert.Equal("INTEGER", schema.Rows[0]["data_type"]);
+    }
+
+    [Fact]
+    public void DataSourceInformationSupportsProbing()
+    {
+        var schema = Connection.GetSchema(DbMetaDataCollectionNames.DataSourceInformation);
+        var row = Assert.IsType<DataRow>(Assert.Single(schema.Rows));
+        Assert.Equal("DuckDB", row["DataSourceProductName"]);
+        Assert.Equal(Connection.ServerVersion, row["DataSourceProductVersion"]);
+        Assert.Equal("${0}", row["ParameterMarkerFormat"]);
+    }
+
+    [Fact]
+    public void DataTypesExposeStandardAdoNetMetadata()
+    {
+        var schema = Connection.GetSchema("DataTypes");
+        var integer = schema.Rows.Cast<DataRow>().Single(row => (string)row["TypeName"] == "INTEGER");
+
+        Assert.Equal(typeof(int).FullName, integer["DataType"]);
+        Assert.Equal((int)DuckDBType.Integer, integer["ProviderDbType"]);
+        Assert.Equal("INTEGER", integer["CreateFormat"]);
+        Assert.True((bool)integer["IsBestMatch"]);
+        Assert.True((bool)integer["IsSearchable"]);
+
+        var blob = schema.Rows.Cast<DataRow>().First(row => (int)row["ProviderDbType"] == (int)DuckDBType.Blob);
+        Assert.Equal(typeof(Stream).FullName, blob["DataType"]);
+
+        var timestampTz = schema.Rows.Cast<DataRow>().First(row => (int)row["ProviderDbType"] == (int)DuckDBType.TimestampTz);
+        Assert.Equal(typeof(DateTime).FullName, timestampTz["DataType"]);
+
+        var bignum = schema.Rows.Cast<DataRow>().First(row => (int)row["ProviderDbType"] == (int)DuckDBType.VarInt);
+        Assert.Equal(typeof(System.Numerics.BigInteger).FullName, bignum["DataType"]);
+
+        Assert.DoesNotContain(
+            schema.Rows.Cast<DataRow>().GroupBy(row => (string)row["TypeName"], StringComparer.OrdinalIgnoreCase),
+            group => group.Count() > 1);
+    }
+
+    [Fact]
+    public void DataTypesUseCanonicalNamesOnFreshConnection()
+    {
+        using var connection = new DuckDBConnection("DataSource=:memory:");
+        connection.Open();
+
+        var schema = connection.GetSchema("DataTypes");
+        var integer = schema.Rows.Cast<DataRow>().Single(row => (string)row["TypeName"] == "INTEGER");
+        var list = schema.Rows.Cast<DataRow>().Single(row => (string)row["TypeName"] == "LIST");
+
+        Assert.Equal("INTEGER", integer["CreateFormat"]);
+        Assert.Equal(DBNull.Value, list["CreateFormat"]);
+    }
+
+    [Fact]
+    public void DataTypesExposeEveryDuckDbType()
+    {
+        var schema = Connection.GetSchema("DataTypes");
+        var providerTypes = schema.Rows.Cast<DataRow>()
+            .Select(row => (DuckDBType)(int)row["ProviderDbType"])
+            .ToHashSet();
+
+        var expectedTypes = Enum.GetValues<DuckDBType>()
+            .Where(type => type is not (DuckDBType.Invalid or DuckDBType.Any or DuckDBType.StringLiteral or DuckDBType.IntegerLiteral))
+            .ToHashSet();
+
+        Assert.True(expectedTypes.IsSubsetOf(providerTypes),
+            $"Missing: {string.Join(", ", expectedTypes.Except(providerTypes))}");
     }
 
     [Fact]
