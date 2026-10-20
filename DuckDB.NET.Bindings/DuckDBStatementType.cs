@@ -20,7 +20,6 @@ public enum DuckDBStatementType
     Drop,
     Export,
     Pragma,
-    Show,
     Vacuum,
     Call,
     Set,
@@ -31,4 +30,7 @@ public enum DuckDBStatementType
     Attach,
     Detach,
     Multi,
+    CopyDatabase = 28,
+    UpdateExtensions = 29,
+    MergeInto = 30,
 }
