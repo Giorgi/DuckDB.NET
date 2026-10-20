@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.IO;
 using System.Text;
 
@@ -97,6 +98,79 @@ internal sealed class StringVectorDataReader : VectorDataReaderBase
         // The string constructor that takes an encoding validates more, wraps the pointer in a span and ends in the
         // same decoder, so this is the shorter way to it.
         return Encoding.UTF8.GetString((byte*)data->Data, data->Length);
+    }
+
+    internal unsafe long GetChars(ulong offset, long dataOffset, char[]? buffer, int bufferOffset, int length)
+    {
+        if (DuckDBType != DuckDBType.Varchar)
+        {
+            throw new NotSupportedException($"GetChars is not supported for {DuckDBType} columns");
+        }
+
+        if (!IsValid(offset))
+        {
+            throw new InvalidCastException($"Column '{ColumnName}' value is null");
+        }
+
+        var data = (DuckDBString*)DataPointer + offset;
+        var bytes = new ReadOnlySpan<byte>((byte*)data->Data, data->Length);
+        var byteOffset = 0;
+        var characterOffset = 0L;
+        var copied = 0;
+
+        while (byteOffset < bytes.Length)
+        {
+            var status = Rune.DecodeFromUtf8(bytes[byteOffset..], out var rune, out var bytesConsumed);
+            if (status != OperationStatus.Done)
+            {
+                rune = Rune.ReplacementChar;
+                bytesConsumed = 1;
+            }
+
+            var runeLength = rune.Utf16SequenceLength;
+            var charactersToSkip = dataOffset - characterOffset;
+            if (charactersToSkip > 0)
+            {
+                if (charactersToSkip < runeLength && buffer != null && copied < length)
+                {
+                    buffer[bufferOffset + copied++] = GetSurrogate(rune, charactersToSkip);
+                }
+            }
+            else if (buffer != null && copied < length)
+            {
+                var charactersToCopy = Math.Min(runeLength, length - copied);
+                WriteRune(rune, buffer, bufferOffset + copied, charactersToCopy);
+                copied += charactersToCopy;
+            }
+
+            byteOffset += bytesConsumed;
+            characterOffset += runeLength;
+
+            if (buffer != null && copied == length)
+            {
+                return copied;
+            }
+        }
+
+        return buffer == null ? characterOffset : copied;
+    }
+
+    private static char GetSurrogate(Rune rune, long offset)
+    {
+        var value = rune.Value - 0x10000;
+        return (char)(offset == 0 ? (value >> 10) + 0xD800 : (value & 0x3FF) + 0xDC00);
+    }
+
+    private static void WriteRune(Rune rune, char[] buffer, int offset, int length)
+    {
+        buffer[offset] = rune.Utf16SequenceLength == 1
+            ? (char)rune.Value
+            : GetSurrogate(rune, 0);
+
+        if (length > 1)
+        {
+            buffer[offset + 1] = GetSurrogate(rune, 1);
+        }
     }
 
     private unsafe Stream GetStream(ulong offset)

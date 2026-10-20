@@ -753,6 +753,37 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    public void GetCharsReadsLargeUtf8ValuesInUtf16Chunks()
+    {
+        var expected = string.Concat(Enumerable.Repeat("aéქართული😀𐐷", 2_000));
+        Command.CommandText = "SELECT ?::VARCHAR";
+        Command.Parameters.Add(new DuckDBParameter(expected));
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetChars(0, 0, null, 0, 0).Should().Be(expected.Length);
+
+        var buffer = new char[1_024];
+        var result = new StringBuilder(expected.Length);
+        for (var dataOffset = 0L; dataOffset < expected.Length;)
+        {
+            var read = reader.GetChars(0, dataOffset, buffer, 0, buffer.Length);
+            result.Append(buffer, 0, (int)read);
+            dataOffset += read;
+        }
+
+        result.ToString().Should().Be(expected);
+
+        var surrogateOffset = expected.IndexOf("😀", StringComparison.Ordinal) + 1;
+        var splitBuffer = new char[1];
+        reader.GetChars(0, surrogateOffset, splitBuffer, 0, 1).Should().Be(1);
+        splitBuffer[0].Should().Be(expected[surrogateOffset]);
+        reader.GetChars(0, surrogateOffset + 1, splitBuffer, 0, 1).Should().Be(1);
+        splitBuffer[0].Should().Be(expected[surrogateOffset + 1]);
+    }
+
+    [Fact]
     public void ReadHugeIntAsDuckDBHugeInt()
     {
         Command.CommandText = "SELECT 170141183460469231731687303715884105727::HUGEINT, (-170141183460469231731687303715884105728)::HUGEINT, (-5)::HUGEINT, " +
@@ -842,6 +873,65 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         using var reader = Command.ExecuteReader();
 
         reader.Invoking(r => r.GetOrdinal("missing")).Should().Throw<IndexOutOfRangeException>();
+    }
+
+    // https://learn.microsoft.com/dotnet/api/system.data.idatarecord.getbytes: reads "from the specified column offset
+    // into the buffer as an array, starting at the given buffer offset"; "If you pass a buffer that is null, GetBytes
+    // returns the length of the row in bytes."
+    [Fact]
+    public void GetBytesReadsABlobWholeOrInParts()
+    {
+        Command.CommandText = "SELECT '\\x01\\x02\\x03\\x04'::BLOB";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        reader.GetBytes(0, 0, null, 0, 0).Should().Be(4);
+
+        var whole = new byte[6];
+        reader.GetBytes(0, 0, whole, 0, 6).Should().Be(4);
+        whole.Should().Equal(1, 2, 3, 4, 0, 0);
+
+        var part = new byte[5];
+        reader.GetBytes(0, 1, part, 2, 2).Should().Be(2);
+        part.Should().Equal(0, 0, 2, 3, 0);
+
+        reader.GetBytes(0, 4, part, 0, 1).Should().Be(0, "there is nothing past the end of the value");
+    }
+
+    // https://learn.microsoft.com/dotnet/api/system.data.idatarecord.getchars: "If you pass a buffer that is null,
+    // GetChars returns the length of the field in characters."
+    [Fact]
+    public void GetCharsReadsAStringWholeOrInParts()
+    {
+        Command.CommandText = "SELECT 'ab¢d'";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        reader.GetChars(0, 0, null, 0, 0).Should().Be(4, "the length is in characters, not UTF-8 bytes");
+
+        var whole = new char[6];
+        reader.GetChars(0, 0, whole, 0, 6).Should().Be(4);
+        whole.Should().Equal('a', 'b', '¢', 'd', '\0', '\0');
+
+        var part = new char[5];
+        reader.GetChars(0, 1, part, 2, 2).Should().Be(2);
+        part.Should().Equal('\0', '\0', 'b', '¢', '\0');
+
+        reader.GetChars(0, 4, part, 0, 1).Should().Be(0);
+    }
+
+    [Fact]
+    public void GetBytesAndGetCharsRejectOffsetsOutsideTheBuffer()
+    {
+        Command.CommandText = "SELECT '\\x01\\x02'::BLOB, 'ab'";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        reader.Invoking(r => r.GetBytes(0, -1, new byte[2], 0, 2)).Should().Throw<ArgumentOutOfRangeException>();
+        reader.Invoking(r => r.GetBytes(0, 0, new byte[2], 3, 1)).Should().Throw<ArgumentOutOfRangeException>();
+        reader.Invoking(r => r.GetBytes(0, 0, new byte[2], 1, 2)).Should().Throw<ArgumentOutOfRangeException>();
+        reader.Invoking(r => r.GetChars(1, -1, new char[2], 0, 2)).Should().Throw<ArgumentOutOfRangeException>();
+        reader.Invoking(r => r.GetChars(1, 0, new char[2], 1, 2)).Should().Throw<ArgumentOutOfRangeException>();
     }
 
     // https://learn.microsoft.com/dotnet/api/system.data.idatarecord.getvalues: "You can pass an Object array that
