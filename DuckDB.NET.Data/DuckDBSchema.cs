@@ -144,16 +144,17 @@ internal static class DuckDBSchema
         foreach (var (typeName, logicalTypeName) in types.Values.OrderBy(type => type.TypeName, StringComparer.OrdinalIgnoreCase))
         {
             var providerType = ParseDuckDBType(logicalTypeName);
+            var displayTypeName = typeName.Equals(logicalTypeName, StringComparison.OrdinalIgnoreCase) ? logicalTypeName : typeName;
 
             AddType(
-                table, typeName, providerType, GetClrType(providerType),
-                createFormat: providerType == DuckDBType.Decimal ? "DECIMAL({0},{1})" : typeName,
+                table, displayTypeName, providerType, GetClrType(providerType),
+                createFormat: GetCreateFormat(providerType, displayTypeName),
                 createParameters: providerType == DuckDBType.Decimal ? "precision,scale" : null,
                 isUnsigned: providerType is DuckDBType.UnsignedTinyInt or DuckDBType.UnsignedSmallInt
                     or DuckDBType.UnsignedInteger or DuckDBType.UnsignedBigInt or DuckDBType.UnsignedHugeInt,
                 isCaseSensitive: providerType == DuckDBType.Varchar,
                 isLong: providerType == DuckDBType.Blob,
-                isBestMatch: typeName.Equals(logicalTypeName, StringComparison.OrdinalIgnoreCase),
+                isBestMatch: displayTypeName.Equals(logicalTypeName, StringComparison.Ordinal),
                 nativeTypeName: logicalTypeName);
         }
 
@@ -204,6 +205,14 @@ internal static class DuckDBSchema
         "GEOMETRY" => DuckDBType.Geometry,
         "VARIANT" => DuckDBType.Variant,
         _ => DuckDBType.Invalid
+    };
+
+    private static string? GetCreateFormat(DuckDBType type, string typeName) => type switch
+    {
+        DuckDBType.Decimal => "DECIMAL({0},{1})",
+        DuckDBType.List or DuckDBType.Array or DuckDBType.Struct or DuckDBType.Map or DuckDBType.Union
+            or DuckDBType.Enum or DuckDBType.SqlNull or DuckDBType.Invalid or DuckDBType.Any => null,
+        _ => typeName
     };
 
     private static Type GetClrType(DuckDBType type) => type switch

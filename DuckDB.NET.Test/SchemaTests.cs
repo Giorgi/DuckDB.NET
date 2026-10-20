@@ -174,6 +174,20 @@ public class SchemaTests : DuckDBTestBase
     }
 
     [Fact]
+    public void DataTypesUseCanonicalNamesOnFreshConnection()
+    {
+        using var connection = new DuckDBConnection("DataSource=:memory:");
+        connection.Open();
+
+        var schema = connection.GetSchema("DataTypes");
+        var integer = schema.Rows.Cast<DataRow>().Single(row => (string)row["TypeName"] == "INTEGER");
+        var list = schema.Rows.Cast<DataRow>().Single(row => (string)row["TypeName"] == "LIST");
+
+        Assert.Equal("INTEGER", integer["CreateFormat"]);
+        Assert.Equal(DBNull.Value, list["CreateFormat"]);
+    }
+
+    [Fact]
     public void DataTypesExposeEveryDuckDbType()
     {
         var schema = Connection.GetSchema("DataTypes");
