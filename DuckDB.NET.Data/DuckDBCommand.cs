@@ -19,7 +19,7 @@ public class DuckDBCommand : DbCommand
     public new virtual DuckDBParameterCollection Parameters => parameters;
 
     public override int CommandTimeout { get; set; }
-    public override CommandType CommandType { get; set; }
+    public override CommandType CommandType { get; set; } = CommandType.Text;
     public override bool DesignTimeVisible { get; set; }
     public override UpdateRowSource UpdatedRowSource { get; set; }
 
