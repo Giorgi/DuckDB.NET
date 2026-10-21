@@ -123,7 +123,8 @@ between two runs.
   always wins, and both implicit conversions are kept. Measured with `DateAppenderBenchmark` against the
   1.5.6.1 package, .NET 10, one run, 1,000,000 rows of four columns: `DateOnly` to DATE 0.40, `TimeOnly` to
   TIME 0.59, `DateTime` to DATE (the control, which took the arithmetic path in both builds) 0.89, with a
-  standard deviation of 15% to 20% of the mean in every job.
+  standard deviation of 15% to 20% of the mean in every job. On the Azure VM (F8as_v7, 4 launches, deviation 1%
+  to 4%), against the commit before: `DateOnly` 0.33, `TimeOnly` 0.54, the control 1.01.
 
 ### 7. A HUGEINT is built from a `BigInteger` through `Int128`
 
