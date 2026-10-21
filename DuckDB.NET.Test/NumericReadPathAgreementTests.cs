@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Reflection;
 
@@ -45,6 +46,49 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
         Zero = 0,
     }
 
+    private enum SByteEnum : sbyte
+    {
+        Zero = 0,
+    }
+
+    private enum ByteEnum : byte
+    {
+        Zero = 0,
+    }
+
+    private enum LongEnum : long
+    {
+        Zero = 0,
+    }
+
+    // The targets of an ENUM column: its name, its position as an integer type and as a C# enum of each size, and
+    // types it refuses.
+    private static readonly Type[] EnumTargets =
+    [
+        typeof(sbyte), typeof(short), typeof(int), typeof(long), typeof(byte), typeof(ushort), typeof(uint), typeof(ulong),
+        typeof(BigInteger), typeof(string), typeof(SByteEnum), typeof(ByteEnum), typeof(IntEnum), typeof(LongEnum),
+        typeof(float), typeof(double), typeof(decimal), typeof(DuckDBHugeInt),
+    ];
+
+    // An enum of 3 names is stored in 1 byte, one of 300 names in 2 bytes, one of 70,000 names in 4 bytes.
+    public static IEnumerable<object[]> EnumCases()
+    {
+        foreach (var position in new[] { 0, 1, 2 })
+        {
+            yield return [3, position];
+        }
+
+        foreach (var position in new[] { 0, 127, 128, 255, 256, 299 })
+        {
+            yield return [300, position];
+        }
+
+        foreach (var position in new[] { 32768, 65536 })
+        {
+            yield return [70000, position];
+        }
+    }
+
     public static IEnumerable<object[]> Cases()
     {
         foreach (var column in Columns)
@@ -62,7 +106,7 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
     [MemberData(nameof(Cases))]
     public void EveryPathReadsANumberLikeTheColumn(string column, string literal)
     {
-        using var reader = ReadOnEveryPathQuery(column, literal);
+        using var reader = ReadOnEveryPathQuery($"TRY_CAST({literal} AS {column})");
 
         // TRY_CAST gives NULL when the column type cannot hold the value; such a case has nothing to read.
         if (!reader.Read())
@@ -86,6 +130,7 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
             outcomes[2].Should().Be(onColumn, $"{literal} as {column} read as {target.Name}: a struct field");
             outcomes[3].Should().Be(onColumn, $"{literal} as {column} read as {target.Name}: a map value");
             outcomes[4].Should().Be(onColumn, $"{literal} as {column} read as {target.Name}: a map key");
+            outcomes[5].Should().Be(onColumn, $"{literal} as {column} read as {target.Name}: a Collection item");
 
             // The same through the nullable forms, which the list, struct and map readers unwrap to the type under
             // them. A map key cannot be null, so it has no nullable form here.
@@ -97,6 +142,7 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
                 nullable[1].Should().Be(onColumn, $"{literal} as {column} read as {target.Name}?: a list item");
                 nullable[2].Should().Be(onColumn, $"{literal} as {column} read as {target.Name}?: a struct field");
                 nullable[3].Should().Be(onColumn, $"{literal} as {column} read as {target.Name}?: a map value");
+                nullable[4].Should().Be(onColumn, $"{literal} as {column} read as {target.Name}?: a Collection item");
             }
         }
 
@@ -112,6 +158,80 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
         asObject[2].Should().Be(isDecimal ? asObject[0] : nameof(InvalidCastException), $"{literal} as {column} read as object: a struct field");
         asObject[3].Should().Be(nameof(InvalidCastException), $"{literal} as {column} read as object: a map value");
         asObject[4].Should().Be(nameof(InvalidCastException), $"{literal} as {column} read as object: a map key");
+        asObject[5].Should().Be(nameof(InvalidCastException), $"{literal} as {column} read as object: a Collection item");
+    }
+
+    // An ENUM value read as every target type, on every path, as the numbers are above. The column reads as its name
+    // (string), as its position (an integer type, if it fits) and as a C# enum of any size, and refuses the rest.
+    [Theory]
+    [MemberData(nameof(EnumCases))]
+    public void EveryPathReadsAnEnumLikeTheColumn(int names, int position)
+    {
+        var enumType = names > 1000 ? CreateLargeEnumType(names) : $"ENUM({string.Join(", ", Enumerable.Range(0, names).Select(i => $"'v{i}'"))})";
+        using var reader = ReadOnEveryPathQuery($"'v{position}'::{enumType}");
+        reader.Read().Should().BeTrue();
+
+        foreach (var target in EnumTargets)
+        {
+            var outcomes = (string[])ReadOnEveryPathMethod.MakeGenericMethod(target).Invoke(null, [reader]);
+            var onColumn = outcomes[0];
+
+            onColumn.Should().Be(ExpectedEnumOutcome(target, position), $"ENUM of {names} names at {position} read as {target.Name}: the column");
+
+            outcomes[1].Should().Be(onColumn, $"ENUM of {names} names at {position} read as {target.Name}: a list item");
+            outcomes[2].Should().Be(onColumn, $"ENUM of {names} names at {position} read as {target.Name}: a struct field");
+            outcomes[3].Should().Be(onColumn, $"ENUM of {names} names at {position} read as {target.Name}: a map value");
+            outcomes[4].Should().Be(onColumn, $"ENUM of {names} names at {position} read as {target.Name}: a map key");
+            outcomes[5].Should().Be(onColumn, $"ENUM of {names} names at {position} read as {target.Name}: a Collection item");
+
+            if (target.IsValueType)
+            {
+                var nullable = (string[])ReadOnEveryNullablePathMethod.MakeGenericMethod(target).Invoke(null, [reader]);
+
+                nullable.Should().AllBe(onColumn, $"ENUM of {names} names at {position} read as {target.Name}?");
+            }
+        }
+
+        // object: the column gives the name. A list and a map of object are refused on purpose, and a struct field into
+        // an object property throws today (the known gap of every column type but DECIMAL).
+        var asObject = ReadOnEveryPath<object>(reader);
+
+        asObject[0].Should().Be($"String v{position}");
+        asObject.Skip(1).Should().AllBe(nameof(InvalidCastException), $"ENUM of {names} names at {position} read as object");
+    }
+
+    private static string ExpectedEnumOutcome(Type target, int position)
+    {
+        if (target == typeof(string)) return $"String v{position}";
+        if (target.IsEnum) return $"{target.Name} {Enum.ToObject(target, position)}";
+        if (target == typeof(BigInteger)) return $"BigInteger {position}";
+
+        if (target == typeof(sbyte)) return position <= sbyte.MaxValue ? $"SByte {position}" : nameof(InvalidCastException);
+        if (target == typeof(byte)) return position <= byte.MaxValue ? $"Byte {position}" : nameof(InvalidCastException);
+        if (target == typeof(short)) return position <= short.MaxValue ? $"Int16 {position}" : nameof(InvalidCastException);
+        if (target == typeof(ushort)) return position <= ushort.MaxValue ? $"UInt16 {position}" : nameof(InvalidCastException);
+        if (target == typeof(int) || target == typeof(uint) || target == typeof(long) || target == typeof(ulong))
+        {
+            return $"{target.Name} {position}";
+        }
+
+        return nameof(InvalidCastException);
+    }
+
+    // An enum of more than 65,535 names, too long to write out in the query. Created once per database.
+    private string CreateLargeEnumType(int names)
+    {
+        var name = $"enum_of_{names}";
+
+        Command.CommandText = $"SELECT count(*) FROM duckdb_types() WHERE type_name = '{name}'";
+
+        if (Convert.ToInt64(Command.ExecuteScalar(), CultureInfo.InvariantCulture) == 0)
+        {
+            Command.CommandText = $"CREATE TYPE {name} AS ENUM (SELECT 'v' || i FROM range({names}) t(i))";
+            Command.ExecuteNonQuery();
+        }
+
+        return name;
     }
 
     [Fact]
@@ -253,10 +373,10 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
         reader.GetProviderSpecificValue(3).Should().BeOfType<List<DuckDBDecimal>>();
     }
 
-    private DuckDBDataReader ReadOnEveryPathQuery(string column, string literal)
+    private DuckDBDataReader ReadOnEveryPathQuery(string expression)
     {
         Command.CommandText = $$"""
-            WITH t AS (SELECT TRY_CAST({{literal}} AS {{column}}) AS c)
+            WITH t AS (SELECT {{expression}} AS c)
             SELECT c, [c] AS list, {'v': c} AS struct, MAP {1::INTEGER: c} AS map_value, MAP {c: 1::INTEGER} AS map_key
             FROM t WHERE c IS NOT NULL
             """;
@@ -264,8 +384,9 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
         return Command.ExecuteReader();
     }
 
-    // The outcome of reading the row as T on each path: the column, a list item, a struct field, a map value and a
-    // map key. A value is its type and its text, an exception is its type.
+    // The outcome of reading the row as T on each path: the column, a list item, a struct field, a map value, a map
+    // key and a Collection item. A value is its type and its text, an exception is its type. A List<T> may read its
+    // items on the typed path; a Collection<T> reads them through GetValue(offset, Type), the object path.
     private static string[] ReadOnEveryPath<T>(DuckDBDataReader reader)
     {
         return
@@ -275,6 +396,7 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
             Outcome(() => reader.GetFieldValue<Holder<T>>(2).V),
             Outcome(() => reader.GetFieldValue<Dictionary<int, T>>(3)[1]),
             Outcome(() => reader.GetFieldValue<Dictionary<T, int>>(4).Keys.Single()),
+            Outcome(() => reader.GetFieldValue<Collection<T>>(1)[0]),
         ];
     }
 
@@ -286,7 +408,8 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
         return target == typeof(IntEnum);
     }
 
-    // The same with T? as the requested type: the column, a list item, a struct field and a map value.
+    // The same with T? as the requested type: the column, a list item, a struct field, a map value and a Collection
+    // item.
     private static string[] ReadOnEveryNullablePath<T>(DuckDBDataReader reader) where T : struct
     {
         return
@@ -295,6 +418,7 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
             Outcome(() => reader.GetFieldValue<List<T?>>(1)[0]),
             Outcome(() => reader.GetFieldValue<Holder<T?>>(2).V),
             Outcome(() => reader.GetFieldValue<Dictionary<int, T?>>(3)[1]),
+            Outcome(() => reader.GetFieldValue<Collection<T?>>(1)[0]),
         ];
     }
 

@@ -524,6 +524,11 @@ ENUM row, and `TemporalConversionTests.cs` and `Parameters/TimeTests.cs` the dat
   read. So the table above holds for all of them. Pinned by `NumericReadPathAgreementTests`. Before 2.0 the
   `object` path used `Convert.ChangeType`: an integer read as `BigInteger`, and a HUGEINT, UHUGEINT or VARINT read
   as an integer type, threw there, and a DECIMAL read as another type failed with `ArgumentException`.
+- **ENUM follows the same rule.** `EnumVectorDataReader.GetValue(offset, Type)` gives the name for `string`, uses
+  `Enum.ToObject` for a C# enum (the type is known only at run time; it keeps the bytes that fit, as the typed
+  path's `ToEnum` does), maps the integer types and `BigInteger` to `GetValidValue<X>`, and refuses the rest with
+  the typed path's message. It used to call `Enum.ToObject` for every type, so an ENUM read as an integer type in a
+  list, a map or a struct threw `ArgumentException`. Pinned by `EveryPathReadsAnEnumLikeTheColumn`.
 - **Not the same on purpose:** a list of `object` and a dictionary with `object` keys or values are refused with
   their own message, where `GetFieldValue<object>` on a column gives the value.
 - **Planned for the next major version:** a value with a fraction read as an integer type will throw instead of
