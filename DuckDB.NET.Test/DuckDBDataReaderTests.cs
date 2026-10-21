@@ -616,10 +616,10 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [Fact]
     public void ReadDecimalSchemaWithoutTableRow()
     {
-        Command.CommandText = "CREATE TABLE decimaltbl(foo decimal(10,2));";
+        Command.CommandText = "CREATE TABLE decimaltbl_empty(foo decimal(10,2));";
         Command.ExecuteNonQuery();
 
-        Command.CommandText = "SELECT foo FROM decimaltbl";
+        Command.CommandText = "SELECT foo FROM decimaltbl_empty";
         using var reader = Command.ExecuteReader();
 
         var schemaTable = reader.GetSchemaTable();
