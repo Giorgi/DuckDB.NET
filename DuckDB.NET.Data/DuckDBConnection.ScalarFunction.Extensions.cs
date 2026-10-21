@@ -13,6 +13,11 @@ public static class DuckDBConnectionScalarFunctionExtensions
     // the public interfaces. GetValue<T> and WriteValue<T> are generic methods: called through an interface, such a
     // method is looked up at run time on every call, which is once or more for every row. On the classes they are
     // called directly.
+    //
+    // NULL arguments. With no nullable parameter, a function is registered without special handling. DuckDB then
+    // answers a constant NULL argument itself, but for a column it calls the function with the whole chunk, NULL rows
+    // included. So the loops test every argument of every row and write NULL without calling the function when one is
+    // NULL: a column behaves as a constant does.
     extension(DuckDBConnection connection)
     {
         public void RegisterScalarFunction<TResult>(string name, Func<TResult> func)
@@ -38,6 +43,12 @@ public static class DuckDBConnectionScalarFunctionExtensions
 
                 for (ulong index = 0; index < rowCount; index++)
                 {
+                    if (!anyNullable && !reader.IsValid(index))
+                    {
+                        writer.WriteNull(index);
+                        continue;
+                    }
+
                     var result = func(ReadValue<T>(reader, index, nullable, anyNullable));
                     if (typeof(TResult).IsValueType && default(TResult) is null) WriteResult(writer, result, index); else writer.WriteValue(result, index);
                 }
@@ -64,6 +75,12 @@ public static class DuckDBConnectionScalarFunctionExtensions
 
                 for (ulong index = 0; index < rowCount; index++)
                 {
+                    if (!anyNullable && !(reader1.IsValid(index) && reader2.IsValid(index)))
+                    {
+                        writer.WriteNull(index);
+                        continue;
+                    }
+
                     var result = func(ReadValue<T1>(reader1, index, nullable1, anyNullable), ReadValue<T2>(reader2, index, nullable2, anyNullable));
                     if (typeof(TResult).IsValueType && default(TResult) is null) WriteResult(writer, result, index); else writer.WriteValue(result, index);
                 }
@@ -84,6 +101,12 @@ public static class DuckDBConnectionScalarFunctionExtensions
 
                 for (ulong index = 0; index < rowCount; index++)
                 {
+                    if (!anyNullable && !(reader1.IsValid(index) && reader2.IsValid(index) && reader3.IsValid(index)))
+                    {
+                        writer.WriteNull(index);
+                        continue;
+                    }
+
                     var result = func(ReadValue<T1>(reader1, index, nullable1, anyNullable), ReadValue<T2>(reader2, index, nullable2, anyNullable),
                                     ReadValue<T3>(reader3, index, nullable3, anyNullable));
                     if (typeof(TResult).IsValueType && default(TResult) is null) WriteResult(writer, result, index); else writer.WriteValue(result, index);
@@ -106,6 +129,12 @@ public static class DuckDBConnectionScalarFunctionExtensions
 
                 for (ulong index = 0; index < rowCount; index++)
                 {
+                    if (!anyNullable && !(reader1.IsValid(index) && reader2.IsValid(index) && reader3.IsValid(index) && reader4.IsValid(index)))
+                    {
+                        writer.WriteNull(index);
+                        continue;
+                    }
+
                     var result = func(ReadValue<T1>(reader1, index, nullable1, anyNullable), ReadValue<T2>(reader2, index, nullable2, anyNullable),
                                     ReadValue<T3>(reader3, index, nullable3, anyNullable), ReadValue<T4>(reader4, index, nullable4, anyNullable));
                     if (typeof(TResult).IsValueType && default(TResult) is null) WriteResult(writer, result, index); else writer.WriteValue(result, index);
@@ -180,16 +209,33 @@ public static class DuckDBConnectionScalarFunctionExtensions
     // checksNulls: true when any parameter in the function is nullable (special handling active).
     // Needed because set_special_handling is function-level — DuckDB sends NULLs for ALL params,
     // so non-nullable params must also check and throw a descriptive error.
+    // When it is false, the loop has already tested every argument of the row, so the value is read without a second
+    // test. T is then not a Nullable<>, since such a parameter would have made checksNulls true.
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static T ReadValue<T>(VectorDataReaderBase reader, ulong index, bool isNullable, bool checksNulls)
     {
-        if (checksNulls && !reader.IsValid(index))
+        if (checksNulls)
         {
-            if (isNullable) return default!;
-            ThrowNullReceivedByNonNullableParam<T>();
+            if (!reader.IsValid(index))
+            {
+                if (isNullable) return default!;
+                ThrowNullReceivedByNonNullableParam<T>();
+            }
+
+            return typeof(T) == typeof(object) ? (T)reader.GetValue(index) : reader.GetValue<T>(index);
         }
 
-        return typeof(T) == typeof(object) ? (T)reader.GetValue(index) : reader.GetValue<T>(index);
+        return typeof(T) == typeof(object) ? (T)reader.GetValue(index, reader.ClrType) : reader.ReadValidValue<T>(index);
+    }
+
+    private static bool AllValid(VectorDataReaderBase[] readers, ulong index)
+    {
+        foreach (var reader in readers)
+        {
+            if (!reader.IsValid(index)) return false;
+        }
+
+        return true;
     }
 
     [DoesNotReturn]
@@ -208,6 +254,12 @@ public static class DuckDBConnectionScalarFunctionExtensions
 
             for (ulong index = 0; index < rowCount; index++)
             {
+                if (!elementNullable && !AllValid(readers, index))
+                {
+                    writer.WriteNull(index);
+                    continue;
+                }
+
                 for (int r = 0; r < readers.Length; r++)
                 {
                     args[r] = ReadValue<T>(readers[r], index, elementNullable, elementNullable);

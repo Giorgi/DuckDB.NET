@@ -556,10 +556,67 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Connection.RegisterScalarFunction("non_nullable",
             (Func<int, string>)(x => x.ToString()));
 
-        // Non-nullable param: DuckDB auto-propagates NULL (function never called)
+        // Non-nullable param and a constant NULL: DuckDB answers NULL itself and never calls the function
         Command.CommandText = "SELECT non_nullable(NULL::INT)";
         var result = Command.ExecuteScalar();
         result.Should().Be(DBNull.Value);
+    }
+
+    // For a column, DuckDB calls a function without special handling with the whole chunk, NULL rows included. A row
+    // with a NULL argument gets NULL and the function is not called for it, as for a constant. 5000 rows span three
+    // chunks.
+    [Fact]
+    public void SimplifiedScalarFunctionNonNullableParamsGiveNullForANullInAColumn()
+    {
+        var calls = 0;
+        Connection.RegisterScalarFunction<int, int>("plus_one_col", x => { System.Threading.Interlocked.Increment(ref calls); return x + 1; });
+
+        var rows = Connection.Query<(long I, int? Result)>(
+            "SELECT i, plus_one_col(CASE WHEN i % 7 = 0 THEN NULL ELSE i::INT END) FROM range(5000) t(i) ORDER BY i").ToList();
+
+        rows.Should().HaveCount(5000);
+        rows.Should().OnlyContain(row => row.Result == (row.I % 7 == 0 ? null : (int?)(row.I + 1)));
+        calls.Should().Be(5000 - 715);
+    }
+
+    // A reference type parameter that is not declared nullable is not called with null either. (Nullable reference
+    // types are off in this project, so the parameter is not declared nullable.)
+    [Fact]
+    public void SimplifiedScalarFunctionNonNullableStringParamIsNotCalledForANullInAColumn()
+    {
+        Connection.RegisterScalarFunction<string, string>("upper_col", s => s.ToUpperInvariant());
+
+        var rows = Connection.Query<string>(
+            "SELECT upper_col(CASE WHEN i = 1 THEN NULL ELSE 'v' || i END) FROM range(3) t(i) ORDER BY i").ToList();
+
+        rows.Should().Equal("V0", null, "V2");
+    }
+
+    // A list result after a NULL row must still have the right offsets. 5000 rows span three chunks.
+    [Fact]
+    public void SimplifiedScalarFunctionNonNullableListParamGivesNullForANullListInAColumn()
+    {
+        Connection.RegisterScalarFunction<List<int>, List<int>>("twice_col", list => [.. list, .. list]);
+
+        var rows = Connection.Query<(long I, List<int> Result)>(
+            "SELECT i, twice_col(CASE WHEN i % 3 = 0 THEN NULL ELSE [i::INT] END) FROM range(5000) t(i) ORDER BY i").ToList();
+
+        rows.Should().HaveCount(5000);
+        rows.Should().OnlyContain(row => row.I % 3 == 0 ? row.Result == null : row.Result.SequenceEqual(new[] { (int)row.I, (int)row.I }));
+    }
+
+    [Fact]
+    public void SimplifiedScalarFunctionNonNullableParamsGiveNullForANullInAnyColumn()
+    {
+        Connection.RegisterScalarFunction<int, int, int>("add_col", (a, b) => a + b);
+        Connection.RegisterScalarFunction<int, int, int, int, int>("add4_col", (a, b, c, d) => a + b + c + d);
+        Connection.RegisterScalarFunction<int, int>("sum_col", args => args.Sum());
+
+        var rows = Connection.Query<(int? Two, int? Four, int? Varargs)>(
+            "SELECT add_col(a, b), add4_col(a, b, 1, b), sum_col(a, b, 1) " +
+            "FROM (VALUES (1, 1, 2), (2, NULL, 2), (3, 1, NULL), (4, NULL, NULL)) t(n, a, b) ORDER BY n").ToList();
+
+        rows.Should().Equal((3, 6, 4), (null, null, null), (null, null, null), (null, null, null));
     }
 
     [Fact]
