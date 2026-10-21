@@ -392,6 +392,24 @@ not use profile data to guess the target as it does for a plain virtual call.
   of a map and every field of a struct is still read as an object and boxed, and such a list is still made by
   `Activator` and grows. They convert by the typed path's rules since 2.0 item 4 (see "Behaviour"), so reading
   them on the typed path is now a change of speed only.
+- **Done in 2.0 for lists** (item 6): the list half of the bullet above. A builder (`ValueListBuilder<T>`,
+  `NullableListBuilder<T>`, `ReferenceListBuilder<T>`) now fills the list, chosen once per column by `CreatePlan`;
+  it replaces `BuildList<T>` and `BuildNullableList<T>` of the eight types. It tests an item for NULL once and reads
+  it with `ReadValidValue<T>`, the conversion of `GetFieldValue<T>` on a column. A `List<T>` is created by the
+  builder at its size; a generic class derived from `List<T>` is created by `Activator`, given the capacity, and
+  filled by the builder; any other collection (`Collection<T>`, ...) is filled through `IList` with each item read
+  as an object, as before. `Build` is one plain virtual call per row.
+  - The builders for the common element types are named in `CreateBuilder`, as the nullable reader names its types
+    (decision 6), so an application compiled ahead of time has their code. Any other element type (an enum of the
+    caller, a nested list) gets a builder through `MakeGenericType` where `RuntimeFeature.IsDynamicCodeSupported`,
+    and none where it is not. Without a builder the items are read as objects, as before, and that object path also
+    needs the list type's constructor: under Native AOT, `Activator.CreateInstance` throws `MissingMethodException`
+    for a collection type the application does not create itself. That was so before for every element type but
+    the eight; a named type now works under Native AOT.
+  - What changed, pair by pair, is in `issues/2.0-item6-typed-lists.md`: no value changed and nothing that gave a
+    value throws; integers and ENUM as `BigInteger`, VARINT and HUGEINT as a narrower integer, ENUM as a number and
+    BIT as `BitArray` now read; a mismatched item throws `InvalidCastException` where `IList.Add` threw
+    `ArgumentException`. Maps and structs are item 7.
 
 ### Smaller decisions
 

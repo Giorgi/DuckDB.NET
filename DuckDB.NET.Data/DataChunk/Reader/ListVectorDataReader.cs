@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Data.DataChunk.Reader;
@@ -61,21 +62,13 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
             planType = returnType;
         }
 
-        // The eight types read without boxing an item. The list is created with room for every item.
-        var capacity = (int)length;
-
-        return plan.Kind switch
+        // A List<T> itself is created by the builder, with room for every item.
+        if (plan.IsExactList)
         {
-            ListKind.Int32 => BuildList(new List<int>(capacity), listOffset, length),
-            ListKind.NullableInt32 => BuildNullableList(new List<int?>(capacity), listOffset, length),
-            ListKind.Float => BuildList(new List<float>(capacity), listOffset, length),
-            ListKind.NullableFloat => BuildNullableList(new List<float?>(capacity), listOffset, length),
-            ListKind.Double => BuildList(new List<double>(capacity), listOffset, length),
-            ListKind.NullableDouble => BuildNullableList(new List<double?>(capacity), listOffset, length),
-            ListKind.Decimal => BuildList(new List<decimal>(capacity), listOffset, length),
-            ListKind.NullableDecimal => BuildNullableList(new List<decimal?>(capacity), listOffset, length),
-            _ => BuildOtherList(returnType, listOffset, length)
-        };
+            return plan.Builder!.Build(null, listDataReader, listOffset, length);
+        }
+
+        return BuildOtherList(returnType, listOffset, length);
     }
 
     // Not inlined: the reflection in it makes GetList set up a frame for a native call, on every row, when it is.
@@ -96,69 +89,94 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
 
         var allowNulls = listType.AllowsNullValue(out _, out var nullableType);
 
-        // Only the list types themselves. A class derived from one of them is created as itself, below.
-        var kind = returnType == typeof(List<int>) ? ListKind.Int32
-            : returnType == typeof(List<int?>) ? ListKind.NullableInt32
-            : returnType == typeof(List<float>) ? ListKind.Float
-            : returnType == typeof(List<float?>) ? ListKind.NullableFloat
-            : returnType == typeof(List<double>) ? ListKind.Double
-            : returnType == typeof(List<double?>) ? ListKind.NullableDouble
-            : returnType == typeof(List<decimal>) ? ListKind.Decimal
-            : returnType == typeof(List<decimal?>) ? ListKind.NullableDecimal
-            : ListKind.Other;
+        // A builder reads the items on the typed path. It serves List<T> and every class derived from it. Without a
+        // builder (another collection type, or an element type that needs code the application cannot make), the
+        // items are read as objects.
+        var listBase = FindListBase(returnType);
+        var builder = listBase != null ? CreateBuilder(listBase.GetGenericArguments()[0]) : null;
 
-        return new ListPlan(kind, nullableType ?? listType, allowNulls);
+        return new ListPlan(builder, builder != null && listBase == returnType, nullableType ?? listType, allowNulls);
     }
 
-    // Any other type: created as itself and filled through IList, with each item read as an object. A class derived
-    // from one of the eight list types still gets the typed loop.
+    // The List<T> that the type is or derives from, or null.
+    private static Type? FindListBase(Type type)
+    {
+        for (var current = type; current != null; current = current.BaseType)
+        {
+            if (current.IsGenericType && current.GetGenericTypeDefinition() == typeof(List<>))
+            {
+                return current;
+            }
+        }
+
+        return null;
+    }
+
+    // The builder for a List<T>. As for nullable reads (decision 6 of DESIGN.md), the types an application reads
+    // most are named, so that an application compiled ahead of time has the code for them. Any other type, such as
+    // an enum of the caller or a nested list, is made through reflection where code can be made at run time, and
+    // gets no builder where it cannot.
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(ValueListBuilder<>))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(NullableListBuilder<>))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(ReferenceListBuilder<>))]
+    [UnconditionalSuppressMessage("Trimming", "IL2071", Justification = "The new() constraint that 'where T : struct' implies is met by every value type, and the builders' constructors are kept by the DynamicDependency attributes. The MakeGenericType calls run only where dynamic code is supported.")]
+    private static ListBuilder? CreateBuilder(Type elementType)
+    {
+        var known = Value<bool>(elementType) ?? Value<byte>(elementType) ?? Value<sbyte>(elementType)
+                    ?? Value<short>(elementType) ?? Value<ushort>(elementType) ?? Value<int>(elementType) ?? Value<uint>(elementType)
+                    ?? Value<long>(elementType) ?? Value<ulong>(elementType) ?? Value<Int128>(elementType) ?? Value<UInt128>(elementType)
+                    ?? Value<float>(elementType) ?? Value<double>(elementType) ?? Value<decimal>(elementType) ?? Value<BigInteger>(elementType)
+                    ?? Value<DateTime>(elementType) ?? Value<DateTimeOffset>(elementType) ?? Value<DateOnly>(elementType)
+                    ?? Value<TimeOnly>(elementType) ?? Value<TimeSpan>(elementType) ?? Value<Guid>(elementType)
+                    ?? Value<DuckDBDateOnly>(elementType) ?? Value<DuckDBTimeOnly>(elementType) ?? Value<DuckDBTimeTz>(elementType)
+                    ?? Value<DuckDBTimestamp>(elementType) ?? Value<DuckDBInterval>(elementType)
+                    ?? Value<DuckDBHugeInt>(elementType) ?? Value<DuckDBUHugeInt>(elementType) ?? Value<DuckDBDecimal>(elementType)
+                    ?? Reference<string>(elementType) ?? Reference<Stream>(elementType) ?? Reference<BitArray>(elementType);
+
+        if (known != null)
+        {
+            return known;
+        }
+
+        if (!RuntimeFeature.IsDynamicCodeSupported)
+        {
+            return null;
+        }
+
+        var underlyingType = Nullable.GetUnderlyingType(elementType);
+
+        var builderType = underlyingType != null ? typeof(NullableListBuilder<>).MakeGenericType(underlyingType)
+            : elementType.IsValueType ? typeof(ValueListBuilder<>).MakeGenericType(elementType)
+            : typeof(ReferenceListBuilder<>).MakeGenericType(elementType);
+
+        return (ListBuilder)Activator.CreateInstance(builderType)!;
+    }
+
+    private static ListBuilder? Value<T>(Type elementType) where T : struct
+    {
+        if (elementType == typeof(T)) return new ValueListBuilder<T>();
+        if (elementType == typeof(T?)) return new NullableListBuilder<T>();
+        return null;
+    }
+
+    private static ListBuilder? Reference<T>(Type elementType) where T : class
+    {
+        return elementType == typeof(T) ? new ReferenceListBuilder<T>() : null;
+    }
+
+    // Any other type: created as itself. A class derived from List<T> is filled by the builder; any other collection
+    // is filled through IList, with each item read as an object.
     private IList BuildOtherList(Type returnType, ulong listOffset, ulong length)
     {
         var list = Activator.CreateInstance(returnType) as IList
                    ?? throw new ArgumentException($"The type '{returnType.Name}' specified in parameter {nameof(returnType)} cannot be instantiated as an IList.");
 
-        return list switch
+        if (plan.Builder != null)
         {
-            List<int> theList => BuildList(theList, listOffset, length),
-            List<int?> theList => BuildNullableList(theList, listOffset, length),
-            List<float> theList => BuildList(theList, listOffset, length),
-            List<float?> theList => BuildNullableList(theList, listOffset, length),
-            List<double> theList => BuildList(theList, listOffset, length),
-            List<double?> theList => BuildNullableList(theList, listOffset, length),
-            List<decimal> theList => BuildList(theList, listOffset, length),
-            List<decimal?> theList => BuildNullableList(theList, listOffset, length),
-            _ => BuildListCommon(list, listOffset, length)
-        };
-    }
-
-    // An item is tested for NULL once, here; ReadValidValue does not test it again.
-    private List<T> BuildList<T>(List<T> result, ulong listOffset, ulong length)
-    {
-        for (ulong i = 0; i < length; i++)
-        {
-            var childOffset = listOffset + i;
-
-            if (!listDataReader.IsValid(childOffset))
-            {
-                ThrowListContainsNull();
-            }
-
-            result.Add(listDataReader.ReadValidValue<T>(childOffset));
+            return plan.Builder.Build(list, listDataReader, listOffset, length);
         }
 
-        return result;
-    }
-
-    private List<T?> BuildNullableList<T>(List<T?> result, ulong listOffset, ulong length) where T : struct
-    {
-        for (ulong i = 0; i < length; i++)
-        {
-            var childOffset = listOffset + i;
-
-            result.Add(listDataReader.IsValid(childOffset) ? listDataReader.ReadValidValue<T>(childOffset) : null);
-        }
-
-        return result;
+        return BuildListCommon(list, listOffset, length);
     }
 
     private IList BuildListCommon(IList result, ulong listOffset, ulong length)
@@ -188,10 +206,79 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
     [DoesNotReturn]
     private static void ThrowListContainsNull() => throw new InvalidCastException("The list contains null value");
 
-    private enum ListKind { Other, Int32, NullableInt32, Float, NullableFloat, Double, NullableDouble, Decimal, NullableDecimal }
+    // Builder reads the items of a List<T> on the typed path, or is null. IsExactList: the target is List<T> itself,
+    // which the builder creates. ItemType is the type an item is read as on the object path: the element type, or
+    // the type under a nullable one.
+    private readonly record struct ListPlan(ListBuilder? Builder, bool IsExactList, Type ItemType, bool AllowNulls);
 
-    // ItemType is the type an item is read as on the object path: the element type, or the type under a nullable one.
-    private readonly record struct ListPlan(ListKind Kind, Type ItemType, bool AllowNulls);
+    // Reads the items of a list with ReadValidValue<T> of the child reader, the conversion of GetFieldValue<T> on a
+    // column, so an item is not boxed. One builder per column; Build is a plain virtual call per row, and the read of
+    // an item in its loop is inlined. An item is tested for NULL once, here; ReadValidValue does not test it again.
+    private abstract class ListBuilder
+    {
+        // Fills the list when one is given (a class derived from List<T>), or creates a List<T> with room for every
+        // item.
+        public abstract IList Build(IList? list, VectorDataReaderBase items, ulong listOffset, ulong length);
+    }
+
+    private sealed class ValueListBuilder<T> : ListBuilder where T : struct
+    {
+        public override IList Build(IList? list, VectorDataReaderBase items, ulong listOffset, ulong length)
+        {
+            var result = (List<T>?)list ?? new List<T>((int)length);
+            if (result.Capacity < result.Count + (int)length) result.Capacity = result.Count + (int)length;
+
+            for (ulong i = 0; i < length; i++)
+            {
+                var childOffset = listOffset + i;
+
+                if (!items.IsValid(childOffset))
+                {
+                    ThrowListContainsNull();
+                }
+
+                result.Add(items.ReadValidValue<T>(childOffset));
+            }
+
+            return result;
+        }
+    }
+
+    private sealed class NullableListBuilder<T> : ListBuilder where T : struct
+    {
+        public override IList Build(IList? list, VectorDataReaderBase items, ulong listOffset, ulong length)
+        {
+            var result = (List<T?>?)list ?? new List<T?>((int)length);
+            if (result.Capacity < result.Count + (int)length) result.Capacity = result.Count + (int)length;
+
+            for (ulong i = 0; i < length; i++)
+            {
+                var childOffset = listOffset + i;
+
+                result.Add(items.IsValid(childOffset) ? items.ReadValidValue<T>(childOffset) : null);
+            }
+
+            return result;
+        }
+    }
+
+    private sealed class ReferenceListBuilder<T> : ListBuilder where T : class
+    {
+        public override IList Build(IList? list, VectorDataReaderBase items, ulong listOffset, ulong length)
+        {
+            var result = (List<T?>?)list ?? new List<T?>((int)length);
+            if (result.Capacity < result.Count + (int)length) result.Capacity = result.Count + (int)length;
+
+            for (ulong i = 0; i < length; i++)
+            {
+                var childOffset = listOffset + i;
+
+                result.Add(items.IsValid(childOffset) ? items.ReadValidValue<T>(childOffset) : null);
+            }
+
+            return result;
+        }
+    }
 
     internal override void Reset(IntPtr vector)
     {
