@@ -156,7 +156,7 @@ public class TransactionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             tx2.Invoking(tx2 => tx2.Rollback()).Should().Throw<InvalidOperationException>();
             tx2.Invoking(tx2 => tx2.Dispose()).Should().NotThrow();
 
-            Connection.Invoking(conn => conn.BeginTransaction()).Should().NotThrow();
+            Connection.Invoking(conn => conn.BeginTransaction().Dispose()).Should().NotThrow();
         }
     }
 }
