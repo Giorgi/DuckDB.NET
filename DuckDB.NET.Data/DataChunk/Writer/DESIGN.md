@@ -212,7 +212,7 @@ between two runs.
 ### 10. A decimal is written by integer arithmetic, and one that is too wide is refused
 
 - **What:** a `decimal` is an integer of 96 bits, a sign and a scale. `DecimalVectorDataWriter` takes those parts
-  out (`GetParts`, one call to `decimal.GetBits`), multiplies or divides the integer by a power of ten to get
+  out (`GetParts`, see "The parts of a decimal" below), multiplies or divides the integer by a power of ten to get
   the integer for the scale of the column, and stores it. It is the reader's conversion in the other direction.
 - **Two methods.** `AppendDecimal` is for an integer that fits 64 bits (every value of up to 19 digits) whose
   scale is less than 20 away from the scale of the column: one 64-bit multiplication (`Math.BigMul`) or
@@ -541,8 +541,14 @@ between two runs.
   appender does not (decision 13).
 - **Every chained `AppendValue` is a call through `IDuckDBAppenderRow`,** because the fluent methods return the
   interface.
-- **`decimal.GetBits` needs four integers on the stack,** which is the 16 bytes cleared for every decimal and a
-  check of the stack guard. There is no public way to read the parts of a decimal without a buffer.
+- **The parts of a decimal are read with `Unsafe.BitCast`** (2.0) over a struct of the fields of `System.Decimal`,
+  where `decimal.GetBits` needed four integers on the stack. On Linux x64 that buffer was expensive: a decimal argument
+  arrives there in two registers, which the old code spilled with two 8-byte stores and read back with one 16-byte
+  load, a load that cannot be forwarded from the stores, so the CPU waits. Windows x64 passes the decimal by reference
+  and never had that pattern. Measured against the commit before (`issues/2.0-decimal-getparts.md`): decimal appends
+  0.52 to 0.75 on the Linux VM, 0.94 to 0.97 on a Windows PC (within its noise); parameters unchanged on both.
+  `Unsafe.As` on the decimal instead (tried) takes its address, forces the same kind of copy and was 1.09 to 1.18 on
+  the Windows PC for the long path. `DecimalPartsTests` pins the layout against `decimal.GetBits`.
 - **A decimal whose integer does not fit 64 bits, or whose scale is 20 or more away from the column's, is divided
   or multiplied on 128 bits,** and the division is a call into the runtime: 0.81 of the old time where a shorter
   value takes 0.49.

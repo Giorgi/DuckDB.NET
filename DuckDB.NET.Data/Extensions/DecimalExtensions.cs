@@ -84,8 +84,9 @@ internal static class DecimalExtensions
         return MaxDecimalScale + 1;
     }
 
-    // EXPERIMENT: the fields of System.Decimal, in its order since .NET Core 3.0: the flags (sign and scale), the upper
-    // 32 bits of the integer, the lower 64 bits. Read in place, so no buffer is needed.
+    // The fields of System.Decimal, in their order since .NET Core 3.0: the flags (sign and scale), the upper 32 bits of
+    // the integer, the lower 64 bits. GetParts reinterprets the decimal as this struct, so no buffer is needed.
+    // DecimalPartsTests compares the result with decimal.GetBits.
     // Filled only by Unsafe.BitCast, which the compiler does not see as an assignment.
 #pragma warning disable CS0649
     private readonly struct DecimalBits
