@@ -920,6 +920,45 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.GetChars(0, 4, part, 0, 1).Should().Be(0);
     }
 
+    // GetChars keeps the decoded value of its last call. Rows past 2048 are in another chunk, where the kept value
+    // must not be used.
+    [Fact]
+    public void GetCharsReadsEveryRowWholeInPartsAndAgain()
+    {
+        Command.CommandText = "SELECT CASE i % 4 WHEN 0 THEN 'row ' || i WHEN 1 THEN repeat('é', i % 50) " +
+                              "WHEN 2 THEN 'ქართული ' || i || ' 🦆' ELSE '' END FROM range(5000) t(i)";
+        using var reader = Command.ExecuteReader();
+
+        var rows = 0;
+        var part = new char[3];
+        while (reader.Read())
+        {
+            var expected = reader.GetString(0);
+
+            reader.GetChars(0, 0, null, 0, 0).Should().Be(expected.Length, "the length is counted before the value is read");
+
+            var result = new StringBuilder();
+            long read;
+            for (var dataOffset = 0L; (read = reader.GetChars(0, dataOffset, part, 0, part.Length)) > 0; dataOffset += read)
+            {
+                result.Append(part, 0, (int)read);
+            }
+
+            result.ToString().Should().Be(expected);
+            reader.GetChars(0, 0, null, 0, 0).Should().Be(expected.Length, "the length comes from the kept value");
+
+            if (expected.Length > 0)
+            {
+                reader.GetChars(0, 0, part, 0, 1).Should().Be(1, "reading from the start again uses the kept value");
+                part[0].Should().Be(expected[0]);
+            }
+
+            rows++;
+        }
+
+        rows.Should().Be(5000);
+    }
+
     [Fact]
     public void GetBytesAndGetCharsRejectOffsetsOutsideTheBuffer()
     {
