@@ -281,7 +281,8 @@ between two runs.
   without its pair becomes the replacement character.
 - **The short string uses `DuckDBStringInlined`,** the struct the reader's `DuckDBString` is made of, so the
   layout is declared once for both directions. The bytes after the string have to be zero: DuckDB compares and
-  hashes a short string by its 16 bytes.
+  hashes a short string by its 16 bytes. `DuckDBStringInlined` stays public for this: Bindings exposes nothing
+  internal to Data, since the two are separate packages.
 - **Kept:** a string ends at its first NUL character, as it did when DuckDB measured it as a C string. A
   parameter does the same.
 - **Checked:** 27,016 strings appended to a VARCHAR, a VARCHAR[] and a BLOB column and returned from a scalar

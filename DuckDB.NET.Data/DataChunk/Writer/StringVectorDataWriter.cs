@@ -24,8 +24,8 @@ internal sealed unsafe class StringVectorDataWriter(IntPtr vector, void* vectorD
         }
 
         // Starts as zeros, and DuckDB compares the 12 bytes whole: the bytes after the string have to be zero.
-        DuckDBString._value_e__Union.DuckDBStringInlined inline = default;
-        var bytes = new Span<byte>(inline.inlined, InlineLength);
+        DuckDBStringInlined inline = default;
+        var bytes = new Span<byte>(inline.Data, InlineLength);
 
         if (!Encoding.UTF8.TryGetBytes(value, bytes, out var length))
         {
@@ -33,7 +33,7 @@ internal sealed unsafe class StringVectorDataWriter(IntPtr vector, void* vectorD
             return AppendLongString(value, rowIndex);
         }
 
-        inline.length = (uint)length;
+        inline.Length = (uint)length;
 
         if (bytes[..length].Contains((byte)0))
         {
