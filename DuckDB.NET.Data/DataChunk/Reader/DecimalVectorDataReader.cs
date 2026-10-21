@@ -43,8 +43,14 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
             return (T)(object)GetDuckDBDecimal(offset);
         }
 
-        var value = GetDecimal(offset);
-        return (T)(object)value; //JIT will optimize the casts at least for not nullable T
+        // A decimal goes to every type that can hold one (decimal itself and object), as GetValue(offset, Type) does,
+        // and the others are refused with the same message. For decimal the test is a constant for the JIT.
+        if (typeof(T) != typeof(decimal) && !typeof(T).IsAssignableFrom(typeof(decimal)))
+        {
+            throw CannotCast(DuckDBType.ToString(), typeof(T));
+        }
+
+        return (T)(object)GetDecimal(offset);
     }
 
     internal override object GetValue(ulong offset, Type targetType)
