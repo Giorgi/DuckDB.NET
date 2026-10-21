@@ -121,17 +121,17 @@ internal sealed class PropertyMapping<T, TProperty> : IPropertyMapping<T>
             TimeSpan v => row.AppendValue(v),
             Guid v => row.AppendValue(v),
             BigInteger v => row.AppendValue(v),
-            DuckDBDateOnly v => row.AppendValue((DuckDBDateOnly?)v),
-            DuckDBTimeOnly v => row.AppendValue((DuckDBTimeOnly?)v),
-            DateOnly v => row.AppendValue((DateOnly?)v),
-            TimeOnly v => row.AppendValue((TimeOnly?)v),
+            DuckDBDateOnly v => row.AppendValue(v),
+            DuckDBTimeOnly v => row.AppendValue(v),
+            DateOnly v => row.AppendValue(v),
+            TimeOnly v => row.AppendValue(v),
 
             _ => throw new NotSupportedException($"Type {typeof(TProperty).Name} is not supported for appending")
         };
     }
 
-    // Every AppendValue overload takes a nullable, so the value is passed on as it is. typeof(TProperty) is a
-    // constant for the JIT, which keeps the one matching line.
+    // Every type here has an AppendValue overload that takes its nullable, so the value is passed on as it is.
+    // typeof(TProperty) is a constant for the JIT, which keeps the one matching line.
     private static void AppendNullable(DuckDBAppenderRow row, ref TProperty value)
     {
         if (typeof(TProperty) == typeof(bool?)) row.AppendValue(Unsafe.As<TProperty, bool?>(ref value));

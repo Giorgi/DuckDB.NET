@@ -454,6 +454,59 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         }
     }
 
+    // Pins that a DateOnly, TimeOnly, DuckDBDateOnly or DuckDBTimeOnly argument, nullable or not, compiles through the
+    // row interface (the four types convert implicitly to each other in pairs, so this needs exact overloads) and that
+    // each stores the right value. Which conversion path a value takes cannot be seen from the values it stores.
+    [Fact]
+    public void DateAndTimeValuesThroughTheRowInterface()
+    {
+        Command.CommandText = "CREATE TABLE managedAppenderDateTimeOnly(a DATE, b TIME, c DATE, d TIME)";
+        Command.ExecuteNonQuery();
+
+        var date = new DateOnly(2024, 2, 29);
+        var time = new TimeOnly(13, 14, 15, 123);
+        DuckDBDateOnly duckDBDate = new DateOnly(1969, 7, 20);
+        DuckDBTimeOnly duckDBTime = new TimeOnly(20, 17, 40);
+        DateOnly? nullDate = null;
+        TimeOnly? nullTime = null;
+        DuckDBDateOnly? nullDuckDBDate = null;
+        DuckDBTimeOnly? nullDuckDBTime = null;
+
+        using (var appender = Connection.CreateAppender("managedAppenderDateTimeOnly"))
+        {
+            // The calls go through the interface, which is what CreateRow returns.
+            IDuckDBAppenderRow row = appender.CreateRow();
+            row.AppendValue(date).AppendValue(time).AppendValue(duckDBDate).AppendValue(duckDBTime).EndRow();
+
+            row = appender.CreateRow();
+            row.AppendValue((DateOnly?)date).AppendValue((TimeOnly?)time)
+               .AppendValue((DuckDBDateOnly?)duckDBDate).AppendValue((DuckDBTimeOnly?)duckDBTime).EndRow();
+
+            row = appender.CreateRow();
+            row.AppendValue(nullDate).AppendValue(nullTime).AppendValue(nullDuckDBDate).AppendValue(nullDuckDBTime).EndRow();
+        }
+
+        Command.CommandText = "SELECT a, b, c, d FROM managedAppenderDateTimeOnly ORDER BY rowid";
+        using var reader = Command.ExecuteReader();
+
+        for (var i = 0; i < 2; i++)
+        {
+            reader.Read().Should().BeTrue();
+            reader.GetFieldValue<DateOnly>(0).Should().Be(date);
+            reader.GetFieldValue<TimeOnly>(1).Should().Be(time);
+            reader.GetFieldValue<DateOnly>(2).Should().Be(new DateOnly(1969, 7, 20));
+            reader.GetFieldValue<TimeOnly>(3).Should().Be(new TimeOnly(20, 17, 40));
+        }
+
+        reader.Read().Should().BeTrue();
+        for (var column = 0; column < 4; column++)
+        {
+            reader.IsDBNull(column).Should().BeTrue();
+        }
+
+        reader.Read().Should().BeFalse();
+    }
+
     [Fact]
     public void EnumValues()
     {

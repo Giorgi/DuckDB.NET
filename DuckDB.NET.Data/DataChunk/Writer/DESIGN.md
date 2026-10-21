@@ -116,9 +116,14 @@ between two runs.
   0.45, `DateTime` to DATE 0.44 to 0.51, `DateTime` to TIMESTAMP 0.35 on .NET 8. On .NET 10 that last case ran at
   the old speed for the first third of its measured iterations and gave 0.66 and 0.75 in two runs; with tiered
   compilation off it gave 0.33.
-- **A `DateOnly` or `TimeOnly` appended to a row does not reach this code.** `IDuckDBAppenderRow` has no overload
-  for them, so they become `DuckDBDateOnly` and `DuckDBTimeOnly`. Adding the overloads makes a call with a
-  non-nullable argument ambiguous, so it waits for a major version.
+- **A `DateOnly` or `TimeOnly` appended to a row reaches this code since 2.0.** Before, `IDuckDBAppenderRow` had
+  no overload for them, so they became `DuckDBDateOnly` and `DuckDBTimeOnly`. Each of the two pairs converts
+  implicitly both ways, so the nullable overloads alone make a call with a non-nullable argument ambiguous. The
+  interface therefore also has an overload for each of the four types that is not nullable: an exact match
+  always wins, and both implicit conversions are kept. Measured with `DateAppenderBenchmark` against the
+  1.5.6.1 package, .NET 10, one run, 1,000,000 rows of four columns: `DateOnly` to DATE 0.40, `TimeOnly` to
+  TIME 0.59, `DateTime` to DATE (the control, which took the arithmetic path in both builds) 0.89, with a
+  standard deviation of 15% to 20% of the mean in every job.
 
 ### 7. A HUGEINT is built from a `BigInteger` through `Int128`
 
@@ -332,9 +337,9 @@ between two runs.
   `foreach`. (`c7da3b7`)
 - **Why:** every value was appended through the interface, one interface call per value.
 - **A `DateOnly` or a `TimeOnly` property now reaches the arithmetic of decision 6.** The class has
-  `AppendValue(DateOnly?)` and `AppendValue(TimeOnly?)`, which the interface lacks, and the mappings call them.
-  A property of the DuckDB types is written as before. Because both kinds of overload are in reach, the calls
-  for a value that is not nullable name the overload with a cast; without it they are ambiguous.
+  `AppendValue(DateOnly?)` and `AppendValue(TimeOnly?)`, which the interface lacked until 2.0, and the mappings
+  call them. A property of the DuckDB types is written as before. Since 2.0 a value that is not nullable goes to
+  the overload of its exact type.
 - **Rejected: one method compiled for the map from an expression tree.** Built and measured (branch
   `mapped-appender`). It was ahead only for nullable properties on .NET 8 (0.66 and 0.70 against 0.85 and
   0.81), level or behind elsewhere, doubled what an appender allocates when it is created, and needs
