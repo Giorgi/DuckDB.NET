@@ -48,7 +48,7 @@ internal sealed class NumericVectorDataReader<TStorage> : VectorDataReaderBase w
                 return (T)(object)(float)Unsafe.As<TStorage, double>(ref value);
             }
 
-            //A floating point value read as an integer is rounded: see FloatingPointToInteger
+            //A floating point value read as an integer must be whole: see FloatingPointToInteger
             if (isIntegralNumericType)
             {
                 return FloatingPointToInteger<T>(typeof(TStorage) == typeof(float) ? Unsafe.As<TStorage, float>(ref value) : Unsafe.As<TStorage, double>(ref value));
@@ -68,30 +68,30 @@ internal sealed class NumericVectorDataReader<TStorage> : VectorDataReaderBase w
         }
     }
 
-    // A FLOAT or DOUBLE read as an integer type: rounded to the nearest whole number, half to even, and refused when
-    // that does not fit. These are the rules of Convert.ToInt32(double) and the others, which the reader has used
-    // since 0.9.2. 2.0 item 5 changes this method, and only this one, to refuse a value with a fraction.
-    // A float arrives as a double, exactly, as Convert.ToInt32(float) passes it on.
+    // A FLOAT or DOUBLE read as an integer type: a whole value that fits reads; a value with a fraction is refused
+    // (2.0 item 5; before 2.0 it was rounded half to even), and so are NaN, infinity and a value out of range, as
+    // before. The same rule as a DECIMAL. A float arrives as a double, exactly. BigInteger is refused, as before.
     private T FloatingPointToInteger<T>(double value)
     {
+        if (typeof(T) == typeof(BigInteger))
+        {
+            throw CannotCast(typeof(TStorage), typeof(T));
+        }
+
+        // NaN and infinity have no fraction to speak of; the conversion below refuses them as out of range.
+        if (double.IsFinite(value) && value != Math.Truncate(value))
+        {
+            throw CannotCastFraction(typeof(T));
+        }
+
         try
         {
-            if (typeof(T) == typeof(sbyte))  return (T)(object)Convert.ToSByte(value);
-            if (typeof(T) == typeof(byte))   return (T)(object)Convert.ToByte(value);
-            if (typeof(T) == typeof(short))  return (T)(object)Convert.ToInt16(value);
-            if (typeof(T) == typeof(ushort)) return (T)(object)Convert.ToUInt16(value);
-            if (typeof(T) == typeof(int))    return (T)(object)Convert.ToInt32(value);
-            if (typeof(T) == typeof(uint))   return (T)(object)Convert.ToUInt32(value);
-            if (typeof(T) == typeof(long))   return (T)(object)Convert.ToInt64(value);
-            if (typeof(T) == typeof(ulong))  return (T)(object)Convert.ToUInt64(value);
+            return NumericConverter.Convert<double, T>(value);
         }
         catch (OverflowException)
         {
             throw CannotCast(typeof(TStorage), typeof(T));
         }
-
-        // BigInteger
-        throw CannotCast(typeof(TStorage), typeof(T));
     }
 
     internal override object GetValueCore(ulong offset, Type targetType)

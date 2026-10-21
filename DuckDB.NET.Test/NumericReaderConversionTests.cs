@@ -257,11 +257,11 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         reader.GetDecimal(0).Should().Be(1.5m);
         reader.GetDecimal(1).Should().Be(1.5m);
 
-        // Read as an integer, a fraction is rounded to the nearest even number: 1.5 and 2.5 both give 2.
-        reader.GetInt32(0).Should().Be(2);
-        reader.GetInt32(1).Should().Be(2);
-        reader.GetInt32(2).Should().Be(2);
-        reader.GetInt64(1).Should().Be(2);
+        // Read as an integer, a fraction is refused (2.0; it was rounded half to even before).
+        reader.Invoking(r => r.GetInt32(0)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetInt32(1)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetInt32(2)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetInt64(1)).Should().Throw<InvalidCastException>();
     }
 
     [Fact]
@@ -352,6 +352,9 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         reader.GetFieldValue<List<float>>(items).Should().Equal(0.1f, float.PositiveInfinity);
     }
 
+    // A FLOAT or DOUBLE read as an integer type gives the value when it is whole and fits, and throws
+    // InvalidCastException otherwise (2.0 item 5; before 2.0 a fraction was rounded half to even). There is no
+    // tolerance for a value that is nearly whole. NaN, the infinities and a value out of range are refused as before.
     [Theory]
     [InlineData("FLOAT", "Single")]
     [InlineData("DOUBLE", "Double")]
@@ -362,8 +365,13 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
                    (-1.5)::{column} AS minus_one_and_a_half,
                    (-2.5)::{column} AS minus_two_and_a_half,
                    0.5::{column} AS half,
+                   1.5::{column} AS one_and_a_half,
+                   2.5::{column} AS two_and_a_half,
                    3.5::{column} AS three_and_a_half,
-                   (-3.5)::{column} AS minus_three_and_a_half,
+                   0.1::{column} AS tenth,
+                   42.0::{column} AS whole,
+                   (-42.0)::{column} AS minus_whole,
+                   '-0.0'::{column} AS minus_zero,
                    'NaN'::{column} AS nan,
                    'Infinity'::{column} AS inf,
                    '-Infinity'::{column} AS neginf,
@@ -372,29 +380,28 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         using var reader = Command.ExecuteReader();
         reader.Read();
 
-        // A half goes to the nearest even number, on both sides of zero.
-        RoundsTo("minus_half", 0);
-        RoundsTo("minus_one_and_a_half", -2);
-        RoundsTo("minus_two_and_a_half", -2);
-        RoundsTo("half", 0);
-        RoundsTo("three_and_a_half", 4);
-        RoundsTo("minus_three_and_a_half", -4);
+        foreach (var name in new[] { "minus_half", "minus_one_and_a_half", "minus_two_and_a_half", "half", "one_and_a_half", "two_and_a_half", "three_and_a_half", "tenth" })
+        {
+            Refused(name, $"Cannot cast a value with a non-zero fractional part to Int32 in column {name}");
+            reader.Invoking(r => r.GetInt64(r.GetOrdinal(name))).Should().Throw<InvalidCastException>();
+            reader.Invoking(r => r.GetFieldValue<short>(r.GetOrdinal(name))).Should().Throw<InvalidCastException>();
+        }
+
+        Reads("whole", 42);
+        Reads("minus_whole", -42);
+        Reads("minus_zero", 0);
+        reader.GetFieldValue<ulong>(reader.GetOrdinal("minus_zero")).Should().Be(0UL);
 
         // NaN and the infinities are no integer, and 1e10 is too large for an int.
         foreach (var name in new[] { "nan", "inf", "neginf", "big" })
         {
-            var ordinal = reader.GetOrdinal(name);
-            var message = $"Cannot cast from {clrName} to Int32 in column {name}";
-
-            reader.Invoking(r => r.GetInt32(ordinal)).Should().Throw<InvalidCastException>().WithMessage(message);
-            reader.Invoking(r => r.GetFieldValue<int>(ordinal)).Should().Throw<InvalidCastException>().WithMessage(message);
-            reader.Invoking(r => r.GetFieldValue<int?>(ordinal)).Should().Throw<InvalidCastException>().WithMessage(message);
+            Refused(name, $"Cannot cast from {clrName} to Int32 in column {name}");
         }
 
         // 1e10 is too large for an int only.
         reader.GetInt64(reader.GetOrdinal("big")).Should().Be(10_000_000_000L);
 
-        void RoundsTo(string name, int expected)
+        void Reads(string name, int expected)
         {
             var ordinal = reader.GetOrdinal(name);
 
@@ -403,53 +410,69 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
             reader.GetFieldValue<int?>(ordinal).Should().Be(expected, $"column {name}");
             reader.GetFieldValue<short>(ordinal).Should().Be((short)expected, $"column {name}");
         }
+
+        void Refused(string name, string message)
+        {
+            var ordinal = reader.GetOrdinal(name);
+
+            reader.Invoking(r => r.GetInt32(ordinal)).Should().Throw<InvalidCastException>().WithMessage(message);
+            reader.Invoking(r => r.GetFieldValue<int>(ordinal)).Should().Throw<InvalidCastException>().WithMessage(message);
+            reader.Invoking(r => r.GetFieldValue<int?>(ordinal)).Should().Throw<InvalidCastException>().WithMessage(message);
+        }
     }
 
-    // Each target type has its own range and its own rounding point, so a read as one integer type must not
-    // go through another.
+    // Each target type has its own range, so a read as one integer type must not go through another. A whole value
+    // reads up to the limit of the type and is refused one past it; a fraction is refused before the range is checked.
     [Fact]
     public void DoubleReadAsIntegerIsCheckedAgainstTheRangeOfTheRequestedType()
     {
         Command.CommandText = """
             SELECT (-0.5)::DOUBLE AS neghalf,
-                   (-1.5)::DOUBLE AS negative,
+                   (-2.0)::DOUBLE AS negative,
                    1e19::DOUBLE AS huge,
-                   255.5::DOUBLE AS above,
-                   254.5::DOUBLE AS below,
+                   255.0::DOUBLE AS byte_max,
+                   256.0::DOUBLE AS above_byte,
+                   255.5::DOUBLE AS above_with_fraction,
+                   2147483647.0::DOUBLE AS int_max,
+                   2147483648.0::DOUBLE AS above_int,
+                   (-2147483648.0)::DOUBLE AS int_min,
+                   (-2147483649.0)::DOUBLE AS below_int,
+                   9223372036854775807::DOUBLE AS two_to_63,
                    'NaN'::DOUBLE AS nan
             """;
         using var reader = Command.ExecuteReader();
         reader.Read();
 
-        var negHalf = reader.GetOrdinal("neghalf");
-        var negative = reader.GetOrdinal("negative");
-        var huge = reader.GetOrdinal("huge");
-        var above = reader.GetOrdinal("above");
-        var below = reader.GetOrdinal("below");
+        Fraction<ulong>("neghalf");
+        Fraction<long>("neghalf");
+        Fraction<byte>("neghalf");
+        Fraction<byte>("above_with_fraction");
+        Fraction<long>("above_with_fraction");
 
-        // -0.5 rounds to zero, which every type holds.
-        reader.GetFieldValue<ulong>(negHalf).Should().Be(0UL);
-        reader.GetInt64(negHalf).Should().Be(0L);
-        reader.GetByte(negHalf).Should().Be(0);
-
-        // -1.5 rounds to -2.
-        reader.GetInt64(negative).Should().Be(-2L);
+        reader.GetInt64(reader.GetOrdinal("negative")).Should().Be(-2L);
         Refused<ulong>("negative");
         Refused<byte>("negative");
 
         // 1e19 is above the largest long and below the largest ulong.
-        reader.GetFieldValue<ulong>(huge).Should().Be(10_000_000_000_000_000_000UL);
-        reader.GetFieldValue<ulong?>(huge).Should().Be(10_000_000_000_000_000_000UL);
+        reader.GetFieldValue<ulong>(reader.GetOrdinal("huge")).Should().Be(10_000_000_000_000_000_000UL);
+        reader.GetFieldValue<ulong?>(reader.GetOrdinal("huge")).Should().Be(10_000_000_000_000_000_000UL);
         Refused<long>("huge");
         Refused<byte>("huge");
 
-        // 255.5 rounds to 256, one more than a byte holds. 254.5 rounds to 254.
-        reader.GetFieldValue<ulong>(above).Should().Be(256UL);
-        reader.GetInt64(above).Should().Be(256L);
-        Refused<byte>("above");
-        reader.GetByte(below).Should().Be(254);
-        reader.GetFieldValue<byte?>(below).Should().Be((byte)254);
-        reader.GetInt64(below).Should().Be(254L);
+        reader.GetByte(reader.GetOrdinal("byte_max")).Should().Be(255);
+        Refused<byte>("above_byte");
+        reader.GetInt16(reader.GetOrdinal("above_byte")).Should().Be(256);
+
+        reader.GetInt32(reader.GetOrdinal("int_max")).Should().Be(int.MaxValue);
+        Refused<int>("above_int");
+        reader.GetFieldValue<uint>(reader.GetOrdinal("above_int")).Should().Be(2147483648U);
+        reader.GetInt32(reader.GetOrdinal("int_min")).Should().Be(int.MinValue);
+        Refused<int>("below_int");
+        reader.GetInt64(reader.GetOrdinal("below_int")).Should().Be(-2147483649L);
+
+        // The double nearest to the largest long is 2^63, one more than a long holds.
+        Refused<long>("two_to_63");
+        reader.GetFieldValue<ulong>(reader.GetOrdinal("two_to_63")).Should().Be(9223372036854775808UL);
 
         Refused<ulong>("nan");
         Refused<long>("nan");
@@ -461,6 +484,14 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
             reader.Invoking(r => r.GetFieldValue<T>(ordinal)).Should().Throw<InvalidCastException>()
                 .WithMessage($"Cannot cast from Double to {typeof(T).Name} in column {name}");
+        }
+
+        void Fraction<T>(string name)
+        {
+            var ordinal = reader.GetOrdinal(name);
+
+            reader.Invoking(r => r.GetFieldValue<T>(ordinal)).Should().Throw<InvalidCastException>()
+                .WithMessage($"Cannot cast a value with a non-zero fractional part to {typeof(T).Name} in column {name}");
         }
     }
 
@@ -611,14 +642,19 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         reader.Invoking(r => r.GetDecimal(0)).Should().Throw<InvalidCastException>();
     }
 
+    // A DECIMAL read as an integer type gives the value when it is whole and fits, and throws InvalidCastException
+    // otherwise, as FLOAT and DOUBLE do (2.0 item 5; before 2.0 every read as sbyte to ulong was refused). Each width
+    // is stored in another integer: 2, 4, 8 and 16 bytes. FLOAT and DOUBLE stay refused whatever the value.
     [Theory]
     [InlineData("DECIMAL(4,0)")]
+    [InlineData("DECIMAL(4,1)")]
     [InlineData("DECIMAL(9,2)")]
     [InlineData("DECIMAL(18,2)")]
     [InlineData("DECIMAL(38,2)")]
-    public void DecimalIsRefusedAsIntegerFloatAndDouble(string type)
+    public void DecimalReadAsIntegerNeedsAWholeValue(string type)
     {
-        Command.CommandText = $"SELECT 42::{type}";
+        Command.CommandText = $"SELECT 42::{type} AS whole, (-42)::{type} AS minus_whole, (-0.0)::{type} AS minus_zero, " +
+                              $"1.5::{type} AS one_and_a_half, 2.5::{type} AS two_and_a_half, (-0.5)::{type} AS minus_half";
         using var reader = Command.ExecuteReader();
         reader.Read();
 
@@ -626,10 +662,91 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         reader.GetFieldValue<decimal?>(0).Should().Be(42m);
         reader.GetValue(0).Should().Be(42m);
 
-        reader.Invoking(r => r.GetInt32(0)).Should().Throw<InvalidCastException>();
-        reader.Invoking(r => r.GetInt64(0)).Should().Throw<InvalidCastException>();
+        reader.GetInt32(0).Should().Be(42);
+        reader.GetInt64(0).Should().Be(42L);
+        reader.GetInt16(0).Should().Be(42);
+        reader.GetByte(0).Should().Be(42);
+        reader.GetFieldValue<sbyte>(0).Should().Be(42);
+        reader.GetFieldValue<ulong?>(0).Should().Be(42UL);
+        reader.GetFieldValue<BigInteger>(0).Should().Be(42);
+        reader.GetInt32(1).Should().Be(-42);
+        reader.GetFieldValue<long?>(1).Should().Be(-42L);
+        reader.Invoking(r => r.GetFieldValue<ulong>(1)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Decimal to UInt64 in column minus_whole");
+        reader.GetInt32(2).Should().Be(0);
+        reader.GetFieldValue<ulong>(2).Should().Be(0UL);
+
+        // The scale-0 type cannot hold a fraction: DuckDB rounds 1.5, 2.5 and -0.5 when it casts them to it.
+        if (type != "DECIMAL(4,0)")
+        {
+            foreach (var name in new[] { "one_and_a_half", "two_and_a_half", "minus_half" })
+            {
+                var ordinal = reader.GetOrdinal(name);
+
+                reader.Invoking(r => r.GetInt32(ordinal)).Should().Throw<InvalidCastException>().WithMessage($"Cannot cast a value with a non-zero fractional part to Int32 in column {name}");
+                reader.Invoking(r => r.GetFieldValue<long?>(ordinal)).Should().Throw<InvalidCastException>().WithMessage($"Cannot cast a value with a non-zero fractional part to Int64 in column {name}");
+                reader.Invoking(r => r.GetFieldValue<BigInteger>(ordinal)).Should().Throw<InvalidCastException>().WithMessage($"Cannot cast a value with a non-zero fractional part to BigInteger in column {name}");
+            }
+        }
+
         reader.Invoking(r => r.GetDouble(0)).Should().Throw<InvalidCastException>();
         reader.Invoking(r => r.GetFloat(0)).Should().Throw<InvalidCastException>();
+    }
+
+    // The limits of the integer types, from a DECIMAL that holds them: the value reads up to the limit and is refused
+    // one past it. A DECIMAL(38) beyond the range of decimal reads as an integer type that holds it, because the value
+    // is never made a decimal on the way.
+    [Fact]
+    public void DecimalReadAsIntegerIsCheckedAgainstTheRangeOfTheRequestedType()
+    {
+        Command.CommandText = """
+            SELECT 127.0::DECIMAL(4,1) AS sbyte_max,
+                   128.0::DECIMAL(4,1) AS above_sbyte,
+                   32767.00::DECIMAL(9,2) AS short_max,
+                   32768.00::DECIMAL(9,2) AS above_short,
+                   2147483647.00::DECIMAL(18,2) AS int_max,
+                   (-2147483649.00)::DECIMAL(18,2) AS below_int,
+                   9223372036854775807::DECIMAL(38,0) AS long_max,
+                   9223372036854775808::DECIMAL(38,0) AS above_long,
+                   18446744073709551615.0000::DECIMAL(38,4) AS ulong_max,
+                   18446744073709551616::DECIMAL(38,0) AS above_ulong,
+                   99999999999999999999999999999999999999::DECIMAL(38,0) AS beyond_decimal
+            """;
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetFieldValue<sbyte>(reader.GetOrdinal("sbyte_max")).Should().Be(sbyte.MaxValue);
+        Refused<sbyte>("above_sbyte");
+        reader.GetByte(reader.GetOrdinal("above_sbyte")).Should().Be(128);
+
+        reader.GetInt16(reader.GetOrdinal("short_max")).Should().Be(short.MaxValue);
+        Refused<short>("above_short");
+        reader.GetFieldValue<ushort>(reader.GetOrdinal("above_short")).Should().Be(32768);
+
+        reader.GetInt32(reader.GetOrdinal("int_max")).Should().Be(int.MaxValue);
+        Refused<int>("below_int");
+        reader.GetInt64(reader.GetOrdinal("below_int")).Should().Be(-2147483649L);
+
+        reader.GetInt64(reader.GetOrdinal("long_max")).Should().Be(long.MaxValue);
+        Refused<long>("above_long");
+        reader.GetFieldValue<ulong>(reader.GetOrdinal("above_long")).Should().Be(9223372036854775808UL);
+
+        reader.GetFieldValue<ulong>(reader.GetOrdinal("ulong_max")).Should().Be(ulong.MaxValue);
+        Refused<ulong>("above_ulong");
+        reader.GetFieldValue<BigInteger>(reader.GetOrdinal("above_ulong")).Should().Be(BigInteger.Pow(2, 64));
+
+        // Beyond decimal: refused as decimal with its own message, and as long for its range.
+        var beyondDecimal = reader.GetOrdinal("beyond_decimal");
+        reader.Invoking(r => r.GetDecimal(beyondDecimal)).Should().Throw<OverflowException>();
+        Refused<long>("beyond_decimal");
+        reader.GetFieldValue<BigInteger>(beyondDecimal).Should().Be(BigInteger.Parse("99999999999999999999999999999999999999"));
+
+        void Refused<T>(string name)
+        {
+            var ordinal = reader.GetOrdinal(name);
+
+            reader.Invoking(r => r.GetFieldValue<T>(ordinal)).Should().Throw<InvalidCastException>()
+                .WithMessage($"Cannot cast from Decimal to {typeof(T).Name} in column {name}");
+        }
     }
 
     // The items of a list come from the same readers as a column of that type. The six tests below read lists.

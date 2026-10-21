@@ -72,9 +72,12 @@ not use profile data to guess the target as it does for a plain virtual call.
   it stopped allocating (it had boxed twice per value through `Convert.ChangeType`).
 - **The price:** the JIT compiles one body per stored type. The first row of a result with all ten numeric types
   takes about 0.45 ms longer through `GetValue`, and opening it about 0.3 ms longer, once per process.
-- **A FLOAT or DOUBLE read as an integer** goes to `FloatingPointToInteger<T>`, which calls `Convert.ToInt32(double)`
-  and its siblings, and so rounds half to even, as the reader has since 0.9.2. It is the only place that rounds;
-  2.0 item 5 (refuse a fraction) changes that method alone. See "Behaviour" below.
+- **A FLOAT or DOUBLE read as an integer** goes to `FloatingPointToInteger<T>`: a value with a fraction is refused
+  (`Math.Truncate` differs from it), and a whole value goes through `NumericConverter.Convert<double, T>`, whose
+  checked conversion refuses NaN, the infinities and a value out of range. Before 2.0 it called
+  `Convert.ToInt32(double)` and its siblings and rounded half to even (since 0.9.2). The DECIMAL reader follows the
+  same rule in `GetInteger<T>`, from the unscaled `Int128`, so a DECIMAL is never made a `decimal` to be read as an
+  integer. See "Behaviour" below.
 
 ### 4. `CannotCast` builds the exception
 
@@ -502,16 +505,17 @@ ENUM row, and `TemporalConversionTests.cs` and `Parameters/TimeTests.cs` the dat
 | Column | As an integer type | As `float` or `double` | As `decimal` | As `BigInteger` |
 |---|---|---|---|---|
 | TINYINT to UBIGINT | the value if it fits | the value | the value | the value |
-| FLOAT, DOUBLE | the value, rounded half to even, if it fits | the value | the value | refused |
+| FLOAT, DOUBLE | the value if it is whole and fits | the value | the value | refused |
 | HUGEINT, UHUGEINT, VARINT | the value if it fits | refused | refused | the value |
-| DECIMAL | refused | refused | the value | the value if it has no fraction |
+| DECIMAL | the value if it is whole and fits | refused | the value | the value if it is whole |
 | ENUM | its position in the list of names, if it fits | refused | refused | its position |
 
 - A refused read throws `InvalidCastException`. Where this code refuses it (an integer that does not fit, a DOUBLE
   out of range, an ENUM), the message names both types and the column: `Cannot cast from Int32 to Byte in column x`.
   HUGEINT, UHUGEINT and VARINT as `double` say `Cannot cast from HugeInt to Double in column x`, and DOUBLE as
-  `BigInteger` likewise. Where the runtime refuses it (DECIMAL as an integer, on the typed path), the message is
-  the runtime's and has no column. A DECIMAL with a fraction read as `BigInteger` names the column but not the types.
+  `BigInteger` likewise. A FLOAT, DOUBLE or DECIMAL with a fraction read as an integer type (or a DECIMAL as
+  `BigInteger`) says `Cannot cast a value with a non-zero fractional part to Int32 in column x`; the fraction is
+  checked before the range, so 2147483647.5 as `int` gives this message.
 - An ENUM column also reads as `string` (the name) and as a C# enum type of any size. The enum reader converts a
   C# enum through the size of that enum: `Unsafe.As` reads as many bytes as the target type has, so giving it a
   smaller value reads past it. It once did, for every type but `string`.
@@ -544,8 +548,14 @@ ENUM row, and `TemporalConversionTests.cs` and `Parameters/TimeTests.cs` the dat
   `DuckDBTimeTz`, `DuckDBInterval`) instead of `DateOnly`, `DateTime`, `TimeOnly`, `DateTimeOffset`, `TimeSpan`; a
   STRUCT gave an empty `object`; a LIST or an ARRAY threw `InvalidCastException`, and a MAP
   `InvalidOperationException`. Pinned by `ObjectTargetReadTests`.
-- **Planned for the next major version:** a value with a fraction read as an integer type will throw instead of
-  rounding, for FLOAT, DOUBLE and DECIMAL alike (2.0 item 5).
+- **A fraction read as an integer type is refused** (2.0 item 5), for FLOAT, DOUBLE and DECIMAL alike, on every
+  path: 1.5, 2.5, -0.5, 0.1 and 41.99999999999999 as `int` throw `InvalidCastException`; 42.0 and -0.0 read as 42
+  and 0. There is no tolerance for a value that is nearly whole: read it as `double` or `decimal` and round it.
+  Before 2.0 FLOAT and DOUBLE rounded half to even (`Convert.ChangeType`'s rule, which nobody chose) and a DECIMAL
+  was refused as `sbyte` to `ulong` whatever its value. Npgsql refuses `real` and `double precision` as an integer
+  altogether and drops the fraction of a `numeric`; this rule is neither, on purpose (`issues/npgsql-parity.md`,
+  section 7). Pinned by `FloatingPointColumnReadAsInteger`, `DoubleReadAsIntegerIsCheckedAgainstTheRangeOfTheRequestedType`,
+  `DecimalReadAsIntegerNeedsAWholeValue` and `DecimalReadAsIntegerIsCheckedAgainstTheRangeOfTheRequestedType`.
 
 Dates, times and timestamps (decision 8):
 

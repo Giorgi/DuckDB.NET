@@ -9,8 +9,8 @@ namespace DuckDB.NET.Test;
 // class are read with the target type known only at run time. Both must convert with the same rules, so that a
 // value reads the same wherever it is stored.
 //
-// A FLOAT or DOUBLE with a fraction, read as an integer type, is rounded half to even on both paths. That is
-// pinned here as it is today; 2.0 item 5 changes it to refuse a non-zero fraction.
+// A FLOAT, DOUBLE or DECIMAL with a fraction, read as an integer type, is refused on every path (2.0 item 5; before
+// 2.0 a FLOAT or DOUBLE was rounded half to even and a DECIMAL was refused whatever its value).
 public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     private static readonly string[] Columns =
@@ -292,8 +292,9 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
         reader.Invoking(r => r.GetFieldValue<Holder<short>>(0)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Int64 to Int16 in column big");
         reader.Invoking(r => r.GetFieldValue<Holder<long>>(1)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from HugeInt to Int64 in column huge");
 
-        // A DECIMAL reads only as decimal, BigInteger and DuckDBDecimal, as the column does.
-        reader.Invoking(r => r.GetFieldValue<Holder<int>>(2)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Decimal to Int32 in column dec");
+        // A DECIMAL with a fraction is refused as an integer type, and a DECIMAL as a floating point type, as the column
+        // does.
+        reader.Invoking(r => r.GetFieldValue<Holder<int>>(2)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast a value with a non-zero fractional part to Int32 in column dec");
         reader.Invoking(r => r.GetFieldValue<Holder<double>>(2)).Should().Throw<InvalidCastException>();
         reader.GetFieldValue<Holder<decimal>>(2).V.Should().Be(1.25m);
         reader.GetFieldValue<Holder<decimal?>>(2).V.Should().Be(1.25m);
@@ -317,13 +318,13 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
         reader.GetFieldValue<Dictionary<byte, decimal>>(0).Should().Equal(new Dictionary<byte, decimal> { [1] = 10m });
 
         reader.GetFieldValue<Dictionary<BigInteger, decimal>>(1).Should().Equal(new Dictionary<BigInteger, decimal> { [2] = 2.5m });
-        // Rounded half to even, as a DOUBLE column read as int is (2.0 item 5 makes both refuse it).
-        reader.GetFieldValue<Dictionary<int, int>>(1).Should().Equal(new Dictionary<int, int> { [2] = 2 });
+        // A fraction is refused, as a DOUBLE column read as int refuses it.
+        reader.Invoking(r => r.GetFieldValue<Dictionary<int, int>>(1)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast a value with a non-zero fractional part to Int32 in column ubig_double");
 
         reader.GetFieldValue<Dictionary<short, BigInteger>>(2).Should().Equal(new Dictionary<short, BigInteger> { [3] = 4 });
 
         reader.GetFieldValue<Dictionary<BigInteger, decimal>>(3).Should().Equal(new Dictionary<BigInteger, decimal> { [5] = 6.75m });
-        reader.Invoking(r => r.GetFieldValue<Dictionary<int, int>>(3)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Decimal to Int32 in column int_dec");
+        reader.Invoking(r => r.GetFieldValue<Dictionary<int, int>>(3)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast a value with a non-zero fractional part to Int32 in column int_dec");
     }
 
     [Fact]
@@ -337,7 +338,9 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
                    [1.5, 2.5, -2.5]::DOUBLE[] AS doubles,
                    [0.5, 3.5]::FLOAT[] AS floats,
                    [1.00, 2.50]::DECIMAL(9,2)[] AS decs,
-                   [300, 2]::HUGEINT[] AS too_big
+                   [300, 2]::HUGEINT[] AS too_big,
+                   [2.0, -3.0]::DOUBLE[] AS whole_doubles,
+                   [1.00, -2.00]::DECIMAL(9,2)[] AS whole_decs
             """;
         using var reader = Command.ExecuteReader();
         reader.Read();
@@ -354,14 +357,19 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
         reader.GetFieldValue<List<ulong>>(2).Should().Equal(4UL, 5UL);
         reader.GetFieldValue<List<long>>(3).Should().Equal(6L, -7L);
 
-        // Rounded half to even, as a column is (2.0 item 5 makes both refuse a fraction).
-        reader.GetFieldValue<List<long>>(4).Should().Equal(2L, 2L, -2L);
-        reader.GetFieldValue<List<short>>(5).Should().Equal((short)0, (short)4);
+        // A fraction is refused, as a column refuses it; a whole value reads.
+        reader.Invoking(r => r.GetFieldValue<List<long>>(4)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast a value with a non-zero fractional part to Int64 in column doubles");
+        reader.Invoking(r => r.GetFieldValue<List<short>>(5)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast a value with a non-zero fractional part to Int16 in column floats");
         reader.Invoking(r => r.GetFieldValue<List<BigInteger>>(4)).Should().Throw<InvalidCastException>();
+        reader.GetFieldValue<List<long>>(8).Should().Equal(2L, -3L);
+        reader.GetFieldValue<Collection<int?>>(8).Should().Equal(2, -3);
 
         reader.GetFieldValue<List<decimal>>(6).Should().Equal(1.00m, 2.50m);
-        reader.Invoking(r => r.GetFieldValue<List<long>>(6)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Decimal to Int64 in column decs");
+        reader.Invoking(r => r.GetFieldValue<List<long>>(6)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast a value with a non-zero fractional part to Int64 in column decs");
         reader.Invoking(r => r.GetFieldValue<List<BigInteger>>(6)).Should().Throw<InvalidCastException>();
+        reader.GetFieldValue<List<long>>(9).Should().Equal(1L, -2L);
+        reader.GetFieldValue<List<BigInteger>>(9).Should().Equal(new BigInteger(1), new BigInteger(-2));
+        reader.GetFieldValue<Collection<short>>(9).Should().Equal((short)1, (short)-2);
 
         reader.GetFieldValue<List<short>>(7).Should().Equal((short)300, (short)2);
         reader.Invoking(r => r.GetFieldValue<List<byte>>(7)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from HugeInt to Byte in column too_big");

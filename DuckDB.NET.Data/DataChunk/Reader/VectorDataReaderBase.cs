@@ -244,6 +244,10 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
     [MethodImpl(MethodImplOptions.NoInlining)]
     private protected InvalidCastException CannotCast(string from, Type to) => new($"Cannot cast from {from} to {to.Name} in column {ColumnName}");
 
+    // A FLOAT, DOUBLE or DECIMAL with a fraction, read as an integer type (2.0 item 5).
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private protected InvalidCastException CannotCastFraction(Type to) => new($"Cannot cast a value with a non-zero fractional part to {to.Name} in column {ColumnName}");
+
     /// <summary>
     /// Updates the data and validity pointers for a new chunk without recreating the reader.
     /// Composite readers (Struct, List, Map, Decimal) override this to also reset nested readers.
