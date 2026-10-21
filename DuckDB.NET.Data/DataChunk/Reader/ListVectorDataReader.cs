@@ -37,7 +37,7 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
         return typeof(List<>).MakeGenericType(listDataReader.ProviderSpecificClrType);
     }
 
-    internal override unsafe object GetValue(ulong offset, Type targetType)
+    internal override unsafe object GetValueCore(ulong offset, Type targetType)
     {
         switch (DuckDBType)
         {
@@ -50,7 +50,7 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
             case DuckDBType.Array:
                 return GetList(targetType, offset * arraySize, arraySize);
             default:
-                return base.GetValue(offset, targetType);
+                return base.GetValueCore(offset, targetType);
         }
     }
 

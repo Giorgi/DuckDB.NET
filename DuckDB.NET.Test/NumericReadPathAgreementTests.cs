@@ -41,6 +41,15 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
         public T V { get; set; }
     }
 
+    private struct StructHolder
+    {
+        public object V { get; set; }
+    }
+
+    // A struct field read into an object property of a C# struct, which the struct reader sets through another kind
+    // of property reader than a class's.
+    private static string StructFieldAsObject(DuckDBDataReader reader) => Outcome(() => reader.GetFieldValue<StructHolder>(2).V);
+
     private enum IntEnum
     {
         Zero = 0,
@@ -146,16 +155,15 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
             }
         }
 
-        // object: the column gives the value in its own .NET type. A list of object and a dictionary with object keys
-        // or values are refused on purpose, with their own message. A struct field into an object property gives the
-        // value only for DECIMAL today; for the other column types it throws (a known gap, to be fixed separately,
-        // which will make the struct field agree with the column here).
+        // object: the column gives the value in its own .NET type, and so does a struct field read into an object
+        // property, of a class or of a C# struct. A list of object and a dictionary with object keys or values are
+        // refused on purpose, with their own message.
         var asObject = ReadOnEveryPath<object>(reader);
-        var isDecimal = column.StartsWith("DECIMAL", StringComparison.Ordinal);
 
         asObject[0].Should().NotBe(nameof(InvalidCastException), $"{literal} as {column} read as object: the column");
         asObject[1].Should().Be(nameof(InvalidCastException), $"{literal} as {column} read as object: a list item");
-        asObject[2].Should().Be(isDecimal ? asObject[0] : nameof(InvalidCastException), $"{literal} as {column} read as object: a struct field");
+        asObject[2].Should().Be(asObject[0], $"{literal} as {column} read as object: a struct field");
+        StructFieldAsObject(reader).Should().Be(asObject[0], $"{literal} as {column} read as object: a field of a C# struct");
         asObject[3].Should().Be(nameof(InvalidCastException), $"{literal} as {column} read as object: a map value");
         asObject[4].Should().Be(nameof(InvalidCastException), $"{literal} as {column} read as object: a map key");
         asObject[5].Should().Be(nameof(InvalidCastException), $"{literal} as {column} read as object: a Collection item");
@@ -192,12 +200,14 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
             }
         }
 
-        // object: the column gives the name. A list and a map of object are refused on purpose, and a struct field into
-        // an object property throws today (the known gap of every column type but DECIMAL).
+        // object: the column gives the name, and so does a struct field read into an object property. A list and a
+        // map of object are refused on purpose.
         var asObject = ReadOnEveryPath<object>(reader);
 
         asObject[0].Should().Be($"String v{position}");
-        asObject.Skip(1).Should().AllBe(nameof(InvalidCastException), $"ENUM of {names} names at {position} read as object");
+        asObject[2].Should().Be(asObject[0], $"ENUM of {names} names at {position} read as object: a struct field");
+        StructFieldAsObject(reader).Should().Be(asObject[0], $"ENUM of {names} names at {position} read as object: a field of a C# struct");
+        new[] { asObject[1], asObject[3], asObject[4], asObject[5] }.Should().AllBe(nameof(InvalidCastException), $"ENUM of {names} names at {position} read as object");
     }
 
     private static string ExpectedEnumOutcome(Type target, int position)

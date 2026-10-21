@@ -459,12 +459,12 @@ not use profile data to guess the target as it does for a plain virtual call.
 - **Strings are decoded with `Encoding.UTF8.GetString(pointer, length)`,** not with the `string` constructor that
   takes an encoding. Both end in the same decoder; the constructor validates more on the way. Short strings measured
   7 to 8% faster.
-- **`GetValue(offset, Type)` in the numeric reader compares the requested type with `typeof(TStorage)` first** and
+- **`GetValueCore(offset, Type)` (called `GetValue(offset, Type)` before 2.0) in the numeric reader compares the requested type with `typeof(TStorage)` first** and
   boxes the stored value once. Any other type goes to `GetValueAs`, which is not inlined: one comparison per
   numeric type, each calling `GetValidValue<X>`. The class is sealed, so each call is bound directly, with no
   generic virtual lookup (checked in the .NET 8 disassembly). `GetValue` on an INTEGER column stays 77 bytes and
   clears no stack. It used to call `Convert.ChangeType`, which boxed a second time and had rules of its own.
-- **`BigIntegerVectorDataReader.GetValue` and `DecimalVectorDataReader.GetValue` work the same way.** The BigInteger
+- **`BigIntegerVectorDataReader.GetValueCore` and `DecimalVectorDataReader.GetValueCore` work the same way.** The BigInteger
   reader takes `BigInteger` first, then its own DuckDB struct, then maps the eight integer types to
   `GetValidValue<X>`. The decimal reader gives its `decimal` only to a type that can hold one (`IsAssignableFrom`:
   `decimal`, `decimal?`, `object`), which is exactly what the typed path's unbox accepts, and refuses any other type
@@ -524,13 +524,26 @@ ENUM row, and `TemporalConversionTests.cs` and `Parameters/TimeTests.cs` the dat
   read. So the table above holds for all of them. Pinned by `NumericReadPathAgreementTests`. Before 2.0 the
   `object` path used `Convert.ChangeType`: an integer read as `BigInteger`, and a HUGEINT, UHUGEINT or VARINT read
   as an integer type, threw there, and a DECIMAL read as another type failed with `ArgumentException`.
-- **ENUM follows the same rule.** `EnumVectorDataReader.GetValue(offset, Type)` gives the name for `string`, uses
+- **ENUM follows the same rule.** `EnumVectorDataReader.GetValueCore(offset, Type)` gives the name for `string`, uses
   `Enum.ToObject` for a C# enum (the type is known only at run time; it keeps the bytes that fit, as the typed
   path's `ToEnum` does), maps the integer types and `BigInteger` to `GetValidValue<X>`, and refuses the rest with
   the typed path's message. It used to call `Enum.ToObject` for every type, so an ENUM read as an integer type in a
   list, a map or a struct threw `ArgumentException`. Pinned by `EveryPathReadsAnEnumLikeTheColumn`.
 - **Not the same on purpose:** a list of `object` and a dictionary with `object` keys or values are refused with
   their own message, where `GetFieldValue<object>` on a column gives the value.
+- **`object` means the column's own .NET type, for every reader** (2.0). `ReadValidValue<object>` and
+  `GetValue(offset, typeof(object))` both read the value as `ClrType`, which is what `GetFieldValue<object>` and
+  `GetValue(ordinal)` on a column give. The rule is written once, in `VectorDataReaderBase`: a line in
+  `ReadValidValue<T>`, and `GetValue(offset, Type)`, which is no longer virtual and maps `object` to `ClrType` before
+  it calls the reader's `GetValueCore`. `GetValue(offset)` and `GetProviderSpecificValue` call `GetValueCore` directly,
+  so the column paths pay nothing for it. It covers a struct field read into an `object` property (the typed property
+  readers and the boxed setters used without dynamic code) and `IDuckDBDataReader.GetValue<object>` in a scalar
+  function. A list of `object` and a dictionary with `object` keys or values stay refused (above).
+  Before 2.0 a number, HUGEINT or ENUM threw "Cannot cast from Int32 to Object"; a DATE, TIMESTAMP (any unit),
+  TIME, TIMETZ or INTERVAL gave the DuckDB struct (`DuckDBDateOnly`, `DuckDBTimestamp`, `DuckDBTimeOnly`,
+  `DuckDBTimeTz`, `DuckDBInterval`) instead of `DateOnly`, `DateTime`, `TimeOnly`, `DateTimeOffset`, `TimeSpan`; a
+  STRUCT gave an empty `object`; a LIST or an ARRAY threw `InvalidCastException`, and a MAP
+  `InvalidOperationException`. Pinned by `ObjectTargetReadTests`.
 - **Planned for the next major version:** a value with a fraction read as an integer type will throw instead of
   rounding, for FLOAT, DOUBLE and DECIMAL alike (2.0 item 5).
 

@@ -126,6 +126,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
         if (typeof(T) == typeof(Guid))     return (T)(object)ReadGuid(offset);
         if (typeof(T) == typeof(string))   return (T)(object)ReadString(offset);
         if (typeof(T) == typeof(Stream))   return (T)(object)ReadStream(offset);
+        if (typeof(T) == typeof(object))   return (T)GetValueCore(offset, ClrType);
 
         return GetValidValue<T>(offset);
     }
@@ -133,10 +134,17 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
     public object GetValue(ulong offset)
     {
         if (!IsValid(offset)) return null!;
-        return GetValue(offset, ClrType);
+        return GetValueCore(offset, ClrType);
     }
 
-    internal virtual object GetValue(ulong offset, Type targetType)
+    // The value as targetType, which is known only at run time: a list item, a map key or value, a struct field read
+    // into a property without dynamic code. object means the column's own .NET type, as GetFieldValue<object> and
+    // GetValue(ordinal) give it, for every reader; ReadValidValue<object> does the same on the typed path.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal object GetValue(ulong offset, Type targetType) => GetValueCore(offset, targetType == typeof(object) ? ClrType : targetType);
+
+    // What each reader converts. Called with any type but object.
+    internal virtual object GetValueCore(ulong offset, Type targetType)
     {
         return DuckDBType switch
         {
@@ -145,7 +153,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
         };
     }
 
-    internal object GetProviderSpecificValue(ulong offset) => GetValue(offset, ProviderSpecificClrType);
+    internal object GetProviderSpecificValue(ulong offset) => GetValueCore(offset, ProviderSpecificClrType);
 
     protected virtual Type GetColumnType()
     {

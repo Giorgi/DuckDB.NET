@@ -40,11 +40,11 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
         return typeof(Dictionary<,>).MakeGenericType(keyReader.ProviderSpecificClrType, valueReader.ProviderSpecificClrType);
     }
 
-    internal override unsafe object GetValue(ulong offset, Type targetType)
+    internal override unsafe object GetValueCore(ulong offset, Type targetType)
     {
         if (DuckDBType != DuckDBType.Map)
         {
-            return base.GetValue(offset, targetType);
+            return base.GetValueCore(offset, targetType);
         }
 
         if (targetType != planType)

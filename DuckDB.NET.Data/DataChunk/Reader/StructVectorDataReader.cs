@@ -43,14 +43,14 @@ internal sealed class StructVectorDataReader : VectorDataReaderBase
         }
     }
 
-    internal override object GetValue(ulong offset, Type targetType)
+    internal override object GetValueCore(ulong offset, Type targetType)
     {
         if (DuckDBType == DuckDBType.Struct)
         {
             return GetStruct(offset, targetType);
         }
 
-        return base.GetValue(offset, targetType);
+        return base.GetValueCore(offset, targetType);
     }
 
     private object GetStruct(ulong offset, Type returnType)

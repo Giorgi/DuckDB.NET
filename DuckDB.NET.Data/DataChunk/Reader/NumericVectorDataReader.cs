@@ -94,7 +94,7 @@ internal sealed class NumericVectorDataReader<TStorage> : VectorDataReaderBase w
         throw CannotCast(typeof(TStorage), typeof(T));
     }
 
-    internal override object GetValue(ulong offset, Type targetType)
+    internal override object GetValueCore(ulong offset, Type targetType)
     {
         // The type the column holds, which GetValue(ordinal) and this[ordinal] ask for: the value is boxed once.
         if (targetType == typeof(TStorage))

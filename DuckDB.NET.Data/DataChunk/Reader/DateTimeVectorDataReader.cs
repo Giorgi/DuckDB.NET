@@ -121,7 +121,7 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
         return (T)(object)GetTimestamp(offset);
     }
 
-    internal override object GetValue(ulong offset, Type targetType)
+    internal override object GetValueCore(ulong offset, Type targetType)
     {
         return DuckDBType switch
         {
@@ -131,7 +131,7 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
             DuckDBType.Timestamp or DuckDBType.TimestampS or
             DuckDBType.TimestampTz or DuckDBType.TimestampMs or
             DuckDBType.TimestampNs => GetDateTime(offset, targetType),
-            _ => base.GetValue(offset, targetType)
+            _ => base.GetValueCore(offset, targetType)
         };
     }
 

@@ -53,11 +53,11 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
         return (T)(object)GetDecimal(offset);
     }
 
-    internal override object GetValue(ulong offset, Type targetType)
+    internal override object GetValueCore(ulong offset, Type targetType)
     {
         if (DuckDBType != DuckDBType.Decimal)
         {
-            return base.GetValue(offset, targetType);
+            return base.GetValueCore(offset, targetType);
         }
 
         if (targetType == typeof(BigInteger))

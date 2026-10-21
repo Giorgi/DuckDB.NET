@@ -39,7 +39,7 @@ internal sealed class BigIntegerVectorDataReader : VectorDataReaderBase
 
     // Every type is read with GetValidValue, so a list item, a map key or value and a struct field convert by the same
     // rules as a column. The class is sealed, so these calls are bound directly.
-    internal override object GetValue(ulong offset, Type targetType)
+    internal override object GetValueCore(ulong offset, Type targetType)
     {
         // The .NET type of the three columns, which GetValue(ordinal) asks for.
         if (targetType == typeof(BigInteger)) return GetValidValue<BigInteger>(offset);

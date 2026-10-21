@@ -99,11 +99,11 @@ internal sealed class EnumVectorDataReader : VectorDataReaderBase
         }
     }
 
-    internal override object GetValue(ulong offset, Type targetType)
+    internal override object GetValueCore(ulong offset, Type targetType)
     {
         if (DuckDBType != DuckDBType.Enum)
         {
-            return base.GetValue(offset, targetType);
+            return base.GetValueCore(offset, targetType);
         }
 
         // The name, which is the .NET type of the column and what GetValue(ordinal) asks for.
