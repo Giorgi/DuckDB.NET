@@ -31,7 +31,11 @@ directions together, so a round trip does not show a mistake; the tests that com
 - A line in `VectorDataReaderBase.ReadValidValue<T>` has the form `if (typeof(T) == typeof(X)) return ...;`.
 - A new reader class is registered in `VectorDataReaderFactory`, and overrides `Reset` if it has child readers.
 - Behaviour of numeric conversions is pinned by `DuckDB.NET.Test/NumericReaderConversionTests.cs`, and of dates
-  and times by `DuckDB.NET.Test/TemporalConversionTests.cs`.
+  and times by `DuckDB.NET.Test/TemporalConversionTests.cs`. That a column, a list item, a map key or value and a
+  struct field convert alike is pinned by `DuckDB.NET.Test/NumericReadPathAgreementTests.cs`.
+- `GetValue(offset, Type)` of the numeric, BigInteger and decimal readers never converts by rules of its own: the
+  numeric and BigInteger readers map the type to `GetValidValue<X>` of their own class, and the decimal reader
+  accepts and refuses the same types as its `GetValidValue<T>`. So the `object` path and the typed path agree.
 - The list, struct and map readers keep what they worked out for the last target type. A column read as different
   types in turn is pinned by `DuckDB.NET.Test/CompositeReadTargetTypeTests.cs`.
 

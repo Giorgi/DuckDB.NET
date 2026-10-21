@@ -733,8 +733,8 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         fields["b"].Should().Be(2L);
     }
 
-    // The values of a map and the fields of a struct are converted on another path than a column is.
-    // FLOAT, DOUBLE and decimal convert the same way on both.
+    // The values of a map and the fields of a struct are read with the target type known only at run time. They
+    // convert as a column does; NumericReadPathAgreementTests pins that for every numeric pair.
     [Fact]
     public void MapsAndStructsConvertFloatingPointLikeColumns()
     {

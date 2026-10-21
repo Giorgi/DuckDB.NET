@@ -5,17 +5,6 @@ namespace DuckDB.NET.Data.Extensions;
 
 internal static class TypeExtensions
 {
-    private static readonly HashSet<Type> FloatingNumericTypes = [typeof(decimal), typeof(float), typeof(double)];
-
-    private static readonly HashSet<Type> IntegralNumericTypes =
-    [
-        typeof(byte), typeof(sbyte),
-        typeof(short), typeof(ushort),
-        typeof(int), typeof(uint),
-        typeof(long), typeof(ulong),
-        typeof(BigInteger)
-    ];
-
     private static readonly Dictionary<Type, DuckDBType> ClrToDuckDBTypeMap = new()
     {
         { typeof(bool), DuckDBType.Boolean },
@@ -64,11 +53,6 @@ internal static class TypeExtensions
                typeof(T) == typeof(int) || typeof(T) == typeof(uint) ||
                typeof(T) == typeof(long) || typeof(T) == typeof(ulong) ||
                typeof(T) == typeof(BigInteger);
-    }
-
-    public static bool IsNumeric(this Type type)
-    {
-        return IntegralNumericTypes.Contains(type) || FloatingNumericTypes.Contains(type);
     }
 
     public static bool AllowsNullValue(this Type type, out bool isNullableValueType, out Type? underlyingType)

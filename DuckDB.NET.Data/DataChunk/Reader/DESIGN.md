@@ -72,8 +72,9 @@ not use profile data to guess the target as it does for a plain virtual call.
   it stopped allocating (it had boxed twice per value through `Convert.ChangeType`).
 - **The price:** the JIT compiles one body per stored type. The first row of a result with all ten numeric types
   takes about 0.45 ms longer through `GetValue`, and opening it about 0.3 ms longer, once per process.
-- **Left alone on purpose:** a FLOAT or DOUBLE read as an integer still goes through `GetValue(offset, Type)` and
-  `Convert.ChangeType`, which rounds half to even. See "Behaviour" below.
+- **A FLOAT or DOUBLE read as an integer** goes to `FloatingPointToInteger<T>`, which calls `Convert.ToInt32(double)`
+  and its siblings, and so rounds half to even, as the reader has since 0.9.2. It is the only place that rounds;
+  2.0 item 5 (refuse a fraction) changes that method alone. See "Behaviour" below.
 
 ### 4. `CannotCast` builds the exception
 
@@ -389,8 +390,8 @@ not use profile data to guess the target as it does for a plain virtual call.
   and as a class derived from a list type; it passes on the build before and on the build after.
 - **Left for 2.0** (`issues/deferred-to-2.0.md`, item 4): every item of a list of another type, every key and value
   of a map and every field of a struct is still read as an object and boxed, and such a list is still made by
-  `Activator` and grows. Reading them on the typed path changes what some reads return, which is why it waits for
-  the shared conversion.
+  `Activator` and grows. They convert by the typed path's rules since 2.0 item 4 (see "Behaviour"), so reading
+  them on the typed path is now a change of speed only.
 
 ### Smaller decisions
 
@@ -418,7 +419,16 @@ not use profile data to guess the target as it does for a plain virtual call.
   takes an encoding. Both end in the same decoder; the constructor validates more on the way. Short strings measured
   7 to 8% faster.
 - **`GetValue(offset, Type)` in the numeric reader compares the requested type with `typeof(TStorage)` first** and
-  returns the box it already has. `Convert.ChangeType` does not return early for the same type; it boxes again.
+  boxes the stored value once. Any other type goes to `GetValueAs`, which is not inlined: one comparison per
+  numeric type, each calling `GetValidValue<X>`. The class is sealed, so each call is bound directly, with no
+  generic virtual lookup (checked in the .NET 8 disassembly). `GetValue` on an INTEGER column stays 77 bytes and
+  clears no stack. It used to call `Convert.ChangeType`, which boxed a second time and had rules of its own.
+- **`BigIntegerVectorDataReader.GetValue` and `DecimalVectorDataReader.GetValue` work the same way.** The BigInteger
+  reader takes `BigInteger` first, then its own DuckDB struct, then maps the eight integer types to
+  `GetValidValue<X>`. The decimal reader gives its `decimal` only to a type that can hold one (`IsAssignableFrom`:
+  `decimal`, `decimal?`, `object`), which is exactly what the typed path's unbox accepts, and refuses any other type
+  with `CannotCast`. It used to return the `decimal` for any type, and the read failed later in the list, the
+  dictionary or the property setter with another exception.
 
 ### Costs that are known and not yet removed
 
@@ -458,7 +468,8 @@ ENUM row, and `TemporalConversionTests.cs` and `Parameters/TimeTests.cs` the dat
 
 - A refused read throws `InvalidCastException`. Where this code refuses it (an integer that does not fit, a DOUBLE
   out of range, an ENUM), the message names both types and the column: `Cannot cast from Int32 to Byte in column x`.
-  Where the runtime refuses it (HUGEINT as `double`, DOUBLE as `BigInteger`, DECIMAL as an integer), the message is
+  HUGEINT, UHUGEINT and VARINT as `double` say `Cannot cast from HugeInt to Double in column x`, and DOUBLE as
+  `BigInteger` likewise. Where the runtime refuses it (DECIMAL as an integer, on the typed path), the message is
   the runtime's and has no column. A DECIMAL with a fraction read as `BigInteger` names the column but not the types.
 - An ENUM column also reads as `string` (the name) and as a C# enum type of any size. The enum reader converts a
   C# enum through the size of that enum: `Unsafe.As` reads as many bytes as the target type has, so giving it a
@@ -467,13 +478,15 @@ ENUM row, and `TemporalConversionTests.cs` and `Parameters/TimeTests.cs` the dat
   does the same.
 - FLOAT or DOUBLE as `decimal` is the C# cast: a `double` keeps 15 significant digits and a `float` 7. NaN, infinity
   and a value out of range are refused. Npgsql refuses this read altogether; here it is allowed on purpose.
-- **Two paths with different rules.** A column, and a list item of type `int`, `float`, `double` or `decimal`, are
-  converted by the typed path above. A map key or value, a struct field read into a class, and every other list item
-  are converted by `GetValue(offset, Type)` with `Convert.ChangeType`. The two agree for FLOAT, DOUBLE and `decimal`.
-  They differ for `BigInteger`: an integer column reads as `BigInteger` on the typed path only, and a HUGEINT reads
-  as `long` on the typed path only (decision 7 is on the typed path).
+- **One set of rules** (2.0 item 4). A column, a list item, a map key or value and a struct field read into a class
+  convert alike: `GetValue(offset, Type)`, which the list, map and struct readers call, maps the type to the typed
+  read. So the table above holds for all of them. Pinned by `NumericReadPathAgreementTests`. Before 2.0 the
+  `object` path used `Convert.ChangeType`: an integer read as `BigInteger`, and a HUGEINT, UHUGEINT or VARINT read
+  as an integer type, threw there, and a DECIMAL read as another type failed with `ArgumentException`.
+- **Not the same on purpose:** a list of `object` and a dictionary with `object` keys or values are refused with
+  their own message, where `GetFieldValue<object>` on a column gives the value.
 - **Planned for the next major version:** a value with a fraction read as an integer type will throw instead of
-  rounding, for FLOAT, DOUBLE and DECIMAL alike; and both paths will share one conversion.
+  rounding, for FLOAT, DOUBLE and DECIMAL alike (2.0 item 5).
 
 Dates, times and timestamps (decision 8):
 

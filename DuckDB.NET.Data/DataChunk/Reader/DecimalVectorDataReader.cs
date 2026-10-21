@@ -64,7 +64,14 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
             return GetDuckDBDecimal(offset);
         }
 
-        return GetDecimal(offset);
+        // The typed path unboxes the decimal as the type it is asked for, so it gives a decimal to every type that
+        // can hold one (decimal itself, decimal? and object) and refuses the others. This does the same.
+        if (targetType == typeof(decimal) || targetType.IsAssignableFrom(typeof(decimal)))
+        {
+            return GetDecimal(offset);
+        }
+
+        throw CannotCast(DuckDBType.ToString(), targetType);
     }
 
     private decimal GetDecimal(ulong offset)

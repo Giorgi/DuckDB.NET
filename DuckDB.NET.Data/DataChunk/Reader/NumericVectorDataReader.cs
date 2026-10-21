@@ -48,10 +48,10 @@ internal sealed class NumericVectorDataReader<TStorage> : VectorDataReaderBase w
                 return (T)(object)(float)Unsafe.As<TStorage, double>(ref value);
             }
 
-            //A floating point value read as an integer is rounded, which the non-generic path does
+            //A floating point value read as an integer is rounded: see FloatingPointToInteger
             if (isIntegralNumericType)
             {
-                return base.GetValidValue<T>(offset);
+                return FloatingPointToInteger<T>(typeof(TStorage) == typeof(float) ? Unsafe.As<TStorage, float>(ref value) : Unsafe.As<TStorage, double>(ref value));
             }
 
             //What is left is decimal, which the checked conversion below handles: NaN, infinity and a value
@@ -68,30 +68,61 @@ internal sealed class NumericVectorDataReader<TStorage> : VectorDataReaderBase w
         }
     }
 
+    // A FLOAT or DOUBLE read as an integer type: rounded to the nearest whole number, half to even, and refused when
+    // that does not fit. These are the rules of Convert.ToInt32(double) and the others, which the reader has used
+    // since 0.9.2. 2.0 item 5 changes this method, and only this one, to refuse a value with a fraction.
+    // A float arrives as a double, exactly, as Convert.ToInt32(float) passes it on.
+    private T FloatingPointToInteger<T>(double value)
+    {
+        try
+        {
+            if (typeof(T) == typeof(sbyte))  return (T)(object)Convert.ToSByte(value);
+            if (typeof(T) == typeof(byte))   return (T)(object)Convert.ToByte(value);
+            if (typeof(T) == typeof(short))  return (T)(object)Convert.ToInt16(value);
+            if (typeof(T) == typeof(ushort)) return (T)(object)Convert.ToUInt16(value);
+            if (typeof(T) == typeof(int))    return (T)(object)Convert.ToInt32(value);
+            if (typeof(T) == typeof(uint))   return (T)(object)Convert.ToUInt32(value);
+            if (typeof(T) == typeof(long))   return (T)(object)Convert.ToInt64(value);
+            if (typeof(T) == typeof(ulong))  return (T)(object)Convert.ToUInt64(value);
+        }
+        catch (OverflowException)
+        {
+            throw CannotCast(typeof(TStorage), typeof(T));
+        }
+
+        // BigInteger
+        throw CannotCast(typeof(TStorage), typeof(T));
+    }
+
     internal override object GetValue(ulong offset, Type targetType)
     {
-        object value = GetFieldData<TStorage>(offset);
-
-        // Fast path: when the boxed value already has the requested type (the common case for
-        // GetValue(ordinal)/this[ordinal], which read using the column's natural ClrType), skip the
-        // Convert.ChangeType machinery entirely. ChangeType does not early-out on same-type for
-        // IConvertible values — it re-boxes via ToXxx() — so this also removes a redundant box.
+        // The type the column holds, which GetValue(ordinal) and this[ordinal] ask for: the value is boxed once.
         if (targetType == typeof(TStorage))
         {
-            return value;
+            return GetFieldData<TStorage>(offset);
         }
 
-        if (targetType.IsNumeric())
-        {
-            try
-            {
-                return Convert.ChangeType(value, targetType);
-            }
-            catch (OverflowException)
-            {
-                throw CannotCast(typeof(TStorage), targetType);
-            }
-        }
+        return GetValueAs(offset, targetType);
+    }
+
+    // Any other type, asked for by a list, a map or a struct, which know the type only at run time. Each type is read
+    // with GetValidValue, so a value converts by the same rules as it does from a column. The class is sealed, so
+    // these calls are bound directly. Not inlined, so that GetValue stays as small as it was.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private object GetValueAs(ulong offset, Type targetType)
+    {
+        if (targetType == typeof(sbyte))      return GetValidValue<sbyte>(offset);
+        if (targetType == typeof(byte))       return GetValidValue<byte>(offset);
+        if (targetType == typeof(short))      return GetValidValue<short>(offset);
+        if (targetType == typeof(ushort))     return GetValidValue<ushort>(offset);
+        if (targetType == typeof(int))        return GetValidValue<int>(offset);
+        if (targetType == typeof(uint))       return GetValidValue<uint>(offset);
+        if (targetType == typeof(long))       return GetValidValue<long>(offset);
+        if (targetType == typeof(ulong))      return GetValidValue<ulong>(offset);
+        if (targetType == typeof(float))      return GetValidValue<float>(offset);
+        if (targetType == typeof(double))     return GetValidValue<double>(offset);
+        if (targetType == typeof(decimal))    return GetValidValue<decimal>(offset);
+        if (targetType == typeof(BigInteger)) return GetValidValue<BigInteger>(offset);
 
         throw CannotCast(typeof(TStorage), targetType);
     }
