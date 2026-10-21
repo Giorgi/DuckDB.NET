@@ -212,6 +212,7 @@ not use profile data to guess the target as it does for a plain virtual call.
   warnings stay on the reflection lines, where the attribute does the work the analyzer cannot see.
 - **A new type in the list costs one `?? Known<X>()`.** A type that is missing still works everywhere; under Native
   AOT it takes the slower fallback. Nothing tests the published forms automatically.
+- The list and map readers find their builders in the same three steps (decision 9).
 - **Measured**, ratio to the build with decision 3:
 
   | Read | Runtime | Expression tree | Static method | Instance method |
@@ -410,6 +411,28 @@ not use profile data to guess the target as it does for a plain virtual call.
     value throws; integers and ENUM as `BigInteger`, VARINT and HUGEINT as a narrower integer, ENUM as a number and
     BIT as `BitArray` now read; a mismatched item throws `InvalidCastException` where `IList.Add` threw
     `ArgumentException`. Maps and structs are item 7.
+- **Done in 2.0 for maps and structs** (item 7):
+  - **Maps:** a `Dictionary<TKey, TValue>`, or a class derived from one, gets a builder per target type
+    (`CreateBuilder`): `MapBuilder<TKey, TValue>`, or `NullableValueMapBuilder<TKey, TValue>` for a `TValue?` value.
+    It creates the dictionary at its size (a derived class: `Activator` and `EnsureCapacity`), reads keys and values
+    with `ReadValidValue<T>` and adds them with the generic `Add`: no box. The builder is found as the list's is:
+    21 pairs are named (keys `string`, `int`, `long`; values `string`, `int`, `long`, `double` and the nullable
+    three), any other pair through `MakeGenericType` where `RuntimeFeature.IsDynamicCodeSupported`. Otherwise, and
+    for a type that is not a `Dictionary<,>`, a dictionary with `object` keys or values, or a nullable key type, the
+    map is filled through `IDictionary` with every key and value read as an object, as before. The named list is
+    short because each pair is compiled into every Native AOT application.
+  - **Structs** into a class or a C# struct: one property reader per settable property, generic over the declaring
+    type and the property type, made once per process per target type (`TypedCache`) and copied per column with the
+    field's reader. Its setter is an open-instance delegate made from the set method (for a struct, one taking it
+    by `ref`, called on the struct inside the box that is returned). Per row: a NULL test,
+    `ReadValidValue<TProperty>` and a typed setter call; no box. The declaring type is the caller's, so nothing can
+    be named for Native AOT: without dynamic code the boxed setters of before are used (`TypeCache`), unchanged.
+  - **Under the JIT, a STRUCT read into a C# struct gave every property at its default** until 2.0: the compiled
+    setter unboxed the struct into a copy and set the copy. Without dynamic code the expression was interpreted, and
+    the interpreter set the struct inside the box, so Native AOT was not affected. Now the typed path sets it in
+    place; the fallback is unchanged.
+  - What changed, pair by pair, is in `issues/2.0-item7-typed-map-struct.md`. Left: a STRUCT read into a class is
+    still created with `Activator.CreateInstance` per row.
 
 ### Smaller decisions
 
