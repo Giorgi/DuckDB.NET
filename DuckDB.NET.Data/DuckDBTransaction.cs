@@ -9,6 +9,10 @@ public class DuckDBTransaction : DbTransaction
 
     public override IsolationLevel IsolationLevel { get; }
 
+    public override bool SupportsSavepoints => false;
+
+    public override void Release(string savepointName) => throw new NotSupportedException();
+
     public DuckDBTransaction(DuckDBConnection connection, IsolationLevel isolationLevel)
     {
         this.connection = connection;
