@@ -1,6 +1,3 @@
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace DuckDB.NET.Data;
 
 public class DuckDBTransaction : DbTransaction
@@ -15,9 +12,6 @@ public class DuckDBTransaction : DbTransaction
     public override bool SupportsSavepoints => false;
 
     public override void Release(string savepointName) => throw new NotSupportedException();
-
-    public override Task ReleaseAsync(string savepointName, CancellationToken cancellationToken = default) =>
-        Task.FromException(new NotSupportedException());
 
     public DuckDBTransaction(DuckDBConnection connection, IsolationLevel isolationLevel)
     {
