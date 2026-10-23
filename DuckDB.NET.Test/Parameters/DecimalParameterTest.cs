@@ -456,4 +456,58 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         Command.CommandText = "SELECT list(value ORDER BY rowid)::VARCHAR FROM DecimalParameterRefused";
         Command.ExecuteScalar().Should().Be("[999, -999, 999]");
     }
+
+    // ADO.NET infers DbType.Decimal for a decimal value, and GetSchema("DataTypes") maps DECIMAL to System.Decimal.
+    [Fact]
+    public void DecimalValueInfersDbTypeDecimal()
+    {
+        new DuckDBParameter(1.5m).DbType.Should().Be(DbType.Decimal);
+    }
+
+    // DbType.Decimal had no converter, so a parameter that set it was sent as decimal.ToString() in the current
+    // culture: "1234,5" under fr-FR, stored as such in a VARCHAR column and refused by a DOUBLE one.
+    [Theory]
+    [InlineData(DbType.Decimal)]
+    [InlineData(DbType.Currency)]
+    public void ExplicitDecimalDbTypeIsSentAsADecimalInAnyCulture(DbType dbType)
+    {
+        var defaultCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
+        try
+        {
+            System.Threading.Thread.CurrentThread.CurrentCulture = CultureInfo.GetCultureInfo("fr-FR");
+
+            Command.Parameters.Clear();
+            Command.CommandText = "SELECT ?";
+            Command.Parameters.Add(new DuckDBParameter(1234.5m) { DbType = dbType });
+            Command.ExecuteScalar().Should().BeOfType<decimal>().Subject.Should().Be(1234.5m);
+
+            Command.CommandText = "CREATE OR REPLACE TABLE DecimalDbTypeTests (text VARCHAR, number DOUBLE)";
+            Command.Parameters.Clear();
+            Command.ExecuteNonQuery();
+
+            Command.CommandText = "INSERT INTO DecimalDbTypeTests VALUES (?, ?)";
+            Command.Parameters.Add(new DuckDBParameter(1234.5m) { DbType = dbType });
+            Command.Parameters.Add(new DuckDBParameter(1234.5m) { DbType = dbType });
+            Command.ExecuteNonQuery();
+
+            Command.Parameters.Clear();
+            Command.CommandText = "SELECT text || ' ' || number::VARCHAR FROM DecimalDbTypeTests";
+            Command.ExecuteScalar().Should().Be("1234.5 1234.5");
+        }
+        finally
+        {
+            System.Threading.Thread.CurrentThread.CurrentCulture = defaultCulture;
+        }
+    }
+
+    // Other values with DbType.Decimal are still sent as before.
+    [Fact]
+    public void ExplicitDecimalDbTypeWithAnIntegerValueIsStillSent()
+    {
+        Command.CommandText = "SELECT ?::DECIMAL(4,1)";
+        Command.Parameters.Clear();
+        Command.Parameters.Add(new DuckDBParameter(5) { DbType = DbType.Decimal });
+
+        Command.ExecuteScalar().Should().Be(5.0m);
+    }
 }
