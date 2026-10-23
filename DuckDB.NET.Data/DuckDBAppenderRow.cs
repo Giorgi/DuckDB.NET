@@ -138,17 +138,8 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
 
     #region Append Temporal
 
-    // Each of DateOnly and DuckDBDateOnly converts implicitly to the other, and so do TimeOnly and DuckDBTimeOnly.
-    // With nullable overloads only, a call with a non-nullable value of either type would be ambiguous. An overload
-    // that takes the exact type always wins, so these four make every such call resolve.
-    public IDuckDBAppenderRow AppendValue(DateOnly value) => AppendValueInternalNotNull(value);
-
-    public IDuckDBAppenderRow AppendValue(TimeOnly value) => AppendValueInternalNotNull(value);
-
-    public IDuckDBAppenderRow AppendValue(DuckDBDateOnly value) => AppendValueInternalNotNull(value);
-
-    public IDuckDBAppenderRow AppendValue(DuckDBTimeOnly value) => AppendValueInternalNotNull(value);
-
+    // DateOnly converts implicitly to DuckDBDateOnly and only explicitly back, so a DateOnly argument binds to the
+    // DateOnly? overload and a DuckDBDateOnly argument to the DuckDBDateOnly? one. The same holds for TimeOnly.
     public IDuckDBAppenderRow AppendValue(DateOnly? value) => AppendValueInternalStruct(value);
 
     public IDuckDBAppenderRow AppendValue(TimeOnly? value) => AppendValueInternalStruct(value);
@@ -198,14 +189,6 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
         {
             writer.WriteNull(ChunkRowIndex);
         }
-
-        ValueCount++;
-        return this;
-    }
-
-    private DuckDBAppenderRow AppendValueInternalNotNull<T>(T value) where T : struct
-    {
-        GetCurrentWriter().WriteValue(value, ChunkRowIndex);
 
         ValueCount++;
         return this;
@@ -285,10 +268,6 @@ public interface IDuckDBAppenderRow
     IDuckDBAppenderRow AppendValue<TEnum>(TEnum? value) where TEnum : Enum;
     IDuckDBAppenderRow AppendValue(float? value);
     IDuckDBAppenderRow AppendValue(double? value);
-    IDuckDBAppenderRow AppendValue(DateOnly value);
-    IDuckDBAppenderRow AppendValue(TimeOnly value);
-    IDuckDBAppenderRow AppendValue(DuckDBDateOnly value);
-    IDuckDBAppenderRow AppendValue(DuckDBTimeOnly value);
     IDuckDBAppenderRow AppendValue(DateOnly? value);
     IDuckDBAppenderRow AppendValue(TimeOnly? value);
     IDuckDBAppenderRow AppendValue(DuckDBDateOnly? value);

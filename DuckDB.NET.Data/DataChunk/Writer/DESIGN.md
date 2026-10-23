@@ -117,14 +117,20 @@ between two runs.
   the old speed for the first third of its measured iterations and gave 0.66 and 0.75 in two runs; with tiered
   compilation off it gave 0.33.
 - **A `DateOnly` or `TimeOnly` appended to a row reaches this code since 2.0.** Before, `IDuckDBAppenderRow` had
-  no overload for them, so they became `DuckDBDateOnly` and `DuckDBTimeOnly`. Each of the two pairs converts
-  implicitly both ways, so the nullable overloads alone make a call with a non-nullable argument ambiguous. The
-  interface therefore also has an overload for each of the four types that is not nullable: an exact match
-  always wins, and both implicit conversions are kept. Measured with `DateAppenderBenchmark` against the
-  1.5.6.1 package, .NET 10, one run, 1,000,000 rows of four columns: `DateOnly` to DATE 0.40, `TimeOnly` to
-  TIME 0.59, `DateTime` to DATE (the control, which took the arithmetic path in both builds) 0.89, with a
-  standard deviation of 15% to 20% of the mean in every job. On the Azure VM (F8as_v7, 4 launches, deviation 1%
-  to 4%), against the commit before: `DateOnly` 0.33, `TimeOnly` 0.54, the control 1.01.
+  no overload for them, so they became `DuckDBDateOnly` and `DuckDBTimeOnly`. In 1.5 each of the two pairs
+  converted implicitly both ways, so adding the nullable overloads to the interface would have made a
+  non-nullable argument ambiguous, as it already was on `DuckDBAppenderRow` itself. In 2.0 the conversions from
+  the DuckDB types to `DateOnly` and `TimeOnly` are explicit (they can throw: DATE has infinities and years
+  outside 1 to 9999, TIME has 24:00:00), so each argument binds to the overload of its own type. Rejected first:
+  an overload for each of the four types that is not nullable (six interface members instead of two), and
+  `[OverloadResolutionPriority]`, which C# 12 callers ignore (still ambiguous) and which sends a `DuckDBDateOnly`
+  argument through the conversion to `DateOnly` (throws for an infinity). Measured with
+  `DateAppenderBenchmark` against the 1.5.6.1 package, .NET 10, one run, 1,000,000 rows of four columns:
+  `DateOnly` to DATE 0.40, `TimeOnly` to TIME 0.59, `DateTime` to DATE (the control, which took the arithmetic
+  path in both builds) 0.89, with a standard deviation of 15% to 20% of the mean in every job. On the Azure VM
+  (F8as_v7, 4 launches, deviation 1% to 4%), against the commit before: `DateOnly` 0.33, `TimeOnly` 0.54, the
+  control 1.01. These figures are for `876ca36`, which had non-nullable overloads; the version with explicit
+  conversions was not measured.
 
 ### 7. A HUGEINT is built from a `BigInteger` through `Int128`
 
@@ -340,8 +346,8 @@ between two runs.
 - **Why:** every value was appended through the interface, one interface call per value.
 - **A `DateOnly` or a `TimeOnly` property now reaches the arithmetic of decision 6.** The class has
   `AppendValue(DateOnly?)` and `AppendValue(TimeOnly?)`, which the interface lacked until 2.0, and the mappings
-  call them. A property of the DuckDB types is written as before. Since 2.0 a value that is not nullable goes to
-  the overload of its exact type.
+  call them. A property of the DuckDB types is written as before. Since 2.0 a value that is not nullable binds to
+  the nullable overload of its own type (decision 6).
 - **Rejected: one method compiled for the map from an expression tree.** Built and measured (branch
   `mapped-appender`). It was ahead only for nullable properties on .NET 8 (0.66 and 0.70 against 0.85 and
   0.81), level or behind elsewhere, doubled what an appender allocates when it is created, and needs
