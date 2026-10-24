@@ -39,6 +39,17 @@ public class ParameterDbTypeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    public void AssigningTheSameValueDoesNotChangeItsDbType()
+    {
+        var parameter = new DuckDBParameter(5);
+        var value = parameter.Value;
+
+        parameter.Value = value;
+
+        parameter.DbType.Should().Be(DbType.Int32);
+    }
+
+    [Fact]
     public void ResetDbTypeReturnsToInference()
     {
         var parameter = new DuckDBParameter { DbType = DbType.Time };
