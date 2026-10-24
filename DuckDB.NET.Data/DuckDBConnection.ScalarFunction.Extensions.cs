@@ -301,9 +301,10 @@ public static class DuckDBConnectionScalarFunctionExtensions
         if (Nullable.GetUnderlyingType(parameter.ParameterType) != null)
             return true;
 
-        // Reference types: check nullable annotation
+        // Reference types: check nullable annotation. `string?` makes both states nullable; [AllowNull], which says
+        // callers may pass null, makes only the write state nullable, and [MaybeNull] only the read state.
         var info = context.Create(parameter);
-        return info.ReadState == NullabilityState.Nullable;
+        return info.WriteState == NullabilityState.Nullable || info.ReadState == NullabilityState.Nullable;
     }
 
 }

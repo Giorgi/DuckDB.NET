@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 
 namespace DuckDB.NET.Test;
 
@@ -658,6 +659,42 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         result.Should().Be(DBNull.Value);
     }
 #nullable restore
+
+    // [AllowNull] says that callers may pass null, which is what makes a parameter nullable here; [MaybeNull] counts
+    // too. This file has no nullable context, so a plain string is not nullable, and only the attributes opt in.
+    [Theory]
+    [InlineData("allow_null")]
+    [InlineData("maybe_null")]
+    [InlineData("plain")]
+    public void SimplifiedScalarFunctionHandlesNulls_AllowNullAndMaybeNullStringParams(string kind)
+    {
+        var name = $"echo_{kind}";
+        Func<string, string> func = kind switch
+        {
+            "allow_null" => ([AllowNull] string s) => s ?? "was_null",
+            "maybe_null" => ([MaybeNull] string s) => s ?? "was_null",
+            _ => (string s) => s ?? "was_null",
+        };
+        Connection.RegisterScalarFunction(name, func);
+
+        var expected = kind == "plain" ? null : "was_null";
+
+        Command.CommandText = $"SELECT {name}(NULL::VARCHAR)";
+        Command.ExecuteScalar().Should().Be(expected ?? (object)DBNull.Value);
+
+        Command.CommandText = $"CREATE OR REPLACE TABLE {name}_input (v VARCHAR); INSERT INTO {name}_input VALUES ('a'), (NULL), ('b')";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = $"SELECT {name}(v) FROM {name}_input ORDER BY rowid";
+        using var reader = Command.ExecuteReader();
+        var results = new List<string>();
+        while (reader.Read())
+        {
+            results.Add(reader.IsDBNull(0) ? null : reader.GetString(0));
+        }
+
+        results.Should().Equal("a", expected, "b");
+    }
 
     [Fact]
     public void SimplifiedScalarFunctionHandlesNulls_Varargs()
