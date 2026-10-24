@@ -224,6 +224,41 @@ public struct DuckDBString
 
     private const int InlineStringMaxLength = 12;
 
+    /// <summary>
+    /// Builds a string that is kept inside the value: the UTF-8 bytes of <paramref name="value"/>, then zeros.
+    /// Returns false, with a default value, when they take more than 12 bytes, or when <paramref name="value"/>
+    /// contains a NUL character, because DuckDB.NET ends a string at its first NUL (DuckDB itself would keep it).
+    /// Write such a string through DuckDB, with its length.
+    /// </summary>
+    public static unsafe bool TryCreateInlined(ReadOnlySpan<char> value, out DuckDBString result)
+    {
+        // Starts as zeros: DuckDB compares and hashes a short string by its length and all 12 bytes, so the bytes
+        // after the string have to be zero.
+        result = default;
+
+        if (value.Length > InlineStringMaxLength)
+        {
+            return false;
+        }
+
+        fixed (sbyte* data = result.inlined.Data)
+        {
+            var bytes = new Span<byte>(data, InlineStringMaxLength);
+
+            // Characters of more than one byte, more than 12 bytes together; or a NUL character (UTF-8 has a zero
+            // byte only for it), which DuckDB.NET ends a string at.
+            if (!Encoding.UTF8.TryGetBytes(value, bytes, out var length) || bytes[..length].Contains((byte)0))
+            {
+                result = default;
+                return false;
+            }
+
+            result.inlined.Length = (uint)length;
+        }
+
+        return true;
+    }
+
     public readonly int Length => (int)inlined.Length;
 
     public readonly unsafe sbyte* Data
@@ -245,12 +280,10 @@ public struct DuckDBString
     }
 }
 
-/// <summary>
-/// A <see cref="DuckDBString"/> of up to 12 bytes, kept inside the value: the length, then the bytes. The bytes
-/// after the string must be zero, because DuckDB compares and hashes a short string by its 12 bytes whole.
-/// </summary>
+// A DuckDBString of up to 12 bytes, kept inside the value: the length, then the bytes. The bytes after the string
+// must be zero, because DuckDB compares and hashes a short string by its 12 bytes whole; TryCreateInlined makes sure.
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct DuckDBStringInlined
+internal unsafe struct DuckDBStringInlined
 {
     public uint Length;
 

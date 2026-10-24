@@ -286,10 +286,19 @@ between two runs.
   again and checked the UTF-8.
 - **The check of the UTF-8 is skipped** because what the .NET encoder writes is always valid: a surrogate
   without its pair becomes the replacement character.
-- **The short string uses `DuckDBStringInlined`,** the struct the reader's `DuckDBString` is made of, so the
-  layout is declared once for both directions. The bytes after the string have to be zero: DuckDB compares and
-  hashes a short string by its 16 bytes. `DuckDBStringInlined` stays public for this: Bindings exposes nothing
-  internal to Data, since the two are separate packages.
+- **The short string is built by `DuckDBString.TryCreateInlined`** in Bindings, the struct the reader reads, so
+  the layout is declared once for both directions. The bytes after the string have to be zero: DuckDB compares and
+  hashes a short string by its 16 bytes. The method keeps that rule, so `DuckDBStringInlined` is internal
+  (Bindings exposes nothing internal to Data, since the two are separate packages). It also refuses a string with
+  a NUL character, which the writer then sends the long way (below). Tier 1 code of `AppendString` on .NET 10 is
+  the same as when the writer filled a public `DuckDBStringInlined` itself (166 instructions against 163, the same
+  calls; `azure/jitcmp-string`). On .NET 8 `TryCreateInlined` is inlined too, but the `Contains` inside it is not:
+  a call to `SpanHelpers.NonPackedContainsValueType` per short string, where the writer's own `Contains` was
+  unrolled. One short run on .NET 8 (2 launches, the maintainer's PC) showed no difference (0.93 and 0.97, noise
+  about 10%); kept as it is. Rejected: the NUL check in the writer, on the characters (`string.Contains('\0')`
+  is a call per string, since the packed search cannot look for 0) or on the bytes through `DuckDBString.Data`
+  (six more instructions, among them a `cmov` that always loads 8 bytes, since the JIT cannot see the length is at
+  most 12).
 - **Kept:** a string ends at its first NUL character, as it did when DuckDB measured it as a C string. A
   parameter does the same.
 - **Checked:** 27,016 strings appended to a VARCHAR, a VARCHAR[] and a BLOB column and returned from a scalar
