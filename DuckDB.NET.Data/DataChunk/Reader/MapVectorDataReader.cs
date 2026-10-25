@@ -74,7 +74,11 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
         {
             var childOffset = i + listOffset;
 
-            // A key is never NULL, as DuckDB refuses NULL map keys.
+            if (!keyReader.IsValid(childOffset))
+            {
+                ThrowNullKey(ColumnName);
+            }
+
             var key = keyReader.GetValue(childOffset, plan.KeyType);
             var value = valueReader.IsValid(childOffset) ? valueReader.GetValue(childOffset, plan.ValueType) : null;
 
@@ -91,10 +95,15 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
         return instance;
     }
 
-    // Used by the IDictionary path and by the builders.
+    // Used by the IDictionary path and by the builders. A child reader carries the name of the map column.
     [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void ThrowNullValue(string columnName) => throw new InvalidCastException($"The Map in column {columnName} contains null value but dictionary does not allow null values");
+
+    // SQL cannot make a NULL map key, but a map can also arrive from Parquet, Arrow or the C API.
+    [DoesNotReturn]
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void ThrowNullKey(string columnName) => throw new InvalidCastException($"The Map in column {columnName} contains a null key");
 
     // Not inlined, so that GetValueCore does not set up a native-call frame on every row (Reader/DESIGN.md).
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -247,8 +256,7 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
     }
 
     // Keys and values are read with ReadValidValue, the conversion of GetFieldValue<T> on a column, and added
-    // without a box. A key is never NULL, as DuckDB refuses NULL map keys. A NULL value is added as null for a
-    // reference type and refused for a value type.
+    // without a box. A NULL value is added as null for a reference type and refused for a value type.
     private sealed class MapBuilder<TKey, TValue> : MapBuilder where TKey : notnull
     {
         public override object Build(VectorDataReaderBase keyReader, VectorDataReaderBase valueReader, ulong listOffset, ulong length)
@@ -258,6 +266,11 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
             for (ulong i = 0; i < length; i++)
             {
                 var childOffset = listOffset + i;
+
+                if (!keyReader.IsValid(childOffset))
+                {
+                    ThrowNullKey(keyReader.ColumnName);
+                }
 
                 var key = keyReader.ReadValidValue<TKey>(childOffset);
 
@@ -289,6 +302,11 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
             for (ulong i = 0; i < length; i++)
             {
                 var childOffset = listOffset + i;
+
+                if (!keyReader.IsValid(childOffset))
+                {
+                    ThrowNullKey(keyReader.ColumnName);
+                }
 
                 var key = keyReader.ReadValidValue<TKey>(childOffset);
 
