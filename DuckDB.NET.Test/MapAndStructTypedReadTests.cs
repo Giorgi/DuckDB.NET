@@ -58,6 +58,45 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    public void MapsWithUuidKeysAndBooleanTimestampAndUuidValues()
+    {
+        Command.CommandText = $$"""
+            SELECT i,
+                   MAP {u: 'v' || i} AS uuid_text,
+                   MAP {u: i % 2 = 0, other: NULL} AS uuid_bool,
+                   MAP {i::INTEGER: TIMESTAMP '2024-01-01' + INTERVAL (i) SECOND, (i + 100000)::INTEGER: NULL} AS int_timestamp,
+                   MAP {'k' || i: u, 'n' || i: NULL::UUID} AS text_uuid
+            FROM (SELECT i,
+                         ('00000000-0000-0000-0000-' || printf('%012x', i))::UUID AS u,
+                         ('00000000-0000-0000-0001-' || printf('%012x', i))::UUID AS other
+                  FROM range({{Rows}}) t(i))
+            ORDER BY i
+            """;
+        using var reader = Command.ExecuteReader();
+
+        var row = 0;
+        while (reader.Read())
+        {
+            var key = Guid.Parse($"00000000-0000-0000-0000-{row:x12}");
+            var otherKey = Guid.Parse($"00000000-0000-0000-0001-{row:x12}");
+            var timestamp = new DateTime(2024, 1, 1).AddSeconds(row);
+
+            reader.GetFieldValue<Dictionary<Guid, string>>(1).Should().Equal(new Dictionary<Guid, string> { [key] = "v" + row });
+            reader.GetFieldValue<Dictionary<Guid, bool?>>(2).Should().Equal(new Dictionary<Guid, bool?> { [key] = row % 2 == 0, [otherKey] = null });
+            reader.GetFieldValue<Dictionary<int, DateTime?>>(3).Should().Equal(new Dictionary<int, DateTime?> { [row] = timestamp, [row + 100000] = null });
+            reader.GetFieldValue<Dictionary<string, Guid?>>(4).Should().Equal(new Dictionary<string, Guid?> { ["k" + row] = key, ["n" + row] = null });
+
+            reader.Invoking(r => r.GetFieldValue<Dictionary<Guid, bool>>(2)).Should().Throw<InvalidCastException>();
+            reader.Invoking(r => r.GetFieldValue<Dictionary<int, DateTime>>(3)).Should().Throw<InvalidCastException>();
+            reader.Invoking(r => r.GetFieldValue<Dictionary<string, Guid>>(4)).Should().Throw<InvalidCastException>();
+
+            row++;
+        }
+
+        row.Should().Be(Rows);
+    }
+
+    [Fact]
     public void MapWithANullValueIntoADictionaryOfAValueTypeIsRefused()
     {
         Command.CommandText = "SELECT MAP {1: 10, 2: NULL} AS m";

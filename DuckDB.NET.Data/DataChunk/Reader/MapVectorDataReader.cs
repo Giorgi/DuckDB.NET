@@ -178,18 +178,23 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
         return result;
     }
 
-    // Keys of VARCHAR, INTEGER and BIGINT columns with values of the commonest types. Every pair named here is
-    // compiled into an application compiled ahead of time, used or not, so the list is kept short.
+    // Keys of VARCHAR, INTEGER, BIGINT and UUID columns with values of the commonest types. Every pair named here
+    // (each key with each value) is compiled into an application compiled ahead of time, used or not, so the lists
+    // are kept short.
     private static MapBuilder? KnownBuilder(Type dictionaryType)
     {
-        return KnownForKey<string>(dictionaryType) ?? KnownForKey<int>(dictionaryType) ?? KnownForKey<long>(dictionaryType);
+        return KnownForKey<string>(dictionaryType) ?? KnownForKey<int>(dictionaryType) ?? KnownForKey<long>(dictionaryType)
+               ?? KnownForKey<Guid>(dictionaryType);
     }
 
     private static MapBuilder? KnownForKey<TKey>(Type dictionaryType) where TKey : notnull
     {
         return Known<TKey, string>(dictionaryType) ?? Known<TKey, int>(dictionaryType) ?? Known<TKey, long>(dictionaryType)
-               ?? Known<TKey, double>(dictionaryType) ?? KnownNullable<TKey, int>(dictionaryType)
-               ?? KnownNullable<TKey, long>(dictionaryType) ?? KnownNullable<TKey, double>(dictionaryType);
+               ?? Known<TKey, double>(dictionaryType) ?? Known<TKey, bool>(dictionaryType) ?? Known<TKey, DateTime>(dictionaryType)
+               ?? Known<TKey, Guid>(dictionaryType) ?? KnownNullable<TKey, int>(dictionaryType)
+               ?? KnownNullable<TKey, long>(dictionaryType) ?? KnownNullable<TKey, double>(dictionaryType)
+               ?? KnownNullable<TKey, bool>(dictionaryType) ?? KnownNullable<TKey, DateTime>(dictionaryType)
+               ?? KnownNullable<TKey, Guid>(dictionaryType);
     }
 
     private static MapBuilder? Known<TKey, TValue>(Type dictionaryType) where TKey : notnull

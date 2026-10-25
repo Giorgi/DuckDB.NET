@@ -420,8 +420,9 @@ not use profile data to guess the target as it does for a plain virtual call.
     (`CreateBuilder`): `MapBuilder<TKey, TValue>`, or `NullableValueMapBuilder<TKey, TValue>` for a `TValue?` value.
     It creates the dictionary at its size (a derived class: `Activator`, no capacity), reads keys and values
     with `ReadValidValue<T>` and adds them with the generic `Add`: no box. The builder is found as the list's is:
-    21 pairs are named (keys `string`, `int`, `long`; values `string`, `int`, `long`, `double` and the nullable
-    three), any other pair through `MakeGenericType` where `RuntimeFeature.IsDynamicCodeSupported`. Otherwise, and
+    52 pairs are named (keys `string`, `int`, `long`, `Guid`; values `string`, `int`, `long`, `double`, `bool`,
+    `DateTime`, `Guid` and the nullable six), any other pair through `MakeGenericType` where
+    `RuntimeFeature.IsDynamicCodeSupported`. Otherwise, and
     for a type that is not a `Dictionary<,>`, a dictionary with `object` keys or values, or a nullable key type, the
     map is filled through `IDictionary` with every key and value read as an object, as before. The named list is
     short because each pair is compiled into every Native AOT application.
