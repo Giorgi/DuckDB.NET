@@ -9,15 +9,15 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
     private readonly ulong arraySize;
     private readonly VectorDataReaderBase itemReader;
 
-    // What GetList found out about the type it was asked for last. A column is read as the same type row after row,
-    // so the type is looked at once and not for every row.
+    // What GetList found out about the type it was asked for last. It is worked out once per type it is asked for,
+    // as a column is read as the same type row after row.
     private Type? planType;
     private ListPlan plan;
 
-    public bool IsList => DuckDBType == DuckDBType.List;
+    private bool IsList => DuckDBType == DuckDBType.List;
 
-    internal unsafe ListVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, DuckDBLogicalType logicalColumnType, string columnName) 
-                    : base(dataPointer, validityMaskPointer, columnType, columnName)
+    internal unsafe ListVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, DuckDBLogicalType logicalColumnType, string columnName)
+        : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
         using var childType = IsList ? NativeMethods.LogicalType.DuckDBListTypeChildType(logicalColumnType) : NativeMethods.LogicalType.DuckDBArrayTypeChildType(logicalColumnType);
 
@@ -62,9 +62,10 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
             planType = targetType;
         }
 
-        // Three paths: a List<T> itself is created by the builder, with room for every item. Any other type is
-        // created as itself (GetOtherList): a class derived from List<T> is filled by the builder, any other
-        // collection, or a List<T> without a builder, through IList (FillBoxedList).
+        // Three paths:
+        // - a List<T> with a builder: created by the builder, with room for every item;
+        // - a class derived from List<T>: created as itself and filled by the builder (GetOtherList);
+        // - any other collection, or a List<T> without a builder: filled through IList (GetOtherList, FillBoxedList).
         if (plan.IsExactList)
         {
             return plan.Builder!.Build(null, itemReader, listOffset, length);
@@ -84,7 +85,7 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
 
         if (listBase == null && !targetType.IsGenericType)
         {
-            throw new InvalidCastException($"Cannot read column {ColumnName} as {targetType.Name}. Use a generic list with a concrete element type, or GetValue().");
+            throw new InvalidCastException($"Cannot read column {ColumnName} as {targetType.Name}. Use a List<T>, a class derived from one, or another generic collection with a concrete element type; or use GetValue().");
         }
 
         var elementType = (listBase ?? targetType).GetGenericArguments()[0];
@@ -96,13 +97,16 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
 
         var allowNulls = elementType.AllowsNullValue(out _, out var underlyingType);
 
-        // A builder reads the items on the typed path. It serves List<T> and every class derived from it. Without a
-        // builder (another collection type, or an element type that needs code the application cannot make), the
-        // items are read as objects.
+        // Only a List<T> or a class derived from one has a builder; CreateBuilder can also return none.
         var builder = listBase != null ? CreateBuilder(elementType) : null;
 
         return new ListPlan(builder, builder != null && listBase == targetType, underlyingType ?? elementType, allowNulls);
     }
+
+    // Builder reads the items of a List<T> on the typed path, or is null. IsExactList: the target is List<T> itself,
+    // which the builder creates. ItemType is the type an item is read as on the object path: the element type, or
+    // the type under a nullable one.
+    private readonly record struct ListPlan(ListBuilder? Builder, bool IsExactList, Type ItemType, bool AllowNulls);
 
     // The List<T> that the type is or derives from, or null.
     private static Type? FindListBase(Type type)
@@ -160,9 +164,12 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
 
     private static ListBuilder? Value<T>(Type elementType) where T : struct
     {
-        if (elementType == typeof(T)) return new ValueListBuilder<T>();
-        if (elementType == typeof(T?)) return new NullableListBuilder<T>();
-        return null;
+        if (elementType == typeof(T))
+        {
+            return new ValueListBuilder<T>();
+        }
+
+        return elementType == typeof(T?) ? new NullableListBuilder<T>() : null;
     }
 
     private static ListBuilder? Reference<T>(Type elementType) where T : class
@@ -173,8 +180,7 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
     // Any type but a List<T> with a builder: created as itself, and filled by the builder if it has one.
     private IList GetOtherList(Type targetType, ulong listOffset, ulong length)
     {
-        var list = Activator.CreateInstance(targetType) as IList
-                   ?? throw new ArgumentException($"The type '{targetType.Name}' specified in parameter {nameof(targetType)} cannot be instantiated as an IList.");
+        var list = Activator.CreateInstance(targetType) as IList ?? throw NotAList(targetType);
 
         if (plan.Builder != null)
         {
@@ -209,27 +215,26 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
         return result;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private ArgumentException NotAList(Type targetType) => new($"Cannot read column {ColumnName} as {targetType.Name}: it is not an IList.");
+
+    // Used by FillBoxedList and by ValueListBuilder.
     [DoesNotReturn]
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static void ThrowListContainsNull() => throw new InvalidCastException("The list contains null value");
 
-    // Builder reads the items of a List<T> on the typed path, or is null. IsExactList: the target is List<T> itself,
-    // which the builder creates. ItemType is the type an item is read as on the object path: the element type, or
-    // the type under a nullable one.
-    private readonly record struct ListPlan(ListBuilder? Builder, bool IsExactList, Type ItemType, bool AllowNulls);
-
-    // Reads the items of a list with ReadValidValue<T> of the child reader, the conversion of GetFieldValue<T> on a
-    // column, so an item is not boxed. One builder per column; Build is a plain virtual call per row, and the read of
-    // an item in its loop is inlined. An item is tested for NULL once, here; ReadValidValue does not test it again.
+    // Reads the items of a list with ReadValidValue<T> of the item reader, the conversion of GetFieldValue<T> on a
+    // column, so an item is not boxed. An item is tested for NULL once, here; ReadValidValue does not test it again.
     private abstract class ListBuilder
     {
         // Fills the list when one is given (a class derived from List<T>), or creates a List<T> with room for every
         // item.
-        public abstract IList Build(IList? list, VectorDataReaderBase items, ulong listOffset, ulong length);
+        public abstract IList Build(IList? list, VectorDataReaderBase itemReader, ulong listOffset, ulong length);
     }
 
     private sealed class ValueListBuilder<T> : ListBuilder where T : struct
     {
-        public override IList Build(IList? list, VectorDataReaderBase items, ulong listOffset, ulong length)
+        public override IList Build(IList? list, VectorDataReaderBase itemReader, ulong listOffset, ulong length)
         {
             var result = (List<T>?)list ?? new List<T>((int)length);
 
@@ -237,12 +242,12 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
             {
                 var childOffset = listOffset + i;
 
-                if (!items.IsValid(childOffset))
+                if (!itemReader.IsValid(childOffset))
                 {
                     ThrowListContainsNull();
                 }
 
-                result.Add(items.ReadValidValue<T>(childOffset));
+                result.Add(itemReader.ReadValidValue<T>(childOffset));
             }
 
             return result;
@@ -251,7 +256,7 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
 
     private sealed class NullableListBuilder<T> : ListBuilder where T : struct
     {
-        public override IList Build(IList? list, VectorDataReaderBase items, ulong listOffset, ulong length)
+        public override IList Build(IList? list, VectorDataReaderBase itemReader, ulong listOffset, ulong length)
         {
             var result = (List<T?>?)list ?? new List<T?>((int)length);
 
@@ -259,7 +264,7 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
             {
                 var childOffset = listOffset + i;
 
-                result.Add(items.IsValid(childOffset) ? items.ReadValidValue<T>(childOffset) : null);
+                result.Add(itemReader.IsValid(childOffset) ? itemReader.ReadValidValue<T>(childOffset) : null);
             }
 
             return result;
@@ -268,7 +273,7 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
 
     private sealed class ReferenceListBuilder<T> : ListBuilder where T : class
     {
-        public override IList Build(IList? list, VectorDataReaderBase items, ulong listOffset, ulong length)
+        public override IList Build(IList? list, VectorDataReaderBase itemReader, ulong listOffset, ulong length)
         {
             var result = (List<T?>?)list ?? new List<T?>((int)length);
 
@@ -276,7 +281,7 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
             {
                 var childOffset = listOffset + i;
 
-                result.Add(items.IsValid(childOffset) ? items.ReadValidValue<T>(childOffset) : null);
+                result.Add(itemReader.IsValid(childOffset) ? itemReader.ReadValidValue<T>(childOffset) : null);
             }
 
             return result;

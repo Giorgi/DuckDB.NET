@@ -198,8 +198,8 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         row.Should().Be(Rows);
     }
 
-    // A nullable key type has no builder, so this class is read through IDictionary: the path that took the column's
-    // types (and refused a NULL value) for a class that is not generic itself.
+    // A nullable key type has no builder, so this class is read through IDictionary, with the key and value types of
+    // its base class.
     [Fact]
     public void MapIntoADerivedClassThroughIDictionaryIsReadByItsBase()
     {
