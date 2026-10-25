@@ -80,7 +80,10 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
             throw new InvalidCastException($"Cannot read column {ColumnName} as {returnType.Name}. Use a generic list with a concrete element type, or GetValue().");
         }
 
-        var listType = returnType.GetGenericArguments()[0];
+        // The element type is that of the List<T> the target is or derives from, so a class whose type argument is not
+        // the element type is read by its base. Another type (a Collection<T>) gives its own type argument.
+        var listBase = FindListBase(returnType);
+        var listType = (listBase ?? returnType).GetGenericArguments()[0];
 
         if (listType == typeof(object))
         {
@@ -92,8 +95,7 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
         // A builder reads the items on the typed path. It serves List<T> and every class derived from it. Without a
         // builder (another collection type, or an element type that needs code the application cannot make), the
         // items are read as objects.
-        var listBase = FindListBase(returnType);
-        var builder = listBase != null ? CreateBuilder(listBase.GetGenericArguments()[0]) : null;
+        var builder = listBase != null ? CreateBuilder(listType) : null;
 
         return new ListPlan(builder, builder != null && listBase == returnType, nullableType ?? listType, allowNulls);
     }

@@ -18,6 +18,10 @@ public class ListReadAllElementTypesTests(DuckDBDatabaseFixture db) : DuckDBTest
 
     private class DerivedList<T> : List<T>;
 
+    private class Tagged<TTag, T> : List<T>;
+
+    private class TaggedObjects<TTag> : List<object>;
+
     [Fact] public void Booleans() => ReadsValueLists<bool>("BOOLEAN", "{0} % 2 = 0");
     [Fact] public void Bytes() => ReadsValueLists<byte>("UTINYINT", "{0} % 256");
     [Fact] public void SignedBytes() => ReadsValueLists<sbyte>("TINYINT", "{0} % 256 - 128");
@@ -140,6 +144,11 @@ public class ListReadAllElementTypesTests(DuckDBDatabaseFixture db) : DuckDBTest
             reader.GetFieldValue<DerivedList<int?>>(0).Should().BeOfType<DerivedList<int?>>().And.Equal(row, null, row + 1);
             reader.GetFieldValue<DerivedList<string>>(1).Should().BeOfType<DerivedList<string>>().And.Equal("a" + row, null);
             reader.Invoking(r => r.GetFieldValue<DerivedList<long>>(0)).Should().Throw<InvalidCastException>().WithMessage("The list contains null value");
+
+            // The first type argument is not the element type: the element type is that of the base class.
+            reader.GetFieldValue<Tagged<object, long?>>(0).Should().BeOfType<Tagged<object, long?>>().And.Equal(row, null, row + 1L);
+            reader.GetFieldValue<Tagged<string, int?>>(0).Should().Equal(row, null, row + 1);
+            reader.Invoking(r => r.GetFieldValue<TaggedObjects<int>>(0)).Should().Throw<InvalidCastException>().WithMessage("*as a list of object*");
 
             // A collection that is not a List<T> is filled as before.
             reader.GetFieldValue<Collection<long?>>(0).Should().Equal(row, null, row + 1L);
