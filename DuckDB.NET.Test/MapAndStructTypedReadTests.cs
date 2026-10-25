@@ -112,6 +112,19 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         reader.GetFieldValue<Dictionary<int, short?>>(0).Should().Equal(new Dictionary<int, short?> { [1] = 10, [2] = null });
     }
 
+    // The map reader reads a key without testing it for NULL. If DuckDB ever allows a NULL key, this fails, and the
+    // builders and the IDictionary path need the test again.
+    [Theory]
+    [InlineData("SELECT MAP {NULL::INTEGER: 1}")]
+    [InlineData("SELECT MAP([NULL::INTEGER], [1])")]
+    [InlineData("SELECT map_from_entries([{'k': NULL::INTEGER, 'v': 1}])")]
+    public void DuckDBRefusesANullMapKey(string sql)
+    {
+        Command.CommandText = sql;
+
+        Command.Invoking(c => c.ExecuteScalar()).Should().Throw<DuckDBException>().WithMessage("*Map keys can not be NULL*");
+    }
+
     [Fact]
     public void MapValueThatDoesNotFitIsRefused()
     {
