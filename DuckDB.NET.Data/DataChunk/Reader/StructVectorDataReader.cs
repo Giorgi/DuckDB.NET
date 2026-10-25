@@ -3,17 +3,14 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using DuckDB.NET.Data.Common;
 
 namespace DuckDB.NET.Data.DataChunk.Reader;
 
 internal sealed class StructVectorDataReader : VectorDataReaderBase
 {
-    // The settable properties of each target type, worked out once per process. TypedCache holds a typed reader per
-    // property, with no field reader yet, where code can be made at run time; TypeCache holds the boxed setters used
-    // where it cannot.
-    private static readonly ConcurrentDictionary<Type, PropertyReader[]?> TypedCache = new();
-    private static readonly ConcurrentDictionary<Type, TypeDetails> TypeCache = new();
+    // The settable properties of each target type, worked out once per process: a reader per property, with no field
+    // reader yet. A typed reader where code can be made at run time, a boxed one where it cannot.
+    private static readonly ConcurrentDictionary<Type, PropertyReader[]> PropertyCache = new();
     // TODO: Replace with OrderedDictionary<string, VectorDataReaderBase> when .NET 8 support is dropped.
     // The parallel array exists only to guarantee field-ordinal iteration in Reset/Dispose.
     private readonly Dictionary<string, VectorDataReaderBase> structDataReaders;
@@ -89,28 +86,13 @@ internal sealed class StructVectorDataReader : VectorDataReaderBase
         var pairs = new List<PropertyReader>();
 
         // A static lambda: one that used returnType allocated a closure and a delegate for every call.
-        var prototypes = TypedCache.GetOrAdd(returnType, static type => CreateTypedReaders(type));
+        var prototypes = PropertyCache.GetOrAdd(returnType, static type => CreateTypedReaders(type) ?? CreateBoxedReaders(type));
 
-        if (prototypes != null)
+        foreach (var prototype in prototypes)
         {
-            foreach (var prototype in prototypes)
+            if (structDataReaders.TryGetValue(prototype.Name, out var reader))
             {
-                if (structDataReaders.TryGetValue(prototype.Name, out var reader))
-                {
-                    pairs.Add(prototype.WithReader(reader));
-                }
-            }
-
-            return [.. pairs];
-        }
-
-        var typeDetails = TypeCache.GetOrAdd(returnType, static type => CreateTypeDetails(type));
-
-        foreach (var property in typeDetails.Properties)
-        {
-            if (structDataReaders.TryGetValue(property.Key, out var reader))
-            {
-                pairs.Add(new BoxedPropertyReader(property.Key, property.Value, reader));
+                pairs.Add(prototype.WithReader(reader));
             }
         }
 
@@ -177,31 +159,33 @@ internal sealed class StructVectorDataReader : VectorDataReaderBase
         return [.. readers.Values];
     }
 
-    private static TypeDetails CreateTypeDetails(Type type)
+    // Where no code can be made at run time: a boxed setter per property.
+    private static PropertyReader[] CreateBoxedReaders(Type type)
     {
-        var details = new TypeDetails();
+        // By name, as the typed readers are: two properties of the same name fail in the same way.
+        var readers = new Dictionary<string, PropertyReader>();
 
-        foreach (var propertyInfo in SettableProperties(type))
+        foreach (var property in SettableProperties(type))
         {
-            var isNullable = propertyInfo.PropertyType.AllowsNullValue(out var isNullableValueType, out var underlyingType);
+            var nullable = property.PropertyType.AllowsNullValue(out _, out var underlyingType);
 
             // For a C# struct, the compiled setter would unbox it and set a copy; this path runs only without dynamic
             // code, where Compile interprets the expression and sets the struct inside the box.
             var instanceParam = Expression.Parameter(typeof(object));
             var argumentParam = Expression.Parameter(typeof(object));
 
-            var setAction = Expression.Lambda<Action<object, object>>(
-                Expression.Call(Expression.Convert(instanceParam, type), propertyInfo.SetMethod!, Expression.Convert(argumentParam, propertyInfo.PropertyType)),
+            var setter = Expression.Lambda<Action<object, object>>(
+                Expression.Call(Expression.Convert(instanceParam, type), property.SetMethod!, Expression.Convert(argumentParam, property.PropertyType)),
                 instanceParam, argumentParam
             ).Compile();
 
-            details.Properties.Add(propertyInfo.Name, new PropertyDetails(propertyInfo.PropertyType, isNullable, isNullableValueType, underlyingType, setAction));
+            readers.Add(property.Name, new BoxedPropertyReader(property.Name, underlyingType ?? property.PropertyType, nullable, setter, null));
         }
 
-        return details;
+        return [.. readers.Values];
     }
 
-    // Reads one field of a row into one property of the target. The readers in TypedCache have no field reader;
+    // Reads one field of a row into one property of the target. The readers in PropertyCache have no field reader;
     // WithReader gives a copy that reads the field of this column.
     private abstract class PropertyReader(string name)
     {
@@ -300,20 +284,20 @@ internal sealed class StructVectorDataReader : VectorDataReaderBase
         }
     }
 
-    // Where no code can be made at run time: the field is read as an object of the property type (or the type under
-    // a nullable one) and set through a boxed setter.
-    private sealed class BoxedPropertyReader(string name, PropertyDetails property, VectorDataReaderBase reader) : PropertyReader(name)
+    // Where no code can be made at run time: the field is read as an object of readType (the property type, or the
+    // type under a nullable one) and set through a boxed setter.
+    private sealed class BoxedPropertyReader(string name, Type readType, bool nullable, Action<object, object> setter, VectorDataReaderBase? reader)
+        : PropertyReader(name)
     {
-        public override PropertyReader WithReader(VectorDataReaderBase fieldReader) => new BoxedPropertyReader(Name, property, fieldReader);
+        public override PropertyReader WithReader(VectorDataReaderBase fieldReader) => new BoxedPropertyReader(Name, readType, nullable, setter, fieldReader);
 
         public override void Read(object target, ulong offset)
         {
-            if (reader.IsValid(offset))
+            if (reader!.IsValid(offset))
             {
-                var value = reader.GetValue(offset, property.NullableType ?? property.PropertyType);
-                property.Setter(target, value);
+                setter(target, reader.GetValue(offset, readType));
             }
-            else if (!property.Nullable)
+            else if (!nullable)
             {
                 ThrowNotNullable();
             }
