@@ -64,8 +64,9 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
 
         // Three paths:
         // - a List<T> with a builder: created by the builder, with room for every item;
-        // - a class derived from List<T>: created as itself and filled by the builder (GetOtherList);
-        // - any other collection, or a List<T> without a builder: filled through IList (GetOtherList, FillBoxedList).
+        // - a class derived from List<T> with a builder: created as itself and filled by the builder (GetOtherList);
+        // - any other collection, or a List<T> or derived class without a builder: filled through IList (GetOtherList,
+        //   FillBoxedList).
         if (plan.IsExactList)
         {
             return plan.Builder!.Build(null, itemReader, listOffset, length);
@@ -97,7 +98,8 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
 
         var allowNulls = elementType.AllowsNullValue(out _, out var underlyingType);
 
-        // Only a List<T> or a class derived from one has a builder; CreateBuilder can also return none.
+        // Only a List<T> or a class derived from one has a builder, and none where no code can be made at run time for
+        // an element type that CreateBuilder does not name.
         var builder = listBase != null ? CreateBuilder(elementType) : null;
 
         return new ListPlan(builder, builder != null && listBase == targetType, underlyingType ?? elementType, allowNulls);
@@ -180,7 +182,7 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
     // Any type but a List<T> with a builder: created as itself, and filled by the builder if it has one.
     private IList GetOtherList(Type targetType, ulong listOffset, ulong length)
     {
-        var list = Activator.CreateInstance(targetType) as IList ?? throw NotAList(targetType);
+        var list = Activator.CreateInstance(targetType) as IList ?? throw NotAListException(targetType);
 
         if (plan.Builder != null)
         {
@@ -215,8 +217,10 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
         return result;
     }
 
+    // Returns the exception, for '?? throw': a [DoesNotReturn] helper called in an 'is not IList list' test would leave
+    // list unassigned for the compiler.
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private ArgumentException NotAList(Type targetType) => new($"Cannot read column {ColumnName} as {targetType.Name}: it is not an IList.");
+    private ArgumentException NotAListException(Type targetType) => new($"Cannot read column {ColumnName} as {targetType.Name}: it is not an IList.");
 
     // Used by FillBoxedList and by ValueListBuilder.
     [DoesNotReturn]

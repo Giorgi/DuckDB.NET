@@ -65,10 +65,7 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
     // and value read as an object.
     private IDictionary GetBoxedDictionary(Type targetType, ulong listOffset, ulong length)
     {
-        if (Activator.CreateInstance(targetType) is not IDictionary instance)
-        {
-            throw new InvalidOperationException($"Cannot read Map column {ColumnName} in a non-dictionary type");
-        }
+        var instance = Activator.CreateInstance(targetType) as IDictionary ?? throw NotADictionaryException();
 
         for (ulong i = 0; i < length; i++)
         {
@@ -94,6 +91,10 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
 
         return instance;
     }
+
+    // Returns the exception, for '?? throw', as the list reader's NotAListException does.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private InvalidOperationException NotADictionaryException() => new($"Cannot read Map column {ColumnName} in a non-dictionary type");
 
     // Used by the IDictionary path and by the builders. A child reader carries the name of the map column.
     [DoesNotReturn]
