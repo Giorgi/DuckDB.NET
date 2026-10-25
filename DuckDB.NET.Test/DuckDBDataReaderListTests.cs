@@ -22,7 +22,8 @@ public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBas
         using var reader = Command.ExecuteReader();
         reader.Read();
         reader.Invoking(r => r.GetFieldValue<List<object>>(0)).Should().Throw<InvalidCastException>();
-        reader.Invoking(r => r.GetFieldValue<System.Collections.ArrayList>(0)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetFieldValue<System.Collections.ArrayList>(0)).Should().Throw<InvalidCastException>()
+              .WithMessage("Cannot read column * as ArrayList*");
     }
 
     [Fact]
