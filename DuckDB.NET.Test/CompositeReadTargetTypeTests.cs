@@ -42,10 +42,10 @@ public class CompositeReadTargetTypeTests(DuckDBDatabaseFixture db) : DuckDBTest
             reader.GetFieldValue<List<double>>(1).Should().Equal(row, row + 1);
             reader.GetFieldValue<List<int>>(1).Should().Equal(row, row + 1);
 
-            // A class derived from a list type is created as itself. One that is not generic is refused.
+            // A class derived from a list type is created as itself, also one that is not generic itself.
             reader.GetFieldValue<DerivedList<int>>(1).Should().BeOfType<DerivedList<int>>().And.Equal(row, row + 1);
             reader.GetFieldValue<DerivedList<long>>(1).Should().BeOfType<DerivedList<long>>().And.Equal(row, row + 1);
-            reader.Invoking(r => r.GetFieldValue<DerivedIntList>(1)).Should().Throw<InvalidCastException>().WithMessage("Cannot read column full_list as DerivedIntList*");
+            reader.GetFieldValue<DerivedIntList>(1).Should().BeOfType<DerivedIntList>().And.Equal(row, row + 1);
 
             row++;
         }
