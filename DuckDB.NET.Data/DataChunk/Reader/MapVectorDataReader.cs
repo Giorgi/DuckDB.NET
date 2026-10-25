@@ -9,11 +9,9 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
     private readonly VectorDataReaderBase valueReader;
 
     // What GetValue found out about the type it was asked for last. A column is read as the same type row after row,
-    // so it is worked out once. A Dictionary<TKey, TValue>, or a class derived from one, gets a builder that reads
-    // keys and values on the typed path; any other type is filled through IDictionary with the plan.
+    // so the type is looked at once and not for every row.
     private Type? planType;
-    private MapBuilder? builder;
-    private (Type Key, Type Value, bool AllowsNullValues)? plan;
+    private MapPlan plan;
 
     internal unsafe MapVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, DuckDBLogicalType logicalColumnType, string columnName)
                     : base(dataPointer, validityMaskPointer, columnType, columnName)
@@ -49,16 +47,15 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
 
         if (targetType != planType)
         {
-            builder = CreateBuilder(targetType);
-            plan = null;
+            plan = CreatePlan(targetType);
             planType = targetType;
         }
 
         var listData = (DuckDBListEntry*)DataPointer + offset;
 
-        if (builder != null)
+        if (plan.Builder != null)
         {
-            return builder.Build(this, listData->Offset, listData->Length);
+            return plan.Builder.Build(this, listData->Offset, listData->Length);
         }
 
         return GetBoxedDictionary(targetType, listData->Offset, listData->Length);
@@ -73,18 +70,14 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
             throw new InvalidOperationException($"Cannot read Map column {ColumnName} in a non-dictionary type");
         }
 
-        plan ??= CreatePlan(targetType);
-
-        var (keyTargetType, valueTargetType, allowsNullValues) = plan.Value;
-
         for (ulong i = 0; i < length; i++)
         {
             var childOffset = i + listOffset;
 
-            var key = keyReader.IsValid(childOffset) ? keyReader.GetValue(childOffset, keyTargetType) : null!;
-            var value = valueReader.IsValid(childOffset) ? valueReader.GetValue(childOffset, valueTargetType) : null;
+            var key = keyReader.IsValid(childOffset) ? keyReader.GetValue(childOffset, plan.KeyType) : null!;
+            var value = valueReader.IsValid(childOffset) ? valueReader.GetValue(childOffset, plan.ValueType) : null;
 
-            if (allowsNullValues || value != null)
+            if (plan.AllowsNullValues || value != null)
             {
                 instance.Add(key, value);
             }
@@ -97,7 +90,9 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
         return instance;
     }
 
-    private (Type Key, Type Value, bool AllowsNullValues) CreatePlan(Type targetType)
+    // Not inlined: the reflection in it would otherwise be part of GetValueCore, which runs for every row.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private MapPlan CreatePlan(Type targetType)
     {
         var arguments = targetType.GetGenericArguments();
 
@@ -119,8 +114,12 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
             valueTargetType = underlyingValueType ?? arguments[1];
         }
 
-        return (keyTargetType, valueTargetType, allowsNullValues);
+        return new MapPlan(CreateBuilder(targetType), keyTargetType, valueTargetType, allowsNullValues);
     }
+
+    // Builder reads keys and values on the typed path, or is null. KeyType, ValueType and AllowsNullValues are for
+    // the IDictionary path: the types a key and a value are read as, and whether a NULL value is added.
+    private readonly record struct MapPlan(MapBuilder? Builder, Type KeyType, Type ValueType, bool AllowsNullValues);
 
     // The builder for a Dictionary<TKey, TValue> or a class derived from one, or null when the type is read through
     // IDictionary. A dictionary with object keys or values, or with a nullable key type, is left to IDictionary, which
@@ -131,7 +130,6 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
     // - the common pairs are named below, so an application compiled ahead of time has the code for them;
     // - any other pair is made with MakeGenericType where code can be made at run time;
     // - elsewhere the dictionary is filled through IDictionary, as every map was before.
-    [MethodImpl(MethodImplOptions.NoInlining)]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(MapBuilder<,>))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(NullableValueMapBuilder<,>))]
     [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "The MakeGenericType calls run only where RuntimeFeature.IsDynamicCodeSupported is true, tested in this method; the .NET 8 analyzer does not recognise that guard.")]
