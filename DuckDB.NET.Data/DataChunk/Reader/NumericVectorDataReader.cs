@@ -78,10 +78,11 @@ internal sealed class NumericVectorDataReader<TStorage> : VectorDataReaderBase w
             throw CannotCast(typeof(TStorage), typeof(T));
         }
 
-        // NaN and infinity have no fraction to speak of; the conversion below refuses them as out of range.
-        if (double.IsFinite(value) && value != Math.Truncate(value))
+        // NaN and infinity are not integers either, but they have no fraction to speak of: they keep the message of a
+        // value out of range, as before.
+        if (!double.IsInteger(value))
         {
-            throw CannotCastFraction(typeof(T));
+            throw double.IsFinite(value) ? CannotCastFraction(typeof(T)) : CannotCast(typeof(TStorage), typeof(T));
         }
 
         try

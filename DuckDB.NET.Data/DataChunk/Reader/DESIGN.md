@@ -72,9 +72,10 @@ not use profile data to guess the target as it does for a plain virtual call.
   it stopped allocating (it had boxed twice per value through `Convert.ChangeType`).
 - **The price:** the JIT compiles one body per stored type. The first row of a result with all ten numeric types
   takes about 0.45 ms longer through `GetValue`, and opening it about 0.3 ms longer, once per process.
-- **A FLOAT or DOUBLE read as an integer** goes to `FloatingPointToInteger<T>`: a value with a fraction is refused
-  (`Math.Truncate` differs from it), and a whole value goes through `NumericConverter.Convert<double, T>`, whose
-  checked conversion refuses NaN, the infinities and a value out of range. Before 2.0 it called
+- **A FLOAT or DOUBLE read as an integer** goes to `FloatingPointToInteger<T>`: a value that is not
+  `double.IsInteger` is refused, with the fraction message when it is finite and with the range message for NaN and
+  the infinities. A whole value goes through `NumericConverter.Convert<double, T>`, whose checked conversion refuses
+  a value out of range. A FLOAT is widened to `double` first, which is exact. Before 2.0 it called
   `Convert.ToInt32(double)` and its siblings and rounded half to even (since 0.9.2). The DECIMAL reader follows the
   same rule in `GetInteger<T>`, from the unscaled `Int128`, so a DECIMAL is never made a `decimal` to be read as an
   integer. See "Behaviour" below.
