@@ -445,7 +445,7 @@ not use profile data to guess the target as it does for a plain virtual call.
     still created with `Activator.CreateInstance` per row.
 - **The fallbacks without dynamic code are not run by the test suite.** Under the JIT every `List<T>`, every
   `Dictionary<TKey, TValue>` without a nullable key type and every struct target gets a typed builder or setter.
-  So the object paths (`BuildListCommon`, `GetBoxedDictionary`, `BoxedPropertySetter`) are reached for such targets
+  So the object paths (`FillBoxedList`, `GetBoxedDictionary`, `BoxedPropertySetter`) are reached for such targets
   only where `RuntimeFeature.IsDynamicCodeSupported` is false, as under Native AOT, and the tests never run there.
   They were checked by hand, by setting `System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported` to
   false in the test project's built `runtimeconfig.json` (2026-10-26). Running that in CI is an open question.

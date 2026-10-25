@@ -62,13 +62,15 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
             planType = returnType;
         }
 
-        // A List<T> itself is created by the builder, with room for every item.
+        // Three paths: a List<T> itself is created by the builder, with room for every item. Any other type is
+        // created as itself (GetOtherList): a class derived from List<T> is filled by the builder, any other
+        // collection, or a List<T> without a builder, through IList (FillBoxedList).
         if (plan.IsExactList)
         {
             return plan.Builder!.Build(null, listDataReader, listOffset, length);
         }
 
-        return BuildOtherList(returnType, listOffset, length);
+        return GetOtherList(returnType, listOffset, length);
     }
 
     // Not inlined, so that GetList does not set up a native-call frame on every row (Reader/DESIGN.md).
@@ -168,9 +170,8 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
         return elementType == typeof(T) ? new ReferenceListBuilder<T>() : null;
     }
 
-    // Any other type: created as itself. A class derived from List<T> is filled by the builder; any other collection
-    // is filled through IList, with each item read as an object.
-    private IList BuildOtherList(Type returnType, ulong listOffset, ulong length)
+    // Any type but a List<T> with a builder: created as itself, and filled by the builder if it has one.
+    private IList GetOtherList(Type returnType, ulong listOffset, ulong length)
     {
         var list = Activator.CreateInstance(returnType) as IList
                    ?? throw new ArgumentException($"The type '{returnType.Name}' specified in parameter {nameof(returnType)} cannot be instantiated as an IList.");
@@ -180,10 +181,11 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
             return plan.Builder.Build(list, listDataReader, listOffset, length);
         }
 
-        return BuildListCommon(list, listOffset, length);
+        return FillBoxedList(list, listOffset, length);
     }
 
-    private IList BuildListCommon(IList result, ulong listOffset, ulong length)
+    // Without a builder: each item is read as an object of the plan's ItemType and added through IList.
+    private IList FillBoxedList(IList result, ulong listOffset, ulong length)
     {
         for (ulong i = 0; i < length; i++)
         {
