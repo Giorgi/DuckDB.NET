@@ -418,7 +418,7 @@ not use profile data to guess the target as it does for a plain virtual call.
 - **Done in 2.0 for maps and structs** (item 7):
   - **Maps:** a `Dictionary<TKey, TValue>`, or a class derived from one, gets a builder per target type
     (`CreateBuilder`): `MapBuilder<TKey, TValue>`, or `NullableValueMapBuilder<TKey, TValue>` for a `TValue?` value.
-    It creates the dictionary at its size (a derived class: `Activator` and `EnsureCapacity`), reads keys and values
+    It creates the dictionary at its size (a derived class: `Activator`, no capacity), reads keys and values
     with `ReadValidValue<T>` and adds them with the generic `Add`: no box. The builder is found as the list's is:
     21 pairs are named (keys `string`, `int`, `long`; values `string`, `int`, `long`, `double` and the nullable
     three), any other pair through `MakeGenericType` where `RuntimeFeature.IsDynamicCodeSupported`. Otherwise, and

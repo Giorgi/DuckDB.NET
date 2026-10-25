@@ -217,7 +217,8 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
 
         public abstract object Build(MapVectorDataReader map, ulong listOffset, ulong length);
 
-        // The dictionary has room for every entry when it is created.
+        // A Dictionary<TKey, TValue> has room for every entry when it is created; a derived class grows as entries
+        // are added.
         [UnconditionalSuppressMessage("Trimming", "IL2072", Justification = "DerivedType is the type the caller asked for, which the caller's code refers to, as the IDictionary path creates it with Activator as well.")]
         protected Dictionary<TKey, TValue> Create<TKey, TValue>(ulong length) where TKey : notnull
         {
@@ -226,9 +227,7 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
                 return new Dictionary<TKey, TValue>((int)length);
             }
 
-            var dictionary = (Dictionary<TKey, TValue>)Activator.CreateInstance(DerivedType)!;
-            dictionary.EnsureCapacity((int)length);
-            return dictionary;
+            return (Dictionary<TKey, TValue>)Activator.CreateInstance(DerivedType)!;
         }
     }
 
