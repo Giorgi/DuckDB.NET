@@ -80,10 +80,7 @@ internal sealed partial class StructVectorDataReader : VectorDataReaderBase
         return result;
     }
 
-    // Not inlined. A method sets up, on entry, what any part of it may need: inlined, the reflection in CreatePlan
-    // would make GetValueCore set up a frame for a native call and clear a larger stack frame on every row, though
-    // a plan is made only when the target type changes. Seen in the JIT listing of the list reader (Reader/DESIGN.md);
-    // not checked for this reader.
+    // Not inlined, so that GetValueCore does not set up a native-call frame on every row (Reader/DESIGN.md).
     [MethodImpl(MethodImplOptions.NoInlining)]
     private StructPlan CreatePlan(Type targetType)
     {

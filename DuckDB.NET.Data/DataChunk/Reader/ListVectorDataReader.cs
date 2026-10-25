@@ -71,7 +71,7 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
         return BuildOtherList(returnType, listOffset, length);
     }
 
-    // Not inlined: the reflection in it makes GetList set up a frame for a native call, on every row, when it is.
+    // Not inlined, so that GetList does not set up a native-call frame on every row (Reader/DESIGN.md).
     [MethodImpl(MethodImplOptions.NoInlining)]
     private ListPlan CreatePlan(Type returnType)
     {

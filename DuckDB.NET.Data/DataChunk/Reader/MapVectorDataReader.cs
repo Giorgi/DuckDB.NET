@@ -90,7 +90,7 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
         return instance;
     }
 
-    // Not inlined: the reflection in it would otherwise be part of GetValueCore, which runs for every row.
+    // Not inlined, so that GetValueCore does not set up a native-call frame on every row (Reader/DESIGN.md).
     [MethodImpl(MethodImplOptions.NoInlining)]
     private MapPlan CreatePlan(Type targetType)
     {

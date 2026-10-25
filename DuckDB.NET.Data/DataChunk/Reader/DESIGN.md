@@ -377,7 +377,9 @@ not use profile data to guess the target as it does for a plain virtual call.
 - **`CreatePlan` of the list reader is `NoInlining`.** Inlined, its reflection made `GetList` set up a frame for a
   native call and clear a 184-byte frame on every row (Tier 1, both runtimes): 2,749 bytes of code against 965. An
   A/B of the attribute alone measured no difference, 1.01 and 0.94 (.NET 10). Kept because it is one line and the
-  work it removes is in the listing.
+  work it removes is in the listing. A method sets up on entry what any part of it may need, so code that runs
+  only when the target type changes still costs on every row once it is inlined. `CreatePlan` of the map and
+  struct readers is `NoInlining` for the same reason; their listings were not checked.
 - **Measured** against the commit before, 200,000 rows, on the performance cores; .NET 10 in two runs, .NET 8 in
   one. The control is an INTEGER column read as `int` (1.00 to 1.03):
 
