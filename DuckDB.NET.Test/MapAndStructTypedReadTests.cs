@@ -198,6 +198,30 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         row.Should().Be(Rows);
     }
 
+    // A nullable key type has no builder, so this class is read through IDictionary: the path that took the column's
+    // types (and refused a NULL value) for a class that is not generic itself.
+    [Fact]
+    public void MapIntoADerivedClassThroughIDictionaryIsReadByItsBase()
+    {
+        Command.CommandText = $"SELECT MAP {{i::INTEGER: i::BIGINT, (i + 100000)::INTEGER: NULL}} AS m FROM range({Rows}) t(i) ORDER BY i";
+        using var reader = Command.ExecuteReader();
+
+        var row = 0;
+        while (reader.Read())
+        {
+            var derived = reader.GetFieldValue<NullableKeyToNullableLong>(0);
+            derived.Should().BeOfType<NullableKeyToNullableLong>();
+            derived.Should().Equal(new Dictionary<int?, long?> { [row] = row, [row + 100000] = null });
+
+            // The values are read as the base's int, not as the column's BIGINT.
+            reader.GetFieldValue<NullableKeyToNullableInt>(0).Should().Equal(new Dictionary<int?, int?> { [row] = row, [row + 100000] = null });
+
+            row++;
+        }
+
+        row.Should().Be(Rows);
+    }
+
     [Fact]
     public void MapIntoTypesThatAreNotADictionaryOfConcreteTypes()
     {
@@ -439,6 +463,10 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     private sealed class Tagged<TTag, TValue> : Dictionary<string, TValue>;
 
     private sealed class TextToObject : Dictionary<string, object>;
+
+    private sealed class NullableKeyToNullableLong : Dictionary<int?, long?>;
+
+    private sealed class NullableKeyToNullableInt : Dictionary<int?, int?>;
 
     private class OtherNumericTypes
     {

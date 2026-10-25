@@ -161,6 +161,11 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
     // the type is read through IDictionary. CreatePlan has already refused object keys and values; a nullable key type
     // is left to IDictionary, which reads it as the type under it.
     //
+    // The key and value types are read from dictionaryType again rather than passed from CreatePlan: passed as a Type
+    // parameter, MakeGenericType of NullableValueMapBuilder<,> raises the trim warnings IL2070 and IL2071 (the new()
+    // that 'where TValue : struct' implies), which the analyzer does not raise for the result of GetGenericArguments.
+    // The list reader takes its element type as a parameter and suppresses IL2071 instead.
+    //
     // A builder is generic over the key and value types, and is found in the same three ways as the nullable reader
     // in VectorDataReaderBase, for applications that are trimmed or compiled ahead of time:
     // - the common pairs are named below, so an application compiled ahead of time has the code for them;
