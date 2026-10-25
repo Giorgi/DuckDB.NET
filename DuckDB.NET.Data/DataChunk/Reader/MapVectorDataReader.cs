@@ -55,7 +55,7 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
 
         if (plan.Builder != null)
         {
-            return plan.Builder.Build(this, listData->Offset, listData->Length);
+            return plan.Builder.Build(keyReader, valueReader, listData->Offset, listData->Length);
         }
 
         return GetBoxedDictionary(targetType, listData->Offset, listData->Length);
@@ -84,7 +84,7 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
             }
             else
             {
-                ThrowNullValue();
+                ThrowNullValue(ColumnName);
             }
         }
 
@@ -219,14 +219,14 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
 
     [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private void ThrowNullValue() => throw new InvalidCastException($"The Map in column {ColumnName} contains null value but dictionary does not allow null values");
+    private static void ThrowNullValue(string columnName) => throw new InvalidCastException($"The Map in column {columnName} contains null value but dictionary does not allow null values");
 
     private abstract class MapBuilder
     {
         // A class derived from Dictionary<TKey, TValue>, which is created as itself; null for the dictionary type.
         public Type? DerivedType { get; set; }
 
-        public abstract object Build(MapVectorDataReader map, ulong listOffset, ulong length);
+        public abstract object Build(VectorDataReaderBase keyReader, VectorDataReaderBase valueReader, ulong listOffset, ulong length);
 
         // A Dictionary<TKey, TValue> has room for every entry when it is created; a derived class grows as entries
         // are added.
@@ -247,11 +247,9 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
     // reference type and refused for a value type.
     private sealed class MapBuilder<TKey, TValue> : MapBuilder where TKey : notnull
     {
-        public override object Build(MapVectorDataReader map, ulong listOffset, ulong length)
+        public override object Build(VectorDataReaderBase keyReader, VectorDataReaderBase valueReader, ulong listOffset, ulong length)
         {
             var result = Create<TKey, TValue>(length);
-            var keyReader = map.keyReader;
-            var valueReader = map.valueReader;
 
             for (ulong i = 0; i < length; i++)
             {
@@ -269,7 +267,7 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
                 }
                 else
                 {
-                    map.ThrowNullValue();
+                    ThrowNullValue(valueReader.ColumnName);
                 }
             }
 
@@ -280,11 +278,9 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
     // A dictionary of TValue?: a value is read as TValue, and NULL is added as null.
     private sealed class NullableValueMapBuilder<TKey, TValue> : MapBuilder where TKey : notnull where TValue : struct
     {
-        public override object Build(MapVectorDataReader map, ulong listOffset, ulong length)
+        public override object Build(VectorDataReaderBase keyReader, VectorDataReaderBase valueReader, ulong listOffset, ulong length)
         {
             var result = Create<TKey, TValue?>(length);
-            var keyReader = map.keyReader;
-            var valueReader = map.valueReader;
 
             for (ulong i = 0; i < length; i++)
             {
