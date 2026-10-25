@@ -8,13 +8,13 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
     private readonly VectorDataReaderBase keyReader;
     private readonly VectorDataReaderBase valueReader;
 
-    // What GetValue found out about the type it was asked for last. A column is read as the same type row after row,
-    // so the type is looked at once and not for every row.
+    // What GetValueCore found out about the type it was asked for last. It is worked out once per type it is asked
+    // for, as a column is read as the same type row after row.
     private Type? planType;
     private MapPlan plan;
 
     internal unsafe MapVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, DuckDBLogicalType logicalColumnType, string columnName)
-                    : base(dataPointer, validityMaskPointer, columnType, columnName)
+        : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
         using var keyTypeLogical = NativeMethods.LogicalType.DuckDBMapTypeKeyType(logicalColumnType);
         using var valueTypeLogical = NativeMethods.LogicalType.DuckDBMapTypeValueType(logicalColumnType);
@@ -61,8 +61,8 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
         return GetBoxedDictionary(targetType, listData->Offset, listData->Length);
     }
 
-    // Any type that is not a Dictionary<TKey, TValue>: created as itself and filled through IDictionary, with every
-    // key and value read as an object.
+    // Any type without a builder (see CreateBuilder): created as itself and filled through IDictionary, with every key
+    // and value read as an object.
     private IDictionary GetBoxedDictionary(Type targetType, ulong listOffset, ulong length)
     {
         if (Activator.CreateInstance(targetType) is not IDictionary instance)
@@ -91,6 +91,11 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
         return instance;
     }
 
+    // Used by the IDictionary path and by the builders.
+    [DoesNotReturn]
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void ThrowNullValue(string columnName) => throw new InvalidCastException($"The Map in column {columnName} contains null value but dictionary does not allow null values");
+
     // Not inlined, so that GetValueCore does not set up a native-call frame on every row (Reader/DESIGN.md).
     [MethodImpl(MethodImplOptions.NoInlining)]
     private MapPlan CreatePlan(Type targetType)
@@ -101,6 +106,8 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
         var dictionaryType = FindDictionaryBase(targetType);
         var arguments = (dictionaryType ?? targetType).GetGenericArguments();
 
+        // What the IDictionary path reads a key and a value as, and whether it adds a NULL value; a builder knows
+        // its own types.
         var keyTargetType = keyReader.ClrType;
         var valueTargetType = valueReader.ClrType;
         var allowsNullValues = false;
@@ -119,8 +126,13 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
             valueTargetType = underlyingValueType ?? arguments[1];
         }
 
-        return new MapPlan(CreateBuilder(targetType, dictionaryType), keyTargetType, valueTargetType, allowsNullValues);
+        return new MapPlan(Builder: CreateBuilder(targetType, dictionaryType), KeyType: keyTargetType,
+                           ValueType: valueTargetType, AllowsNullValues: allowsNullValues);
     }
+
+    // Builder reads keys and values on the typed path, or is null. KeyType, ValueType and AllowsNullValues are for
+    // the IDictionary path: the types a key and a value are read as, and whether a NULL value is added.
+    private readonly record struct MapPlan(MapBuilder? Builder, Type KeyType, Type ValueType, bool AllowsNullValues);
 
     // The Dictionary<TKey, TValue> that the type is or derives from, or null.
     private static Type? FindDictionaryBase(Type type)
@@ -136,10 +148,6 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
         return null;
     }
 
-    // Builder reads keys and values on the typed path, or is null. KeyType, ValueType and AllowsNullValues are for
-    // the IDictionary path: the types a key and a value are read as, and whether a NULL value is added.
-    private readonly record struct MapPlan(MapBuilder? Builder, Type KeyType, Type ValueType, bool AllowsNullValues);
-
     // The builder for a Dictionary<TKey, TValue> or a class derived from one (dictionaryType, its base), or null when
     // the type is read through IDictionary. CreatePlan has already refused object keys and values; a nullable key type
     // is left to IDictionary, which reads it as the type under it.
@@ -148,7 +156,7 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
     // in VectorDataReaderBase, for applications that are trimmed or compiled ahead of time:
     // - the common pairs are named below, so an application compiled ahead of time has the code for them;
     // - any other pair is made with MakeGenericType where code can be made at run time;
-    // - elsewhere the dictionary is filled through IDictionary, as every map was before.
+    // - elsewhere the dictionary is filled through IDictionary.
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(MapBuilder<,>))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(NullableValueMapBuilder<,>))]
     [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "The MakeGenericType calls run only where RuntimeFeature.IsDynamicCodeSupported is true, tested in this method; the .NET 8 analyzer does not recognise that guard.")]
@@ -216,10 +224,6 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
     {
         return dictionaryType == typeof(Dictionary<TKey, TValue?>) ? new NullableValueMapBuilder<TKey, TValue>() : null;
     }
-
-    [DoesNotReturn]
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void ThrowNullValue(string columnName) => throw new InvalidCastException($"The Map in column {columnName} contains null value but dictionary does not allow null values");
 
     private abstract class MapBuilder
     {
