@@ -94,7 +94,11 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
     [MethodImpl(MethodImplOptions.NoInlining)]
     private MapPlan CreatePlan(Type targetType)
     {
-        var arguments = targetType.GetGenericArguments();
+        // The key and value types are those of the Dictionary<TKey, TValue> the target is or derives from, so a class
+        // that is not generic itself, or whose type arguments are not the key and value, is read by its base. Another
+        // type (a SortedDictionary, a Hashtable) gives its own type arguments, or none.
+        var dictionaryType = FindDictionaryBase(targetType);
+        var arguments = (dictionaryType ?? targetType).GetGenericArguments();
 
         var keyTargetType = keyReader.ClrType;
         var valueTargetType = valueReader.ClrType;
@@ -114,16 +118,30 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
             valueTargetType = underlyingValueType ?? arguments[1];
         }
 
-        return new MapPlan(CreateBuilder(targetType), keyTargetType, valueTargetType, allowsNullValues);
+        return new MapPlan(CreateBuilder(targetType, dictionaryType), keyTargetType, valueTargetType, allowsNullValues);
+    }
+
+    // The Dictionary<TKey, TValue> that the type is or derives from, or null.
+    private static Type? FindDictionaryBase(Type type)
+    {
+        for (var current = type; current != null; current = current.BaseType)
+        {
+            if (current.IsGenericType && current.GetGenericTypeDefinition() == typeof(Dictionary<,>))
+            {
+                return current;
+            }
+        }
+
+        return null;
     }
 
     // Builder reads keys and values on the typed path, or is null. KeyType, ValueType and AllowsNullValues are for
     // the IDictionary path: the types a key and a value are read as, and whether a NULL value is added.
     private readonly record struct MapPlan(MapBuilder? Builder, Type KeyType, Type ValueType, bool AllowsNullValues);
 
-    // The builder for a Dictionary<TKey, TValue> or a class derived from one, or null when the type is read through
-    // IDictionary. A dictionary with object keys or values, or with a nullable key type, is left to IDictionary, which
-    // refuses the first and reads the second as before.
+    // The builder for a Dictionary<TKey, TValue> or a class derived from one (dictionaryType, its base), or null when
+    // the type is read through IDictionary. CreatePlan has already refused object keys and values; a nullable key type
+    // is left to IDictionary, which reads it as the type under it.
     //
     // A builder is generic over the key and value types, and is found in the same three ways as the nullable reader
     // in VectorDataReaderBase, for applications that are trimmed or compiled ahead of time:
@@ -133,15 +151,8 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(MapBuilder<,>))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(NullableValueMapBuilder<,>))]
     [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "The MakeGenericType calls run only where RuntimeFeature.IsDynamicCodeSupported is true, tested in this method; the .NET 8 analyzer does not recognise that guard.")]
-    private static MapBuilder? CreateBuilder(Type targetType)
+    private static MapBuilder? CreateBuilder(Type targetType, Type? dictionaryType)
     {
-        var dictionaryType = targetType;
-
-        while (dictionaryType != null && !(dictionaryType.IsGenericType && dictionaryType.GetGenericTypeDefinition() == typeof(Dictionary<,>)))
-        {
-            dictionaryType = dictionaryType.BaseType;
-        }
-
         if (dictionaryType == null)
         {
             return null;
@@ -150,7 +161,7 @@ internal sealed class MapVectorDataReader : VectorDataReaderBase
         var arguments = dictionaryType.GetGenericArguments();
         var (keyType, valueType) = (arguments[0], arguments[1]);
 
-        if (keyType == typeof(object) || valueType == typeof(object) || Nullable.GetUnderlyingType(keyType) != null)
+        if (Nullable.GetUnderlyingType(keyType) != null)
         {
             return null;
         }

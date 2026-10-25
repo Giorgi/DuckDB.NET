@@ -424,10 +424,11 @@ not use profile data to guess the target as it does for a plain virtual call.
     with `ReadValidValue<T>` and adds them with the generic `Add`: no box. The builder is found as the list's is:
     52 pairs are named (keys `string`, `int`, `long`, `Guid`; values `string`, `int`, `long`, `double`, `bool`,
     `DateTime`, `Guid` and the nullable six), any other pair through `MakeGenericType` where
-    `RuntimeFeature.IsDynamicCodeSupported`. Otherwise, and
-    for a type that is not a `Dictionary<,>`, a dictionary with `object` keys or values, or a nullable key type, the
-    map is filled through `IDictionary` with every key and value read as an object, as before. The named list is
-    short because each pair is compiled into every Native AOT application.
+    `RuntimeFeature.IsDynamicCodeSupported`. Otherwise, and for a type that is not a `Dictionary<,>` or a dictionary
+    with a nullable key type, the map is filled through `IDictionary` with every key and value read as an object. The
+    key and value types are those of the `Dictionary<TKey, TValue>` the target is or derives from (`CreatePlan`), so
+    a class derived from one is read by its base on both paths; `object` keys or values are refused, also when only
+    the base names them. The named list is short because each pair is compiled into every Native AOT application.
   - **Structs** into a class or a C# struct: one property setter per settable property, generic over the declaring
     type and the property type, made once per process per target type (`SetterCache`, in
     `StructVectorDataReader.Setters.cs`). Each column pairs the setters with its field readers once per target type

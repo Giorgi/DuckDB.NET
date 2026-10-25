@@ -176,6 +176,29 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    public void MapIntoAClassDerivedFromDictionaryIsReadByItsBase()
+    {
+        Command.CommandText = $"SELECT MAP {{'key' || i: i::INTEGER, 'null' || i: NULL}} AS m FROM range({Rows}) t(i) ORDER BY i";
+        using var reader = Command.ExecuteReader();
+
+        var row = 0;
+        while (reader.Read())
+        {
+            // The first type argument is not the key type: the key and value types are those of the base class.
+            reader.GetFieldValue<Tagged<object, long?>>(0).Should().Equal(new Dictionary<string, long?> { ["key" + row] = row, ["null" + row] = null });
+            reader.GetFieldValue<Tagged<int, long?>>(0).Should().Equal(new Dictionary<string, long?> { ["key" + row] = row, ["null" + row] = null });
+
+            // Object values are refused, also when only the base class names them.
+            reader.Invoking(r => r.GetFieldValue<TextToObject>(0)).Should().Throw<InvalidCastException>()
+                  .WithMessage("Cannot read Map column m as a dictionary with object keys or values*");
+
+            row++;
+        }
+
+        row.Should().Be(Rows);
+    }
+
+    [Fact]
     public void MapIntoTypesThatAreNotADictionaryOfConcreteTypes()
     {
         Command.CommandText = "SELECT MAP {2: 'b', 1: 'a', 3: NULL} AS m";
@@ -412,6 +435,10 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     private sealed class CustomDictionary<TKey, TValue> : Dictionary<TKey, TValue>;
 
     private sealed class TextToNullableLong : Dictionary<string, long?>;
+
+    private sealed class Tagged<TTag, TValue> : Dictionary<string, TValue>;
+
+    private sealed class TextToObject : Dictionary<string, object>;
 
     private class OtherNumericTypes
     {
