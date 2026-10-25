@@ -368,7 +368,7 @@ not use profile data to guess the target as it does for a plain virtual call.
     by `Activator.CreateInstance` and grew. Any other type, and a class derived from a list type, is created as
     before. `ReadValidValue<T>` is internal for this.
   - **Structs** (`StructVectorDataReader`): the properties of the target type, each paired with the reader of its
-    field (`PairPropertiesWithReaders`). It was a case-insensitive dictionary lookup for every property of every row,
+    field (`CreatePlan`). It was a case-insensitive dictionary lookup for every property of every row,
     and a lookup in the process-wide cache of types. The lambda for that cache is static: one that used the
     parameter of the method made C# allocate a closure at the start of the method, for every row, also on the path
     for `Dictionary<string, object>`, which never reaches the lambda; on .NET 8 a delegate as well.
@@ -426,13 +426,14 @@ not use profile data to guess the target as it does for a plain virtual call.
     for a type that is not a `Dictionary<,>`, a dictionary with `object` keys or values, or a nullable key type, the
     map is filled through `IDictionary` with every key and value read as an object, as before. The named list is
     short because each pair is compiled into every Native AOT application.
-  - **Structs** into a class or a C# struct: one property reader per settable property, generic over the declaring
-    type and the property type, made once per process per target type (`PropertyCache`) and copied per column with
-    the field's reader. Its setter is an open-instance delegate made from the set method (for a struct, one taking
-    it by `ref`, called on the struct inside the box that is returned). Per row: a NULL test,
-    `ReadValidValue<TProperty>` and a typed setter call; no box. The declaring type is the caller's, so nothing can
-    be named for Native AOT: without dynamic code the cache holds the boxed setters of before
-    (`BoxedPropertyReader`), with the same rules.
+  - **Structs** into a class or a C# struct: one property setter per settable property, generic over the declaring
+    type and the property type, made once per process per target type (`SetterCache`, in
+    `StructVectorDataReader.Setters.cs`). Each column pairs the setters with its field readers once per target type
+    (`StructPlan`, of `BoundProperty` pairs). The setter calls an open-instance delegate made from the set method
+    (for a struct, one taking it by `ref`, called on the struct inside the box that is returned). Per row: a NULL
+    test, `ReadValidValue<TProperty>` and a typed delegate call; no box. The declaring type is the caller's, so
+    nothing can be named for Native AOT: without dynamic code the cache holds the boxed setters of before
+    (`BoxedPropertySetter`), with the same rules.
   - **Under the JIT, a STRUCT read into a C# struct gave every property at its default** until 2.0: the compiled
     setter unboxed the struct into a copy and set the copy. Without dynamic code the expression was interpreted, and
     the interpreter set the struct inside the box, so Native AOT was not affected. Now the typed path sets it in
