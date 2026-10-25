@@ -401,8 +401,8 @@ not use profile data to guess the target as it does for a plain virtual call.
   `NullableListBuilder<T>`, `ReferenceListBuilder<T>`) now fills the list, chosen once per column by `CreatePlan`;
   it replaces `BuildList<T>` and `BuildNullableList<T>` of the eight types. It tests an item for NULL once and reads
   it with `ReadValidValue<T>`, the conversion of `GetFieldValue<T>` on a column. A `List<T>` is created by the
-  builder at its size; a generic class derived from `List<T>` is created by `Activator`, given the capacity, and
-  filled by the builder; any other collection (`Collection<T>`, ...) is filled through `IList` with each item read
+  builder at its size; a generic class derived from `List<T>` is created by `Activator` and filled by the
+  builder; any other collection (`Collection<T>`, ...) is filled through `IList` with each item read
   as an object, as before. `Build` is one plain virtual call per row.
   - The builders for the common element types are named in `CreateBuilder`, as the nullable reader names its types
     (decision 6), so an application compiled ahead of time has their code. Any other element type (an enum of the

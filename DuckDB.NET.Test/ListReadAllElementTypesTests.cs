@@ -137,7 +137,6 @@ public class ListReadAllElementTypesTests(DuckDBDatabaseFixture db) : DuckDBTest
         while (reader.Read())
         {
             reader.GetFieldValue<DerivedList<long?>>(0).Should().BeOfType<DerivedList<long?>>().And.Equal(row, null, row + 1L);
-            reader.GetFieldValue<DerivedList<long?>>(0).Capacity.Should().Be(3);
             reader.GetFieldValue<DerivedList<int?>>(0).Should().BeOfType<DerivedList<int?>>().And.Equal(row, null, row + 1);
             reader.GetFieldValue<DerivedList<string>>(1).Should().BeOfType<DerivedList<string>>().And.Equal("a" + row, null);
             reader.Invoking(r => r.GetFieldValue<DerivedList<long>>(0)).Should().Throw<InvalidCastException>().WithMessage("The list contains null value");

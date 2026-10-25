@@ -226,7 +226,6 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
         public override IList Build(IList? list, VectorDataReaderBase items, ulong listOffset, ulong length)
         {
             var result = (List<T>?)list ?? new List<T>((int)length);
-            if (result.Capacity < result.Count + (int)length) result.Capacity = result.Count + (int)length;
 
             for (ulong i = 0; i < length; i++)
             {
@@ -249,7 +248,6 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
         public override IList Build(IList? list, VectorDataReaderBase items, ulong listOffset, ulong length)
         {
             var result = (List<T?>?)list ?? new List<T?>((int)length);
-            if (result.Capacity < result.Count + (int)length) result.Capacity = result.Count + (int)length;
 
             for (ulong i = 0; i < length; i++)
             {
@@ -267,7 +265,6 @@ internal sealed class ListVectorDataReader : VectorDataReaderBase
         public override IList Build(IList? list, VectorDataReaderBase items, ulong listOffset, ulong length)
         {
             var result = (List<T?>?)list ?? new List<T?>((int)length);
-            if (result.Capacity < result.Count + (int)length) result.Capacity = result.Count + (int)length;
 
             for (ulong i = 0; i < length; i++)
             {
