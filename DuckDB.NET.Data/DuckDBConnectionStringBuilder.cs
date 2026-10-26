@@ -773,7 +773,8 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
         if (Mentions("secret", "secrets", "password", "user", "username", "encryption", "filesystems")) return "Security";
         if (Mentions("extension", "extensions")) return "Extensions";
 
-        // Checked ahead of storage so that "block_allocator_memory" is not grouped by its "block" segment.
+        // Checked ahead of storage so that "block_allocator_memory" (DuckDB 2.0) and "enable_block_allocator" are not
+        // grouped by their "block" segment.
         if (Mentions("allocator")) return "Resources";
 
         if (Mentions("checkpoint", "wal", "storage", "block", "compression", "zstd", "vacuum", "shredding", "variant", "parquet", "write", "partitioned")) return "Storage";
