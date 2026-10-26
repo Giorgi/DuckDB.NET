@@ -26,8 +26,8 @@ public class ExtractStatementsTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     [Fact]
     public void WrongCommandThrowsException()
     {
-        Command.CommandText = "error";
-        
+        Command.CommandText = "SELECT FROM";
+
         Command.Invoking(cmd => cmd.ExecuteNonQuery()).Should()
                .Throw<DuckDBException>().Where(e => e.Message.Contains("syntax error at or near"));
     }

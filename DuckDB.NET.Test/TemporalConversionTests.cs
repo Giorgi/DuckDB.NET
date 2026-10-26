@@ -154,8 +154,9 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
         rows.Should().Be(3652);
     }
 
-    // A tick of a DateTime is 100 nanoseconds. The two digits below that are dropped, toward zero for both signs,
-    // which is also what DuckDB does when it casts a TIMESTAMP_NS to a TIMESTAMP.
+    // A tick of a DateTime is 100 nanoseconds. The two digits below that are dropped toward minus infinity, as from
+    // the digits of the time of day, so a moment before 1970 does not move to a later time. DuckDB 2.0 casts a
+    // TIMESTAMP_NS to a TIMESTAMP the same way.
     [Theory]
     [InlineData(0, 0)]
     [InlineData(1, 0)]
@@ -163,15 +164,15 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     [InlineData(100, 1)]
     [InlineData(150, 1)]
     [InlineData(1500, 15)]
-    [InlineData(-1, 0)]
-    [InlineData(-99, 0)]
+    [InlineData(-1, -1)]
+    [InlineData(-99, -1)]
     [InlineData(-100, -1)]
-    [InlineData(-150, -1)]
-    [InlineData(-999, -9)]
+    [InlineData(-150, -2)]
+    [InlineData(-999, -10)]
     [InlineData(-1000, -10)]
     [InlineData(-1500, -15)]
     [InlineData(1_705_321_845_123_456_789, 17_053_218_451_234_567)]
-    [InlineData(-1_705_321_845_123_456_789, -17_053_218_451_234_567)]
+    [InlineData(-1_705_321_845_123_456_789, -17_053_218_451_234_568)]
     // The whole range of a TIMESTAMP_NS is inside the range of a DateTime: 1677-09-22 to 2262-04-11 23:47:16.854775806.
     [InlineData(long.MaxValue - 1, 92_233_720_368_547_758)]
     [InlineData(-9_223_286_400_000_000_000, -92_232_864_000_000_000)]
@@ -189,18 +190,22 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
         reader.GetFieldValue<DateTimeOffset>(0).Should().Be(new DateTimeOffset(expected, TimeSpan.Zero));
     }
 
+    // The rule above over the whole range, against the nanoseconds DuckDB stores rather than against its cast, which
+    // dropped the digits toward zero up to DuckDB 1.5.
     [Fact]
-    public void TimestampNsAgreesWithDuckDBToTheMicrosecond()
+    public void TimestampNsDropsWhatIsBelowATickTowardMinusInfinity()
     {
-        Command.CommandText = "SELECT ns, epoch_us(ns::TIMESTAMP) FROM (SELECT make_timestamp_ns((i - 1844) * 5000000000000037) ns FROM range(3689) t(i))";
+        Command.CommandText = "SELECT ns, epoch_ns(ns) FROM (SELECT make_timestamp_ns((i - 1844) * 5000000000000037) ns FROM range(3689) t(i))";
         using var reader = Command.ExecuteReader();
 
         var rows = 0;
         while (reader.Read())
         {
-            // DuckDB narrows to whole microseconds; the read keeps one more digit.
-            var ticks = reader.GetDateTime(0).Ticks - DateTime.UnixEpoch.Ticks;
-            (ticks / 10).Should().Be(reader.GetInt64(1));
+            var nanoseconds = reader.GetInt64(1);
+            var ticks = nanoseconds / 100 - (nanoseconds % 100 < 0 ? 1 : 0);
+
+            reader.GetDateTime(0).Ticks.Should().Be(DateTime.UnixEpoch.Ticks + ticks);
+            reader.GetFieldValue<DateTimeOffset>(0).UtcTicks.Should().Be(DateTime.UnixEpoch.Ticks + ticks);
             rows++;
         }
 

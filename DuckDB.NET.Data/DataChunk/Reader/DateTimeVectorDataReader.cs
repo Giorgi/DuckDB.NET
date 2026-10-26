@@ -165,9 +165,17 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
                 throw TimestampOutOfRange(timestamp, targetType);
             }
 
-            // What is below a tick is dropped, toward zero for both signs. DuckDB does the same when it casts a
-            // TIMESTAMP_NS to a TIMESTAMP.
-            return UnixEpochTicks + units / DateTimeExtensions.NanosecondsPerTick;
+            // What is below a tick is dropped toward minus infinity, so that a moment before 1970 keeps its date and
+            // time of day: a nanosecond before 1970 is 1969-12-31 23:59:59.9999999, not 1970-01-01. DuckDB 2.0 casts
+            // a TIMESTAMP_NS to a TIMESTAMP the same way; 1.5 dropped the digits toward zero.
+            var ticks = units / DateTimeExtensions.NanosecondsPerTick;
+
+            if (units % DateTimeExtensions.NanosecondsPerTick < 0)
+            {
+                ticks--;
+            }
+
+            return UnixEpochTicks + ticks;
         }
 
         // One comparison for both ends of the range, as for a date. Without it the multiplication below overflows
