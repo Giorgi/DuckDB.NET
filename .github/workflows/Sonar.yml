@@ -42,10 +42,14 @@ jobs:
         with:
           java-version: 17
           distribution: 'zulu' # Alternative distribution options are available.
+      # A fork's pull request is analysed only after the Authorize job's 'external' environment is approved, so its
+      # code runs here only when the maintainer has let it. actions/checkout v7 refuses fork code in a
+      # pull_request_target run unless this is opted into.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.ref }}      
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+          allow-unsafe-pr-checkout: true
 
       - name: Setup .NET Core SDK
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
