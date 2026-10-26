@@ -39,7 +39,7 @@ dotnet run -c Release -f net10.0 --project DuckDB.NET.Benchmarks -- --filter "*N
 - **Nightly builds:** `/p:NightlyBuild=true /p:DuckDbArtifactRoot=https://artifacts.duckdb.org/<branch>` downloads
   DuckDB's `duckdb-shared-libs-<platform>.tar.gz` instead. `<branch>` is a DuckDB branch name, and `latest` means
   DuckDB's `main`. CI does this on the schedule: it uses the workflow file from `develop`, builds the code of the
-  `nightly-builds` branch, and currently tracks `v2.0-cyanoptera` until DuckDB 2.0 ships.
+  `nightly-builds` branch, and tracks `latest`.
 
 ## DuckDB version and releases
 
