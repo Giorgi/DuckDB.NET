@@ -1,28 +1,28 @@
-using System.Collections.Concurrent;
-using System.Linq.Expressions;
-using DuckDB.NET.Data.Common;
+using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Data.DataChunk.Reader;
 
-internal sealed class StructVectorDataReader : VectorDataReaderBase
+// The setters of a target type's properties, which do not depend on the column, are in
+// StructVectorDataReader.Setters.cs.
+internal sealed partial class StructVectorDataReader : VectorDataReaderBase
 {
-    private static readonly ConcurrentDictionary<Type, TypeDetails> TypeCache = new();
     // TODO: Replace with OrderedDictionary<string, VectorDataReaderBase> when .NET 8 support is dropped.
     // The parallel array exists only to guarantee field-ordinal iteration in Reset/Dispose.
-    private readonly Dictionary<string, VectorDataReaderBase> structDataReaders;
-    private readonly VectorDataReaderBase[] orderedReaders;
+    private readonly Dictionary<string, VectorDataReaderBase> fieldReadersByName;
+    private readonly VectorDataReaderBase[] fieldReaders;
 
-    // The properties of the type GetStruct was asked for last, each with the reader of its field. A column is read as
-    // the same type row after row, so each property is matched with its field once and not for every row.
-    private Type? pairedType;
-    private PropertyReader[] propertyReaders = [];
+    // What GetValueCore found out about the type it was asked for last. A type's setters are worked out once per
+    // process (SetterCache); this reader pairs them with its fields once per type it is asked for, as a column is
+    // read as the same type row after row.
+    private Type? planType;
+    private StructPlan plan;
 
     internal unsafe StructVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
         using var logicalType = NativeMethods.Vectors.DuckDBVectorGetColumnType(vector);
         var memberCount = NativeMethods.LogicalType.DuckDBStructTypeChildCount(logicalType);
-        structDataReaders = new Dictionary<string, VectorDataReaderBase>((int)memberCount, StringComparer.OrdinalIgnoreCase);
-        orderedReaders = new VectorDataReaderBase[memberCount];
+        fieldReadersByName = new Dictionary<string, VectorDataReaderBase>((int)memberCount, StringComparer.OrdinalIgnoreCase);
+        fieldReaders = new VectorDataReaderBase[memberCount];
 
         for (int index = 0; index < memberCount; index++)
         {
@@ -31,121 +31,103 @@ internal sealed class StructVectorDataReader : VectorDataReaderBase
 
             using var childType = NativeMethods.LogicalType.DuckDBStructTypeChildType(logicalType, index);
             var reader = VectorDataReaderFactory.CreateReader(childVector, childType, columnName);
-            structDataReaders[name] = reader;
-            orderedReaders[index] = reader;
+            fieldReadersByName[name] = reader;
+            fieldReaders[index] = reader;
         }
     }
 
-    internal override object GetValue(ulong offset, Type targetType)
+    internal override object GetValueCore(ulong offset, Type targetType)
     {
-        if (DuckDBType == DuckDBType.Struct)
+        if (DuckDBType != DuckDBType.Struct)
         {
-            return GetStruct(offset, targetType);
+            return base.GetValueCore(offset, targetType);
         }
 
-        return base.GetValue(offset, targetType);
+        if (targetType != planType)
+        {
+            plan = CreatePlan(targetType);
+            planType = targetType;
+        }
+
+        return plan.IsDictionary ? GetDictionary(offset, targetType) : GetObject(offset, targetType);
     }
 
-    private object GetStruct(ulong offset, Type returnType)
+    // A Dictionary<string, object>, or a class derived from one: every field, read as the column's own type.
+    private object GetDictionary(ulong offset, Type targetType)
     {
-        var result = Activator.CreateInstance(returnType);
+        var dictionary = (Dictionary<string, object?>)Activator.CreateInstance(targetType)!;
 
-        if (result is Dictionary<string, object?> dictionary)
+        foreach (var reader in fieldReadersByName)
         {
-            foreach (var reader in structDataReaders)
-            {
-                var value = reader.Value.IsValid(offset) ? reader.Value.GetValue(offset) : null;
-                dictionary.Add(reader.Key, value);
-            }
-
-            return result;
+            var value = reader.Value.IsValid(offset) ? reader.Value.GetValue(offset) : null;
+            dictionary.Add(reader.Key, value);
         }
 
-        if (returnType != pairedType)
-        {
-            propertyReaders = PairPropertiesWithReaders(returnType);
-            pairedType = returnType;
-        }
-
-        foreach (var (name, property, reader) in propertyReaders)
-        {
-            if (reader.IsValid(offset))
-            {
-                var value = reader.GetValue(offset, property.NullableType ?? property.PropertyType);
-                property.Setter(result!, value);
-            }
-            else
-            {
-                if (!property.Nullable)
-                {
-                    throw new InvalidCastException($"Property '{name}' is not nullable but struct contains null value");
-                }
-            }
-        }
-
-        return result!;
+        return dictionary;
     }
 
-    // In the order of the properties of the type. A property with no field of its name is left as it is.
-    private PropertyReader[] PairPropertiesWithReaders(Type returnType)
+    // Any other type: each property that has a field of its name is set. A C# struct is set inside its box, which is
+    // what is returned.
+    private object GetObject(ulong offset, Type targetType)
     {
-        // A static lambda: one that used returnType allocated a closure and a delegate for every call.
-        var typeDetails = TypeCache.GetOrAdd(returnType, static type =>
+        var result = Activator.CreateInstance(targetType)!;
+
+        foreach (var (setter, fieldReader) in plan.Properties)
         {
-            var propertyInfos = type.GetProperties();
-            var details = new TypeDetails();
+            setter.Set(result, fieldReader, offset);
+        }
 
-            foreach (var propertyInfo in propertyInfos)
-            {
-                if (propertyInfo.SetMethod == null)
-                {
-                    continue;
-                }
+        return result;
+    }
 
-                var isNullable = propertyInfo.PropertyType.AllowsNullValue(out var isNullableValueType, out var underlyingType);
-
-                var instanceParam = Expression.Parameter(typeof(object));
-                var argumentParam = Expression.Parameter(typeof(object));
-
-                var setAction = Expression.Lambda<Action<object, object>>(
-                    Expression.Call(Expression.Convert(instanceParam, type), propertyInfo.SetMethod, Expression.Convert(argumentParam, propertyInfo.PropertyType)),
-                    instanceParam, argumentParam
-                ).Compile();
-
-                details.Properties.Add(propertyInfo.Name, new PropertyDetails(propertyInfo.PropertyType, isNullable, isNullableValueType, underlyingType, setAction));
-            }
-
-            return details;
-        });
-
-        var pairs = new List<PropertyReader>(typeDetails.Properties.Count);
-
-        foreach (var property in typeDetails.Properties)
+    // Not inlined, so that GetValueCore does not set up a native-call frame on every row (Reader/DESIGN.md).
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private StructPlan CreatePlan(Type targetType)
+    {
+        if (typeof(Dictionary<string, object?>).IsAssignableFrom(targetType))
         {
-            if (structDataReaders.TryGetValue(property.Key, out var reader))
+            return new StructPlan(IsDictionary: true, Properties: []);
+        }
+
+        // A static lambda: one that used targetType allocated a closure and a delegate for every call.
+        // CreateTypedSetters returns null where no code can be made at run time.
+        var setters = SetterCache.GetOrAdd(targetType, static type => CreateTypedSetters(type) ?? CreateBoxedSetters(type));
+
+        // In the order of the type's properties, each settable property that has a field of the same name. The other
+        // properties are left as they are.
+        var properties = new List<BoundProperty>(setters.Length);
+
+        foreach (var setter in setters)
+        {
+            if (fieldReadersByName.TryGetValue(setter.Name, out var fieldReader))
             {
-                pairs.Add(new PropertyReader(property.Key, property.Value, reader));
+                properties.Add(new BoundProperty(setter, fieldReader));
             }
         }
 
-        return [.. pairs];
+        return new StructPlan(IsDictionary: false, Properties: [.. properties]);
     }
 
-    private readonly record struct PropertyReader(string Name, PropertyDetails Property, VectorDataReaderBase Reader);
+    // IsDictionary: the target is a Dictionary<string, object> or derives from one. Properties: otherwise, the
+    // properties that are set, each with the reader of its field.
+    private readonly record struct StructPlan(bool IsDictionary, BoundProperty[] Properties);
+
+    // A property of the target type, with the reader of the field of the same name.
+    private readonly record struct BoundProperty(PropertySetter Setter, VectorDataReaderBase FieldReader);
 
     internal override void Reset(IntPtr vector)
     {
         base.Reset(vector);
-        for (int index = 0; index < orderedReaders.Length; index++)
+        for (int index = 0; index < fieldReaders.Length; index++)
         {
             var childVector = NativeMethods.Vectors.DuckDBStructVectorGetChild(vector, index);
-            orderedReaders[index].Reset(childVector);
+            fieldReaders[index].Reset(childVector);
         }
     }
 
     public override void Dispose()
     {
-        foreach (var reader in orderedReaders)
+        foreach (var reader in fieldReaders)
         {
             reader.Dispose();
         }

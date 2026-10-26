@@ -99,21 +99,39 @@ internal sealed class EnumVectorDataReader : VectorDataReaderBase
         }
     }
 
-    internal override object GetValue(ulong offset, Type targetType)
+    internal override object GetValueCore(ulong offset, Type targetType)
     {
-        if (DuckDBType == DuckDBType.Enum)
+        if (DuckDBType != DuckDBType.Enum)
         {
-            var index = GetIndex(offset);
-
-            if (targetType == typeof(string))
-            {
-                return GetName(index);
-            }
-
-            return Enum.ToObject(targetType, index);
+            return base.GetValueCore(offset, targetType);
         }
 
-        return base.GetValue(offset, targetType);
+        // The name, which is the .NET type of the column and what GetValue(ordinal) asks for.
+        if (targetType == typeof(string))
+        {
+            return GetName(GetIndex(offset));
+        }
+
+        // A C# enum, known here only at run time. Enum.ToObject keeps the bytes that fit the enum, as ToEnum does.
+        if (targetType.IsEnum)
+        {
+            return Enum.ToObject(targetType, GetIndex(offset));
+        }
+
+        // The position as an integer type, read with GetValidValue, so a list item, a map key or value and a struct
+        // field convert as the column does. The class is sealed, so these calls are bound directly.
+        if (targetType == typeof(sbyte))      return GetValidValue<sbyte>(offset);
+        if (targetType == typeof(byte))       return GetValidValue<byte>(offset);
+        if (targetType == typeof(short))      return GetValidValue<short>(offset);
+        if (targetType == typeof(ushort))     return GetValidValue<ushort>(offset);
+        if (targetType == typeof(int))        return GetValidValue<int>(offset);
+        if (targetType == typeof(uint))       return GetValidValue<uint>(offset);
+        if (targetType == typeof(long))       return GetValidValue<long>(offset);
+        if (targetType == typeof(ulong))      return GetValidValue<ulong>(offset);
+        if (targetType == typeof(BigInteger)) return GetValidValue<BigInteger>(offset);
+
+        // The message the typed path gives for a type it refuses.
+        throw CannotCast(typeof(string), targetType);
     }
 
     public override void Dispose()

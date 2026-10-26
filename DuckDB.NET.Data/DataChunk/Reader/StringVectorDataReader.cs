@@ -26,14 +26,14 @@ internal sealed class StringVectorDataReader : VectorDataReaderBase
         };
     }
 
-    internal override object GetValue(ulong offset, Type targetType)
+    internal override object GetValueCore(ulong offset, Type targetType)
     {
         return DuckDBType switch
         {
             DuckDBType.Bit => GetBitString(offset),
             DuckDBType.Blob => GetStream(offset),
             DuckDBType.Varchar => GetString(offset),
-            _ => base.GetValue(offset, targetType)
+            _ => base.GetValueCore(offset, targetType)
         };
     }
 

@@ -146,6 +146,27 @@ dotnet run -c Release -f net10.0 --project DuckDB.NET.Benchmarks -- --filter "*N
   Callbacks are pinned with `GCHandle`. A table function creates its data enumerator per scan init, not per bind,
   because DuckDB re-initializes scans without re-binding, for example in recursive CTEs.
 
+### Conversion rules: where to find what converts to what
+
+There is no single table. **For numeric conversions, the most asked about, start with the table in "Behaviour: what
+converts to what" in `DataChunk/Reader/DESIGN.md`** (every numeric column and ENUM against the integer types,
+`float`/`double`, `decimal` and `BigInteger`, the same on every read path) and `NumericReaderConversionTests`, which
+pins it. Each direction has its own place, and the tests are the reference where the text stops:
+
+- **Reading** (a column, list item, map key or value, struct field or function input read as a .NET type): the
+  "Behaviour: what converts to what" section near the end of `DataChunk/Reader/DESIGN.md`. Its table covers the
+  numeric columns and ENUM; bullets below it cover dates, times and timestamps, `object`, and the agreement of the
+  read paths. Other column types (BOOLEAN, UUID, VARCHAR, BLOB, BIT, INTERVAL) are not written down: read the
+  reader's `GetValidValue<T>` (`VectorDataReaderFactory` says which reader serves a column). Pinned by
+  `NumericReaderConversionTests`, `TemporalConversionTests`, `DuckDBDataReaderEnumTests`,
+  `NumericReadPathAgreementTests` and `ObjectTargetReadTests`.
+- **Writing** (the appender and function results): the decisions and "Behaviour that is kept on purpose" in
+  `DataChunk/Writer/DESIGN.md`; there is no table. Pinned by `TemporalWriteConversionTests`,
+  `DecimalWriteConversionTests`, `StringWriteConversionTests` and `EnumWriteConversionTests`.
+- **Parameters** (a .NET value or `DbType` bound to a command): `PreparedStatement/ClrToDuckDBConverter.cs` and
+  `DuckDBTypeMap.cs`, with no written summary. Pinned by the tests in `DuckDB.NET.Test/Parameters`.
+- **For users:** `docs/type-mapping.md` in the docs repository. Update it when a conversion changes.
+
 ## Coding style
 
 There is no `.editorconfig`, so match the surrounding code:

@@ -44,7 +44,8 @@ public readonly struct DuckDBTimeOnly(byte hour, byte min, byte sec, int microse
         return new DuckDBTimeOnly((byte)timeOnly.Hour, (byte)timeOnly.Minute, (byte)timeOnly.Second, microsecond);
     }
 
-    public static implicit operator TimeOnly(DuckDBTimeOnly time) => new(time.Ticks);
+    // Explicit since 2.0: TIME holds 24:00:00, which TimeOnly cannot, so the conversion can throw.
+    public static explicit operator TimeOnly(DuckDBTimeOnly time) => new(time.Ticks);
 
     public static implicit operator DuckDBTimeOnly(TimeOnly time) => FromTimeOnly(time);
 }

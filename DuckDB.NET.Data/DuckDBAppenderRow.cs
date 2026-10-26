@@ -137,6 +137,9 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
     #endregion
 
     #region Append Temporal
+
+    // DateOnly converts implicitly to DuckDBDateOnly and only explicitly back, so a DateOnly argument binds to the
+    // DateOnly? overload and a DuckDBDateOnly argument to the DuckDBDateOnly? one. The same holds for TimeOnly.
     public IDuckDBAppenderRow AppendValue(DateOnly? value) => AppendValueInternalStruct(value);
 
     public IDuckDBAppenderRow AppendValue(TimeOnly? value) => AppendValueInternalStruct(value);
@@ -265,6 +268,8 @@ public interface IDuckDBAppenderRow
     IDuckDBAppenderRow AppendValue<TEnum>(TEnum? value) where TEnum : Enum;
     IDuckDBAppenderRow AppendValue(float? value);
     IDuckDBAppenderRow AppendValue(double? value);
+    IDuckDBAppenderRow AppendValue(DateOnly? value);
+    IDuckDBAppenderRow AppendValue(TimeOnly? value);
     IDuckDBAppenderRow AppendValue(DuckDBDateOnly? value);
     IDuckDBAppenderRow AppendValue(DuckDBTimeOnly? value);
     IDuckDBAppenderRow AppendValue(DateTime? value);

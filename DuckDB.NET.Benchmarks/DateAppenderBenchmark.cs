@@ -5,8 +5,9 @@ namespace DuckDB.NET.Benchmarks;
 
 // Four columns of one date or time type per benchmark. Up to 1.5.6-alpha.28, every date and timestamp appended
 // allocated several hundred bytes, so the Allocated column matters here as much as the time.
-// IDuckDBAppenderRow has no DateOnly or TimeOnly overload (one is planned for 2.0), so AppendDateOnlyToDate and
-// AppendTimeOnlyToTime write through the implicit conversions to DuckDBDateOnly and DuckDBTimeOnly.
+// IDuckDBAppenderRow has DateOnly and TimeOnly overloads since 2.0. Against a 1.5 package, AppendDateOnlyToDate and
+// AppendTimeOnlyToTime compile to the overloads of DuckDBDateOnly and DuckDBTimeOnly, through the implicit
+// conversions, so the two jobs of one run compare the two paths.
 [MemoryDiagnoser]
 public class DateAppenderBenchmark
 {

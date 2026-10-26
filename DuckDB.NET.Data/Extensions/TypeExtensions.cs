@@ -5,17 +5,6 @@ namespace DuckDB.NET.Data.Extensions;
 
 internal static class TypeExtensions
 {
-    private static readonly HashSet<Type> FloatingNumericTypes = [typeof(decimal), typeof(float), typeof(double)];
-
-    private static readonly HashSet<Type> IntegralNumericTypes =
-    [
-        typeof(byte), typeof(sbyte),
-        typeof(short), typeof(ushort),
-        typeof(int), typeof(uint),
-        typeof(long), typeof(ulong),
-        typeof(BigInteger)
-    ];
-
     private static readonly Dictionary<Type, DuckDBType> ClrToDuckDBTypeMap = new()
     {
         { typeof(bool), DuckDBType.Boolean },
@@ -66,11 +55,6 @@ internal static class TypeExtensions
                typeof(T) == typeof(BigInteger);
     }
 
-    public static bool IsNumeric(this Type type)
-    {
-        return IntegralNumericTypes.Contains(type) || FloatingNumericTypes.Contains(type);
-    }
-
     public static bool AllowsNullValue(this Type type, out bool isNullableValueType, out Type? underlyingType)
     {
         underlyingType = Nullable.GetUnderlyingType(type);
@@ -79,6 +63,20 @@ internal static class TypeExtensions
         var isNullable = isNullableValueType || !type.IsValueType;
 
         return isNullable;
+    }
+
+    // The constructed type of genericDefinition (List<>, Dictionary<,>) that the type is or derives from, or null.
+    public static Type? FindGenericBase(this Type type, Type genericDefinition)
+    {
+        for (var current = type; current != null; current = current.BaseType)
+        {
+            if (current.IsGenericType && current.GetGenericTypeDefinition() == genericDefinition)
+            {
+                return current;
+            }
+        }
+
+        return null;
     }
 
     public static DuckDBLogicalType GetLogicalType<T>() => typeof(T).GetLogicalType();

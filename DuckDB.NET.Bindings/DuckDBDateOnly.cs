@@ -90,7 +90,9 @@ public readonly struct DuckDBDateOnly(int year, byte month, byte day) : IEquatab
 
     public static explicit operator DuckDBDateOnly(DateTime dateTime) => FromDateTime(dateTime);
 
-    public static implicit operator DateOnly(DuckDBDateOnly dateOnly) => dateOnly.ToDateOnly();
+    // Explicit since 2.0: DATE holds infinities and years outside 1 to 9999, which DateOnly cannot, so the
+    // conversion can throw.
+    public static explicit operator DateOnly(DuckDBDateOnly dateOnly) => dateOnly.ToDateOnly();
 
-    public static implicit operator DuckDBDateOnly(DateOnly date) => DuckDBDateOnly.FromDateOnly(date);
+    public static implicit operator DuckDBDateOnly(DateOnly date) => FromDateOnly(date);
 }

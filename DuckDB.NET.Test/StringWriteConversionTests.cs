@@ -107,4 +107,35 @@ public class StringWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBa
             reader.GetString(0).Should().Be(Convert.ToHexString(Encoding.UTF8.GetBytes(value[..value.IndexOf('\0')])));
         }
     }
+
+    // The writer builds every short string with TryCreateInlined; the tests above check what DuckDB makes of it.
+    // This one checks the value itself: the length, the bytes, zeros after them, and which strings are refused.
+    // BitConverter writes the length in the machine's byte order, as DuckDB stores it.
+    [Theory]
+    [InlineData("", true)]
+    [InlineData("a", true)]
+    [InlineData("twelve chars", true)]
+    [InlineData("thirteen char", false)]
+    [InlineData("აააა", true)]
+    [InlineData("ააააა", false)]
+    [InlineData("xxxxxxxxxxxé", false)]
+    [InlineData("\U0001F600\U0001F600\U0001F600", true)]
+    [InlineData("ab\0", false)]
+    [InlineData("\0", false)]
+    public unsafe void TryCreateInlinedKeepsAShortStringInsideTheValue(string value, bool inlined)
+    {
+        // Filled with non-zero bytes first, so that bytes the method leaves alone show: a fresh local is zero anyway.
+        DuckDBString result = default;
+        new Span<byte>(&result, sizeof(DuckDBString)).Fill(0xFF);
+
+        DuckDBString.TryCreateInlined(value, out result).Should().Be(inlined);
+
+        // The length in 4 bytes, the bytes of the string, then zeros up to 16; a refused string leaves 16 zeros.
+        var expected = new byte[16];
+        var length = inlined ? Encoding.UTF8.GetBytes(value, expected.AsSpan(4)) : 0;
+        BitConverter.TryWriteBytes(expected.AsSpan(0, 4), (uint)length);
+
+        result.Length.Should().Be(length);
+        new ReadOnlySpan<byte>(&result, sizeof(DuckDBString)).ToArray().Should().Equal(expected);
+    }
 }

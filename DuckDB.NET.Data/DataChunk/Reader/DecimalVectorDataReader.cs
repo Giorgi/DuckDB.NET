@@ -24,6 +24,10 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
 
     internal byte Precision { get; }
 
+    internal override byte ReadByte(ulong offset) => GetValidValue<byte>(offset);
+    internal override short ReadInt16(ulong offset) => GetValidValue<short>(offset);
+    internal override int ReadInt32(ulong offset) => GetValidValue<int>(offset);
+    internal override long ReadInt64(ulong offset) => GetValidValue<long>(offset);
     internal override decimal ReadDecimal(ulong offset) => GetValidValue<decimal>(offset);
 
     protected override T GetValidValue<T>(ulong offset)
@@ -43,15 +47,32 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
             return (T)(object)GetDuckDBDecimal(offset);
         }
 
-        var value = GetDecimal(offset);
-        return (T)(object)value; //JIT will optimize the casts at least for not nullable T
+        if (TypeExtensions.IsIntegralNumericType<T>())
+        {
+            return GetInteger<T>(offset);
+        }
+
+        // A decimal goes to every type that can hold one (decimal itself and object), as GetValue(offset, Type) does,
+        // and the others are refused with the same message. For decimal the test is a constant for the JIT.
+        if (typeof(T) != typeof(decimal) && !typeof(T).IsAssignableFrom(typeof(decimal)))
+        {
+            throw CannotCast(DuckDBType.ToString(), typeof(T));
+        }
+
+        return (T)(object)GetDecimal(offset);
     }
 
-    internal override object GetValue(ulong offset, Type targetType)
+    internal override object GetValueCore(ulong offset, Type targetType)
     {
         if (DuckDBType != DuckDBType.Decimal)
         {
-            return base.GetValue(offset, targetType);
+            return base.GetValueCore(offset, targetType);
+        }
+
+        // The column's own type first: GetValue(i), the indexer and every read as object ask for it.
+        if (targetType == typeof(decimal))
+        {
+            return GetDecimal(offset);
         }
 
         if (targetType == typeof(BigInteger))
@@ -64,7 +85,24 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
             return GetDuckDBDecimal(offset);
         }
 
-        return GetDecimal(offset);
+        // The integer types as on the typed path. The class is sealed, so these calls are bound directly.
+        if (targetType == typeof(sbyte))  return GetValidValue<sbyte>(offset);
+        if (targetType == typeof(byte))   return GetValidValue<byte>(offset);
+        if (targetType == typeof(short))  return GetValidValue<short>(offset);
+        if (targetType == typeof(ushort)) return GetValidValue<ushort>(offset);
+        if (targetType == typeof(int))    return GetValidValue<int>(offset);
+        if (targetType == typeof(uint))   return GetValidValue<uint>(offset);
+        if (targetType == typeof(long))   return GetValidValue<long>(offset);
+        if (targetType == typeof(ulong))  return GetValidValue<ulong>(offset);
+
+        // The typed path unboxes the decimal as the type it is asked for, so it gives a decimal to every type that
+        // can hold one (decimal itself, above, decimal? and its interfaces) and refuses the others. This does the same.
+        if (targetType.IsAssignableFrom(typeof(decimal)))
+        {
+            return GetDecimal(offset);
+        }
+
+        throw CannotCast(DuckDBType.ToString(), targetType);
     }
 
     private decimal GetDecimal(ulong offset)
@@ -128,7 +166,27 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
         }
     }
 
-    private BigInteger GetBigInteger(ulong offset)
+    private BigInteger GetBigInteger(ulong offset) => GetWhole(offset, typeof(BigInteger));
+
+    // A DECIMAL read as an integer type: a whole value that fits reads, a value with a fraction is refused, and so is a
+    // value out of range (2.0 item 5; before 2.0 every read as sbyte to ulong was refused). The same rule as FLOAT and
+    // DOUBLE. The value is never made a decimal, so a DECIMAL(38) beyond the range of decimal reads if T holds it.
+    private T GetInteger<T>(ulong offset)
+    {
+        var whole = GetWhole(offset, typeof(T));
+
+        try
+        {
+            return NumericConverter.Convert<Int128, T>(whole);
+        }
+        catch (OverflowException)
+        {
+            throw CannotCast(DuckDBType.ToString(), typeof(T));
+        }
+    }
+
+    // The value as a whole number; one with a fraction is refused for the type it was read as.
+    private Int128 GetWhole(ulong offset, Type target)
     {
         var unscaledValue = GetUnscaledValue(offset);
 
@@ -142,7 +200,7 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
 
         if (remainder != 0)
         {
-            throw new InvalidCastException($"Cannot cast a value with a non-zero fractional part to {nameof(BigInteger)} in column {ColumnName}");
+            throw CannotCastFraction(target);
         }
 
         return quotient;

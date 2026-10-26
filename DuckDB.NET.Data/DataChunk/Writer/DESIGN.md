@@ -116,9 +116,21 @@ between two runs.
   0.45, `DateTime` to DATE 0.44 to 0.51, `DateTime` to TIMESTAMP 0.35 on .NET 8. On .NET 10 that last case ran at
   the old speed for the first third of its measured iterations and gave 0.66 and 0.75 in two runs; with tiered
   compilation off it gave 0.33.
-- **A `DateOnly` or `TimeOnly` appended to a row does not reach this code.** `IDuckDBAppenderRow` has no overload
-  for them, so they become `DuckDBDateOnly` and `DuckDBTimeOnly`. Adding the overloads makes a call with a
-  non-nullable argument ambiguous, so it waits for a major version.
+- **A `DateOnly` or `TimeOnly` appended to a row reaches this code since 2.0.** Before, `IDuckDBAppenderRow` had
+  no overload for them, so they became `DuckDBDateOnly` and `DuckDBTimeOnly`. In 1.5 each of the two pairs
+  converted implicitly both ways, so adding the nullable overloads to the interface would have made a
+  non-nullable argument ambiguous, as it already was on `DuckDBAppenderRow` itself. In 2.0 the conversions from
+  the DuckDB types to `DateOnly` and `TimeOnly` are explicit (they can throw: DATE has infinities and years
+  outside 1 to 9999, TIME has 24:00:00), so each argument binds to the overload of its own type. Rejected first:
+  an overload for each of the four types that is not nullable (six interface members instead of two), and
+  `[OverloadResolutionPriority]`, which C# 12 callers ignore (still ambiguous) and which sends a `DuckDBDateOnly`
+  argument through the conversion to `DateOnly` (throws for an infinity). Measured with
+  `DateAppenderBenchmark` against the 1.5.6.1 package, .NET 10, one run, 1,000,000 rows of four columns:
+  `DateOnly` to DATE 0.40, `TimeOnly` to TIME 0.59, `DateTime` to DATE (the control, which took the arithmetic
+  path in both builds) 0.89, with a standard deviation of 15% to 20% of the mean in every job. On the Azure VM
+  (F8as_v7, 4 launches, deviation 1% to 4%), against the commit before: `DateOnly` 0.33, `TimeOnly` 0.54, the
+  control 1.01. These figures are for `876ca36`, which had non-nullable overloads; the version with explicit
+  conversions was not measured.
 
 ### 7. A HUGEINT is built from a `BigInteger` through `Int128`
 
@@ -206,7 +218,7 @@ between two runs.
 ### 10. A decimal is written by integer arithmetic, and one that is too wide is refused
 
 - **What:** a `decimal` is an integer of 96 bits, a sign and a scale. `DecimalVectorDataWriter` takes those parts
-  out (`GetParts`, one call to `decimal.GetBits`), multiplies or divides the integer by a power of ten to get
+  out (`GetParts`, see "The parts of a decimal" below), multiplies or divides the integer by a power of ten to get
   the integer for the scale of the column, and stores it. It is the reader's conversion in the other direction.
 - **Two methods.** `AppendDecimal` is for an integer that fits 64 bits (every value of up to 19 digits) whose
   scale is less than 20 away from the scale of the column: one 64-bit multiplication (`Math.BigMul`) or
@@ -274,9 +286,19 @@ between two runs.
   again and checked the UTF-8.
 - **The check of the UTF-8 is skipped** because what the .NET encoder writes is always valid: a surrogate
   without its pair becomes the replacement character.
-- **The short string uses `DuckDBStringInlined`,** the struct the reader's `DuckDBString` is made of, so the
-  layout is declared once for both directions. The bytes after the string have to be zero: DuckDB compares and
-  hashes a short string by its 16 bytes.
+- **The short string is built by `DuckDBString.TryCreateInlined`** in Bindings, the struct the reader reads, so
+  the layout is declared once for both directions. The bytes after the string have to be zero: DuckDB compares and
+  hashes a short string by its 16 bytes. The method keeps that rule, so `DuckDBStringInlined` is internal
+  (Bindings exposes nothing internal to Data, since the two are separate packages). It also refuses a string with
+  a NUL character, which the writer then sends the long way (below). Tier 1 code of `AppendString` on .NET 10 is
+  the same as when the writer filled a public `DuckDBStringInlined` itself (166 instructions against 163, the same
+  calls; `azure/jitcmp-string`). On .NET 8 `TryCreateInlined` is inlined too, but the `Contains` inside it is not:
+  a call to `SpanHelpers.NonPackedContainsValueType` per short string, where the writer's own `Contains` was
+  unrolled. One short run on .NET 8 (2 launches, the maintainer's PC) showed no difference (0.93 and 0.97, noise
+  about 10%); kept as it is. Rejected: the NUL check in the writer, on the characters (`string.Contains('\0')`
+  is a call per string, since the packed search cannot look for 0) or on the bytes through `DuckDBString.Data`
+  (six more instructions, among them a `cmov` that always loads 8 bytes, since the JIT cannot see the length is at
+  most 12).
 - **Kept:** a string ends at its first NUL character, as it did when DuckDB measured it as a C string. A
   parameter does the same.
 - **Checked:** 27,016 strings appended to a VARCHAR, a VARCHAR[] and a BLOB column and returned from a scalar
@@ -332,9 +354,9 @@ between two runs.
   `foreach`. (`c7da3b7`)
 - **Why:** every value was appended through the interface, one interface call per value.
 - **A `DateOnly` or a `TimeOnly` property now reaches the arithmetic of decision 6.** The class has
-  `AppendValue(DateOnly?)` and `AppendValue(TimeOnly?)`, which the interface lacks, and the mappings call them.
-  A property of the DuckDB types is written as before. Because both kinds of overload are in reach, the calls
-  for a value that is not nullable name the overload with a cast; without it they are ambiguous.
+  `AppendValue(DateOnly?)` and `AppendValue(TimeOnly?)`, which the interface lacked until 2.0, and the mappings
+  call them. A property of the DuckDB types is written as before. Since 2.0 a value that is not nullable binds to
+  the nullable overload of its own type (decision 6).
 - **Rejected: one method compiled for the map from an expression tree.** Built and measured (branch
   `mapped-appender`). It was ahead only for nullable properties on .NET 8 (0.66 and 0.70 against 0.85 and
   0.81), level or behind elsewhere, doubled what an appender allocates when it is created, and needs
@@ -534,8 +556,14 @@ between two runs.
   appender does not (decision 13).
 - **Every chained `AppendValue` is a call through `IDuckDBAppenderRow`,** because the fluent methods return the
   interface.
-- **`decimal.GetBits` needs four integers on the stack,** which is the 16 bytes cleared for every decimal and a
-  check of the stack guard. There is no public way to read the parts of a decimal without a buffer.
+- **The parts of a decimal are read with `Unsafe.BitCast`** (2.0) over a struct of the fields of `System.Decimal`,
+  where `decimal.GetBits` needed four integers on the stack. On Linux x64 that buffer was expensive: a decimal argument
+  arrives there in two registers, which the old code spilled with two 8-byte stores and read back with one 16-byte
+  load, a load that cannot be forwarded from the stores, so the CPU waits. Windows x64 passes the decimal by reference
+  and never had that pattern. Measured against the commit before (`issues/2.0-decimal-getparts.md`): decimal appends
+  0.52 to 0.75 on the Linux VM, 0.94 to 0.97 on a Windows PC (within its noise); parameters unchanged on both.
+  `Unsafe.As` on the decimal instead (tried) takes its address, forces the same kind of copy and was 1.09 to 1.18 on
+  the Windows PC for the long path. `DecimalPartsTests` pins the layout against `decimal.GetBits`.
 - **A decimal whose integer does not fit 64 bits, or whose scale is 20 or more away from the column's, is divided
   or multiplied on 128 bits,** and the division is a call into the runtime: 0.81 of the old time where a shorter
   value takes 0.49.

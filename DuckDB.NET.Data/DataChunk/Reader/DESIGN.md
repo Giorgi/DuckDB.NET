@@ -72,8 +72,13 @@ not use profile data to guess the target as it does for a plain virtual call.
   it stopped allocating (it had boxed twice per value through `Convert.ChangeType`).
 - **The price:** the JIT compiles one body per stored type. The first row of a result with all ten numeric types
   takes about 0.45 ms longer through `GetValue`, and opening it about 0.3 ms longer, once per process.
-- **Left alone on purpose:** a FLOAT or DOUBLE read as an integer still goes through `GetValue(offset, Type)` and
-  `Convert.ChangeType`, which rounds half to even. See "Behaviour" below.
+- **A FLOAT or DOUBLE read as an integer** goes to `FloatingPointToInteger<T>`: a value that is not
+  `double.IsInteger` is refused, with the fraction message when it is finite and with the range message for NaN and
+  the infinities. A whole value goes through `NumericConverter.Convert<double, T>`, whose checked conversion refuses
+  a value out of range. A FLOAT is widened to `double` first, which is exact. Before 2.0 it called
+  `Convert.ToInt32(double)` and its siblings and rounded half to even (since 0.9.2). The DECIMAL reader follows the
+  same rule in `GetInteger<T>`, from the unscaled `Int128`, so a DECIMAL is never made a `decimal` to be read as an
+  integer. See "Behaviour" below.
 
 ### 4. `CannotCast` builds the exception
 
@@ -211,6 +216,7 @@ not use profile data to guess the target as it does for a plain virtual call.
   warnings stay on the reflection lines, where the attribute does the work the analyzer cannot see.
 - **A new type in the list costs one `?? Known<X>()`.** A type that is missing still works everywhere; under Native
   AOT it takes the slower fallback. Nothing tests the published forms automatically.
+- The list and map readers find their builders in the same three steps (decision 9).
 - **Measured**, ratio to the build with decision 3:
 
   | Read | Runtime | Expression tree | Static method | Instance method |
@@ -304,8 +310,9 @@ not use profile data to guess the target as it does for a plain virtual call.
   It also catches the infinity markers, so the common path has no separate test for them; the helper that builds
   the exception tells the two apart. TIMESTAMP_NS has no range check: its whole range, 1677 to 2262, is inside a
   `DateTime`, so there the two markers are tested directly.
-- **TIMESTAMP_NS: `ticks = nanoseconds / 100`,** dropped toward zero for both signs. The earlier code did the same,
-  and so does DuckDB when it casts a TIMESTAMP_NS to a TIMESTAMP.
+- **TIMESTAMP_NS: `ticks = nanoseconds / 100`,** what is below a tick dropped toward minus infinity, so a moment
+  before 1970 keeps its date and time of day (a nanosecond before 1970 is 1969-12-31 23:59:59.9999999). DuckDB 2.0
+  casts a TIMESTAMP_NS to a TIMESTAMP the same way; 1.5 and the code before it dropped the digits toward zero.
 - **A value outside the .NET type** throws `ArgumentOutOfRangeException`, as before, with a message that names the
   column and the DuckDB type that can hold it. Readers of function arguments have no column name and leave it out.
 - **The write side does the same arithmetic in the other direction** (decision 6 in `../Writer/DESIGN.md`). The
@@ -362,7 +369,7 @@ not use profile data to guess the target as it does for a plain virtual call.
     by `Activator.CreateInstance` and grew. Any other type, and a class derived from a list type, is created as
     before. `ReadValidValue<T>` is internal for this.
   - **Structs** (`StructVectorDataReader`): the properties of the target type, each paired with the reader of its
-    field (`PairPropertiesWithReaders`). It was a case-insensitive dictionary lookup for every property of every row,
+    field (`CreatePlan`). It was a case-insensitive dictionary lookup for every property of every row,
     and a lookup in the process-wide cache of types. The lambda for that cache is static: one that used the
     parameter of the method made C# allocate a closure at the start of the method, for every row, also on the path
     for `Dictionary<string, object>`, which never reaches the lambda; on .NET 8 a delegate as well.
@@ -371,7 +378,9 @@ not use profile data to guess the target as it does for a plain virtual call.
 - **`CreatePlan` of the list reader is `NoInlining`.** Inlined, its reflection made `GetList` set up a frame for a
   native call and clear a 184-byte frame on every row (Tier 1, both runtimes): 2,749 bytes of code against 965. An
   A/B of the attribute alone measured no difference, 1.01 and 0.94 (.NET 10). Kept because it is one line and the
-  work it removes is in the listing.
+  work it removes is in the listing. A method sets up on entry what any part of it may need, so code that runs
+  only when the target type changes still costs on every row once it is inlined. `CreatePlan` of the map and
+  struct readers is `NoInlining` for the same reason; their listings were not checked.
 - **Measured** against the commit before, 200,000 rows, on the performance cores; .NET 10 in two runs, .NET 8 in
   one. The control is an INTEGER column read as `int` (1.00 to 1.03):
 
@@ -389,8 +398,60 @@ not use profile data to guess the target as it does for a plain virtual call.
   and as a class derived from a list type; it passes on the build before and on the build after.
 - **Left for 2.0** (`issues/deferred-to-2.0.md`, item 4): every item of a list of another type, every key and value
   of a map and every field of a struct is still read as an object and boxed, and such a list is still made by
-  `Activator` and grows. Reading them on the typed path changes what some reads return, which is why it waits for
-  the shared conversion.
+  `Activator` and grows. They convert by the typed path's rules since 2.0 item 4 (see "Behaviour"), so reading
+  them on the typed path is now a change of speed only.
+- **Done in 2.0 for lists** (item 6): the list half of the bullet above. A builder (`ValueListBuilder<T>`,
+  `NullableListBuilder<T>`, `ReferenceListBuilder<T>`) now fills the list, chosen once per column by `CreatePlan`;
+  it replaces `BuildList<T>` and `BuildNullableList<T>` of the eight types. It tests an item for NULL once and reads
+  it with `ReadValidValue<T>`, the conversion of `GetFieldValue<T>` on a column. A `List<T>` is created by the
+  builder at its size; a class derived from `List<T>` (generic or not) is created by `Activator` and filled by the
+  builder; any other collection (`Collection<T>`, ...) is filled through `IList` with each item read
+  as an object, as before. `Build` is one plain virtual call per row.
+  - The builders for the common element types are named in `CreateBuilder` (in `ListVectorDataReader.Builders.cs`
+    with the builders), as the nullable reader names its types
+    (decision 6), so an application compiled ahead of time has their code. Any other element type (an enum of the
+    caller, a nested list) gets a builder through `MakeGenericType` where `RuntimeFeature.IsDynamicCodeSupported`,
+    and none where it is not. Without a builder the items are read as objects, as before, and that object path also
+    needs the list type's constructor: under Native AOT, `Activator.CreateInstance` throws `MissingMethodException`
+    for a collection type the application does not create itself. That was so before for every element type but
+    the eight; a named type now works under Native AOT.
+  - What changed, pair by pair, is in `issues/2.0-item6-typed-lists.md`: no value changed and nothing that gave a
+    value throws; integers and ENUM as `BigInteger`, VARINT and HUGEINT as a narrower integer, ENUM as a number and
+    BIT as `BitArray` now read; a mismatched item throws `InvalidCastException` where `IList.Add` threw
+    `ArgumentException`. Maps and structs are item 7.
+- **Done in 2.0 for maps and structs** (item 7):
+  - **Maps:** a `Dictionary<TKey, TValue>`, or a class derived from one, gets a builder per target type
+    (`CreateBuilder`, in `MapVectorDataReader.Builders.cs` with the builders): `MapBuilder<TKey, TValue>`, or
+    `NullableValueMapBuilder<TKey, TValue>` for a `TValue?` value.
+    It creates the dictionary at its size (a derived class: `Activator`, no capacity), reads keys and values
+    with `ReadValidValue<T>` and adds them with the generic `Add`: no box. The builder is found as the list's is:
+    52 pairs are named (keys `string`, `int`, `long`, `Guid`; values `string`, `int`, `long`, `double`, `bool`,
+    `DateTime`, `Guid` and the nullable six), any other pair through `MakeGenericType` where
+    `RuntimeFeature.IsDynamicCodeSupported`. Otherwise, and for a type that is not a `Dictionary<,>` or a dictionary
+    with a nullable key type, the map is filled through `IDictionary` with every key and value read as an object. The
+    key and value types are those of the `Dictionary<TKey, TValue>` the target is or derives from (`CreatePlan`), so
+    a class derived from one is read by its base on both paths; `object` keys or values are refused, also when only
+    the base names them. The named list is short because each pair is compiled into every Native AOT application.
+  - **Structs** into a class or a C# struct: one property setter per settable property, generic over the declaring
+    type and the property type, made once per process per target type (`SetterCache`, in
+    `StructVectorDataReader.Setters.cs`). Each column pairs the setters with its field readers once per target type
+    (`StructPlan`, of `BoundProperty` pairs). The setter calls an open-instance delegate made from the set method
+    (for a struct, one taking it by `ref`, called on the struct inside the box that is returned). Per row: a NULL
+    test, `ReadValidValue<TProperty>` and a typed delegate call; no box. The declaring type is the caller's, so
+    nothing can be named for Native AOT: without dynamic code the cache holds the boxed setters of before
+    (`BoxedPropertySetter`), with the same rules.
+  - **Under the JIT, a STRUCT read into a C# struct gave every property at its default** until 2.0: the compiled
+    setter unboxed the struct into a copy and set the copy. Without dynamic code the expression was interpreted, and
+    the interpreter set the struct inside the box, so Native AOT was not affected. Now the typed path sets it in
+    place; the fallback is unchanged.
+  - What changed, pair by pair, is in `issues/2.0-item7-typed-map-struct.md`. Left: a STRUCT read into a class is
+    still created with `Activator.CreateInstance` per row.
+- **The fallbacks without dynamic code are not run by the test suite.** Under the JIT every `List<T>`, every
+  `Dictionary<TKey, TValue>` without a nullable key type and every struct target gets a typed builder or setter.
+  So the object paths (`FillBoxedList`, `GetBoxedDictionary`, `BoxedPropertySetter`) are reached for such targets
+  only where `RuntimeFeature.IsDynamicCodeSupported` is false, as under Native AOT, and the tests never run there.
+  They were checked by hand, by setting `System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported` to
+  false in the test project's built `runtimeconfig.json` (2026-10-26). Running that in CI is an open question.
 
 ### Smaller decisions
 
@@ -417,8 +478,17 @@ not use profile data to guess the target as it does for a plain virtual call.
 - **Strings are decoded with `Encoding.UTF8.GetString(pointer, length)`,** not with the `string` constructor that
   takes an encoding. Both end in the same decoder; the constructor validates more on the way. Short strings measured
   7 to 8% faster.
-- **`GetValue(offset, Type)` in the numeric reader compares the requested type with `typeof(TStorage)` first** and
-  returns the box it already has. `Convert.ChangeType` does not return early for the same type; it boxes again.
+- **`GetValueCore(offset, Type)` (called `GetValue(offset, Type)` before 2.0) in the numeric reader compares the requested type with `typeof(TStorage)` first** and
+  boxes the stored value once. Any other type goes to `GetValueAs`, which is not inlined: one comparison per
+  numeric type, each calling `GetValidValue<X>`. The class is sealed, so each call is bound directly, with no
+  generic virtual lookup (checked in the .NET 8 disassembly). `GetValue` on an INTEGER column stays 77 bytes and
+  clears no stack. It used to call `Convert.ChangeType`, which boxed a second time and had rules of its own.
+- **`BigIntegerVectorDataReader.GetValueCore` and `DecimalVectorDataReader.GetValueCore` work the same way.** The BigInteger
+  reader takes `BigInteger` first, then its own DuckDB struct, then maps the eight integer types to
+  `GetValidValue<X>`. The decimal reader gives its `decimal` only to a type that can hold one (`IsAssignableFrom`:
+  `decimal`, `decimal?`, `object`), which is exactly what the typed path's unbox accepts, and refuses any other type
+  with `CannotCast`. It used to return the `decimal` for any type, and the read failed later in the list, the
+  dictionary or the property setter with another exception.
 
 ### Costs that are known and not yet removed
 
@@ -451,15 +521,17 @@ ENUM row, and `TemporalConversionTests.cs` and `Parameters/TimeTests.cs` the dat
 | Column | As an integer type | As `float` or `double` | As `decimal` | As `BigInteger` |
 |---|---|---|---|---|
 | TINYINT to UBIGINT | the value if it fits | the value | the value | the value |
-| FLOAT, DOUBLE | the value, rounded half to even, if it fits | the value | the value | refused |
+| FLOAT, DOUBLE | the value if it is whole and fits | the value | the value | refused |
 | HUGEINT, UHUGEINT, VARINT | the value if it fits | refused | refused | the value |
-| DECIMAL | refused | refused | the value | the value if it has no fraction |
+| DECIMAL | the value if it is whole and fits | refused | the value | the value if it is whole |
 | ENUM | its position in the list of names, if it fits | refused | refused | its position |
 
 - A refused read throws `InvalidCastException`. Where this code refuses it (an integer that does not fit, a DOUBLE
   out of range, an ENUM), the message names both types and the column: `Cannot cast from Int32 to Byte in column x`.
-  Where the runtime refuses it (HUGEINT as `double`, DOUBLE as `BigInteger`, DECIMAL as an integer), the message is
-  the runtime's and has no column. A DECIMAL with a fraction read as `BigInteger` names the column but not the types.
+  HUGEINT, UHUGEINT and VARINT as `double` say `Cannot cast from HugeInt to Double in column x`, and DOUBLE as
+  `BigInteger` likewise. A FLOAT, DOUBLE or DECIMAL with a fraction read as an integer type (or a DECIMAL as
+  `BigInteger`) says `Cannot cast a value with a non-zero fractional part to Int32 in column x`; the fraction is
+  checked before the range, so 2147483647.5 as `int` gives this message.
 - An ENUM column also reads as `string` (the name) and as a C# enum type of any size. The enum reader converts a
   C# enum through the size of that enum: `Unsafe.As` reads as many bytes as the target type has, so giving it a
   smaller value reads past it. It once did, for every type but `string`.
@@ -467,21 +539,47 @@ ENUM row, and `TemporalConversionTests.cs` and `Parameters/TimeTests.cs` the dat
   does the same.
 - FLOAT or DOUBLE as `decimal` is the C# cast: a `double` keeps 15 significant digits and a `float` 7. NaN, infinity
   and a value out of range are refused. Npgsql refuses this read altogether; here it is allowed on purpose.
-- **Two paths with different rules.** A column, and a list item of type `int`, `float`, `double` or `decimal`, are
-  converted by the typed path above. A map key or value, a struct field read into a class, and every other list item
-  are converted by `GetValue(offset, Type)` with `Convert.ChangeType`. The two agree for FLOAT, DOUBLE and `decimal`.
-  They differ for `BigInteger`: an integer column reads as `BigInteger` on the typed path only, and a HUGEINT reads
-  as `long` on the typed path only (decision 7 is on the typed path).
-- **Planned for the next major version:** a value with a fraction read as an integer type will throw instead of
-  rounding, for FLOAT, DOUBLE and DECIMAL alike; and both paths will share one conversion.
+- **One set of rules** (2.0 item 4). A column, a list item, a map key or value and a struct field read into a class
+  convert alike: `GetValue(offset, Type)`, which the list, map and struct readers call, maps the type to the typed
+  read. So the table above holds for all of them. Pinned by `NumericReadPathAgreementTests`. Before 2.0 the
+  `object` path used `Convert.ChangeType`: an integer read as `BigInteger`, and a HUGEINT, UHUGEINT or VARINT read
+  as an integer type, threw there, and a DECIMAL read as another type failed with `ArgumentException`.
+- **ENUM follows the same rule.** `EnumVectorDataReader.GetValueCore(offset, Type)` gives the name for `string`, uses
+  `Enum.ToObject` for a C# enum (the type is known only at run time; it keeps the bytes that fit, as the typed
+  path's `ToEnum` does), maps the integer types and `BigInteger` to `GetValidValue<X>`, and refuses the rest with
+  the typed path's message. It used to call `Enum.ToObject` for every type, so an ENUM read as an integer type in a
+  list, a map or a struct threw `ArgumentException`. Pinned by `EveryPathReadsAnEnumLikeTheColumn`.
+- **Not the same on purpose:** a list of `object` and a dictionary with `object` keys or values are refused with
+  their own message, where `GetFieldValue<object>` on a column gives the value.
+- **`object` means the column's own .NET type, for every reader** (2.0). `ReadValidValue<object>` and
+  `GetValue(offset, typeof(object))` both read the value as `ClrType`, which is what `GetFieldValue<object>` and
+  `GetValue(ordinal)` on a column give. The rule is written once, in `VectorDataReaderBase`: a line in
+  `ReadValidValue<T>`, and `GetValue(offset, Type)`, which is no longer virtual and maps `object` to `ClrType` before
+  it calls the reader's `GetValueCore`. `GetValue(offset)` and `GetProviderSpecificValue` call `GetValueCore` directly,
+  so the column paths pay nothing for it. It covers a struct field read into an `object` property (the typed property
+  readers and the boxed setters used without dynamic code) and `IDuckDBDataReader.GetValue<object>` in a scalar
+  function. A list of `object` and a dictionary with `object` keys or values stay refused (above).
+  Before 2.0 a number, HUGEINT or ENUM threw "Cannot cast from Int32 to Object"; a DATE, TIMESTAMP (any unit),
+  TIME, TIMETZ or INTERVAL gave the DuckDB struct (`DuckDBDateOnly`, `DuckDBTimestamp`, `DuckDBTimeOnly`,
+  `DuckDBTimeTz`, `DuckDBInterval`) instead of `DateOnly`, `DateTime`, `TimeOnly`, `DateTimeOffset`, `TimeSpan`; a
+  STRUCT gave an empty `object`; a LIST or an ARRAY threw `InvalidCastException`, and a MAP
+  `InvalidOperationException`. Pinned by `ObjectTargetReadTests`.
+- **A fraction read as an integer type is refused** (2.0 item 5), for FLOAT, DOUBLE and DECIMAL alike, on every
+  path: 1.5, 2.5, -0.5, 0.1 and 41.99999999999999 as `int` throw `InvalidCastException`; 42.0 and -0.0 read as 42
+  and 0. There is no tolerance for a value that is nearly whole: read it as `double` or `decimal` and round it.
+  Before 2.0 FLOAT and DOUBLE rounded half to even (`Convert.ChangeType`'s rule, which nobody chose) and a DECIMAL
+  was refused as `sbyte` to `ulong` whatever its value. Npgsql refuses `real` and `double precision` as an integer
+  altogether and drops the fraction of a `numeric`; this rule is neither, on purpose (`issues/npgsql-parity.md`,
+  section 7). Pinned by `FloatingPointColumnReadAsInteger`, `DoubleReadAsIntegerIsCheckedAgainstTheRangeOfTheRequestedType`,
+  `DecimalReadAsIntegerNeedsAWholeValue` and `DecimalReadAsIntegerIsCheckedAgainstTheRangeOfTheRequestedType`.
 
 Dates, times and timestamps (decision 8):
 
 - A DATE reads as `DateOnly` (what `GetValue` returns), `DateTime` at midnight, or `DuckDBDateOnly`. A timestamp of
   any unit reads as `DateTime` (what `GetValue` returns), `DateTimeOffset` with offset zero, or `DuckDBTimestamp`.
 - A `DateTime` has `Kind` `Unspecified`, also for a TIMESTAMPTZ, which DuckDB stores in UTC.
-- A TIMESTAMP_NS loses what is below 100 ns, toward zero. Read as `DuckDBTimestamp` it loses what is below a
-  microsecond.
+- A TIMESTAMP_NS loses what is below 100 ns, toward minus infinity. Read as `DuckDBTimestamp` it loses what is below
+  a microsecond.
 - Infinity reads only as the DuckDB types; as a .NET type it throws `InvalidOperationException`.
 - A finite value outside the .NET type throws `ArgumentOutOfRangeException`. The two paths agree on all of this.
 - A TIME reads as `TimeOnly` (what `GetValue` returns), as `TimeSpan` (the time since midnight), as `DateTime` on
