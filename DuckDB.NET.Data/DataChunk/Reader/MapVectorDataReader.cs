@@ -116,7 +116,7 @@ internal sealed partial class MapVectorDataReader : VectorDataReaderBase
         // The key and value types are those of the Dictionary<TKey, TValue> the target is or derives from, so a class
         // that is not generic itself, or whose type arguments are not the key and value, is read by its base. Another
         // type (a SortedDictionary, a Hashtable) gives its own type arguments, or none.
-        var dictionaryType = FindDictionaryBase(targetType);
+        var dictionaryType = targetType.FindGenericBase(typeof(Dictionary<,>));
         var arguments = (dictionaryType ?? targetType).GetGenericArguments();
 
         // What the IDictionary path reads a key and a value as, and whether it adds a NULL value; a builder knows
@@ -146,20 +146,6 @@ internal sealed partial class MapVectorDataReader : VectorDataReaderBase
     // Builder reads keys and values on the typed path, or is null. KeyType, ValueType and AllowsNullValues are for
     // the IDictionary path: the types a key and a value are read as, and whether a NULL value is added.
     private readonly record struct MapPlan(MapBuilder? Builder, Type KeyType, Type ValueType, bool AllowsNullValues);
-
-    // The Dictionary<TKey, TValue> that the type is or derives from, or null.
-    private static Type? FindDictionaryBase(Type type)
-    {
-        for (var current = type; current != null; current = current.BaseType)
-        {
-            if (current.IsGenericType && current.GetGenericTypeDefinition() == typeof(Dictionary<,>))
-            {
-                return current;
-            }
-        }
-
-        return null;
-    }
 
     internal override void Reset(IntPtr vector)
     {

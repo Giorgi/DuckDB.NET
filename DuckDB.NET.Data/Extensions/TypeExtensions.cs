@@ -65,6 +65,20 @@ internal static class TypeExtensions
         return isNullable;
     }
 
+    // The constructed type of genericDefinition (List<>, Dictionary<,>) that the type is or derives from, or null.
+    public static Type? FindGenericBase(this Type type, Type genericDefinition)
+    {
+        for (var current = type; current != null; current = current.BaseType)
+        {
+            if (current.IsGenericType && current.GetGenericTypeDefinition() == genericDefinition)
+            {
+                return current;
+            }
+        }
+
+        return null;
+    }
+
     public static DuckDBLogicalType GetLogicalType<T>() => typeof(T).GetLogicalType();
 
     public static DuckDBLogicalType GetLogicalType(this Type type)

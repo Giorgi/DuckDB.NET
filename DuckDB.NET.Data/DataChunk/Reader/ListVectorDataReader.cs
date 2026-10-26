@@ -131,7 +131,7 @@ internal sealed partial class ListVectorDataReader : VectorDataReaderBase
         // The element type is that of the List<T> the target is or derives from, so a class that is not generic itself,
         // or whose type argument is not the element type, is read by its base. Another type (a Collection<T>) gives its
         // own type argument, and one with none is refused.
-        var listBase = FindListBase(targetType);
+        var listBase = targetType.FindGenericBase(typeof(List<>));
 
         if (listBase == null && !targetType.IsGenericType)
         {
@@ -158,20 +158,6 @@ internal sealed partial class ListVectorDataReader : VectorDataReaderBase
     // which the builder creates. ItemType is the type an item is read as on the object path: the element type, or
     // the type under a nullable one.
     private readonly record struct ListPlan(ListBuilder? Builder, bool IsExactList, Type ItemType, bool AllowNulls);
-
-    // The List<T> that the type is or derives from, or null.
-    private static Type? FindListBase(Type type)
-    {
-        for (var current = type; current != null; current = current.BaseType)
-        {
-            if (current.IsGenericType && current.GetGenericTypeDefinition() == typeof(List<>))
-            {
-                return current;
-            }
-        }
-
-        return null;
-    }
 
     internal override void Reset(IntPtr vector)
     {
