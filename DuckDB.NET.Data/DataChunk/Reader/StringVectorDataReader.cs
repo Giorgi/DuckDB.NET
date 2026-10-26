@@ -20,7 +20,9 @@ internal sealed class StringVectorDataReader : VectorDataReaderBase
         return DuckDBType switch
         {
             DuckDBType.Bit => GetBitString<T>(offset),
-            DuckDBType.Blob => (T)(object)GetStream(offset),
+            DuckDBType.Blob => typeof(T) == typeof(byte[])
+                ? (T)(object)GetBytes(offset)
+                : (T)(object)GetStream(offset),
             DuckDBType.Varchar => (T)(object)GetString(offset),
             _ => base.GetValidValue<T>(offset)
         };
@@ -218,5 +220,13 @@ internal sealed class StringVectorDataReader : VectorDataReaderBase
         var data = (DuckDBString*)DataPointer + offset;
 
         return new UnmanagedMemoryStream((byte*)data->Data, data->Length, data->Length, FileAccess.Read);
+    }
+
+    private byte[] GetBytes(ulong offset)
+    {
+        using var stream = GetStream(offset);
+        var bytes = new byte[checked((int)stream.Length)];
+        stream.ReadExactly(bytes);
+        return bytes;
     }
 }

@@ -55,6 +55,28 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    public void GetFieldValueByteArrayReadsBlob()
+    {
+        Command.CommandText = "SELECT '\\x01\\x02\\x03\\x04'::BLOB;";
+
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        reader.GetFieldValue<byte[]>(0).Should().Equal(1, 2, 3, 4);
+    }
+
+    [Fact]
+    public void GetFieldValueByteArrayReadsEmptyBlob()
+    {
+        Command.CommandText = "SELECT ''::BLOB;";
+
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        reader.GetFieldValue<byte[]>(0).Should().BeEmpty();
+    }
+
+    [Fact]
     public void SeekTest()
     {
         var blobValue = "ABCDEFGHIJKLMNOPQR";
