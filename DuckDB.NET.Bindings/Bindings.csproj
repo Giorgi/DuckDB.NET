@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Description>DuckDB Bindings for C#.</Description>
     <PackageReleaseNotes>
-- Built on DuckDB v1.5.6
+- Updated to DuckDB v2.0.0
 
 New features:
 - DuckDBHugeInt.ToInt128 and DuckDBUHugeInt.ToUInt128
@@ -19,7 +19,7 @@ Fixes:
     </PackageReleaseNotes>
     <RootNamespace>DuckDB.NET.Native</RootNamespace>
     <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx</RuntimeIdentifiers>
-    <DuckDbArtifactRoot Condition=" '$(DuckDbArtifactRoot)' == '' ">https://github.com/duckdb/duckdb/releases/download/v1.5.6</DuckDbArtifactRoot>
+    <DuckDbArtifactRoot Condition=" '$(DuckDbArtifactRoot)' == '' ">https://github.com/duckdb/duckdb/releases/download/v2.0.0</DuckDbArtifactRoot>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -32,19 +32,21 @@ Fixes:
   
   <!-- Download and include the native libraries into the NuGet package-->
   <Target Name="DownloadNativeLibs" BeforeTargets="GenerateAdditionalSources" Condition="'$(BuildType)' == 'Full' AND '$(TargetFramework)' == '$([System.String]::Copy($(TargetFrameworks)).Split(%27;%27)[0])'">
+    <!-- Since DuckDB 2.0 a release ships the shared libraries as duckdb-shared-libs-<platform>.tar.gz, as the nightly
+         builds do, instead of libduckdb-<platform>.zip. A nightly build downloads only the platform it runs on. -->
     <ItemGroup Condition="'$(NightlyBuild)' != 'true'">
-      <_NativeLib Include="win-x64" LibUrl="$(DuckDbArtifactRoot)/libduckdb-windows-amd64.zip" />
-      <_NativeLib Include="win-arm64" LibUrl="$(DuckDbArtifactRoot)/libduckdb-windows-arm64.zip" />
-      <_NativeLib Include="linux-x64" LibUrl="$(DuckDbArtifactRoot)/libduckdb-linux-amd64.zip" />
-      <_NativeLib Include="linux-arm64" LibUrl="$(DuckDbArtifactRoot)/libduckdb-linux-arm64.zip" />
-      <_NativeLib Include="osx" LibUrl="$(DuckDbArtifactRoot)/libduckdb-osx-universal.zip" />
+      <_NativeLib Include="win-x64" LibUrl="$(DuckDbArtifactRoot)/duckdb-shared-libs-windows-amd64.tar.gz" />
+      <_NativeLib Include="win-arm64" LibUrl="$(DuckDbArtifactRoot)/duckdb-shared-libs-windows-arm64.tar.gz" />
+      <_NativeLib Include="linux-x64" LibUrl="$(DuckDbArtifactRoot)/duckdb-shared-libs-linux-amd64.tar.gz" />
+      <_NativeLib Include="linux-arm64" LibUrl="$(DuckDbArtifactRoot)/duckdb-shared-libs-linux-arm64.tar.gz" />
+      <_NativeLib Include="osx" LibUrl="$(DuckDbArtifactRoot)/duckdb-shared-libs-osx-universal.tar.gz" />
     </ItemGroup>
     <ItemGroup Condition="'$(NightlyBuild)' == 'true'">
       <_NativeLib Include="win-x64" LibUrl="$(DuckDbArtifactRoot)/duckdb-shared-libs-windows-amd64.tar.gz" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
       <_NativeLib Include="linux-x64" LibUrl="$(DuckDbArtifactRoot)/duckdb-shared-libs-linux-amd64.tar.gz" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
       <_NativeLib Include="osx" LibUrl="$(DuckDbArtifactRoot)/duckdb-shared-libs-osx-universal.tar.gz" Condition="$([MSBuild]::IsOSPlatform('OSX'))" />
     </ItemGroup>
-    <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=%(_NativeLib.Identity);LibUrl=%(_NativeLib.LibUrl);NightlyBuild=$(NightlyBuild)" />
+    <MSBuild Projects="DownloadNativeLibs.targets" Properties="Rid=%(_NativeLib.Identity);LibUrl=%(_NativeLib.LibUrl)" />
   </Target>
   <Target Name="CleanNativeLibs" BeforeTargets="Clean" Condition="'$(BuildType)' == 'Full' ">
     <RemoveDir Directories="obj\runtimes" />
