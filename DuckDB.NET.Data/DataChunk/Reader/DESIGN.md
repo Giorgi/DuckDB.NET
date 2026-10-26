@@ -406,7 +406,8 @@ not use profile data to guess the target as it does for a plain virtual call.
   builder at its size; a class derived from `List<T>` (generic or not) is created by `Activator` and filled by the
   builder; any other collection (`Collection<T>`, ...) is filled through `IList` with each item read
   as an object, as before. `Build` is one plain virtual call per row.
-  - The builders for the common element types are named in `CreateBuilder`, as the nullable reader names its types
+  - The builders for the common element types are named in `CreateBuilder` (in `ListVectorDataReader.Builders.cs`
+    with the builders), as the nullable reader names its types
     (decision 6), so an application compiled ahead of time has their code. Any other element type (an enum of the
     caller, a nested list) gets a builder through `MakeGenericType` where `RuntimeFeature.IsDynamicCodeSupported`,
     and none where it is not. Without a builder the items are read as objects, as before, and that object path also
@@ -419,7 +420,8 @@ not use profile data to guess the target as it does for a plain virtual call.
     `ArgumentException`. Maps and structs are item 7.
 - **Done in 2.0 for maps and structs** (item 7):
   - **Maps:** a `Dictionary<TKey, TValue>`, or a class derived from one, gets a builder per target type
-    (`CreateBuilder`): `MapBuilder<TKey, TValue>`, or `NullableValueMapBuilder<TKey, TValue>` for a `TValue?` value.
+    (`CreateBuilder`, in `MapVectorDataReader.Builders.cs` with the builders): `MapBuilder<TKey, TValue>`, or
+    `NullableValueMapBuilder<TKey, TValue>` for a `TValue?` value.
     It creates the dictionary at its size (a derived class: `Activator`, no capacity), reads keys and values
     with `ReadValidValue<T>` and adds them with the generic `Add`: no box. The builder is found as the list's is:
     52 pairs are named (keys `string`, `int`, `long`, `Guid`; values `string`, `int`, `long`, `double`, `bool`,
