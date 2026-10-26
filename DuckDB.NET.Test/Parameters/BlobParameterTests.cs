@@ -63,6 +63,7 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         reader.Read().Should().BeTrue();
 
         reader.GetFieldValue<byte[]>(0).Should().Equal(1, 2, 3, 4);
+        reader.GetValue(0).Should().BeOfType<UnmanagedMemoryStream>();
     }
 
     [Fact]
@@ -74,6 +75,39 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         reader.Read().Should().BeTrue();
 
         reader.GetFieldValue<byte[]>(0).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void GetFieldValueByteArrayReadsBlobInAStruct()
+    {
+        Command.CommandText = "SELECT {'value': '\\x01\\x02\\x03'::BLOB};";
+
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        reader.GetFieldValue<BlobStruct>(0).Value.Should().Equal(1, 2, 3);
+    }
+
+    [Fact]
+    public void GetFieldValueByteArrayReadsBlobInAMap()
+    {
+        Command.CommandText = "SELECT MAP {'value': '\\x04\\x05'::BLOB};";
+
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        reader.GetFieldValue<Dictionary<string, byte[]>>(0)["value"].Should().Equal(4, 5);
+    }
+
+    [Fact]
+    public void GetFieldValueByteArrayReadsBlobInAList()
+    {
+        Command.CommandText = "SELECT ['\\x06\\x07'::BLOB, '\\x08'::BLOB];";
+
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        reader.GetFieldValue<List<byte[]>>(0).Should().BeEquivalentTo(new[] { new byte[] { 6, 7 }, new byte[] { 8 } });
     }
 
     [Fact]
@@ -161,5 +195,10 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         stream.Read(resultBytes, 0, resultBytes.Length);
 
         resultBytes.Should().BeEquivalentTo(value);
+    }
+
+    private sealed class BlobStruct
+    {
+        public byte[] Value { get; set; } = [];
     }
 }
