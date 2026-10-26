@@ -1,4 +1,5 @@
 ﻿using DuckDB.NET.Data.DataChunk.Reader;
+using DuckDB.NET.Data.PreparedStatement;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
@@ -27,11 +28,11 @@ public sealed class DuckDBDataReader : DbDataReader
     private bool streamEnded;
     private long currentChunkIndex;
 
-    private readonly IEnumerator<DuckDBResult> resultEnumerator;
+    private readonly IEnumerator<StatementResult> resultEnumerator;
     private VectorDataReaderBase[] vectorReaders = [];
     private Dictionary<string, int> columnMapping = [];
 
-    internal DuckDBDataReader(DuckDBCommand command, IEnumerable<DuckDBResult> queryResults, CommandBehavior behavior)
+    internal DuckDBDataReader(DuckDBCommand command, IEnumerable<StatementResult> queryResults, CommandBehavior behavior)
     {
         this.command = command;
         this.behavior = behavior;
@@ -54,8 +55,8 @@ public sealed class DuckDBDataReader : DbDataReader
     {
         while (resultEnumerator.MoveNext())
         {
-            var result = resultEnumerator.Current;
-            if (DuckDBCommand.CountsRows(NativeMethods.Query.DuckDBResultStatementType(result)))
+            var (result, statementType) = resultEnumerator.Current;
+            if (DuckDBCommand.CountsRows(statementType))
             {
                 recordsAffected = Math.Max(recordsAffected, 0) + (int)DuckDBCommand.GetRowsAffected(ref result);
             }

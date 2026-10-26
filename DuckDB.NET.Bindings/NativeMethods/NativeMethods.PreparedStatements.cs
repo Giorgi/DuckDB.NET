@@ -22,6 +22,11 @@ public partial class NativeMethods
         public static partial string DuckDBPrepareError(DuckDBPreparedStatement preparedStatement);
 
         [SuppressGCTransition]
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_prepared_statement_type")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBStatementType DuckDBPreparedStatementType(DuckDBPreparedStatement preparedStatement);
+
+        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_nparams")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial long DuckDBParams(DuckDBPreparedStatement preparedStatement);

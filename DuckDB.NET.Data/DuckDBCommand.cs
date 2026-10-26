@@ -76,10 +76,10 @@ public class DuckDBCommand : DbCommand
         // rows affected by the command. For all other types of statements, the return value is -1."
         var count = -1;
 
-        foreach (var result in results)
+        foreach (var (result, statementType) in results)
         {
             var current = result;
-            if (CountsRows(NativeMethods.Query.DuckDBResultStatementType(current)))
+            if (CountsRows(statementType))
             {
                 count = Math.Max(count, 0) + (int)GetRowsAffected(ref current);
             }
@@ -142,7 +142,7 @@ public class DuckDBCommand : DbCommand
 
         var results = PreparedStatement.PreparedStatement.PrepareMultiple(connection!.NativeConnection, CommandText, parameters, UseStreamingMode);
 
-        foreach (var result in results)
+        foreach (var (result, _) in results)
         {
             var current = result;
 

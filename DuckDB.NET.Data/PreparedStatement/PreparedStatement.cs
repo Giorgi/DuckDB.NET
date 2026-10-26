@@ -11,7 +11,7 @@ internal sealed class PreparedStatement : IDisposable
         this.statement = statement;
     }
 
-    public static IEnumerable<DuckDBResult> PrepareMultiple(DuckDBNativeConnection connection, string query, DuckDBParameterCollection parameters, bool useStreamingMode)
+    public static IEnumerable<StatementResult> PrepareMultiple(DuckDBNativeConnection connection, string query, DuckDBParameterCollection parameters, bool useStreamingMode)
     {
         var statementCount = NativeMethods.ExtractStatements.DuckDBExtractStatements(connection, query, out var extractedStatements);
 
@@ -30,7 +30,8 @@ internal sealed class PreparedStatement : IDisposable
                 if (status.IsSuccess())
                 {
                     using var preparedStatement = new PreparedStatement(statement);
-                    yield return preparedStatement.Execute(parameters, useStreamingMode, connection);
+                    var statementType = NativeMethods.PreparedStatements.DuckDBPreparedStatementType(statement);
+                    yield return new StatementResult(preparedStatement.Execute(parameters, useStreamingMode, connection), statementType);
                 }
                 else
                 {
