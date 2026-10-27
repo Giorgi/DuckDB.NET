@@ -6,6 +6,8 @@ internal static class ClrToDuckDBConverter
     {
         { DbType.Guid, value => NativeMethods.Value.DuckDBCreateUuid(((Guid)value).ToHugeInt(false)) },
         { DbType.Currency, value => DecimalToDuckDBValue((decimal)value) },
+        // Decimal and DateTime2 had no converter: any other value keeps the fallback below, as before.
+        { DbType.Decimal, value => value is decimal number ? DecimalToDuckDBValue(number) : NativeMethods.Value.DuckDBCreateVarchar(value.ToString()) },
         { DbType.Boolean, value => NativeMethods.Value.DuckDBCreateBool((bool)value) },
         { DbType.SByte, value => NativeMethods.Value.DuckDBCreateInt8((sbyte)value) },
         { DbType.Int16, value => NativeMethods.Value.DuckDBCreateInt16((short)value) },
@@ -43,12 +45,8 @@ internal static class ClrToDuckDBConverter
                 return NativeMethods.Value.DuckDBCreateTime(time);
             }
         },
-        { DbType.DateTime, value =>
-            {
-                var dateTime = value is DateTime dt ? dt.ToTimestampStruct(DuckDBType.Timestamp) : ((DuckDBTimestamp)value).ToDuckDBTimestampStruct();
-                return NativeMethods.Value.DuckDBCreateTimestamp(dateTime);
-            }
-        },
+        { DbType.DateTime, TimestampToDuckDBValue },
+        { DbType.DateTime2, value => value is DateTime or DuckDBTimestamp ? TimestampToDuckDBValue(value) : NativeMethods.Value.DuckDBCreateVarchar(value.ToString()) },
         { DbType.DateTimeOffset, value => NativeMethods.Value.DuckDBCreateTimestampTz(((DateTimeOffset)value).ToTimestampStruct()) },
     };
 
@@ -225,6 +223,12 @@ internal static class ClrToDuckDBConverter
         {
             return NativeMethods.Value.DuckDBCreateBignum(new DuckDBBignum((IntPtr)data, (ulong)bytes.Length, isNegative ? (byte)1 : (byte)0));
         }
+    }
+
+    private static DuckDBValue TimestampToDuckDBValue(object value)
+    {
+        var dateTime = value is DateTime dt ? dt.ToTimestampStruct(DuckDBType.Timestamp) : ((DuckDBTimestamp)value).ToDuckDBTimestampStruct();
+        return NativeMethods.Value.DuckDBCreateTimestamp(dateTime);
     }
 
     private static DuckDBValue DecimalToDuckDBValue(decimal value)
