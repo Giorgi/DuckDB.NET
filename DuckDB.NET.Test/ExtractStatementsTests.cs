@@ -28,8 +28,9 @@ public class ExtractStatementsTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     {
         Command.CommandText = "SELECT FROM";
 
+        // DuckDB's main branch says "syntax error at end of input" here, released versions "syntax error at or near".
         Command.Invoking(cmd => cmd.ExecuteNonQuery()).Should()
-               .Throw<DuckDBException>().Where(e => e.Message.Contains("syntax error at or near"));
+               .Throw<DuckDBException>().Where(e => e.Message.Contains("syntax error"));
     }
 
     [Fact]
