@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
+    <PackageReference Include="Dapper" Version="2.1.89" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(UseNuGet)' != 'true'">
