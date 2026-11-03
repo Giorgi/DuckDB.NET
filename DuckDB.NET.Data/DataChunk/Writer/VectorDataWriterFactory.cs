@@ -12,6 +12,7 @@ internal static class VectorDataWriterFactory
             DuckDBType.Uuid => new GuidVectorDataWriter(vector, dataPointer, columnType),
             DuckDBType.Date => new DateTimeVectorDataWriter(vector, dataPointer, columnType),
             DuckDBType.Time => new DateTimeVectorDataWriter(vector, dataPointer, columnType),
+            DuckDBType.TimeNs => new TimeNsVectorDataWriter(vector, dataPointer),
             DuckDBType.TimeTz => new DateTimeVectorDataWriter(vector, dataPointer, columnType),
             DuckDBType.Interval => new IntervalVectorDataWriter(vector, dataPointer, columnType),
             DuckDBType.Timestamp => new DateTimeVectorDataWriter(vector, dataPointer, columnType),
