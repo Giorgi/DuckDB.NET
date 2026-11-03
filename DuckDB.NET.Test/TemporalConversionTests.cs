@@ -416,7 +416,7 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     [Fact]
     public void TimeNsIsReadWithTimeOnlyPrecision()
     {
-        Command.CommandText = "SELECT TIME_NS '12:34:56.123456789', [TIME_NS '12:34:56.123456789']";
+        Command.CommandText = "SELECT TIME_NS '12:34:56.123456789', [TIME_NS '12:34:56.123456789'], TIME_NS '24:00:00', [TIME_NS '24:00:00']";
         using var reader = Command.ExecuteReader();
         reader.Read().Should().BeTrue();
 
@@ -432,6 +432,14 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
 
         reader.GetProviderSpecificFieldType(0).Should().Be(typeof(DuckDBTimeOnly));
         reader.GetFieldValue<DuckDBTimeOnly>(0).Microsecond.Should().Be(123_456);
+
+        reader.Invoking(r => r.GetFieldValue<TimeOnly>(2)).Should().Throw<ArgumentOutOfRangeException>();
+        reader.Invoking(r => r.GetValue(2)).Should().Throw<ArgumentOutOfRangeException>();
+        reader.Invoking(r => r.GetFieldValue<List<TimeOnly>>(3)).Should().Throw<ArgumentOutOfRangeException>();
+        reader.GetDateTime(2).Should().Be(new DateTime(1, 1, 2));
+        reader.GetFieldValue<DuckDBTimeOnly>(2).Hour.Should().Be(24);
+        reader.GetFieldValue<TimeSpan>(2).Should().Be(TimeSpan.FromDays(1));
+        reader.GetFieldValue<List<TimeSpan>>(3).Should().Equal(TimeSpan.FromDays(1));
     }
 
     // Each time with each offset. What is expected comes from the text given to DuckDB, and the read as DuckDBTimeTz
