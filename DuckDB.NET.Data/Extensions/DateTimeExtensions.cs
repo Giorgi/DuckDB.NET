@@ -8,7 +8,6 @@ internal static class DateTimeExtensions
 {
     public const int TicksPerMicrosecond = 10;
     public const int NanosecondsPerTick = 100;
-    public const int NanosecondsPerMicrosecond = 1_000;
 
     public const int UnixEpochDayNumber = 719_162;                 // DateOnly.FromDateTime(DateTime.UnixEpoch).DayNumber
     public const long UnixEpochTicks = 621_355_968_000_000_000;    // DateTime.UnixEpoch.Ticks

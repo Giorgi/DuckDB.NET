@@ -156,6 +156,9 @@ public struct DuckDBTimeNs
 
     /// <summary>Gets the time in microseconds, truncated from nanoseconds.</summary>
     public readonly long Microseconds => Nanos / 1_000;
+
+    /// <summary>Splits the time into hour, minute, second and microsecond, dropping what is below a microsecond.</summary>
+    public readonly DuckDBTimeOnly ToDuckDBTimeOnly() => NativeMethods.DateTimeHelpers.DuckDBFromTime(new DuckDBTime { Micros = Microseconds });
 }
 
 [StructLayout(LayoutKind.Sequential)]

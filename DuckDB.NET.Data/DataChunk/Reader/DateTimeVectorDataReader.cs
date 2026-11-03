@@ -29,7 +29,7 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
 
     internal unsafe DateTimeVectorDataReader(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
-        // A DATE, TIME or TIMETZ column gets the values of a microsecond column and never uses them.
+        // A DATE, TIME, TIME_NS or TIMETZ column gets the values of a microsecond column and never uses them.
         ticksPerUnit = columnType switch
         {
             DuckDBType.TimestampS => TimeSpan.TicksPerSecond,
@@ -67,11 +67,6 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
             return (T)(object)DuckDBDateOnly.FromDuckDBDate(GetFieldData<DuckDBDate>(offset));
         }
 
-        if (DuckDBType == DuckDBType.TimeNs)
-        {
-            return GetTimeNsValue<T>(offset);
-        }
-
         if (DuckDBType == DuckDBType.Time)
         {
             if (typeof(T) == typeof(TimeOnly))
@@ -107,6 +102,7 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
             DuckDBType.Timestamp or DuckDBType.TimestampS or
             DuckDBType.TimestampTz or DuckDBType.TimestampMs or
             DuckDBType.TimestampNs => ReadTimestamp<T>(offset),
+            DuckDBType.TimeNs => GetTimeNsValue<T>(offset),
             _ => base.GetValidValue<T>(offset)
         };
     }
@@ -291,7 +287,7 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
             return (T)(object)new TimeSpan(timeNs.Ticks);
         }
 
-        return (T)(object)NativeMethods.DateTimeHelpers.DuckDBFromTime(new DuckDBTime { Micros = timeNs.Microseconds });
+        return (T)(object)timeNs.ToDuckDBTimeOnly();
     }
 
     private object GetTimeNs(ulong offset, Type targetType)
@@ -313,7 +309,7 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
             return new TimeSpan(timeNs.Ticks);
         }
 
-        return NativeMethods.DateTimeHelpers.DuckDBFromTime(new DuckDBTime { Micros = timeNs.Microseconds });
+        return timeNs.ToDuckDBTimeOnly();
     }
 
     private object GetDateTime(ulong offset, Type targetType)

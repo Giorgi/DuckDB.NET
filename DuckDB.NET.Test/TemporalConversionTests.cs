@@ -3,8 +3,8 @@ using DuckDB.NET.Data.Extensions;
 
 namespace DuckDB.NET.Test;
 
-// DuckDB.NET converts a DATE, a TIME, a TIMETZ and the timestamp types to .NET types with its own arithmetic, without
-// asking DuckDB.
+// DuckDB.NET converts a DATE, a TIME, a TIME_NS, a TIMETZ and the timestamp types to .NET types with its own arithmetic,
+// without asking DuckDB.
 // These tests compare its results with DuckDB's: the parts DuckDB splits the same value into (a read as
 // DuckDBDateOnly, DuckDBTimestamp, DuckDBTimeOnly or DuckDBTimeTz has DuckDB split the value) and the text DuckDB prints
 // for it. If a DuckDB release changes how these types are stored or what they mean, these tests fail.
@@ -12,37 +12,6 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
 {
     private const long MicrosecondsAtDateTimeMinValue = -62_135_596_800_000_000;
     private const long MicrosecondsAtDateTimeMaxValue = 253_402_300_799_999_999;
-
-    [Fact]
-    public void TimeNsPreservesSubMicrosecondPrecisionWhenReadAsTimeOnly()
-    {
-        Command.CommandText = "SELECT TIME_NS '12:34:56.123456789'";
-        using var reader = Command.ExecuteReader();
-
-        reader.Read().Should().BeTrue();
-
-        var columnIndex = 0;
-        var expectedTicks = new TimeOnly(12, 34, 56).Ticks + 1_234_567;
-        var expected = new TimeOnly(expectedTicks);
-        var expectedProviderSpecificValue = new DuckDBTimeOnly(12, 34, 56, 123_456);
-
-        reader.GetFieldType(columnIndex).Should().Be(typeof(TimeOnly));
-        reader.GetProviderSpecificFieldType(columnIndex).Should().Be(typeof(DuckDBTimeOnly));
-        reader.GetValue(columnIndex).Should().Be(expected);
-        reader.GetFieldValue<TimeOnly>(columnIndex).Should().Be(expected);
-        reader.GetProviderSpecificValue(columnIndex).Should().Be(expectedProviderSpecificValue);
-        reader.GetFieldValue<DuckDBTimeOnly>(columnIndex).Should().Be(expectedProviderSpecificValue);
-    }
-
-    [Fact]
-    public void TimeNsDuckDBValuePreservesSubMicrosecondPrecision()
-    {
-        using var value = NativeMethods.Value.DuckDBCreateTimeNs(new DuckDBTimeNs { Nanos = 45_296_123_456_789 });
-
-        var expectedTicks = new TimeOnly(12, 34, 56).Ticks + 1_234_567;
-        value.GetValue<TimeOnly>().Should().Be(new TimeOnly(expectedTicks));
-        value.GetValue<DuckDBTimeOnly>().Should().Be(new DuckDBTimeOnly(12, 34, 56, 123_456));
-    }
 
     [Fact]
     public void EveryDateThatDateTimeHoldsIsReadAsDuckDBSplitsIt()
@@ -453,6 +422,7 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
 
         var expectedTicks = new TimeOnly(12, 34, 56).Ticks + 1_234_567;
         var expected = new TimeOnly(expectedTicks);
+        var expectedProviderSpecificValue = new DuckDBTimeOnly(12, 34, 56, 123_456);
 
         reader.GetFieldType(0).Should().Be(typeof(TimeOnly));
         reader.GetValue(0).Should().Be(expected);
@@ -460,9 +430,12 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
         reader.GetFieldValue<DateTime>(0).Ticks.Should().Be(expectedTicks);
         reader.GetFieldValue<TimeSpan>(0).Ticks.Should().Be(expectedTicks);
         reader.GetFieldValue<List<TimeOnly>>(1).Should().Equal(expected);
+        reader.GetFieldValue<List<DateTime>>(1).Should().Equal(new DateTime(expectedTicks));
 
+        // Like DuckDBTimestamp for a TIMESTAMP_NS, DuckDBTimeOnly holds whole microseconds.
         reader.GetProviderSpecificFieldType(0).Should().Be(typeof(DuckDBTimeOnly));
-        reader.GetFieldValue<DuckDBTimeOnly>(0).Microsecond.Should().Be(123_456);
+        reader.GetProviderSpecificValue(0).Should().Be(expectedProviderSpecificValue);
+        reader.GetFieldValue<DuckDBTimeOnly>(0).Should().Be(expectedProviderSpecificValue);
 
         reader.Invoking(r => r.GetFieldValue<TimeOnly>(2)).Should().Throw<ArgumentOutOfRangeException>();
         reader.Invoking(r => r.GetValue(2)).Should().Throw<ArgumentOutOfRangeException>();
@@ -471,6 +444,44 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
         reader.GetFieldValue<DuckDBTimeOnly>(2).Hour.Should().Be(24);
         reader.GetFieldValue<TimeSpan>(2).Should().Be(TimeSpan.FromDays(1));
         reader.GetFieldValue<List<TimeSpan>>(3).Should().Equal(TimeSpan.FromDays(1));
+    }
+
+    // A struct field and a map key and value are read by a child reader, which has to be a TIME_NS reader too, and
+    // has to see a NULL in it.
+    [Fact]
+    public void TimeNsIsReadInAStructAndAMap()
+    {
+        Command.CommandText = "SELECT {'t': TIME_NS '12:34:56.123456789', 'n': NULL::TIME_NS}, " +
+                              "MAP {TIME_NS '12:34:56.123456789': TIME_NS '24:00:00', TIME_NS '01:00:00': NULL::TIME_NS}";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        var expected = new TimeOnly(new TimeOnly(12, 34, 56).Ticks + 1_234_567);
+
+        var structValue = reader.GetFieldValue<Dictionary<string, object>>(0);
+        structValue["t"].Should().Be(expected);
+        structValue["n"].Should().BeNull();
+
+        reader.GetFieldValue<Dictionary<TimeOnly, TimeSpan?>>(1).Should().Equal(new Dictionary<TimeOnly, TimeSpan?>
+        {
+            [expected] = TimeSpan.FromDays(1),
+            [new TimeOnly(1, 0)] = null
+        });
+    }
+
+    [Fact]
+    public void TimeNsDuckDBValueIsReadWithTimeOnlyPrecision()
+    {
+        using var value = NativeMethods.Value.DuckDBCreateTimeNs(new DuckDBTimeNs { Nanos = 45_296_123_456_789 });
+
+        var expectedTicks = new TimeOnly(12, 34, 56).Ticks + 1_234_567;
+        value.GetValue<TimeOnly>().Should().Be(new TimeOnly(expectedTicks));
+        value.GetValue<DuckDBTimeOnly>().Should().Be(new DuckDBTimeOnly(12, 34, 56, 123_456));
+
+        using var endOfDay = NativeMethods.Value.DuckDBCreateTimeNs(new DuckDBTimeNs { Nanos = 86_400_000_000_000 });
+
+        endOfDay.Invoking(v => v.GetValue<TimeOnly>()).Should().Throw<ArgumentOutOfRangeException>();
+        endOfDay.GetValue<DuckDBTimeOnly>().Hour.Should().Be(24);
     }
 
     // Each time with each offset. What is expected comes from the text given to DuckDB, and the read as DuckDBTimeTz
