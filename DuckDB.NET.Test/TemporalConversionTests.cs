@@ -14,6 +14,37 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     private const long MicrosecondsAtDateTimeMaxValue = 253_402_300_799_999_999;
 
     [Fact]
+    public void TimeNsPreservesSubMicrosecondPrecisionWhenReadAsTimeOnly()
+    {
+        Command.CommandText = "SELECT TIME_NS '12:34:56.123456789'";
+        using var reader = Command.ExecuteReader();
+
+        reader.Read().Should().BeTrue();
+
+        var columnIndex = 0;
+        var expectedTicks = new TimeOnly(12, 34, 56).Ticks + 1_234_567;
+        var expected = new TimeOnly(expectedTicks);
+        var expectedProviderSpecificValue = new DuckDBTimeOnly(12, 34, 56, 123_456);
+
+        reader.GetFieldType(columnIndex).Should().Be(typeof(TimeOnly));
+        reader.GetProviderSpecificFieldType(columnIndex).Should().Be(typeof(DuckDBTimeOnly));
+        reader.GetValue(columnIndex).Should().Be(expected);
+        reader.GetFieldValue<TimeOnly>(columnIndex).Should().Be(expected);
+        reader.GetProviderSpecificValue(columnIndex).Should().Be(expectedProviderSpecificValue);
+        reader.GetFieldValue<DuckDBTimeOnly>(columnIndex).Should().Be(expectedProviderSpecificValue);
+    }
+
+    [Fact]
+    public void TimeNsDuckDBValuePreservesSubMicrosecondPrecision()
+    {
+        using var value = NativeMethods.Value.DuckDBCreateTimeNs(new DuckDBTimeNs { Nanos = 45_296_123_456_789 });
+
+        var expectedTicks = new TimeOnly(12, 34, 56).Ticks + 1_234_567;
+        value.GetValue<TimeOnly>().Should().Be(new TimeOnly(expectedTicks));
+        value.GetValue<DuckDBTimeOnly>().Should().Be(new DuckDBTimeOnly(12, 34, 56, 123_456));
+    }
+
+    [Fact]
     public void EveryDateThatDateTimeHoldsIsReadAsDuckDBSplitsIt()
     {
         var dayCount = DateOnly.MaxValue.DayNumber + 1;

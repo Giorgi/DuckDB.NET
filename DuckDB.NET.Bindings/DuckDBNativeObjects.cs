@@ -150,6 +150,12 @@ public struct DuckDBTime
 public struct DuckDBTimeNs
 {
     public long Nanos { get; set; }
+
+    /// <summary>Gets the time in .NET ticks (100-nanosecond units), truncated from nanoseconds.</summary>
+    public readonly long Ticks => Nanos / 100;
+
+    /// <summary>Gets the time in microseconds, truncated from nanoseconds.</summary>
+    public readonly long Microseconds => Nanos / 1_000;
 }
 
 [StructLayout(LayoutKind.Sequential)]

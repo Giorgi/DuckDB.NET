@@ -174,7 +174,7 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
             DuckDBType.Time when typeof(T) == typeof(DuckDBTimeOnly) => Cast(NativeMethods.DateTimeHelpers.DuckDBFromTime(NativeMethods.Value.DuckDBGetTime(this))),
             DuckDBType.Time => Cast((TimeOnly)NativeMethods.DateTimeHelpers.DuckDBFromTime(NativeMethods.Value.DuckDBGetTime(this))),
             DuckDBType.TimeNs when typeof(T) == typeof(DuckDBTimeOnly) => Cast(GetTimeNsValue()),
-            DuckDBType.TimeNs => Cast(new TimeOnly(NativeMethods.Value.DuckDBGetTimeNs(this).Nanos / 100)),
+            DuckDBType.TimeNs => Cast(new TimeOnly(NativeMethods.Value.DuckDBGetTimeNs(this).Ticks)),
             DuckDBType.TimeTz => Cast(GetTimeTzValue()),
             DuckDBType.Interval => Cast((TimeSpan)NativeMethods.Value.DuckDBGetInterval(this)),
             DuckDBType.Timestamp => Cast(GetTimestampValue(NativeMethods.Value.DuckDBGetTimestamp(this),DuckDBType.Timestamp)),
@@ -219,7 +219,7 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
     private DuckDBTimeOnly GetTimeNsValue()
     {
         var timeNs = NativeMethods.Value.DuckDBGetTimeNs(this);
-        return NativeMethods.DateTimeHelpers.DuckDBFromTime(new DuckDBTime { Micros = timeNs.Nanos / 1000 });
+        return NativeMethods.DateTimeHelpers.DuckDBFromTime(new DuckDBTime { Micros = timeNs.Microseconds });
     }
 
     private DateTimeOffset GetTimeTzValue()

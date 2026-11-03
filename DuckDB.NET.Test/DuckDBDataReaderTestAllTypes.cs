@@ -6,7 +6,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
 
     public DuckDBDataReaderTestAllTypes(DuckDBDatabaseFixture db) : base(db)
     {
-        Command.CommandText = "Select *, TIME_NS '12:34:56.123456789' AS time_ns_added from test_all_types(use_large_enum = true)";
+        Command.CommandText = "Select * from test_all_types(use_large_enum = true)";
         reader = Command.ExecuteReader();
         reader.Read();
     }
@@ -193,29 +193,13 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
-    public void ReadTimeNs()
+    public void ReadTimeNsInAllTypesFixture()
     {
-        var columnIndex = reader.GetOrdinal("time_ns_added");
-        var expectedTicks = new TimeOnly(12, 34, 56).Ticks + 1_234_567;
-        var expected = new TimeOnly(expectedTicks);
-        var expectedProviderSpecificValue = new DuckDBTimeOnly(12, 34, 56, 123_456);
-
-        reader.GetFieldType(columnIndex).Should().Be(typeof(TimeOnly));
-        reader.GetProviderSpecificFieldType(columnIndex).Should().Be(typeof(DuckDBTimeOnly));
-        reader.GetValue(columnIndex).Should().Be(expected);
-        reader.GetFieldValue<TimeOnly>(columnIndex).Should().Be(expected);
-        reader.GetProviderSpecificValue(columnIndex).Should().Be(expectedProviderSpecificValue);
-        reader.GetFieldValue<DuckDBTimeOnly>(columnIndex).Should().Be(expectedProviderSpecificValue);
-    }
-
-    [Fact]
-    public void ReadTimeNsFromDuckDBValue()
-    {
-        using var value = NativeMethods.Value.DuckDBCreateTimeNs(new DuckDBTimeNs { Nanos = 45_296_123_456_789 });
-
-        var expectedTicks = new TimeOnly(12, 34, 56).Ticks + 1_234_567;
-        value.GetValue<TimeOnly>().Should().Be(new TimeOnly(expectedTicks));
-        value.GetValue<DuckDBTimeOnly>().Should().Be(new DuckDBTimeOnly(12, 34, 56, 123_456));
+        VerifyDataStruct("time_ns", 56, new List<DuckDBTimeOnly>
+        {
+            new(0, 0, 0),
+            new(24, 0, 0, 0)
+        }, typeof(DuckDBTimeOnly), true);
     }
 
     [Fact]
