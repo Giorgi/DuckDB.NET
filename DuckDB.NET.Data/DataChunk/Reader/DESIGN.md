@@ -295,8 +295,10 @@ not use profile data to guess the target as it does for a plain virtual call.
   from 0001-01-01. So the read is one multiplication, one addition and one comparison for the range. Both paths do
   it: the typed one and `GetValue(offset, Type)`.
 - **TIME and TIMETZ the same way.** A TIME is microseconds from midnight, so as `TimeOnly` or `DateTime` it is
-  `micros * 10` ticks. A TIMETZ is 64 bits: the microseconds in the upper 40, and in the lower 24 the offset from
-  UTC, stored as 57,599 (the largest offset, 15:59:59) minus the offset in seconds. That layout is `dtime_tz_t` in
+  `micros * 10` ticks. TIME_NS is nanoseconds from midnight; .NET types read `nanos / 100` ticks, dropping what is
+  below 100 ns, and `DuckDBTimeOnly` drops what is below a microsecond. A TIMETZ is 64 bits: the microseconds in the
+  upper 40, and in the lower 24 the offset from UTC, stored as 57,599 (the largest offset, 15:59:59) minus the
+  offset in seconds. That layout is `dtime_tz_t` in
   DuckDB's `datetime.hpp`, read at `v1.5.6`; the constants carry the reference. As `DateTimeOffset`
   the time is put on 0001-01-02 (see "Behaviour"). DuckDB used to divide each value into hour, minute, second and
   microsecond (`duckdb_from_time`, `duckdb_from_time_tz`), and the reader multiplied them back.
@@ -500,8 +502,6 @@ not use profile data to guess the target as it does for a plain virtual call.
   constructor of `DateTimeOffset` is a call that validates the offset. That is the cost of the type.
 - **A read as `DuckDBTimestamp`, `DuckDBDateOnly`, `DuckDBTimeOnly` or `DuckDBTimeTz` calls DuckDB,** by design
   (decision 8).
-- **`TIME_NS` has no reader.** A column of that type gets the plain `VectorDataReaderBase` and every read throws
-  "Unrecognised type 39".
 - **A wide DECIMAL (stored as a HUGEINT) is still divided on every read:** about 50 to 70 ns per value, where a
   DECIMAL(18,4), which is built from the stored integer and the scale with no division, takes about 14 ns. A value
   that fits 96 bits with a scale of at most 28 could be built the same way. That is not done because it changes what
@@ -587,6 +587,8 @@ Dates, times and timestamps (decision 8):
   (`ArgumentOutOfRangeException` from its constructor), is one day as `TimeSpan`, and is 0001-01-02 as `DateTime`.
   Npgsql reads a `time` as `TimeOnly` and `TimeSpan` in the same way. A TIMETZ does not read as `TimeSpan`, there
   as here. `TimeSpan` has no typed `Read...` method (decision 5); nothing has measured that read.
+- A TIME_NS reads as `TimeOnly` (what `GetValue` returns), `TimeSpan`, `DateTime` or `DuckDBTimeOnly`. The .NET
+  types drop nanoseconds below 100 ns; `DuckDBTimeOnly` drops those below a microsecond.
 - A TIMETZ reads as `DateTimeOffset` (what `GetValue` returns) with the time on 0001-01-02, or as `DuckDBTimeTz`.
   A `DateTimeOffset` needs a date. On 0001-01-01 a time earlier in the day than its own positive offset, such as
   `00:30:00+01`, would be an instant before year 1, which `DateTimeOffset` refuses; Npgsql uses the second day for
