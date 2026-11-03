@@ -67,7 +67,12 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
             return (T)(object)DuckDBDateOnly.FromDuckDBDate(GetFieldData<DuckDBDate>(offset));
         }
 
-        if (DuckDBType is DuckDBType.Time or DuckDBType.TimeNs)
+        if (DuckDBType == DuckDBType.TimeNs)
+        {
+            return GetTimeNsValue<T>(offset);
+        }
+
+        if (DuckDBType == DuckDBType.Time)
         {
             if (typeof(T) == typeof(TimeOnly))
             {
@@ -126,7 +131,8 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
         return DuckDBType switch
         {
             DuckDBType.Date => GetDate(offset, targetType),
-            DuckDBType.Time or DuckDBType.TimeNs => GetTime(offset, targetType),
+            DuckDBType.Time => GetTime(offset, targetType),
+            DuckDBType.TimeNs => GetTimeNs(offset, targetType),
             DuckDBType.TimeTz => GetDateTimeOffset(offset, targetType),
             DuckDBType.Timestamp or DuckDBType.TimestampS or
             DuckDBType.TimestampTz or DuckDBType.TimestampMs or
@@ -203,9 +209,7 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
 
     // The ticks from midnight. DuckDB has 24:00:00 as a time; a TimeOnly refuses it, a DateTime takes it as the
     // start of the next day, and a TimeSpan as one day.
-    private long GetTimeTicks(ulong offset) => DuckDBType == DuckDBType.TimeNs
-        ? GetFieldData<long>(offset) / DateTimeExtensions.NanosecondsPerTick
-        : GetFieldData<DuckDBTime>(offset).Micros * TimeSpan.TicksPerMicrosecond;
+    private long GetTimeTicks(ulong offset) => GetFieldData<DuckDBTime>(offset).Micros * TimeSpan.TicksPerMicrosecond;
 
     // A DateTimeOffset needs a date, and a TIMETZ has none. The time is put on 0001-01-02, the second day a DateTime
     // holds, as Npgsql does: on the first day, a time earlier than its own positive offset would be an instant before
@@ -230,11 +234,7 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
 
     private DuckDBTimeOnly GetTimeOnly(ulong offset)
     {
-        var time = DuckDBType == DuckDBType.TimeNs
-            ? new DuckDBTime { Micros = GetFieldData<long>(offset) / DateTimeExtensions.NanosecondsPerMicrosecond }
-            : GetFieldData<DuckDBTime>(offset);
-
-        return NativeMethods.DateTimeHelpers.DuckDBFromTime(time);
+        return NativeMethods.DateTimeHelpers.DuckDBFromTime(GetFieldData<DuckDBTime>(offset));
     }
 
     private object GetDate(ulong offset, Type targetType)
@@ -270,6 +270,50 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
         }
 
         return GetTimeOnly(offset);
+    }
+
+    private T GetTimeNsValue<T>(ulong offset)
+    {
+        var timeNs = GetFieldData<DuckDBTimeNs>(offset);
+
+        if (typeof(T) == typeof(TimeOnly))
+        {
+            return (T)(object)new TimeOnly(timeNs.Ticks);
+        }
+
+        if (typeof(T) == typeof(DateTime))
+        {
+            return (T)(object)new DateTime(timeNs.Ticks);
+        }
+
+        if (typeof(T) == typeof(TimeSpan))
+        {
+            return (T)(object)new TimeSpan(timeNs.Ticks);
+        }
+
+        return (T)(object)NativeMethods.DateTimeHelpers.DuckDBFromTime(new DuckDBTime { Micros = timeNs.Microseconds });
+    }
+
+    private object GetTimeNs(ulong offset, Type targetType)
+    {
+        var timeNs = GetFieldData<DuckDBTimeNs>(offset);
+
+        if (targetType == typeof(TimeOnly))
+        {
+            return new TimeOnly(timeNs.Ticks);
+        }
+
+        if (targetType == typeof(DateTime))
+        {
+            return new DateTime(timeNs.Ticks);
+        }
+
+        if (targetType == typeof(TimeSpan))
+        {
+            return new TimeSpan(timeNs.Ticks);
+        }
+
+        return NativeMethods.DateTimeHelpers.DuckDBFromTime(new DuckDBTime { Micros = timeNs.Microseconds });
     }
 
     private object GetDateTime(ulong offset, Type targetType)
