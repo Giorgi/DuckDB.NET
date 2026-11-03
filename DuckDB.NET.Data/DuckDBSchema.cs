@@ -234,6 +234,7 @@ internal static class DuckDBSchema
         DuckDBType.Uuid => typeof(Guid),
         DuckDBType.Date => typeof(DateOnly),
         DuckDBType.Time => typeof(TimeOnly),
+        DuckDBType.TimeNs => typeof(TimeOnly),
         DuckDBType.TimeTz => typeof(DateTimeOffset),
         DuckDBType.TimestampTz => typeof(DateTime),
         DuckDBType.Timestamp or DuckDBType.TimestampS or DuckDBType.TimestampMs or DuckDBType.TimestampNs => typeof(DateTime),

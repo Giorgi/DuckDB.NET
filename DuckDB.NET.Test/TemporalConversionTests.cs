@@ -413,6 +413,27 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
         reader.GetFieldValue<List<TimeSpan>>(1).Should().Equal(TimeSpan.FromDays(1));
     }
 
+    [Fact]
+    public void TimeNsIsReadWithTimeOnlyPrecision()
+    {
+        Command.CommandText = "SELECT TIME_NS '12:34:56.123456789', [TIME_NS '12:34:56.123456789']";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        var expectedTicks = new TimeOnly(12, 34, 56).Ticks + 1_234_567;
+        var expected = new TimeOnly(expectedTicks);
+
+        reader.GetFieldType(0).Should().Be(typeof(TimeOnly));
+        reader.GetValue(0).Should().Be(expected);
+        reader.GetFieldValue<TimeOnly>(0).Should().Be(expected);
+        reader.GetFieldValue<DateTime>(0).Ticks.Should().Be(expectedTicks);
+        reader.GetFieldValue<TimeSpan>(0).Ticks.Should().Be(expectedTicks);
+        reader.GetFieldValue<List<TimeOnly>>(1).Should().Equal(expected);
+
+        reader.GetProviderSpecificFieldType(0).Should().Be(typeof(DuckDBTimeOnly));
+        reader.GetFieldValue<DuckDBTimeOnly>(0).Microsecond.Should().Be(123_456);
+    }
+
     // Each time with each offset. What is expected comes from the text given to DuckDB, and the read as DuckDBTimeTz
     // has DuckDB take the stored value apart.
     [Fact]
