@@ -87,6 +87,10 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBValue DuckDBCreateTime(DuckDBTime value);
 
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_time_ns")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateTimeNs(DuckDBTimeNs value);
+
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_time_tz_value")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBValue DuckDBCreateTimeTz(DuckDBTimeTzStruct value);
@@ -185,6 +189,10 @@ public partial class NativeMethods
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_time")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBTime DuckDBGetTime(DuckDBValue value);
+
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_time_ns")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBTimeNs DuckDBGetTimeNs(DuckDBValue value);
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_time_tz")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]

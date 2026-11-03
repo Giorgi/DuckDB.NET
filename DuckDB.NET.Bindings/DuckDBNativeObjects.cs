@@ -147,6 +147,12 @@ public struct DuckDBTime
 }
 
 [StructLayout(LayoutKind.Sequential)]
+public struct DuckDBTimeNs
+{
+    public long Nanos { get; set; }
+}
+
+[StructLayout(LayoutKind.Sequential)]
 public struct DuckDBTimeTzStruct
 {
     public ulong Bits { get; set; }
