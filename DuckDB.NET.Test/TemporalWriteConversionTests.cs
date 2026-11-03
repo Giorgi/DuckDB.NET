@@ -12,6 +12,79 @@ namespace DuckDB.NET.Test;
 public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
+    public void TimeNsAppenderPreservesTicksAndWritesLists()
+    {
+        var table = $"time_ns_appender_{Guid.NewGuid():N}";
+        Connection.ExecuteNonQuery($"CREATE TABLE {table} (time_ns TIME_NS, times TIME_NS[])");
+
+        var time = new TimeOnly(12, 34, 56).Add(TimeSpan.FromTicks(1_234_567));
+        var dateTime = new DateTime(2024, 2, 29, 12, 34, 56).AddTicks(1_234_567);
+        var endOfDay = new DuckDBTimeOnly(24, 0, 0);
+
+        using (var appender = Connection.CreateAppender(table))
+        {
+            appender.CreateRow()
+                .AppendValue(time).AppendValue(new List<TimeOnly> { time }).EndRow();
+            appender.CreateRow()
+                .AppendValue(dateTime).AppendValue(new List<TimeOnly> { TimeOnly.FromDateTime(dateTime) }).EndRow();
+            appender.CreateRow()
+                .AppendValue(endOfDay).AppendValue(new List<TimeOnly>()).EndRow();
+        }
+
+        Command.CommandText = $"SELECT time_ns::VARCHAR, times[1]::VARCHAR, time_ns = TIME_NS '24:00:00' FROM {table} ORDER BY rowid";
+        using (var reader = Command.ExecuteReader())
+        {
+            reader.Read().Should().BeTrue();
+            reader.GetString(0).Should().Be("12:34:56.1234567");
+            reader.GetString(1).Should().Be("12:34:56.1234567");
+
+            reader.Read().Should().BeTrue();
+            reader.GetString(0).Should().Be("12:34:56.1234567");
+            reader.GetString(1).Should().Be("12:34:56.1234567");
+
+            reader.Read().Should().BeTrue();
+            reader.GetBoolean(2).Should().BeTrue();
+            reader.IsDBNull(1).Should().BeTrue();
+        }
+    }
+
+    [Fact]
+    public void TimeNsParametersPreservePrecisionForTemporalTypes()
+    {
+        var time = new TimeOnly(12, 34, 56).Add(TimeSpan.FromTicks(1_234_567));
+        Command.CommandText = "SELECT value, value::VARCHAR FROM (SELECT ?::TIME_NS AS value)";
+        Command.Parameters.Add(new DuckDBParameter(time));
+
+        using (var reader = Command.ExecuteReader())
+        {
+            reader.GetDataTypeName(0).Should().Be("TimeNs");
+            reader.Read().Should().BeTrue();
+            reader.GetFieldValue<TimeOnly>(0).Should().Be(time);
+            reader.GetString(1).Should().Be("12:34:56.1234567");
+        }
+
+        Command.Parameters.Clear();
+
+        var dateTime = new DateTime(2024, 2, 29, 12, 34, 56).AddTicks(1_234_567);
+        Command.Parameters.Add(new DuckDBParameter(dateTime));
+        using (var dateTimeReader = Command.ExecuteReader())
+        {
+            dateTimeReader.Read().Should().BeTrue();
+            dateTimeReader.GetFieldValue<TimeOnly>(0).Should().Be(TimeOnly.FromDateTime(dateTime));
+            dateTimeReader.GetString(1).Should().Be("12:34:56.1234567");
+        }
+
+        Command.Parameters.Clear();
+
+        var endOfDay = new DuckDBTimeOnly(24, 0, 0);
+        Command.Parameters.Add(new DuckDBParameter(endOfDay));
+        using var endOfDayReader = Command.ExecuteReader();
+        endOfDayReader.Read().Should().BeTrue();
+        endOfDayReader.GetFieldValue<DuckDBTimeOnly>(0).Should().Be(endOfDay);
+        endOfDayReader.GetString(1).Should().Be("24:00:00");
+    }
+
+    [Fact]
     public void EveryDateIsStoredAsDuckDBStoresIt()
     {
         var lastTickOfTheDay = new TimeOnly(TimeSpan.TicksPerDay - 1);
