@@ -150,7 +150,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     [Fact]
     public void EmptyByteArrayIsEmptyBlobAndDefaultSpanIsNull()
     {
-        // Only a BLOB column, ordered by rowid: an integer literal such as AppendValue(1) binds to the byte? overload,
+        // Only a BLOB column, ordered by rowid: an integer literal such as AppendValue(1) binds to the sbyte? overload,
         // which the low-level appender would write into one byte of an INTEGER slot.
         Command.CommandText = "CREATE TABLE blobAppenderEmptyTest(b blob)";
         Command.ExecuteNonQuery();

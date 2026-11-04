@@ -1327,7 +1327,9 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         row.Should().Be(rowCount);
     }
 
-    // The values are multiples of 10^22, which is more than a long holds.
+    // The values are multiples of 10^22, which is more than a long holds. The UHUGEINT values go past the largest
+    // Int128. Int128 and UInt128 are read through the fast path of ReadValidValue (StorageType), which must follow
+    // the vector of each new chunk.
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -1339,7 +1341,8 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         Command.CommandText = $"""
             SELECT i,
                    CASE WHEN i % 17 = 0 THEN NULL ELSE (i - 2500)::HUGEINT * 10000000000000000000000::HUGEINT END AS huge,
-                   CASE WHEN i % 19 = 0 THEN NULL ELSE ((i - 2500)::HUGEINT * 10000000000000000000000::HUGEINT)::VARINT END AS big
+                   CASE WHEN i % 19 = 0 THEN NULL ELSE ((i - 2500)::HUGEINT * 10000000000000000000000::HUGEINT)::VARINT END AS big,
+                   CASE WHEN i % 23 = 0 THEN NULL ELSE i::UHUGEINT * 68056473384187692692674921486353642::UHUGEINT END AS uhuge
             FROM range(0, {rowCount}) t(i)
             ORDER BY i
             """;
@@ -1348,11 +1351,14 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         var rowNumberColumn = reader.GetOrdinal("i");
         var hugeColumn = reader.GetOrdinal("huge");
         var bigColumn = reader.GetOrdinal("big");
+        var uhugeColumn = reader.GetOrdinal("uhuge");
 
         reader.GetFieldType(hugeColumn).Should().Be(typeof(Int128));
         reader.GetFieldType(bigColumn).Should().Be(typeof(BigInteger));
+        reader.GetFieldType(uhugeColumn).Should().Be(typeof(UInt128));
 
         var hugeStep = BigInteger.Pow(10, 22);
+        var uhugeStep = UInt128.Parse("68056473384187692692674921486353642", CultureInfo.InvariantCulture);
         var row = 0;
 
         while (reader.Read())
@@ -1365,10 +1371,20 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
             reader.GetFieldValue<BigInteger?>(hugeColumn).Should().Be(huge, $"row {row}");
             reader.GetFieldValue<BigInteger?>(bigColumn).Should().Be(big, $"row {row}");
+            reader.GetFieldValue<Int128?>(hugeColumn).Should().Be(huge.HasValue ? (Int128)huge.Value : null, $"row {row}");
+
+            UInt128? uhuge = row % 23 == 0 ? null : (UInt128)row * uhugeStep;
+            reader.GetFieldValue<UInt128?>(uhugeColumn).Should().Be(uhuge, $"row {row}");
+
+            if (uhuge.HasValue)
+            {
+                reader.GetFieldValue<UInt128>(uhugeColumn).Should().Be(uhuge.Value, $"row {row}");
+            }
 
             if (huge.HasValue)
             {
                 reader.GetFieldValue<BigInteger>(hugeColumn).Should().Be(huge.Value, $"row {row}");
+                reader.GetFieldValue<Int128>(hugeColumn).Should().Be((Int128)huge.Value, $"row {row}");
                 reader.GetValue(hugeColumn).Should().Be((Int128)huge.Value, $"row {row}");
                 reader.GetFieldValue<DuckDBHugeInt>(hugeColumn).ToBigInteger().Should().Be(huge.Value, $"row {row}");
 

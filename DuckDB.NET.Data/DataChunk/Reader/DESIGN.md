@@ -56,8 +56,17 @@ not use profile data to guess the target as it does for a plain virtual call.
   subclass decides what it stores.
 - **Measured:** `GetInt32` on an INTEGER column went from about 13 ns to about 1 ns per value over decisions 1 and 2.
 - **Which readers set it:** the numeric reader, the boolean reader, and the BigInteger reader for HUGEINT and
-  UHUGEINT (as the DuckDB structs). The string, date-time, decimal and Guid readers cannot: their values need a
-  conversion.
+  UHUGEINT. The string, date-time, decimal and Guid readers cannot: their values need a conversion.
+- **HUGEINT and UHUGEINT as `Int128` and `UInt128`** (2.0 item 9). Their `StorageType` was the DuckDB struct; since
+  `Int128` and `UInt128` are the default types it is those. DuckDB stores the lower 64 bits first, then the upper, so on
+  a little-endian machine the vector holds the bytes of an `Int128`. `GetValidValue` reads the structs, which lost the
+  fast path, from the vector itself, so they are not boxed through the base class; they keep the generic virtual
+  lookup. Read in the compiled code (.NET 8, Tier 1, Windows x64): `ReadValidValue<Int128>` compares `StorageType`,
+  loads the 16 bytes with `vmovups` (unaligned, so the alignment of the vector does not matter) and stores them. It is
+  not inlined into `GetFieldValue<Int128>` on .NET 8, because the method still holds the generic virtual call for other
+  types; a `ReadInt128` method (decision 5) would remove that call there. On .NET 10 (10.0.14, Tier 1, Windows x64) it
+  is inlined into `GetFieldValue<Int128>` and its caller: the compare, the load, and a copy through a 16-byte stack
+  slot into the return buffer; the generic virtual call is left on the branch for other types. Not measured.
 
 ### 3. One numeric reader class per stored type
 
@@ -249,9 +258,9 @@ not use profile data to guess the target as it does for a plain virtual call.
 - **Why the class is still separate, and not `NumericVectorDataReader<Int128>`:** when this was decided, the .NET
   type of a HUGEINT column was `BigInteger`, and the generic numeric reader returns its stored type from `GetValue`.
   Since 2.0 the .NET type is `Int128` (item 9), so that reason is gone. Others remain: the provider-specific type is
-  `DuckDBHugeInt`, which is what `StorageType` names for the fast path; HUGEINT is refused as `float`, `double` and
-  `decimal`, which the generic reader converts; and a read as `BigInteger` goes through `ToBigInteger`. Whether a
-  fast path for `Int128` is worth it was not tried or measured.
+  `DuckDBHugeInt`; HUGEINT is refused as `float`, `double` and
+  `decimal`, which the generic reader converts; and a read as `BigInteger` goes through `ToBigInteger`. The fast path
+  for `Int128` comes from `StorageType` instead (decision 2).
 - **The message of a refused read names the column type:** "Cannot cast from HugeInt to Int64 in column x", and
   `UnsignedHugeInt` and `VarInt` likewise. These are the names `GetDataTypeName` returns. It said `BigInteger`
   before, which was the type the reader happened to convert from.
