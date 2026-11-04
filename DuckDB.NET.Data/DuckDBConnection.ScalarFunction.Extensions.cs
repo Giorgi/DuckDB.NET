@@ -185,6 +185,7 @@ public static class DuckDBConnectionScalarFunctionExtensions
             if (typeof(TResult) == typeof(TimeSpan?)) { WriteNullableResult(writer, (TimeSpan?)(object?)result, index); return; }
             if (typeof(TResult) == typeof(DuckDBDateOnly?)) { WriteNullableResult(writer, (DuckDBDateOnly?)(object?)result, index); return; }
             if (typeof(TResult) == typeof(DuckDBTimeOnly?)) { WriteNullableResult(writer, (DuckDBTimeOnly?)(object?)result, index); return; }
+            if (typeof(TResult) == typeof(DuckDBTimeNs?)) { WriteNullableResult(writer, (DuckDBTimeNs?)(object?)result, index); return; }
             if (typeof(TResult) == typeof(DateOnly?)) { WriteNullableResult(writer, (DateOnly?)(object?)result, index); return; }
             if (typeof(TResult) == typeof(TimeOnly?)) { WriteNullableResult(writer, (TimeOnly?)(object?)result, index); return; }
             if (typeof(TResult) == typeof(DateTimeOffset?)) { WriteNullableResult(writer, (DateTimeOffset?)(object?)result, index); return; }

@@ -148,6 +148,8 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
 
     public IDuckDBAppenderRow AppendValue(DuckDBTimeOnly? value) => AppendValueInternalStruct(value);
 
+    public IDuckDBAppenderRow AppendValue(DuckDBTimeNs? value) => AppendValueInternalStruct(value);
+
     public IDuckDBAppenderRow AppendValue(DateTime? value) => AppendValueInternalStruct(value);
 
     public IDuckDBAppenderRow AppendValue(DateTimeOffset? value) => AppendValueInternalStruct(value);
@@ -272,6 +274,7 @@ public interface IDuckDBAppenderRow
     IDuckDBAppenderRow AppendValue(TimeOnly? value);
     IDuckDBAppenderRow AppendValue(DuckDBDateOnly? value);
     IDuckDBAppenderRow AppendValue(DuckDBTimeOnly? value);
+    IDuckDBAppenderRow AppendValue(DuckDBTimeNs? value);
     IDuckDBAppenderRow AppendValue(DateTime? value);
     IDuckDBAppenderRow AppendValue(DateTimeOffset? value);
     IDuckDBAppenderRow AppendValue(TimeSpan? value);

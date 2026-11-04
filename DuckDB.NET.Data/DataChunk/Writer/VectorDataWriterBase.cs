@@ -66,6 +66,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
             TimeSpan val => AppendTimeSpan(val, rowIndex),
             DuckDBDateOnly val => AppendDateOnly(val, rowIndex),
             DuckDBTimeOnly val => AppendTimeOnly(val, rowIndex),
+            DuckDBTimeNs val => AppendTimeNs(val, rowIndex),
             DateOnly val => AppendDateOnly(val, rowIndex),
             TimeOnly val => AppendTimeOnly(val, rowIndex),
             DateTimeOffset val => AppendDateTimeOffset(val, rowIndex),
@@ -115,6 +116,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
         else if (typeof(T) == typeof(TimeSpan?)) AppendTimeSpan(Unsafe.As<T, TimeSpan?>(ref value).GetValueOrDefault(), rowIndex);
         else if (typeof(T) == typeof(DuckDBDateOnly?)) AppendDateOnly(Unsafe.As<T, DuckDBDateOnly?>(ref value).GetValueOrDefault(), rowIndex);
         else if (typeof(T) == typeof(DuckDBTimeOnly?)) AppendTimeOnly(Unsafe.As<T, DuckDBTimeOnly?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(DuckDBTimeNs?)) AppendTimeNs(Unsafe.As<T, DuckDBTimeNs?>(ref value).GetValueOrDefault(), rowIndex);
         else if (typeof(T) == typeof(DateOnly?)) AppendDateOnly(Unsafe.As<T, DateOnly?>(ref value).GetValueOrDefault(), rowIndex);
         else if (typeof(T) == typeof(TimeOnly?)) AppendTimeOnly(Unsafe.As<T, TimeOnly?>(ref value).GetValueOrDefault(), rowIndex);
         else if (typeof(T) == typeof(DateTimeOffset?)) AppendDateTimeOffset(Unsafe.As<T, DateTimeOffset?>(ref value).GetValueOrDefault(), rowIndex);
@@ -153,6 +155,8 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
     internal virtual bool AppendDateOnly(DuckDBDateOnly value, ulong rowIndex) => ThrowException<DuckDBDateOnly>();
 
     internal virtual bool AppendTimeOnly(DuckDBTimeOnly value, ulong rowIndex) => ThrowException<DuckDBTimeOnly>();
+
+    internal virtual bool AppendTimeNs(DuckDBTimeNs value, ulong rowIndex) => ThrowException<DuckDBTimeNs>();
 
     internal virtual bool AppendDateTimeOffset(DateTimeOffset value, ulong rowIndex) => ThrowException<DateTimeOffset>();
 

@@ -102,6 +102,11 @@ public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBAppe
 
         var duckDBType = underlyingType.GetDuckDBType();
 
+        if (duckDBType == DuckDBType.Time && (underlyingType == typeof(TimeOnly) || underlyingType == typeof(DuckDBTimeOnly)))
+        {
+            return [DuckDBType.Time, DuckDBType.TimeNs];
+        }
+
         return duckDBType switch
         {
             DuckDBType.Invalid => throw new NotSupportedException($"Type {type.Name} is not supported for mapping"),

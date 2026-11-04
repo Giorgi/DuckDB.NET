@@ -29,12 +29,6 @@ internal static class DateTimeExtensions
     // The date is dropped.
     public static DuckDBTime ToDuckDBTime(this DateTime value) => new() { Micros = value.Ticks % TimeSpan.TicksPerDay / TicksPerMicrosecond };
 
-    public static DuckDBTimeNs ToDuckDBTimeNs(this DateTime value) => new() { Nanos = value.Ticks % TimeSpan.TicksPerDay * NanosecondsPerTick };
-
-    public static DuckDBTimeNs ToDuckDBTimeNs(this TimeOnly value) => new() { Nanos = value.Ticks * NanosecondsPerTick };
-
-    public static DuckDBTimeNs ToDuckDBTimeNs(this DuckDBTimeOnly value) => new() { Nanos = value.Ticks * NanosecondsPerTick };
-
     // The time on the clock and the offset, as they are in the value: the date is dropped.
     public static DuckDBTimeTzStruct ToTimeTzStruct(this DateTimeOffset value)
     {
