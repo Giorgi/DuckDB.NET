@@ -19,6 +19,8 @@ internal static class DuckDBTypeMap
         {typeof(uint), DbType.UInt32},
         {typeof(ulong), DbType.UInt64},
         {typeof(BigInteger), DbType.VarNumeric},
+        {typeof(Int128), DbType.VarNumeric},
+        {typeof(UInt128), DbType.VarNumeric},
         {typeof(byte[]), DbType.Binary},
         {typeof(DateTime), DbType.DateTime},
         {typeof(DuckDBTimestamp), DbType.DateTime},

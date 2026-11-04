@@ -214,4 +214,143 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.GetString(0).Should().Be(expectedType);
         reader.GetString(1).Should().Be(text);
     }
+
+    // Int128 and UInt128 (2.0 item 9) are sent as a HUGEINT and a UHUGEINT. They used to be sent as text.
+    public static IEnumerable<object[]> Int128Values() =>
+    [
+        [Int128.MinValue, "-170141183460469231731687303715884105728"],
+        [(Int128)long.MinValue - 1, "-9223372036854775809"],
+        [Int128.NegativeOne, "-1"],
+        [Int128.Zero, "0"],
+        [(Int128)ulong.MaxValue + 1, "18446744073709551616"],
+        [Int128.MaxValue, "170141183460469231731687303715884105727"],
+    ];
+
+    public static IEnumerable<object[]> UInt128Values() =>
+    [
+        [UInt128.Zero, "0"],
+        [(UInt128)ulong.MaxValue + 1, "18446744073709551616"],
+        [(UInt128)Int128.MaxValue + 1, "170141183460469231731687303715884105728"],
+        [UInt128.MaxValue, "340282366920938463463374607431768211455"],
+    ];
+
+    [Theory]
+    [MemberData(nameof(Int128Values))]
+    public void Int128IsSentAsAHugeInt(Int128 value, string text)
+    {
+        var parameter = new DuckDBParameter(value);
+        parameter.DbType.Should().Be(DbType.VarNumeric);
+
+        Command.CommandText = "SELECT typeof($1), $1::VARCHAR, $1 = $2::HUGEINT;";
+        Command.Parameters.Add(parameter);
+        Command.Parameters.Add(new DuckDBParameter(text));
+
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+        reader.GetString(0).Should().Be("HUGEINT");
+        reader.GetString(1).Should().Be(text);
+        reader.GetBoolean(2).Should().BeTrue();
+    }
+
+    [Theory]
+    [MemberData(nameof(UInt128Values))]
+    public void UInt128IsSentAsAUHugeInt(UInt128 value, string text)
+    {
+        var parameter = new DuckDBParameter(value);
+        parameter.DbType.Should().Be(DbType.VarNumeric);
+
+        Command.CommandText = "SELECT typeof($1), $1::VARCHAR, $1 = $2::UHUGEINT;";
+        Command.Parameters.Add(parameter);
+        Command.Parameters.Add(new DuckDBParameter(text));
+
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+        reader.GetString(0).Should().Be("UHUGEINT");
+        reader.GetString(1).Should().Be(text);
+        reader.GetBoolean(2).Should().BeTrue();
+    }
+
+    // A column of another type: DuckDB casts the value, and refuses one that does not fit.
+    [Fact]
+    public void Int128AndUInt128AreCastToTheTypeOfTheColumn()
+    {
+        Command.CommandText = "CREATE OR REPLACE TABLE Int128ParameterTargets (signed HUGEINT, unsigned UHUGEINT, i INTEGER, d DECIMAL(38,0), v VARCHAR);";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "INSERT INTO Int128ParameterTargets VALUES ($1, $2, $3, $4, $5);";
+        Command.Parameters.Add(new DuckDBParameter((UInt128)Int128.MaxValue));
+        Command.Parameters.Add(new DuckDBParameter(Int128.Zero));
+        Command.Parameters.Add(new DuckDBParameter((Int128)(-42)));
+        Command.Parameters.Add(new DuckDBParameter(Int128.Parse("-99999999999999999999999999999999999999")));
+        Command.Parameters.Add(new DuckDBParameter(UInt128.MaxValue));
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "SELECT signed::VARCHAR, unsigned::VARCHAR, i, d::VARCHAR, v FROM Int128ParameterTargets;";
+        using (var reader = Command.ExecuteReader())
+        {
+            reader.Read().Should().BeTrue();
+            reader.GetString(0).Should().Be("170141183460469231731687303715884105727");
+            reader.GetString(1).Should().Be("0");
+            reader.GetInt32(2).Should().Be(-42);
+            reader.GetString(3).Should().Be("-99999999999999999999999999999999999999");
+            reader.GetString(4).Should().Be("340282366920938463463374607431768211455");
+        }
+
+        foreach (var (column, value) in new (string, object)[]
+                 {
+                     ("signed", (UInt128)Int128.MaxValue + 1), ("unsigned", Int128.NegativeOne), ("i", (Int128)int.MaxValue + 1),
+                 })
+        {
+            Command.CommandText = $"INSERT INTO Int128ParameterTargets ({column}) VALUES ($1);";
+            Command.Parameters.Clear();
+            Command.Parameters.Add(new DuckDBParameter(value));
+            Command.Invoking(command => command.ExecuteNonQuery()).Should().Throw<DuckDBException>($"{value} into {column}");
+        }
+    }
+
+    [Fact]
+    public void NullInt128IsSentAsNull()
+    {
+        Command.CommandText = "SELECT $1 IS NULL;";
+        Command.Parameters.Add(new DuckDBParameter((Int128?)null));
+        Command.ExecuteScalar().Should().Be(true);
+    }
+
+    [Fact]
+    public void ListsOfInt128AndUInt128()
+    {
+        Command.CommandText = "CREATE OR REPLACE TABLE Int128ListParameters (signed HUGEINT[], unsigned UHUGEINT[]);";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "INSERT INTO Int128ListParameters VALUES ($1, $2);";
+        Command.Parameters.Add(new DuckDBParameter(new List<Int128> { Int128.MinValue, Int128.MaxValue }));
+        Command.Parameters.Add(new DuckDBParameter(new UInt128?[] { UInt128.MaxValue, null }));
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = """
+            SELECT signed = ['-170141183460469231731687303715884105728', '170141183460469231731687303715884105727']::HUGEINT[],
+                   unsigned IS NOT DISTINCT FROM ['340282366920938463463374607431768211455', NULL]::UHUGEINT[]
+            FROM Int128ListParameters;
+            """;
+        Command.Parameters.Clear();
+        using (var reader = Command.ExecuteReader())
+        {
+            reader.Read().Should().BeTrue();
+            reader.GetBoolean(0).Should().BeTrue();
+            reader.GetBoolean(1).Should().BeTrue();
+        }
+
+        // With no column, the list takes the type of its items.
+        Command.CommandText = "SELECT typeof($1), $1::VARCHAR, typeof($2), $2::VARCHAR;";
+        Command.Parameters.Add(new DuckDBParameter(new[] { Int128.MinValue, Int128.One }));
+        Command.Parameters.Add(new DuckDBParameter(new List<UInt128> { UInt128.MaxValue }));
+        using (var reader = Command.ExecuteReader())
+        {
+            reader.Read().Should().BeTrue();
+            reader.GetString(0).Should().Be("HUGEINT[]");
+            reader.GetString(1).Should().Be("[-170141183460469231731687303715884105728, 1]");
+            reader.GetString(2).Should().Be("UHUGEINT[]");
+            reader.GetString(3).Should().Be("[340282366920938463463374607431768211455]");
+        }
+    }
 }

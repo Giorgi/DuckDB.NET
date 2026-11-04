@@ -61,6 +61,13 @@ internal static class ClrToDuckDBConverter
 
         return (duckDBType, item) switch
         {
+            // An Int128 is a HUGEINT and a UInt128 a UHUGEINT, whatever the target: DuckDB casts the value to the type of
+            // the parameter and refuses one that does not fit. First, because the integer targets below would send them
+            // as text: neither type is IConvertible. Temporary: once TryConvertTo no longer uses Convert.ChangeType (2.0
+            // item 11), these become (DuckDBType.HugeInt, _) and (DuckDBType.UnsignedHugeInt, _) like the other integers.
+            (_, Int128 value) => NativeMethods.Value.DuckDBCreateHugeInt(new DuckDBHugeInt(value)),
+            (_, UInt128 value) => NativeMethods.Value.DuckDBCreateUHugeInt(new DuckDBUHugeInt(value)),
+
             (DuckDBType.Boolean, bool value) => NativeMethods.Value.DuckDBCreateBool(value),
 
             (DuckDBType.TinyInt, _) => TryConvertTo<sbyte>(out var result) ? NativeMethods.Value.DuckDBCreateInt8(result) : NativeMethods.Value.DuckDBCreateVarchar(item.ToString()),
