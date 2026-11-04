@@ -753,6 +753,44 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         Command.ExecuteScalar().Should().Be((Int128)45);
     }
 
+    // Values read as objects inside a struct, a map and a list of structs, and the input of a scalar function read as
+    // an object, have the default types too.
+    [Fact]
+    public void NestedHugeIntsReadAsObjectsAreInt128AndUInt128()
+    {
+        Command.CommandText = """
+            SELECT {'h': (-1)::HUGEINT, 'u': '340282366920938463463374607431768211455'::UHUGEINT, 'v': 7::VARINT} AS fields,
+                   MAP {(-2)::HUGEINT: 3::UHUGEINT} AS map,
+                   [{'h': 4::HUGEINT}] AS list_of_structs
+            """;
+        using (var reader = Command.ExecuteReader())
+        {
+            reader.Read();
+
+            var fields = reader.GetFieldValue<Dictionary<string, object>>(0);
+            fields["h"].Should().Be(Int128.NegativeOne);
+            fields["u"].Should().Be(UInt128.MaxValue);
+            fields["v"].Should().Be(new BigInteger(7));
+
+            reader.GetValue(1).Should().BeOfType<Dictionary<Int128, UInt128>>()
+                .Which.Should().Equal(new Dictionary<Int128, UInt128> { [-2] = 3 });
+
+            reader.GetValue(2).Should().BeOfType<List<Dictionary<string, object>>>()
+                .Which.Single()["h"].Should().Be((Int128)4);
+        }
+
+        Connection.RegisterScalarFunction<Int128, string>("hugeint_input_type", (readers, writer, rowCount) =>
+        {
+            for (ulong index = 0; index < rowCount; index++)
+            {
+                writer.WriteValue($"{readers[0].GetValue(index).GetType().Name} {readers[0].GetValue<object>(index).GetType().Name}", index);
+            }
+        });
+
+        Command.CommandText = "SELECT hugeint_input_type(5::HUGEINT)";
+        Command.ExecuteScalar().Should().Be("Int128 Int128");
+    }
+
     [Fact]
     public void VarIntReadsAsInt128AndUInt128WhenItFits()
     {

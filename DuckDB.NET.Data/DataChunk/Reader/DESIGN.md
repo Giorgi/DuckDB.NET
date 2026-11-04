@@ -463,9 +463,9 @@ not use profile data to guess the target as it does for a plain virtual call.
 
 ### Smaller decisions
 
-- **`BigIntegerVectorDataReader` is a separate, non-generic class.** HUGEINT, UHUGEINT and VARINT read as
-  `BigInteger`, which is not a plain value, so they cannot be `NumericVectorDataReader<TStorage>` (VARINT's .NET type
-  is still `BigInteger`; see decision 7 for HUGEINT and UHUGEINT). Loosening the
+- **`BigIntegerVectorDataReader` is a separate, non-generic class.** VARINT reads as `BigInteger`, which is not a
+  plain value, so it cannot be `NumericVectorDataReader<TStorage>`. HUGEINT and UHUGEINT have been `Int128` and
+  `UInt128` since 2.0; decision 7 gives the reasons that keep them in this class. Loosening the
   constraint on `TStorage` to fit them in would make the class compile to code shared between types, and the stored
   type would stop being a constant for the JIT.
 - **`DecimalVectorDataReader` has no inner reader.** It reads a HUGEINT-backed decimal from its own data pointer. It

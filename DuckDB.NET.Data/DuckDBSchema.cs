@@ -239,7 +239,10 @@ internal static class DuckDBSchema
         DuckDBType.TimestampTz => typeof(DateTime),
         DuckDBType.Timestamp or DuckDBType.TimestampS or DuckDBType.TimestampMs or DuckDBType.TimestampNs => typeof(DateTime),
         DuckDBType.Interval => typeof(TimeSpan),
-        DuckDBType.HugeInt or DuckDBType.UnsignedHugeInt or DuckDBType.VarInt => typeof(System.Numerics.BigInteger),
+        // The types GetFieldType gives (VectorDataReaderBase.GetColumnType): Int128 and UInt128 since 2.0.
+        DuckDBType.HugeInt => typeof(Int128),
+        DuckDBType.UnsignedHugeInt => typeof(UInt128),
+        DuckDBType.VarInt => typeof(System.Numerics.BigInteger),
         DuckDBType.Enum or DuckDBType.Bit => typeof(string),
         DuckDBType.SqlNull => typeof(DBNull),
         _ => typeof(object)
