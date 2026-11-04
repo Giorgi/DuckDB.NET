@@ -69,6 +69,12 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
             DateOnly val => AppendDateOnly(val, rowIndex),
             TimeOnly val => AppendTimeOnly(val, rowIndex),
             DateTimeOffset val => AppendDateTimeOffset(val, rowIndex),
+
+            // Last of the value types (2.0 item 9): for a T that is not a value type, such as object, every value of a
+            // type above is tested against no more types than before.
+            Int128 val => AppendNumeric(val, rowIndex),
+            UInt128 val => AppendNumeric(val, rowIndex),
+
             ICollection val => AppendCollection(val, rowIndex),
             _ => ThrowException<T>()
         };
@@ -103,6 +109,9 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
         else if (typeof(T) == typeof(ushort?)) AppendNumeric(Unsafe.As<T, ushort?>(ref value).GetValueOrDefault(), rowIndex);
         else if (typeof(T) == typeof(uint?)) AppendNumeric(Unsafe.As<T, uint?>(ref value).GetValueOrDefault(), rowIndex);
         else if (typeof(T) == typeof(ulong?)) AppendNumeric(Unsafe.As<T, ulong?>(ref value).GetValueOrDefault(), rowIndex);
+
+        else if (typeof(T) == typeof(Int128?)) AppendNumeric(Unsafe.As<T, Int128?>(ref value).GetValueOrDefault(), rowIndex);
+        else if (typeof(T) == typeof(UInt128?)) AppendNumeric(Unsafe.As<T, UInt128?>(ref value).GetValueOrDefault(), rowIndex);
 
         else if (typeof(T) == typeof(float?)) AppendNumeric(Unsafe.As<T, float?>(ref value).GetValueOrDefault(), rowIndex);
         else if (typeof(T) == typeof(double?)) AppendNumeric(Unsafe.As<T, double?>(ref value).GetValueOrDefault(), rowIndex);
@@ -173,6 +182,10 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
     internal virtual bool AppendNumeric(uint value, ulong rowIndex) => ThrowException<uint>();
 
     internal virtual bool AppendNumeric(ulong value, ulong rowIndex) => ThrowException<ulong>();
+
+    internal virtual bool AppendNumeric(Int128 value, ulong rowIndex) => ThrowException<Int128>();
+
+    internal virtual bool AppendNumeric(UInt128 value, ulong rowIndex) => ThrowException<UInt128>();
 
     internal virtual bool AppendNumeric(float value, ulong rowIndex) => ThrowException<float>();
 

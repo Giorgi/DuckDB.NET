@@ -121,6 +121,8 @@ internal sealed class PropertyMapping<T, TProperty> : IPropertyMapping<T>
             TimeSpan v => row.AppendValue(v),
             Guid v => row.AppendValue(v),
             BigInteger v => row.AppendValue(v),
+            Int128 v => row.AppendValue(v),
+            UInt128 v => row.AppendValue(v),
             DuckDBDateOnly v => row.AppendValue(v),
             DuckDBTimeOnly v => row.AppendValue(v),
             DateOnly v => row.AppendValue(v),
@@ -151,6 +153,8 @@ internal sealed class PropertyMapping<T, TProperty> : IPropertyMapping<T>
         else if (typeof(TProperty) == typeof(TimeSpan?)) row.AppendValue(Unsafe.As<TProperty, TimeSpan?>(ref value));
         else if (typeof(TProperty) == typeof(Guid?)) row.AppendValue(Unsafe.As<TProperty, Guid?>(ref value));
         else if (typeof(TProperty) == typeof(BigInteger?)) row.AppendValue(Unsafe.As<TProperty, BigInteger?>(ref value));
+        else if (typeof(TProperty) == typeof(Int128?)) row.AppendValue(Unsafe.As<TProperty, Int128?>(ref value));
+        else if (typeof(TProperty) == typeof(UInt128?)) row.AppendValue(Unsafe.As<TProperty, UInt128?>(ref value));
         else if (typeof(TProperty) == typeof(DuckDBDateOnly?)) row.AppendValue(Unsafe.As<TProperty, DuckDBDateOnly?>(ref value));
         else if (typeof(TProperty) == typeof(DuckDBTimeOnly?)) row.AppendValue(Unsafe.As<TProperty, DuckDBTimeOnly?>(ref value));
         else if (typeof(TProperty) == typeof(DateOnly?)) row.AppendValue(Unsafe.As<TProperty, DateOnly?>(ref value));

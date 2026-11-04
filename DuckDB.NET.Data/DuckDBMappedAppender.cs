@@ -95,6 +95,8 @@ public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBAppe
 
         // BigInteger is the .NET type for both 128-bit integer columns. The writer stores the value signed or
         // unsigned to match the column, and rejects a value outside the column's range when it is appended.
+        // Int128 and UInt128 are the exact types of the two columns and, like the other integers, are accepted for
+        // their own column only (ClrToDuckDBTypeMap): the writer stores their bytes without a check.
         if (underlyingType == typeof(BigInteger))
         {
             return [DuckDBType.HugeInt, DuckDBType.UnsignedHugeInt];

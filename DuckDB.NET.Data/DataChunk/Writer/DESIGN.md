@@ -520,12 +520,46 @@ between two runs.
 
   On .NET 10 a nullable result now costs what an `int` result costs. On .NET 8 there is no gain: the lambda is not
   inlined there, the result comes back in a register, and there is no stall to remove.
-- **Pinned by:** `ScalarFunctionNullableTypesTests`: a function that returns its argument for all 21 types, with
+- **Pinned by:** `ScalarFunctionNullableTypesTests`: a function that returns its argument for every type (21 then, 23 with `Int128` and `UInt128`), with
   values and NULLs, compared by DuckDB with the column; and a varargs function with a nullable result. Both pass on
   the build before and on the build after.
 - **Not changed:** a nullable argument is still read through the delegate of reader decision 6. Measured on its own
   it costs about 1 ns (`int?` -> `int` 4.8 against 3.8 ms for `int` -> `int`, .NET 10); `performance-open-items.md`,
   item 20.
+
+### 17. `Int128` and `UInt128` are written as the 16 bytes of a HUGEINT and a UHUGEINT
+
+- **What (2.0 item 9):** `AppendNumeric(Int128, ulong)` and `AppendNumeric(UInt128, ulong)`, plain virtual methods
+  as in decision 1, with lines in the switch of `WriteValue<T>` and in `WriteNullable`. `NumericVectorDataWriter`
+  stores the value as it is: on a little-endian machine an `Int128` has the bytes of a HUGEINT (lower half first).
+  The appender row has `AppendValue(Int128?)` and `AppendValue(UInt128?)`; the mapped
+  appender, the typed scalar functions (`WriteResult`) and table functions reach the same methods, and
+  `ClrToDuckDBTypeMap` maps the two types to HUGEINT and UHUGEINT for function signatures.
+- **Like the other integers, the value is not checked against the column** (decided by the maintainer,
+  2026-11-05). Either type goes into either 128-bit column, reinterpreted: an `Int128` of -1 in a UHUGEINT column is
+  2^128 - 1, as a `long` of -1 in a UBIGINT column is 2^64 - 1. The mapped appender, which checks types when it is
+  created, accepts each for its own column only, as it accepts `long` for BIGINT only. A first version checked the
+  range across the two columns, as a `BigInteger` does; `BigInteger` checks because it has to be converted, and the
+  check was a rule only these two integer types had.
+- **Any other column refuses them,** with the `InvalidOperationException` of the base class. This is not the rule of
+  the other types, which write their bytes whatever the column (see "Behaviour"): 16 bytes do not fit the slot of a
+  narrower column and would overwrite the next value or run past the vector. A `BigInteger` still does that, and in a
+  VARINT column, which also gets `NumericVectorDataWriter`, writes a `DuckDBHugeInt` into a string slot.
+- **Why the appender row lowers the priority of two overloads:** `AppendValue(UInt128?)` made every int or long
+  constant argument ambiguous (CS0121): `AppendValue(1)` converts to `UInt128` through `byte`, and C# has no rule that
+  prefers `sbyte` to `UInt128`. `[OverloadResolutionPriority(-1)]` on `AppendValue(UInt128?)` and
+  `AppendValue(BigInteger?)` (both on `IDuckDBAppenderRow` and on the class) removes the ambiguity for C# 13 and
+  later: checked with a consumer assembly, every constant and every variable of the other numeric types binds as
+  before, and `Int128`, `UInt128` and `BigInteger` bind to their own overloads. Lowering only `UInt128?` would send a
+  `UInt128` to `BigInteger?`, to which it converts too. C# 12, the default for a net8.0 project, ignores the
+  attribute, and there such a constant needs its type. The net8.0 build declares the attribute itself
+  (`Extensions/OverloadResolutionPriorityAttribute.cs`). Decided by the maintainer, 2026-11-05.
+- **The items of a list:** `IEnumerable<Int128>` and the three others are the last value-type lines of
+  `CollectionVectorDataWriter.WriteCollection`, so a list of any other type is tested against no more interfaces
+  than before (see "Costs" below).
+- **Not measured.** The write is the store of a 16-byte value, as for a `BigInteger` after its conversion.
+- **Pinned by:** `HugeIntWriteConversionTests`, which compares every value with the one DuckDB parses from its text,
+  and the `Int128` and `UInt128` lines of `ScalarFunctionNullableTypesTests`.
 
 ## Costs that are known and not yet removed
 

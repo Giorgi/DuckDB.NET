@@ -27,6 +27,8 @@ internal static class TypeExtensions
         { typeof(DuckDBTimeOnly), DuckDBType.Time},
         { typeof(DateTimeOffset), DuckDBType.TimestampTz},
         { typeof(BigInteger), DuckDBType.HugeInt},
+        { typeof(Int128), DuckDBType.HugeInt},
+        { typeof(UInt128), DuckDBType.UnsignedHugeInt},
         { typeof(string), DuckDBType.Varchar},
         { typeof(byte[]), DuckDBType.Blob},
         { typeof(decimal), DuckDBType.Decimal},
