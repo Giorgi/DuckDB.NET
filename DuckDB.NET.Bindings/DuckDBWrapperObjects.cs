@@ -162,7 +162,10 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
 
             DuckDBType.Uuid => Cast(new Guid(NativeMethods.Value.DuckDBGetVarchar(this))),
 
+            // Cast reinterprets the value without a check (see DATE below), so an Int128 or a UInt128 is produced as itself.
+            DuckDBType.HugeInt when typeof(T) == typeof(Int128) => Cast(NativeMethods.Value.DuckDBGetHugeInt(this).ToInt128()),
             DuckDBType.HugeInt => Cast(NativeMethods.Value.DuckDBGetHugeInt(this).ToBigInteger()),
+            DuckDBType.UnsignedHugeInt when typeof(T) == typeof(UInt128) => Cast(NativeMethods.Value.DuckDBGetUHugeInt(this).ToUInt128()),
             DuckDBType.UnsignedHugeInt => Cast(NativeMethods.Value.DuckDBGetUHugeInt(this).ToBigInteger()),
 
             DuckDBType.Varchar => Cast(NativeMethods.Value.DuckDBGetVarchar(this)),

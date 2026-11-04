@@ -29,6 +29,7 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
     private static readonly Type[] Targets =
     [
         typeof(sbyte), typeof(short), typeof(int), typeof(long), typeof(byte), typeof(ushort), typeof(uint), typeof(ulong),
+        typeof(Int128), typeof(UInt128),
         typeof(float), typeof(double), typeof(decimal), typeof(BigInteger), typeof(string),
         typeof(DuckDBHugeInt), typeof(DuckDBUHugeInt), typeof(DuckDBDecimal), typeof(IntEnum),
     ];
@@ -75,7 +76,7 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
     private static readonly Type[] EnumTargets =
     [
         typeof(sbyte), typeof(short), typeof(int), typeof(long), typeof(byte), typeof(ushort), typeof(uint), typeof(ulong),
-        typeof(BigInteger), typeof(string), typeof(SByteEnum), typeof(ByteEnum), typeof(IntEnum), typeof(LongEnum),
+        typeof(Int128), typeof(UInt128), typeof(BigInteger), typeof(string), typeof(SByteEnum), typeof(ByteEnum), typeof(IntEnum), typeof(LongEnum),
         typeof(float), typeof(double), typeof(decimal), typeof(DuckDBHugeInt),
     ];
 
@@ -220,7 +221,8 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
         if (target == typeof(byte)) return position <= byte.MaxValue ? $"Byte {position}" : nameof(InvalidCastException);
         if (target == typeof(short)) return position <= short.MaxValue ? $"Int16 {position}" : nameof(InvalidCastException);
         if (target == typeof(ushort)) return position <= ushort.MaxValue ? $"UInt16 {position}" : nameof(InvalidCastException);
-        if (target == typeof(int) || target == typeof(uint) || target == typeof(long) || target == typeof(ulong))
+        if (target == typeof(int) || target == typeof(uint) || target == typeof(long) || target == typeof(ulong) ||
+            target == typeof(Int128) || target == typeof(UInt128))
         {
             return $"{target.Name} {position}";
         }

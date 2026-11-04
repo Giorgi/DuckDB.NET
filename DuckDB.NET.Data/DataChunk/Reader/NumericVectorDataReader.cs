@@ -70,10 +70,11 @@ internal sealed class NumericVectorDataReader<TStorage> : VectorDataReaderBase w
 
     // A FLOAT or DOUBLE read as an integer type: a whole value that fits reads; a value with a fraction is refused
     // (2.0 item 5; before 2.0 it was rounded half to even), and so are NaN, infinity and a value out of range, as
-    // before. The same rule as a DECIMAL. A float arrives as a double, exactly. BigInteger is refused, as before.
+    // before. The same rule as a DECIMAL. A float arrives as a double, exactly. BigInteger is refused, as before, and
+    // so are Int128 and UInt128 (2.0 item 9), as a HUGEINT read as float or double is refused.
     private T FloatingPointToInteger<T>(double value)
     {
-        if (typeof(T) == typeof(BigInteger))
+        if (typeof(T) == typeof(BigInteger) || typeof(T) == typeof(Int128) || typeof(T) == typeof(UInt128))
         {
             throw CannotCast(typeof(TStorage), typeof(T));
         }
@@ -120,6 +121,8 @@ internal sealed class NumericVectorDataReader<TStorage> : VectorDataReaderBase w
         if (targetType == typeof(uint))       return GetValidValue<uint>(offset);
         if (targetType == typeof(long))       return GetValidValue<long>(offset);
         if (targetType == typeof(ulong))      return GetValidValue<ulong>(offset);
+        if (targetType == typeof(Int128))     return GetValidValue<Int128>(offset);
+        if (targetType == typeof(UInt128))    return GetValidValue<UInt128>(offset);
         if (targetType == typeof(float))      return GetValidValue<float>(offset);
         if (targetType == typeof(double))     return GetValidValue<double>(offset);
         if (targetType == typeof(decimal))    return GetValidValue<decimal>(offset);

@@ -309,7 +309,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
             if (underlyingType is null) return null!;
 
             var known = Known<bool>() ?? Known<byte>() ?? Known<sbyte>() ?? Known<short>() ?? Known<ushort>()
-                        ?? Known<int>() ?? Known<uint>() ?? Known<long>() ?? Known<ulong>()
+                        ?? Known<int>() ?? Known<uint>() ?? Known<long>() ?? Known<ulong>() ?? Known<Int128>() ?? Known<UInt128>()
                         ?? Known<float>() ?? Known<double>() ?? Known<decimal>() ?? Known<BigInteger>()
                         ?? Known<DateTime>() ?? Known<DateOnly>() ?? Known<TimeOnly>() ?? Known<TimeSpan>() ?? Known<DateTimeOffset>()
                         ?? Known<Guid>()

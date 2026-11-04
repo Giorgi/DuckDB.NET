@@ -94,6 +94,8 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
         if (targetType == typeof(uint))   return GetValidValue<uint>(offset);
         if (targetType == typeof(long))   return GetValidValue<long>(offset);
         if (targetType == typeof(ulong))  return GetValidValue<ulong>(offset);
+        if (targetType == typeof(Int128))  return GetValidValue<Int128>(offset);
+        if (targetType == typeof(UInt128)) return GetValidValue<UInt128>(offset);
 
         // The typed path unboxes the decimal as the type it is asked for, so it gives a decimal to every type that
         // can hold one (decimal itself, above, decimal? and its interfaces) and refuses the others. This does the same.

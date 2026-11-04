@@ -128,6 +128,8 @@ internal sealed class EnumVectorDataReader : VectorDataReaderBase
         if (targetType == typeof(uint))       return GetValidValue<uint>(offset);
         if (targetType == typeof(long))       return GetValidValue<long>(offset);
         if (targetType == typeof(ulong))      return GetValidValue<ulong>(offset);
+        if (targetType == typeof(Int128))     return GetValidValue<Int128>(offset);
+        if (targetType == typeof(UInt128))    return GetValidValue<UInt128>(offset);
         if (targetType == typeof(BigInteger)) return GetValidValue<BigInteger>(offset);
 
         // The message the typed path gives for a type it refuses.

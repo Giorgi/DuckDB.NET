@@ -52,6 +52,7 @@ internal static class TypeExtensions
                typeof(T) == typeof(short) || typeof(T) == typeof(ushort) ||
                typeof(T) == typeof(int) || typeof(T) == typeof(uint) ||
                typeof(T) == typeof(long) || typeof(T) == typeof(ulong) ||
+               typeof(T) == typeof(Int128) || typeof(T) == typeof(UInt128) ||
                typeof(T) == typeof(BigInteger);
     }
 

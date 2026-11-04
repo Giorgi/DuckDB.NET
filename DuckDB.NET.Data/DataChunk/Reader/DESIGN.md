@@ -526,6 +526,14 @@ ENUM row, and `TemporalConversionTests.cs` and `Parameters/TimeTests.cs` the dat
 | DECIMAL | the value if it is whole and fits | refused | the value | the value if it is whole |
 | ENUM | its position in the list of names, if it fits | refused | refused | its position |
 
+- **`Int128` and `UInt128` are integer types in this table** (2.0 item 9), with one exception: FLOAT and DOUBLE are
+  refused as both, whatever the value, as HUGEINT, UHUGEINT and VARINT are refused as `float` and `double`. So
+  HUGEINT reads as `Int128` and UHUGEINT as `UInt128` as they are; across the two, and from VARINT, DECIMAL and
+  ENUM, the value is read when it fits (`Int128.CreateChecked`, `UInt128.CreateChecked` in `NumericConverter`).
+  The default type does not change: `GetValue`, `GetFieldType` and the `object` path give `BigInteger` for the three
+  columns, and `GetProviderSpecificValue` the DuckDB structs. Neither type has a typed `Read...` method (decision
+  5), so such a read goes through `GetValidValue<T>`, with its lookup; it was not measured. Pinned by the cases of
+  the two types in `NumericReaderConversionTests` and `NumericReadPathAgreementTests`.
 - A refused read throws `InvalidCastException`. Where this code refuses it (an integer that does not fit, a DOUBLE
   out of range, an ENUM), the message names both types and the column: `Cannot cast from Int32 to Byte in column x`.
   HUGEINT, UHUGEINT and VARINT as `double` say `Cannot cast from HugeInt to Double in column x`, and DOUBLE as
