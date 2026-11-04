@@ -25,6 +25,7 @@ internal static class TypeExtensions
         { typeof(TimeOnly), DuckDBType.Time},
         { typeof(DuckDBDateOnly), DuckDBType.Date},
         { typeof(DuckDBTimeOnly), DuckDBType.Time},
+        { typeof(DuckDBTimeNs), DuckDBType.TimeNs},
         { typeof(DateTimeOffset), DuckDBType.TimestampTz},
         { typeof(BigInteger), DuckDBType.HugeInt},
         { typeof(Int128), DuckDBType.HugeInt},
