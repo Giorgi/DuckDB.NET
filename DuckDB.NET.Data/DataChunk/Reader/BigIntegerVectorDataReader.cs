@@ -2,7 +2,8 @@
 
 namespace DuckDB.NET.Data.DataChunk.Reader;
 
-// HUGEINT, UHUGEINT and VARINT: the columns whose .NET type is BigInteger.
+// HUGEINT, UHUGEINT and VARINT. Their .NET types are Int128, UInt128 and BigInteger (the first two were BigInteger
+// before 2.0); HUGEINT and UHUGEINT still read as BigInteger.
 internal sealed class BigIntegerVectorDataReader : VectorDataReaderBase
 {
     private const int VarIntHeaderSize = 3;
@@ -41,7 +42,10 @@ internal sealed class BigIntegerVectorDataReader : VectorDataReaderBase
     // rules as a column. The class is sealed, so these calls are bound directly.
     internal override object GetValueCore(ulong offset, Type targetType)
     {
-        // The .NET type of the three columns, which GetValue(ordinal) asks for.
+        // The .NET types of the three columns, which GetValue(ordinal) asks for: Int128 for HUGEINT, UInt128 for
+        // UHUGEINT, BigInteger for VARINT.
+        if (targetType == typeof(Int128))     return GetValidValue<Int128>(offset);
+        if (targetType == typeof(UInt128))    return GetValidValue<UInt128>(offset);
         if (targetType == typeof(BigInteger)) return GetValidValue<BigInteger>(offset);
 
         // The provider-specific type of HUGEINT and UHUGEINT is the DuckDB struct, which is what the vector holds.
@@ -56,8 +60,6 @@ internal sealed class BigIntegerVectorDataReader : VectorDataReaderBase
         if (targetType == typeof(uint))   return GetValidValue<uint>(offset);
         if (targetType == typeof(long))   return GetValidValue<long>(offset);
         if (targetType == typeof(ulong))  return GetValidValue<ulong>(offset);
-        if (targetType == typeof(Int128))  return GetValidValue<Int128>(offset);
-        if (targetType == typeof(UInt128)) return GetValidValue<UInt128>(offset);
 
         throw CannotCast(DuckDBType.ToString(), targetType);
     }

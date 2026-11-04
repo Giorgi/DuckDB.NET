@@ -6,7 +6,8 @@ namespace DuckDB.NET.Benchmarks;
 
 // Typed reads that DataReaderBenchmark does not have: decimals, UUIDs, a nullable read that converts,
 // HUGEINT and VARINT. A HUGEINT read as long is what reading the sum of an integer column looks like; read through
-// GetValue or as BigInteger, it is converted to a BigInteger. A DECIMAL of more than 18 digits is stored as a HUGEINT.
+// GetValue it is boxed as an Int128 since 2.0 (a BigInteger before), and read as BigInteger it is converted to one.
+// A DECIMAL of more than 18 digits is stored as a HUGEINT.
 [MemoryDiagnoser]
 public class TypedReaderBenchmark
 {
@@ -98,7 +99,8 @@ public class TypedReaderBenchmark
         return sum;
     }
 
-    // The object path, which Dapper uses: every value becomes a BigInteger.
+    // The object path, which Dapper uses: every value is boxed, as an Int128 since 2.0. The released package (1.x)
+    // builds and boxes a BigInteger, so the two jobs of this benchmark do different work.
     [Benchmark]
     public int ReadHugeIntsAsObject()
     {

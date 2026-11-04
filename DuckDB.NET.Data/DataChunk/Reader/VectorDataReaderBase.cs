@@ -177,8 +177,9 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
             DuckDBType.Time => typeof(TimeOnly),
             DuckDBType.TimeNs => typeof(TimeOnly),
             DuckDBType.TimeTz => typeof(DateTimeOffset),
-            DuckDBType.HugeInt => typeof(BigInteger),
-            DuckDBType.UnsignedHugeInt => typeof(BigInteger),
+            // The exact types of the two columns (2.0 item 9; BigInteger before). VARINT has no bound and stays BigInteger.
+            DuckDBType.HugeInt => typeof(Int128),
+            DuckDBType.UnsignedHugeInt => typeof(UInt128),
             DuckDBType.Varchar => typeof(string),
             DuckDBType.Decimal => typeof(decimal),
             DuckDBType.TimestampS => typeof(DateTime),

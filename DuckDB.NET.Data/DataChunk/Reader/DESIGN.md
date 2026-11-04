@@ -62,7 +62,8 @@ not use profile data to guess the target as it does for a plain virtual call.
 ### 3. One numeric reader class per stored type
 
 - **What:** `NumericVectorDataReader<TStorage>`, created by the factory with the stored type fixed. HUGEINT,
-  UHUGEINT and VARINT are in `BigIntegerVectorDataReader`, because their .NET type is not a plain value.
+  UHUGEINT and VARINT are in `BigIntegerVectorDataReader`: VARINT because its .NET type, `BigInteger`, is not a
+  plain value, and HUGEINT and UHUGEINT for the reasons in decision 7.
 - **Why:** the earlier single class asked which of ten column types it had, in a `switch`, for every value. With the
   stored type as a type parameter it is a constant for the JIT.
 - **How conversions work:** `NumericConverter.Convert` uses `CreateChecked` from generic math, so there is no table
@@ -245,15 +246,18 @@ not use profile data to guess the target as it does for a plain virtual call.
   generic math. So `CreateChecked` gives the right range check for every integer target, signed and unsigned, with no
   code of our own to get wrong at the limits. On .NET 10 the read as `long` compiles to two loads, a shift and a
   compare: the upper half must be the sign extension of the lower half. On .NET 8 the conversion is a call.
-- **Why the class is still separate, and not `NumericVectorDataReader<Int128>`:** the .NET type of a HUGEINT column
-  is `BigInteger` and its provider-specific type is `DuckDBHugeInt`. The generic numeric reader returns its stored
-  type from `GetValue` and uses it for the fast path, so it would hand out boxed `Int128` values.
+- **Why the class is still separate, and not `NumericVectorDataReader<Int128>`:** when this was decided, the .NET
+  type of a HUGEINT column was `BigInteger`, and the generic numeric reader returns its stored type from `GetValue`.
+  Since 2.0 the .NET type is `Int128` (item 9), so that reason is gone. Others remain: the provider-specific type is
+  `DuckDBHugeInt`, which is what `StorageType` names for the fast path; HUGEINT is refused as `float`, `double` and
+  `decimal`, which the generic reader converts; and a read as `BigInteger` goes through `ToBigInteger`. Whether a
+  fast path for `Int128` is worth it was not tried or measured.
 - **The message of a refused read names the column type:** "Cannot cast from HugeInt to Int64 in column x", and
   `UnsignedHugeInt` and `VarInt` likewise. These are the names `GetDataTypeName` returns. It said `BigInteger`
   before, which was the type the reader happened to convert from.
 - **A `BigInteger` is made in one place:** `DuckDBHugeInt.ToBigInteger()` and `DuckDBUHugeInt.ToBigInteger()`, which
   convert from `Int128` and `UInt128` directly. They used to compute `Upper * 2^64 + Lower`. The reader calls them
-  when a `BigInteger` is asked for (`GetFieldValue<BigInteger>`, `GetValue`), and so does the decimal reader when a
+  when a `BigInteger` is asked for (`GetFieldValue<BigInteger>`; `GetValue` too, until 2.0), and so does the decimal reader when a
   DECIMAL stored as a HUGEINT is read as `BigInteger`. The two methods are public, so their results must not change.
 - **The constructors go through `Int128` and `UInt128` as well** (decision 7 in `../Writer/DESIGN.md`). So the
   constructor and `ToBigInteger()` do not check each other: a round trip would not notice a mistake they share.
@@ -265,8 +269,10 @@ not use profile data to guess the target as it does for a plain virtual call.
   remainder. The steps were kept on purpose, so the result has the same scale as before: `1.5` from a DECIMAL(38,4),
   where a DECIMAL(18,4) gives `1.5000`. The old and the new conversion were compared on the bits of the result and
   on whether they throw, for every scale from 0 to 38: 46,820,592 conversions on each runtime, none different.
-- **Not changed:** `GetValue` and `GetFieldValue<BigInteger>` return a `BigInteger`; a read as `float`, `double` or
-  `decimal` is refused; VARINT is stored as a byte string and still goes through `BigInteger`.
+- **Not changed by this decision:** `GetValue` and `GetFieldValue<BigInteger>` returned a `BigInteger`; a read as
+  `float`, `double` or `decimal` is refused; VARINT is stored as a byte string and still goes through `BigInteger`.
+  Since 2.0 `GetValue` returns `Int128` for HUGEINT and `UInt128` for UHUGEINT (item 9); the `GetValue` row of the
+  table below measured the `BigInteger` it made then.
 - **Measured** against the build with decision 3, 1,000,000 rows of four HUGEINT columns read with `GetInt64`, two
   runs on each runtime: 146 and 150 ms to 30 ms on .NET 10 (0.20 to 0.21), 151 and 154 ms to 33 ms on .NET 8 (0.22).
   The build with decision 5 measured 134 and 130 ms in an earlier, separate run. Per value, moving through the rows
@@ -458,7 +464,8 @@ not use profile data to guess the target as it does for a plain virtual call.
 ### Smaller decisions
 
 - **`BigIntegerVectorDataReader` is a separate, non-generic class.** HUGEINT, UHUGEINT and VARINT read as
-  `BigInteger`, which is not a plain value, so they cannot be `NumericVectorDataReader<TStorage>`. Loosening the
+  `BigInteger`, which is not a plain value, so they cannot be `NumericVectorDataReader<TStorage>` (VARINT's .NET type
+  is still `BigInteger`; see decision 7 for HUGEINT and UHUGEINT). Loosening the
   constraint on `TStorage` to fit them in would make the class compile to code shared between types, and the stored
   type would stop being a constant for the JIT.
 - **`DecimalVectorDataReader` has no inner reader.** It reads a HUGEINT-backed decimal from its own data pointer. It
@@ -486,7 +493,7 @@ not use profile data to guess the target as it does for a plain virtual call.
   generic virtual lookup (checked in the .NET 8 disassembly). `GetValue` on an INTEGER column stays 77 bytes and
   clears no stack. It used to call `Convert.ChangeType`, which boxed a second time and had rules of its own.
 - **`BigIntegerVectorDataReader.GetValueCore` and `DecimalVectorDataReader.GetValueCore` work the same way.** The BigInteger
-  reader takes `BigInteger` first, then its own DuckDB struct, then maps the eight integer types to
+  reader takes the column types first (`Int128`, `UInt128`, `BigInteger`), then its own DuckDB struct, then maps the eight integer types to
   `GetValidValue<X>`. The decimal reader gives its `decimal` only to a type that can hold one (`IsAssignableFrom`:
   `decimal`, `decimal?`, `object`), which is exactly what the typed path's unbox accepts, and refuses any other type
   with `CannotCast`. It used to return the `decimal` for any type, and the read failed later in the list, the
@@ -530,8 +537,10 @@ ENUM row, and `TemporalConversionTests.cs` and `Parameters/TimeTests.cs` the dat
   refused as both, whatever the value, as HUGEINT, UHUGEINT and VARINT are refused as `float` and `double`. So
   HUGEINT reads as `Int128` and UHUGEINT as `UInt128` as they are; across the two, and from VARINT, DECIMAL and
   ENUM, the value is read when it fits (`Int128.CreateChecked`, `UInt128.CreateChecked` in `NumericConverter`).
-  The default type does not change: `GetValue`, `GetFieldType` and the `object` path give `BigInteger` for the three
-  columns, and `GetProviderSpecificValue` the DuckDB structs. Neither type has a typed `Read...` method (decision
+  **They are also the default types of the two columns** (2.0): `GetValue`, `GetFieldType`, `ExecuteScalar`, the
+  schema table and the `object` path give `Int128` for HUGEINT and `UInt128` for UHUGEINT, where they gave
+  `BigInteger`. VARINT, which has no bound, stays `BigInteger`; `GetFieldValue<BigInteger>` still reads all three, and
+  `GetProviderSpecificValue` gives the DuckDB structs, as before. Neither type has a typed `Read...` method (decision
   5), so such a read goes through `GetValidValue<T>`, with its lookup; it was not measured. Pinned by the cases of
   the two types in `NumericReaderConversionTests` and `NumericReadPathAgreementTests`.
 - A refused read throws `InvalidCastException`. Where this code refuses it (an integer that does not fit, a DOUBLE

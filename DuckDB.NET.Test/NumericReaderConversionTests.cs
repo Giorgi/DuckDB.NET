@@ -22,7 +22,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     {
         ["TINYINT"] = typeof(sbyte), ["SMALLINT"] = typeof(short), ["INTEGER"] = typeof(int), ["BIGINT"] = typeof(long),
         ["UTINYINT"] = typeof(byte), ["USMALLINT"] = typeof(ushort), ["UINTEGER"] = typeof(uint), ["UBIGINT"] = typeof(ulong),
-        ["FLOAT"] = typeof(float), ["DOUBLE"] = typeof(double), ["HUGEINT"] = typeof(BigInteger), ["UHUGEINT"] = typeof(BigInteger),
+        ["FLOAT"] = typeof(float), ["DOUBLE"] = typeof(double), ["HUGEINT"] = typeof(Int128), ["UHUGEINT"] = typeof(UInt128),
     };
 
     private static readonly MethodInfo GetFieldValueMethod = typeof(DuckDBDataReader).GetMethod(nameof(DuckDBDataReader.GetFieldValue));
@@ -643,8 +643,8 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     // Int128 and UInt128 (2.0 item 9) are the exact types of HUGEINT and UHUGEINT. Each reads the whole range of
-    // its column, and every other integer column, VARINT and a whole DECIMAL when the value fits. GetValue still
-    // gives a BigInteger: the default type of the two columns is not changed.
+    // its column, and every other integer column, VARINT and a whole DECIMAL when the value fits. They are also the
+    // default types of the two columns (2.0; BigInteger before), which still read as BigInteger.
     [Fact]
     public void Int128AndUInt128ReadTheWholeRangeOfHugeIntAndUHugeInt()
     {
@@ -709,12 +709,48 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         reader.GetFieldValue<UInt128?>(unsignedMax).Should().Be(UInt128.MaxValue);
         reader.GetFieldValue<Int128?>(longMin).Should().Be((Int128)long.MinValue);
 
-        // Not changed: the default type is BigInteger, the provider-specific type the DuckDB struct.
-        reader.GetFieldType(hugeMax).Should().Be(typeof(BigInteger));
-        reader.GetValue(hugeMax).Should().Be((BigInteger)Int128.MaxValue);
-        reader.GetValue(unsignedMax).Should().Be((BigInteger)UInt128.MaxValue);
+        // The default types are Int128 and UInt128; BigInteger still reads; the provider-specific types are the DuckDB
+        // structs, as before.
+        reader.GetFieldType(hugeMax).Should().Be(typeof(Int128));
+        reader.GetFieldType(unsignedMax).Should().Be(typeof(UInt128));
+        reader.GetValue(hugeMax).Should().Be(Int128.MaxValue);
+        reader.GetValue(unsignedMax).Should().Be(UInt128.MaxValue);
+        reader.GetFieldValue<object>(hugeMin).Should().Be(Int128.MinValue);
+        reader.GetFieldValue<BigInteger>(hugeMax).Should().Be((BigInteger)Int128.MaxValue);
+        reader.GetFieldValue<BigInteger>(unsignedMax).Should().Be((BigInteger)UInt128.MaxValue);
         reader.GetProviderSpecificValue(hugeMax).Should().BeOfType<DuckDBHugeInt>();
         reader.GetProviderSpecificValue(unsignedMax).Should().BeOfType<DuckDBUHugeInt>();
+    }
+
+    // The default types reach what is built on GetFieldType and GetValue: the schema table, a DataTable and
+    // ExecuteScalar. sum() of an integer column is a HUGEINT, so its result is an Int128 now (a BigInteger before 2.0).
+    [Fact]
+    public void Int128AndUInt128AreTheTypesOfTheSchemaTableADataTableAndExecuteScalar()
+    {
+        Command.CommandText = "SELECT '-170141183460469231731687303715884105728'::HUGEINT AS huge, '340282366920938463463374607431768211455'::UHUGEINT AS unsigned, 42::VARINT AS big";
+
+        using (var reader = Command.ExecuteReader())
+        {
+            var schema = reader.GetSchemaTable();
+            schema.Rows[0][System.Data.Common.SchemaTableColumn.DataType].Should().Be(typeof(Int128));
+            schema.Rows[1][System.Data.Common.SchemaTableColumn.DataType].Should().Be(typeof(UInt128));
+            schema.Rows[2][System.Data.Common.SchemaTableColumn.DataType].Should().Be(typeof(BigInteger));
+        }
+
+        using (var reader = Command.ExecuteReader())
+        {
+            var table = new System.Data.DataTable();
+            table.Load(reader);
+            table.Columns["huge"].DataType.Should().Be(typeof(Int128));
+            table.Columns["unsigned"].DataType.Should().Be(typeof(UInt128));
+            table.Columns["big"].DataType.Should().Be(typeof(BigInteger));
+            table.Rows[0]["huge"].Should().Be(Int128.MinValue);
+            table.Rows[0]["unsigned"].Should().Be(UInt128.MaxValue);
+            table.Rows[0]["big"].Should().Be(new BigInteger(42));
+        }
+
+        Command.CommandText = "SELECT sum(i) FROM range(10) t(i)";
+        Command.ExecuteScalar().Should().Be((Int128)45);
     }
 
     [Fact]
@@ -1275,7 +1311,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         var hugeColumn = reader.GetOrdinal("huge");
         var bigColumn = reader.GetOrdinal("big");
 
-        reader.GetFieldType(hugeColumn).Should().Be(typeof(BigInteger));
+        reader.GetFieldType(hugeColumn).Should().Be(typeof(Int128));
         reader.GetFieldType(bigColumn).Should().Be(typeof(BigInteger));
 
         var hugeStep = BigInteger.Pow(10, 22);
@@ -1295,7 +1331,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
             if (huge.HasValue)
             {
                 reader.GetFieldValue<BigInteger>(hugeColumn).Should().Be(huge.Value, $"row {row}");
-                reader.GetValue(hugeColumn).Should().Be(huge.Value, $"row {row}");
+                reader.GetValue(hugeColumn).Should().Be((Int128)huge.Value, $"row {row}");
                 reader.GetFieldValue<DuckDBHugeInt>(hugeColumn).ToBigInteger().Should().Be(huge.Value, $"row {row}");
 
                 if (row == 2500)

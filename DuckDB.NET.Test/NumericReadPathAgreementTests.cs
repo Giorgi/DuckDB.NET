@@ -377,15 +377,17 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
         reader.Invoking(r => r.GetFieldValue<List<byte>>(7)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from HugeInt to Byte in column too_big");
     }
 
-    // The column's own type and the provider-specific type still read as before on the object path.
+    // The column's own type and the provider-specific type on the object path. The own type of HUGEINT and UHUGEINT
+    // is Int128 and UInt128 since 2.0 (BigInteger before).
     [Fact]
-    public void NaturalAndProviderSpecificTypesAreUnchanged()
+    public void NaturalAndProviderSpecificTypesOfLists()
     {
         Command.CommandText = "SELECT [1]::HUGEINT[] AS huge, [2]::UHUGEINT[] AS uhuge, [3]::INTEGER[] AS ints, [4.5]::DECIMAL(9,2)[] AS decs";
         using var reader = Command.ExecuteReader();
         reader.Read();
 
-        reader.GetValue(0).Should().BeOfType<List<BigInteger>>().Which.Should().Equal(new BigInteger(1));
+        reader.GetValue(0).Should().BeOfType<List<Int128>>().Which.Should().Equal(1);
+        reader.GetValue(1).Should().BeOfType<List<UInt128>>().Which.Should().Equal(2u);
         reader.GetProviderSpecificValue(0).Should().BeOfType<List<DuckDBHugeInt>>().Which.Single().ToBigInteger().Should().Be(1);
         reader.GetProviderSpecificValue(1).Should().BeOfType<List<DuckDBUHugeInt>>().Which.Single().ToBigInteger().Should().Be(2);
         reader.GetValue(2).Should().BeOfType<List<int>>().Which.Should().Equal(3);

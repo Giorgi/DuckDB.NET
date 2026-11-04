@@ -9,7 +9,7 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         Command.ExecuteNonQuery();
 
         var scalar = Command.ExecuteScalar();
-        scalar.Should().Be(new BigInteger(125));
+        scalar.Should().Be((Int128)125);
 
         var reader = Command.ExecuteReader();
         reader.Read();
@@ -23,7 +23,7 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.GetFieldValue<uint>(0).Should().Be(125);
         reader.GetFieldValue<ulong>(0).Should().Be(125);
 
-        reader.GetFieldType(0).Should().Be(typeof(BigInteger));
+        reader.GetFieldType(0).Should().Be(typeof(Int128));
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         Command.ExecuteNonQuery();
 
         var scalar = Command.ExecuteScalar();
-        scalar.Should().Be(DuckDBHugeInt.HugeIntMinValue);
+        scalar.Should().Be(Int128.MinValue);
 
         var reader = Command.ExecuteReader();
         reader.Read();
@@ -135,8 +135,8 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
         var result = Command.ExecuteScalar();
 
-        result.Should().BeOfType<BigInteger>().Subject
-              .Should().Be(value);
+        result.Should().BeOfType<Int128>().Subject
+              .Should().Be((Int128)value);
     }
     // 2^127 + 42 and 2^128 - 1 fit UHUGEINT but not HUGEINT.
     public static IEnumerable<object[]> UnsignedHugeIntValues() =>
