@@ -122,9 +122,9 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
 
         using (var appender = Connection.CreateAppender("blobAppenderTest"))
         {
-            appender.CreateRow().AppendValue(1).AppendValue(bytes).EndRow();
-            appender.CreateRow().AppendValue(10).AppendValue(span).EndRow();
-            appender.CreateRow().AppendValue(2).AppendValue((byte[])null).EndRow();
+            appender.CreateRow().AppendValue((int?)1).AppendValue(bytes).EndRow();
+            appender.CreateRow().AppendValue((int?)10).AppendValue(span).EndRow();
+            appender.CreateRow().AppendValue((int?)2).AppendValue((byte[])null).EndRow();
         }
 
         Command.CommandText = "Select b from blobAppenderTest";
@@ -666,7 +666,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
             var row = appender.CreateRow();
             row
                 .AppendValue(false)
-                .AppendValue(1)
+                .AppendValue((sbyte?)1)
                 .AppendValue(Guid.NewGuid())
                 .EndRow();
         }).Should().Throw<InvalidOperationException>();
@@ -894,8 +894,8 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
 
         using (var appender = Connection.CreateAppender("tbl"))
         {
-            appender.CreateRow().AppendValue((int?)2).AppendValue(2).AppendDefault().EndRow();
-            appender.CreateRow().AppendDefault().AppendValue(2).AppendDefault().EndRow();
+            appender.CreateRow().AppendValue((int?)2).AppendValue((int?)2).AppendDefault().EndRow();
+            appender.CreateRow().AppendDefault().AppendValue((int?)2).AppendDefault().EndRow();
         }
 
         Command.CommandText = "Select * from tbl";
@@ -1680,7 +1680,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         {
             for (int i = 0; i < 10_000; i++)
             {
-                appender.CreateRow().AppendValue((int?)2).AppendValue(2).AppendDefault().EndRow();
+                appender.CreateRow().AppendValue((int?)2).AppendValue((int?)2).AppendDefault().EndRow();
             }
 
             appender.Clear();
@@ -1702,14 +1702,14 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         {
             for (int i = 0; i < 10_000; i++)
             {
-                appender.CreateRow().AppendValue((int?)2).AppendValue(2).AppendDefault().EndRow();
+                appender.CreateRow().AppendValue((int?)2).AppendValue((int?)2).AppendDefault().EndRow();
             }
 
             appender.Clear();
 
             for (int i = 0; i < 5_000; i++)
             {
-                appender.CreateRow().AppendValue((int?)3).AppendValue(3).AppendDefault().EndRow();
+                appender.CreateRow().AppendValue((int?)3).AppendValue((int?)3).AppendDefault().EndRow();
             }
         }
 

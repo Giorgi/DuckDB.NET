@@ -528,13 +528,13 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
             // A failed row faults the appender, so each check needs its own.
             using (var appender = Connection.CreateAppender(table))
             {
-                appender.Invoking(app => app.CreateRow().AppendValue(0).AppendValue(GetRandomList(generator, length + 1)))
+                appender.Invoking(app => app.CreateRow().AppendValue((int?)0).AppendValue(GetRandomList(generator, length + 1)))
                     .Should().Throw<InvalidOperationException>().Where(exception => exception.Message.Contains(length.ToString()));
             }
 
             using (var appender = Connection.CreateAppender(table))
             {
-                appender.Invoking(app => app.CreateRow().AppendValue(0).AppendValue(GetRandomList(generator, length - 1)))
+                appender.Invoking(app => app.CreateRow().AppendValue((int?)0).AppendValue(GetRandomList(generator, length - 1)))
                     .Should().Throw<InvalidOperationException>().Where(exception => exception.Message.Contains(length.ToString()));
             }
         }
