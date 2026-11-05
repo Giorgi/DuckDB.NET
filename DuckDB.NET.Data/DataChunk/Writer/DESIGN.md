@@ -611,9 +611,13 @@ between two runs.
 ## Behaviour that is kept on purpose
 
 - **The appender does no type checking.** It writes the bytes of the .NET type it is given. `AppendValue(1)`
-  into an INTEGER column stores garbage, and a `DateTime` appended to a TIME column stores the microseconds of
-  the timestamp. The mapped appender checks types when it is created. A value of the right type that is out of
-  range is another matter: a decimal is checked against the width of its column (decision 10).
+  into an INTEGER column stores garbage. The mapped appender checks types when it is created. A value of the right
+  type that is out of range is another matter: a decimal is checked against the width of its column (decision 10).
+- **A `DateTime` appended to a TIME or TIME_NS column stores its time of day,** as a TIME parameter does and as a
+  TIME read as `DateTime` gives it back. Until 2.0 a TIME stored the microseconds of the whole timestamp, more
+  than a day, which no one could have used. It is a test of the column type for every `DateTime` written, next to
+  the one for DATE, in the writer of the timestamps too; not measured. The time readers and writers in classes of
+  their own (2.0 perf audit, item 11) would remove it.
 - **A decimal loses the digits after the point that its column has no room for, toward zero,** where DuckDB
   rounds a parameter (decision 10).
 - **A TIMESTAMP_S and a TIMESTAMP_MS round toward zero before 1970,** so 1969-12-31 23:59:59.9999999 is stored

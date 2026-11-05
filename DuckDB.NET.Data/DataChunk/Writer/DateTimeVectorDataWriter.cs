@@ -9,6 +9,13 @@ internal sealed unsafe class DateTimeVectorDataWriter(IntPtr vector, void* vecto
             return AppendValueInternal(value.ToDuckDBDate(), rowIndex);
         }
 
+        // The time of day, as a TIME parameter and a TIME_NS column take it. Until 2.0 the microseconds of the whole
+        // timestamp were stored, far more than a day.
+        if (ColumnType == DuckDBType.Time)
+        {
+            return AppendValueInternal(value.ToDuckDBTime(), rowIndex);
+        }
+
         return AppendValueInternal(value.ToTimestampStruct(ColumnType), rowIndex);
     }
 

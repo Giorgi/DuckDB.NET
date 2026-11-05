@@ -94,6 +94,33 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         endOfDay.ToDuckDBTime().Micros.Should().Be(NativeMethods.DateTimeHelpers.DuckDBToTime(endOfDay).Micros);
     }
 
+    // A DateTime appended to a TIME column, in a row and as a list item, is stored as its time of day. DuckDB casts the
+    // same moment, written as a TIMESTAMP literal, to a TIME for the expected value; before 1970 and at both ends of
+    // the range of a DateTime too. What is below a microsecond is dropped.
+    [Theory]
+    [InlineData("2024-02-29 12:34:56.1234567")]
+    [InlineData("1969-07-20 20:17:40.9999999")]
+    [InlineData("0001-01-01 00:00:00.0000001")]
+    [InlineData("9999-12-31 23:59:59.9999999")]
+    public void DateTimeAppendedToATimeIsItsTimeOfDay(string text)
+    {
+        var dateTime = DateTime.ParseExact(text, "yyyy-MM-dd HH:mm:ss.fffffff", CultureInfo.InvariantCulture);
+        var table = $"time_from_datetime_{Guid.NewGuid():N}";
+        Connection.ExecuteNonQuery($"CREATE TABLE {table} (t TIME, times TIME[])");
+
+        using (var appender = Connection.CreateAppender(table))
+        {
+            appender.CreateRow().AppendValue(dateTime).AppendValue(new List<DateTime> { dateTime }).EndRow();
+        }
+
+        var literal = text[..^1];
+        Command.CommandText = $"SELECT t = CAST(TIMESTAMP '{literal}' AS TIME), times[1] = CAST(TIMESTAMP '{literal}' AS TIME) FROM {table}";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+        reader.GetBoolean(0).Should().BeTrue();
+        reader.GetBoolean(1).Should().BeTrue();
+    }
+
     [Fact]
     public void TimeNsAppenderPreservesSubMicrosecondPrecision()
     {
