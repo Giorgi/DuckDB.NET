@@ -31,8 +31,9 @@ internal sealed unsafe class DateTimeVectorDataWriter(IntPtr vector, void* vecto
 
     internal override bool AppendTimeOnly(TimeOnly value, ulong rowIndex) => AppendValueInternal(value.ToDuckDBTime(), rowIndex);
 
-    // The DuckDB types hold a year, a month and a day, or an hour, a minute and a second. DuckDB puts them together.
+    // A DuckDBDateOnly holds a year, a month and a day, and DuckDB puts them together. The parts of a DuckDBTimeOnly
+    // are added up here; DateTimeExtensions says where that differs from DuckDB.
     internal override bool AppendDateOnly(DuckDBDateOnly value, ulong rowIndex) => AppendValueInternal(value.ToDuckDBDate(), rowIndex);
 
-    internal override bool AppendTimeOnly(DuckDBTimeOnly value, ulong rowIndex) => AppendValueInternal(NativeMethods.DateTimeHelpers.DuckDBToTime(value), rowIndex);
+    internal override bool AppendTimeOnly(DuckDBTimeOnly value, ulong rowIndex) => AppendValueInternal(value.ToDuckDBTime(), rowIndex);
 }

@@ -6,7 +6,8 @@ internal static class DateTimeExtensions
     internal static long GetTicks(int hour, int minute, int second, int microsecond = 0)
     {
         long seconds = hour * 60 * 60 + minute * 60 + second;
-        return seconds * 10_000_000 + microsecond * 10;
+        // In long, as DuckDB adds up the parts in int64: an int microsecond times ten wraps around beyond ±214,748,364.
+        return seconds * 10_000_000 + microsecond * 10L;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

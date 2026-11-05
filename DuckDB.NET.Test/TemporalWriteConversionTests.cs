@@ -68,7 +68,8 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
             var time = new TimeOnly(ticks);
 
             var microsecond = (int)(ticks % TimeSpan.TicksPerSecond / 10);
-            var expected = NativeMethods.DateTimeHelpers.DuckDBToTime(new DuckDBTimeOnly((byte)time.Hour, (byte)time.Minute, (byte)time.Second, microsecond)).Micros;
+            var parts = new DuckDBTimeOnly((byte)time.Hour, (byte)time.Minute, (byte)time.Second, microsecond);
+            var expected = NativeMethods.DateTimeHelpers.DuckDBToTime(parts).Micros;
 
             var onADay = new DateTime(2024, 2, 29).AddTicks(ticks);
 
@@ -79,12 +80,18 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
             if (time.ToDuckDBTime().Micros != expected ||
                 onADay.ToDuckDBTime().Micros != expected ||
+                parts.ToDuckDBTime().Micros != expected ||
                 withOffset.ToTimeTzStruct().Bits != expectedTimeTz)
             {
-                Assert.Fail($"{time:O}: DuckDB stores {expected}, as TimeOnly it became {time.ToDuckDBTime().Micros}, as DateTime {onADay.ToDuckDBTime().Micros}; " +
+                Assert.Fail($"{time:O}: DuckDB stores {expected}, as TimeOnly it became {time.ToDuckDBTime().Micros}, as DateTime {onADay.ToDuckDBTime().Micros}, " +
+                            $"as DuckDBTimeOnly {parts.ToDuckDBTime().Micros}; " +
                             $"with the offset {offset} DuckDB stores {expectedTimeTz:X16}, the conversion gave {withOffset.ToTimeTzStruct().Bits:X16}");
             }
         }
+
+        // 24:00:00, which only a DuckDBTimeOnly holds.
+        var endOfDay = new DuckDBTimeOnly(24, 0, 0);
+        endOfDay.ToDuckDBTime().Micros.Should().Be(NativeMethods.DateTimeHelpers.DuckDBToTime(endOfDay).Micros);
     }
 
     [Fact]

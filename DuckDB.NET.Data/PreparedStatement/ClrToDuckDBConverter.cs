@@ -38,7 +38,7 @@ internal static class ClrToDuckDBConverter
                 {
                     TimeOnly timeOnly => timeOnly.ToDuckDBTime(),
                     TimeSpan timeSpan => TimeOnly.FromTimeSpan(timeSpan).ToDuckDBTime(),
-                    _ => NativeMethods.DateTimeHelpers.DuckDBToTime((DuckDBTimeOnly)value)
+                    _ => ((DuckDBTimeOnly)value).ToDuckDBTime()
                 };
                 return NativeMethods.Value.DuckDBCreateTime(time);
             }
@@ -104,7 +104,7 @@ internal static class ClrToDuckDBConverter
             (DuckDBType.Date, DateTime value) => NativeMethods.Value.DuckDBCreateDate(value.ToDuckDBDate()),
             (DuckDBType.Date, DuckDBDateOnly value) => NativeMethods.Value.DuckDBCreateDate(value.ToDuckDBDate()),
             (DuckDBType.Time, DateTime value) => NativeMethods.Value.DuckDBCreateTime(value.ToDuckDBTime()),
-            (DuckDBType.Time, DuckDBTimeOnly value) => NativeMethods.Value.DuckDBCreateTime(NativeMethods.DateTimeHelpers.DuckDBToTime(value)),
+            (DuckDBType.Time, DuckDBTimeOnly value) => NativeMethods.Value.DuckDBCreateTime(value.ToDuckDBTime()),
             (DuckDBType.Date, DateOnly value) => NativeMethods.Value.DuckDBCreateDate(value.ToDuckDBDate()),
             (DuckDBType.Time, TimeOnly value) => NativeMethods.Value.DuckDBCreateTime(value.ToDuckDBTime()),
             (DuckDBType.TimeNs, DateTime value) => NativeMethods.Value.DuckDBCreateTimeNs(DuckDBTimeNs.FromTicks(value.Ticks % TimeSpan.TicksPerDay)),

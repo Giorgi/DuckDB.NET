@@ -29,6 +29,11 @@ internal static class DateTimeExtensions
     // The date is dropped.
     public static DuckDBTime ToDuckDBTime(this DateTime value) => new() { Micros = value.Ticks % TimeSpan.TicksPerDay / TicksPerMicrosecond };
 
+    // The parts are added up as DuckDB's duckdb_to_time does (Time::FromTime), with no check: 24:00:00 and a part out
+    // of range are stored as they add up. DuckDB reads an hour, minute or second above 127 as a negative int8_t;
+    // here it stays positive. The ticks hold whole microseconds, so the division drops nothing.
+    public static DuckDBTime ToDuckDBTime(this DuckDBTimeOnly value) => new() { Micros = value.Ticks / TicksPerMicrosecond };
+
     // The time on the clock and the offset, as they are in the value: the date is dropped.
     public static DuckDBTimeTzStruct ToTimeTzStruct(this DateTimeOffset value)
     {

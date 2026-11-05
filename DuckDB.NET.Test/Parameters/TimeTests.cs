@@ -215,6 +215,56 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             .Should().Be(value);
     }
 
+    // A DuckDBTimeOnly is added up by arithmetic, as duckdb_to_time does: 24:00:00 and a microsecond count beyond what
+    // an int times ten holds are stored as they add up. Each path: a parameter of no known type (sent by its DbType),
+    // a cast one, and one typed by the column.
+    [Theory]
+    [InlineData(24, 0, 0, 0, "24:00:00", 86_400)]
+    [InlineData(0, 0, 0, 300_000_000, "00:05:00", 300)]
+    public void DuckDBTimeOnlyPartsAreAddedUpForATimeParameter(byte hour, byte minute, byte second, int microsecond, string expected, int expectedSeconds)
+    {
+        var value = new DuckDBTimeOnly(hour, minute, second, microsecond);
+
+        Command.CommandText = "SELECT ?";
+        Command.Parameters.Add(new DuckDBParameter(value));
+        using (var reader = Command.ExecuteReader())
+        {
+            reader.Read().Should().BeTrue();
+            reader.GetDataTypeName(0).Should().Be("Time");
+            reader.GetFieldValue<TimeSpan>(0).Should().Be(TimeSpan.FromSeconds(expectedSeconds));
+        }
+
+        Command.Parameters.Clear();
+        Command.CommandText = $"SELECT ?::TIME = TIME '{expected}'";
+        Command.Parameters.Add(new DuckDBParameter(value));
+        Command.ExecuteScalar().Should().Be(true);
+
+        var table = $"time_parts_{Guid.NewGuid():N}";
+        Command.Parameters.Clear();
+        Command.CommandText = $"CREATE TABLE {table} (t TIME)";
+        Command.ExecuteNonQuery();
+        Command.CommandText = $"INSERT INTO {table} VALUES (?)";
+        Command.Parameters.Add(new DuckDBParameter(value));
+        Command.ExecuteNonQuery();
+
+        Command.Parameters.Clear();
+        Command.CommandText = $"SELECT t = TIME '{expected}' FROM {table}";
+        Command.ExecuteScalar().Should().Be(true);
+    }
+
+    // An hour above 127, which no time has, stays positive here; DuckDB's duckdb_to_time would read it as a negative
+    // int8_t. Kept as it adds up: 200 hours.
+    [Fact]
+    public void DuckDBTimeOnlyHourAbove127IsAddedUpAsItIs()
+    {
+        Command.CommandText = "SELECT ?::TIME";
+        Command.Parameters.Add(new DuckDBParameter(new DuckDBTimeOnly(200, 0, 0)));
+
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+        reader.GetFieldValue<TimeSpan>(0).Should().Be(TimeSpan.FromHours(200));
+    }
+
     // A DateTimeOffset needs a date and a TIMETZ has none. On 0001-01-01 a time that is earlier in the day than its
     // own positive offset would be an instant before year 1, which a DateTimeOffset refuses; so the time is put on
     // 0001-01-02, as Npgsql does. The last column is the same value inside a list.

@@ -103,7 +103,13 @@ between two runs.
 - **The stored values did not change,** including the ones that look wrong; see "Behaviour" below. What is below
   a microsecond is dropped toward the earlier microsecond, before 1970 as after it: the ticks from 0001-01-01 and
   the ticks of the epoch are each divided by ten. Dividing the difference would round a value before 1970 up.
-- **What still calls DuckDB:** a `DuckDBDateOnly`, `DuckDBTimeOnly` or `DuckDBTimestamp`, which holds the parts.
+- **What still calls DuckDB:** a `DuckDBDateOnly` or `DuckDBTimestamp`, which holds the parts: putting a year, a
+  month and a day together needs the calendar. A `DuckDBTimeOnly` called DuckDB too until 2.0; now its ticks are
+  divided by ten, in the writer and in parameters. `duckdb_to_time` adds up the parts in int64 with no check
+  (`Time::FromTime` in DuckDB's `time.cpp`), so the stored value is the same, 24:00:00 included. It differs only
+  for parts no time has: an hour, minute or second above 127, which DuckDB reads as a negative `int8_t`. The ticks
+  are worked out in `long`; in `int`, a microsecond count beyond ±214,748,364 wrapped around (a TIME_NS write uses
+  them too).
 - **The guard, because this code assumes how DuckDB stores these types:**
   `DuckDB.NET.Test/TemporalWriteConversionTests.cs` compares the arithmetic with DuckDB's own four functions, for
   every day a `DateOnly` holds and every second of the day, and has DuckDB split or print what was written. A
