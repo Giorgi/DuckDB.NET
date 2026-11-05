@@ -309,8 +309,9 @@ not use profile data to guess the target as it does for a plain virtual call.
   and a timestamp as a count in the unit of the column, both from 1970-01-01. A `DateTime` counts ticks of 100 ns
   from 0001-01-01. So the read is one multiplication, one addition and one comparison for the range. Both paths do
   it: the typed one and `GetValue(offset, Type)`.
-- **TIME, TIME_NS and TIMETZ the same way.** A TIME is microseconds from midnight, so as `TimeOnly` or `DateTime`
-  it is `micros * 10` ticks. A TIME_NS is nanoseconds from midnight, so it is `nanos / 100` ticks, dropping what is
+- **TIME, TIME_NS and TIMETZ the same way,** TIME and TIME_NS in `TimeVectorDataReader<TStorage>` (see "Smaller
+  decisions"). A TIME is microseconds from midnight, so as `TimeOnly` or `DateTime` it is `micros * 10` ticks.
+  A TIME_NS is nanoseconds from midnight, so it is `nanos / 100` ticks, dropping what is
   below 100 ns; as `DuckDBTimeOnly` it drops what is below a microsecond. A TIMETZ is 64 bits: the microseconds in
   the upper 40, and in the lower 24 the offset from UTC, stored as 57,599 (the largest offset, 15:59:59) minus the
   offset in seconds. That layout is `dtime_tz_t` in DuckDB's `datetime.hpp`, read at `v1.5.6`; the constants carry
@@ -507,13 +508,21 @@ not use profile data to guess the target as it does for a plain virtual call.
   `decimal`, `decimal?`, `object`), which is exactly what the typed path's unbox accepts, and refuses any other type
   with `CannotCast`. It used to return the `decimal` for any type, and the read failed later in the list, the
   dictionary or the property setter with another exception.
+- **TIME and TIME_NS have their own reader, `TimeVectorDataReader<TStorage>`,** with the stored struct as the type
+  parameter (`DuckDBTime` or `DuckDBTimeNs`), as decision 3 does for numbers. The two differ only in the unit, so
+  the rules (`TimeOnly`, `DateTime`, `TimeSpan`, `DuckDBTimeOnly`, 24:00:00) are written once, and the unit is a
+  constant for the JIT: no test of the column type and no divisor kept in a field. `StorageType` is not set, so the
+  stored structs are not types a value is read as (`GetFieldValue<DuckDBTime>` throws as before). Every read of
+  either column, in every target type including the refused ones, in a column, a list and a struct, gave the same
+  value or the same exception before and after the move.
 
 ### Costs that are known and not yet removed
 
 - **`DateTimeVectorDataReader.GetValidValue<T>` clears part of its stack frame on every call:** 40 bytes for
-  `TimeOnly` and `DateOnly`, 24 for `DateTime` (.NET 10). The method holds the branches of every column type it
-  serves, and the ones that return a DuckDB struct need stack slots (decision 4). One method per column type would
-  remove it and might add a call in its place. Not measured; a TIME value costs about 2 ns in all as it is.
+  `TimeOnly` and `DateOnly`, 24 for `DateTime` (.NET 10), measured when it also served TIME and TIME_NS. The method
+  holds the branches of every column type it serves, and the ones that return a DuckDB struct need stack slots
+  (decision 4). TIME and TIME_NS have moved to a reader of their own; what is left for DATE, TIMETZ and the
+  timestamps is not measured.
 - **A TIMESTAMPTZ or TIMETZ read as `DateTimeOffset` keeps about 15 ns per value** where a `DateTime` takes 5: the
   constructor of `DateTimeOffset` is a call that validates the offset. That is the cost of the type.
 - **A read as `DuckDBTimestamp`, `DuckDBDateOnly`, `DuckDBTimeOnly` or `DuckDBTimeTz` calls DuckDB,** by design
