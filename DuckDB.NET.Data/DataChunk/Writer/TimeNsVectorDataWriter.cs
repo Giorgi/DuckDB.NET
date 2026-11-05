@@ -2,8 +2,6 @@ namespace DuckDB.NET.Data.DataChunk.Writer;
 
 internal sealed unsafe class TimeNsVectorDataWriter(IntPtr vector, void* vectorData) : VectorDataWriterBase(vector, vectorData, DuckDBType.TimeNs)
 {
-    internal override bool AppendTimeNs(DuckDBTimeNs value, ulong rowIndex) => AppendValueInternal(value, rowIndex);
-
     internal override bool AppendDateTime(DateTime value, ulong rowIndex) =>
         AppendValueInternal(DuckDBTimeNs.FromTicks(value.Ticks % TimeSpan.TicksPerDay), rowIndex);
 
