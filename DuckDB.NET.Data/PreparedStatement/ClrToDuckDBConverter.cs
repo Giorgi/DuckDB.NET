@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 namespace DuckDB.NET.Data.PreparedStatement;
@@ -20,7 +21,13 @@ internal static class ClrToDuckDBConverter
         { DbType.Single, value => NativeMethods.Value.DuckDBCreateFloat((float)value) },
         { DbType.Double, value => NativeMethods.Value.DuckDBCreateDouble((double)value) },
         { DbType.String, value => CreateVarchar((string?)value) },
-        { DbType.VarNumeric, value => BigIntegerWithoutTargetType((BigInteger)value) },
+        { DbType.VarNumeric, value => value switch
+            {
+                Int128 int128 => NativeMethods.Value.DuckDBCreateHugeInt(new DuckDBHugeInt(int128)),
+                UInt128 uint128 => NativeMethods.Value.DuckDBCreateUHugeInt(new DuckDBUHugeInt(uint128)),
+                _ => BigIntegerWithoutTargetType((BigInteger)value)
+            }
+        },
         { DbType.Binary, value =>
             {
                 var bytes = (byte[])value;
@@ -54,6 +61,16 @@ internal static class ClrToDuckDBConverter
         { DbType.DateTimeOffset, value => NativeMethods.Value.DuckDBCreateTimestampTz(((DateTimeOffset)value).ToTimestampStruct()) },
     };
 
+    // Creates the value bound to a parameter. duckDBType is the parameter's type as DuckDB reports it from the statement
+    // (Invalid when it cannot tell, as in "SELECT $1"); dbType is the parameter's DbType. The first rule that applies:
+    // 1. null or DBNull is a NULL.
+    // 2. An integer parameter takes an integer or an enum that fits, converted to its type. Any other value, and one
+    //    that does not fit, goes as its own type, or as text when it has none.
+    // 3. Another parameter type takes a value of the matching .NET type as that type, and a TimeSpan with no reported
+    //    type is an INTERVAL. A collection is built item by item, each item by these rules with the type of the items.
+    // 4. Anything else goes through the creator of the DbType, or as text formatted without the current culture.
+    // Whatever does not have the parameter's type is cast by DuckDB, as it would cast a SQL literal: it rounds a
+    // fraction, parses a string, and refuses a value that does not fit.
     public static DuckDBValue ToDuckDBValue(this object? item, DuckDBLogicalType logicalType, DuckDBType duckDBType, DbType dbType)
     {
         if (item.IsNull())
@@ -63,31 +80,27 @@ internal static class ClrToDuckDBConverter
 
         return (duckDBType, item) switch
         {
-            // An Int128 is a HUGEINT and a UInt128 a UHUGEINT, whatever the target: DuckDB casts the value to the type of
-            // the parameter and refuses one that does not fit. First, because the integer targets below would send them
-            // as text: neither type is IConvertible. Temporary: once TryConvertTo no longer uses Convert.ChangeType (2.0
-            // item 11), these become (DuckDBType.HugeInt, _) and (DuckDBType.UnsignedHugeInt, _) like the other integers.
-            (_, Int128 value) => NativeMethods.Value.DuckDBCreateHugeInt(new DuckDBHugeInt(value)),
-            (_, UInt128 value) => NativeMethods.Value.DuckDBCreateUHugeInt(new DuckDBUHugeInt(value)),
-
             (DuckDBType.Boolean, bool value) => NativeMethods.Value.DuckDBCreateBool(value),
 
-            (DuckDBType.TinyInt, _) => TryConvertTo<sbyte>(out var result) ? NativeMethods.Value.DuckDBCreateInt8(result) : CreateVarchar(item.ToString()),
-            (DuckDBType.SmallInt, _) => TryConvertTo<short>(out var result) ? NativeMethods.Value.DuckDBCreateInt16(result) : CreateVarchar(item.ToString()),
-            (DuckDBType.Integer, _) => TryConvertTo<int>(out var result) ? NativeMethods.Value.DuckDBCreateInt32(result) : CreateVarchar(item.ToString()),
-            (DuckDBType.BigInt, _) => TryConvertTo<long>(out var result) ? NativeMethods.Value.DuckDBCreateInt64(result) : CreateVarchar(item.ToString()),
+            // An integer that fits is converted here: DuckDB 2.0.0 executes an INSERT 1.28 times as long when the value's
+            // type differs from the parameter's. Anything else goes as its own type (or as text), and DuckDB casts it
+            // like a SQL literal.
+            (DuckDBType.TinyInt, _) => TryConvertTo<sbyte>(item, out var result) ? NativeMethods.Value.DuckDBCreateInt8(result) : ValueOfItsOwnType(item),
+            (DuckDBType.SmallInt, _) => TryConvertTo<short>(item, out var result) ? NativeMethods.Value.DuckDBCreateInt16(result) : ValueOfItsOwnType(item),
+            (DuckDBType.Integer, _) => TryConvertTo<int>(item, out var result) ? NativeMethods.Value.DuckDBCreateInt32(result) : ValueOfItsOwnType(item),
+            (DuckDBType.BigInt, _) => TryConvertTo<long>(item, out var result) ? NativeMethods.Value.DuckDBCreateInt64(result) : ValueOfItsOwnType(item),
+            (DuckDBType.HugeInt, _) => TryConvertTo<Int128>(item, out var result) ? NativeMethods.Value.DuckDBCreateHugeInt(new DuckDBHugeInt(result)) : ValueOfItsOwnType(item),
 
-            (DuckDBType.UnsignedTinyInt, _) => TryConvertTo<byte>(out var result) ? NativeMethods.Value.DuckDBCreateUInt8(result) : CreateVarchar(item.ToString()),
-            (DuckDBType.UnsignedSmallInt, _) => TryConvertTo<ushort>(out var result) ? NativeMethods.Value.DuckDBCreateUInt16(result) : CreateVarchar(item.ToString()),
-            (DuckDBType.UnsignedInteger, _) => TryConvertTo<uint>(out var result) ? NativeMethods.Value.DuckDBCreateUInt32(result) : CreateVarchar(item.ToString()),
-            (DuckDBType.UnsignedBigInt, _) => TryConvertTo<ulong>(out var result) ? NativeMethods.Value.DuckDBCreateUInt64(result) : CreateVarchar(item.ToString()),
+            (DuckDBType.UnsignedTinyInt, _) => TryConvertTo<byte>(item, out var result) ? NativeMethods.Value.DuckDBCreateUInt8(result) : ValueOfItsOwnType(item),
+            (DuckDBType.UnsignedSmallInt, _) => TryConvertTo<ushort>(item, out var result) ? NativeMethods.Value.DuckDBCreateUInt16(result) : ValueOfItsOwnType(item),
+            (DuckDBType.UnsignedInteger, _) => TryConvertTo<uint>(item, out var result) ? NativeMethods.Value.DuckDBCreateUInt32(result) : ValueOfItsOwnType(item),
+            (DuckDBType.UnsignedBigInt, _) => TryConvertTo<ulong>(item, out var result) ? NativeMethods.Value.DuckDBCreateUInt64(result) : ValueOfItsOwnType(item),
+            (DuckDBType.UnsignedHugeInt, _) => TryConvertTo<UInt128>(item, out var result) ? NativeMethods.Value.DuckDBCreateUHugeInt(new DuckDBUHugeInt(result)) : ValueOfItsOwnType(item),
 
             (DuckDBType.Float, float value) => NativeMethods.Value.DuckDBCreateFloat(value),
             (DuckDBType.Double, double value) => NativeMethods.Value.DuckDBCreateDouble(value),
 
             (DuckDBType.Decimal, decimal value) => DecimalToDuckDBValue(value),
-            (DuckDBType.HugeInt, BigInteger value) => NativeMethods.Value.DuckDBCreateHugeInt(new DuckDBHugeInt(value)),
-            (DuckDBType.UnsignedHugeInt, BigInteger value) => NativeMethods.Value.DuckDBCreateUHugeInt(new DuckDBUHugeInt(value)),
             (DuckDBType.VarInt, BigInteger value) => BigIntegerToDuckDBValue(value),
 
             (DuckDBType.Varchar, string value) => CreateVarchar(value),
@@ -119,28 +132,77 @@ internal static class ClrToDuckDBConverter
             (DuckDBType.Array, ICollection value) => CreateCollectionValue(logicalType, value, false, dbType),
             (_, ICollection value) when item is not byte[] => CreateListFromClrType(value, dbType),
             _ when ValueCreators.TryGetValue(dbType, out var converter) => converter(item),
-            _ => CreateVarchar(item.ToString())
+            _ => InvariantText(item)
         };
+    }
 
-        bool TryConvertTo<T>(out T result) where T : struct
+    // The value as its own type (an enum as its number), chosen by the value, not by the parameter's DbType.
+    private static DuckDBValue ValueOfItsOwnType(object item)
+    {
+        if (item is Enum)
         {
-            try
-            {
-                if (item is T parsable)
-                {
-                    result = parsable;
-                    return true;
-                }
+            item = EnumNumber(item);
+        }
 
-                result = (T)Convert.ChangeType(item, typeof(T));
+        return ValueCreators.TryGetValue(DuckDBTypeMap.GetDbTypeForValue(item), out var creator) ? creator(item) : InvariantText(item);
+    }
+
+    // Not in the current culture, whose decimal comma or U+2212 minus sign DuckDB cannot parse.
+    private static DuckDBValue InvariantText(object item)
+    {
+        var text = item is IFormattable formattable ? formattable.ToString(null, CultureInfo.InvariantCulture) : item.ToString();
+        return CreateVarchar(text);
+    }
+
+    // An integer value, or an enum as its number, converted to T when it fits.
+    private static bool TryConvertTo<T>(object item, out T result) where T : struct, IBinaryInteger<T>
+    {
+        switch (item)
+        {
+            case T value:
+                result = value;
                 return true;
-            }
-            catch (Exception)
-            {
+            case sbyte value: return TryConvert(value, out result);
+            case byte value: return TryConvert(value, out result);
+            case short value: return TryConvert(value, out result);
+            case ushort value: return TryConvert(value, out result);
+            case int value: return TryConvert(value, out result);
+            case uint value: return TryConvert(value, out result);
+            case long value: return TryConvert(value, out result);
+            case ulong value: return TryConvert(value, out result);
+            case Int128 value: return TryConvert(value, out result);
+            case UInt128 value: return TryConvert(value, out result);
+            case BigInteger value: return TryConvert(value, out result);
+            // Last: unlike the exact type tests above, the Enum test calls a cast helper.
+            case Enum:
+                return TryConvertTo(EnumNumber(item), out result);
+            default:
                 result = default;
                 return false;
-            }
         }
+    }
+
+    // A boxed enum unboxes to its underlying type.
+    private static object EnumNumber(object item)
+    {
+        return ((Enum)item).GetTypeCode() switch
+        {
+            TypeCode.SByte => (sbyte)item,
+            TypeCode.Byte => (byte)item,
+            TypeCode.Int16 => (short)item,
+            TypeCode.UInt16 => (ushort)item,
+            TypeCode.Int32 => (int)item,
+            TypeCode.UInt32 => (uint)item,
+            TypeCode.Int64 => (long)item,
+            _ => (ulong)item,
+        };
+    }
+
+    // CreateSaturating clamps to the range of T, so the value fits when converting back gives it again.
+    private static bool TryConvert<TFrom, T>(TFrom value, out T result) where TFrom : IBinaryInteger<TFrom> where T : IBinaryInteger<T>
+    {
+        result = T.CreateSaturating(value);
+        return TFrom.CreateSaturating(result) == value;
     }
 
     private static DuckDBValue CreateCollectionValue(DuckDBLogicalType logicalType, ICollection collection, bool isList, DbType dbType)
