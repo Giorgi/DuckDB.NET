@@ -34,7 +34,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-14]
+        os: [ubuntu-latest, windows-latest, macos-15]
         arch: ['amd64']
       fail-fast: false
 
