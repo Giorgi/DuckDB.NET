@@ -94,6 +94,61 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         endOfDay.ToDuckDBTime().Micros.Should().Be(NativeMethods.DateTimeHelpers.DuckDBToTime(endOfDay).Micros);
     }
 
+    // TIME and TIME_NS have a writer of their own, so a time is refused in the other date and time columns, and a date
+    // in a TIME column, as a value and as a list item. They used to be stored as the bytes of the other type; a time
+    // in a DATE column wrote 8-byte values into a 4-byte vector, past its end from row 1024 on, which crashed the
+    // process within one chunk. The writer now refuses the type in any row, so row 0 tests it.
+    [Theory]
+    [InlineData("DATE")]
+    [InlineData("TIMETZ")]
+    [InlineData("TIMESTAMP")]
+    [InlineData("TIMESTAMP_S")]
+    [InlineData("TIMESTAMP_MS")]
+    [InlineData("TIMESTAMP_NS")]
+    [InlineData("TIMESTAMPTZ")]
+    public void ATimeIsRefusedInAColumnOfAnotherDateOrTimeType(string columnType)
+    {
+        AppendIsRefused(columnType, row => row.AppendValue((TimeOnly?)new TimeOnly(12, 0)), "TimeOnly");
+        AppendIsRefused(columnType, row => row.AppendValue((DuckDBTimeOnly?)new DuckDBTimeOnly(12, 0, 0)), "DuckDBTimeOnly");
+        AppendIsRefused($"{columnType}[]", row => row.AppendValue(new List<TimeOnly> { new(12, 0) }), "TimeOnly");
+        AppendIsRefused($"{columnType}[]", row => row.AppendValue(new List<DuckDBTimeOnly> { new(12, 0, 0) }), "DuckDBTimeOnly");
+    }
+
+    // The output of a table function reaches the same writers: a time written into a DATE column is refused there too.
+    // The message is checked, not the inner exception, which UdfExceptionStore can mix up between parallel tests.
+    [Fact]
+    public void ATimeIsRefusedInADateColumnOfATableFunction()
+    {
+        var name = $"time_into_date_{Guid.NewGuid():N}";
+        Connection.RegisterTableFunction(name, () => new TableFunction([new ColumnInfo("d", typeof(DateOnly))], new[] { 1 }),
+            (_, writers, rowIndex) => writers[0].WriteValue(new TimeOnly(12, 0), rowIndex));
+
+        Command.CommandText = $"SELECT * FROM {name}()";
+        Command.Invoking(command => command.ExecuteScalar())
+            .Should().Throw<DuckDBException>().WithMessage("*Cannot write TimeOnly to Date column*");
+    }
+
+    [Theory]
+    [InlineData("TIME")]
+    [InlineData("TIME_NS")]
+    public void ADateIsRefusedInATimeColumn(string columnType)
+    {
+        AppendIsRefused(columnType, row => row.AppendValue((DateOnly?)new DateOnly(2024, 2, 29)), "DateOnly");
+        AppendIsRefused(columnType, row => row.AppendValue((DuckDBDateOnly?)new DuckDBDateOnly(2024, 2, 29)), "DuckDBDateOnly");
+        AppendIsRefused($"{columnType}[]", row => row.AppendValue(new List<DateOnly> { new(2024, 2, 29) }), "DateOnly");
+        AppendIsRefused($"{columnType}[]", row => row.AppendValue(new List<DuckDBDateOnly> { new(2024, 2, 29) }), "DuckDBDateOnly");
+    }
+
+    private void AppendIsRefused(string columnType, Action<IDuckDBAppenderRow> append, string typeName)
+    {
+        var table = $"refused_{Guid.NewGuid():N}";
+        Connection.ExecuteNonQuery($"CREATE TABLE {table} (v {columnType})");
+
+        using var appender = Connection.CreateAppender(table);
+        var row = appender.CreateRow();
+        row.Invoking(append).Should().Throw<InvalidOperationException>().WithMessage($"Cannot write {typeName} to *");
+    }
+
     // A DateTime appended to a TIME column, in a row and as a list item, is stored as its time of day. DuckDB casts the
     // same moment, written as a TIMESTAMP literal, to a TIME for the expected value; before 1970 and at both ends of
     // the range of a DateTime too. What is below a microsecond is dropped.

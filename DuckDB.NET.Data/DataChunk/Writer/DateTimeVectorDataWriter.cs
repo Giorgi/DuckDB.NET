@@ -9,13 +9,6 @@ internal sealed unsafe class DateTimeVectorDataWriter(IntPtr vector, void* vecto
             return AppendValueInternal(value.ToDuckDBDate(), rowIndex);
         }
 
-        // The time of day, as a TIME parameter and a TIME_NS column take it. Until 2.0 the microseconds of the whole
-        // timestamp were stored, far more than a day.
-        if (ColumnType == DuckDBType.Time)
-        {
-            return AppendValueInternal(value.ToDuckDBTime(), rowIndex);
-        }
-
         return AppendValueInternal(value.ToTimestampStruct(ColumnType), rowIndex);
     }
 
@@ -36,11 +29,10 @@ internal sealed unsafe class DateTimeVectorDataWriter(IntPtr vector, void* vecto
 
     internal override bool AppendDateOnly(DateOnly value, ulong rowIndex) => AppendValueInternal(value.ToDuckDBDate(), rowIndex);
 
-    internal override bool AppendTimeOnly(TimeOnly value, ulong rowIndex) => AppendValueInternal(value.ToDuckDBTime(), rowIndex);
-
-    // A DuckDBDateOnly holds a year, a month and a day, and DuckDB puts them together. The parts of a DuckDBTimeOnly
-    // are added up here; DateTimeExtensions says where that differs from DuckDB.
+    // A DuckDBDateOnly holds a year, a month and a day, and DuckDB puts them together.
     internal override bool AppendDateOnly(DuckDBDateOnly value, ulong rowIndex) => AppendValueInternal(value.ToDuckDBDate(), rowIndex);
 
-    internal override bool AppendTimeOnly(DuckDBTimeOnly value, ulong rowIndex) => AppendValueInternal(value.ToDuckDBTime(), rowIndex);
+    // TIME and TIME_NS have a writer of their own, TimeVectorDataWriter. So a TimeOnly or a DuckDBTimeOnly is refused
+    // here: it used to be stored as a TIME, which in a DATE column wrote 8-byte values into a 4-byte vector, past its
+    // end from row 1024 on.
 }

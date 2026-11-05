@@ -567,6 +567,30 @@ between two runs.
 - **Pinned by:** `HugeIntWriteConversionTests`, which compares every value with the one DuckDB parses from its text,
   and the `Int128` and `UInt128` lines of `ScalarFunctionNullableTypesTests`.
 
+### 18. TIME and TIME_NS have a writer of their own
+
+- **What (2.0 perf audit, item 11):** `TimeVectorDataWriter<TStorage>`, with the stored struct as the type
+  parameter (`DuckDBTime` or `DuckDBTimeNs`), the mirror of `TimeVectorDataReader<TStorage>`. It takes a
+  `TimeOnly`, a `DuckDBTimeOnly` and a `DateTime` (its time of day), turns each into ticks from midnight, and
+  `Store` is the one place where the units differ, a test of `TStorage` that the JIT folds. It replaced
+  `TimeNsVectorDataWriter` and took TIME out of `DateTimeVectorDataWriter`, which keeps DATE, TIMETZ and the
+  timestamps. A TIME goes through `DateTimeExtensions.ToDuckDBTime(long)`, as the three `ToDuckDBTime` extensions
+  that parameters use do, so the division by ten is written once.
+- **Why:** `DateTimeVectorDataWriter.AppendDateTime` tested the column for DATE and for TIME on every `DateTime`
+  written to a timestamp column, and a TIME_NS had a class of its own while a TIME did not.
+- **What it refuses that used to be stored:** a `TimeOnly` or `DuckDBTimeOnly` in a DATE, TIMETZ or timestamp
+  column, and a `DateOnly` or `DuckDBDateOnly` in a TIME column, with the `InvalidOperationException` of the base
+  class, as a TIME_NS already refused a date. Each was stored as the bytes of the other type. A time in a DATE column
+  wrote 8-byte values into a 4-byte vector, past its end from row 1024 on, which crashed the test process within one
+  chunk. Nothing could have used what the others stored.
+- **Checked:** what the appender stores, through a row and as a list item, for 15 values and types in TIME, TIME_NS,
+  DATE, TIMETZ, TIMESTAMP and TIMESTAMP_NS, was compared before and after: the same for every accepted value, and
+  refused exactly in the cases above.
+- **Not measured yet.** `DateAppenderBenchmark` has the cases (`2d14164`).
+- **Pinned by:** `TemporalWriteConversionTests` (`ATimeIsRefusedInAColumnOfAnotherDateOrTimeType`,
+  `ADateIsRefusedInATimeColumn`, `ATimeIsRefusedInADateColumnOfATableFunction`,
+  `DateTimeAppendedToATimeIsItsTimeOfDay`).
+
 ## Costs that are known and not yet removed
 
 - **A callback written against the interfaces pays the lookups of decision 8:** 11.0 ms where the typed form of
@@ -613,11 +637,12 @@ between two runs.
 - **The appender does no type checking.** It writes the bytes of the .NET type it is given. `AppendValue(1)`
   into an INTEGER column stores garbage. The mapped appender checks types when it is created. A value of the right
   type that is out of range is another matter: a decimal is checked against the width of its column (decision 10).
+  A writer refuses a type it has no method for, so since decision 18 a time is refused in a date or timestamp
+  column and a date in a TIME column. A `DateOnly` in a TIMETZ or timestamp column, and a `DateTime` in a TIMETZ
+  column, still store the bytes of the other type.
 - **A `DateTime` appended to a TIME or TIME_NS column stores its time of day,** as a TIME parameter does and as a
   TIME read as `DateTime` gives it back. Until 2.0 a TIME stored the microseconds of the whole timestamp, more
-  than a day, which no one could have used. It is a test of the column type for every `DateTime` written, next to
-  the one for DATE, in the writer of the timestamps too; not measured. The time readers and writers in classes of
-  their own (2.0 perf audit, item 11) would remove it.
+  than a day, which no one could have used.
 - **A decimal loses the digits after the point that its column has no room for, toward zero,** where DuckDB
   rounds a parameter (decision 10).
 - **A TIMESTAMP_S and a TIMESTAMP_MS round toward zero before 1970,** so 1969-12-31 23:59:59.9999999 is stored

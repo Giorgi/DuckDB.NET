@@ -43,6 +43,7 @@ Fixes:
 - A table function projection that calls a constructor (a record or a tuple) is refused with a clear message instead of a NullReferenceException
 - The mapped appender disposes its appender when validation fails
 - DuckDBClientFactory.CanCreateCommandBuilder and CanCreateDataAdapter return false instead of throwing
+- Writing a TimeOnly or DuckDBTimeOnly to a DATE column, through the appender or the output of a table function, no longer writes past the end of the column's memory, which could crash the process
 
 Behavior changes:
 - Appending a decimal too wide for its column throws instead of storing a value the column cannot hold
@@ -50,6 +51,7 @@ Behavior changes:
 - Looking up a missing parameter by name through DbParameterCollection throws IndexOutOfRangeException, as the typed indexer does
 - A TIMETZ read as DateTimeOffset is placed on 0001-01-02 instead of 0001-01-01
 - A DateTime appended to a TIME column stores its time of day; it stored the microseconds of the whole timestamp, more than a day
+- A TimeOnly or DuckDBTimeOnly written to a DATE, TIMETZ or timestamp column, and a DateOnly or DuckDBDateOnly written to a TIME column, by the appender or a table function, throw InvalidOperationException instead of storing the bytes of the other type
 - A BigInteger parameter where DuckDB cannot infer the type is bound as HUGEINT if it fits, as UHUGEINT up to 2^128 - 1 and as BIGNUM beyond, instead of throwing for values outside the HUGEINT range
     </PackageReleaseNotes>
     <SignAssembly>True</SignAssembly>
