@@ -239,6 +239,6 @@ internal static class ClrToDuckDBConverter
 
         var integer = isNegative ? -(Int128)magnitude : (Int128)magnitude;
 
-        return NativeMethods.Value.DuckDBCreateDecimal(new DuckDBDecimal((byte)width, scale, new DuckDBHugeInt((ulong)integer, (long)(integer >> 64))));
+        return NativeMethods.Value.DuckDBCreateDecimal(new DuckDBDecimal((byte)width, scale, new DuckDBHugeInt(integer)));
     }
 }
