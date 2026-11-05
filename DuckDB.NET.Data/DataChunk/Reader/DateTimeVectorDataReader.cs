@@ -287,11 +287,6 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
             return (T)(object)new TimeSpan(timeNs.Ticks);
         }
 
-        if (typeof(T) == typeof(DuckDBTimeNs))
-        {
-            return (T)(object)timeNs;
-        }
-
         return (T)(object)timeNs.ToDuckDBTimeOnly();
     }
 
@@ -312,11 +307,6 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
         if (targetType == typeof(TimeSpan))
         {
             return new TimeSpan(timeNs.Ticks);
-        }
-
-        if (targetType == typeof(DuckDBTimeNs))
-        {
-            return timeNs;
         }
 
         return timeNs.ToDuckDBTimeOnly();

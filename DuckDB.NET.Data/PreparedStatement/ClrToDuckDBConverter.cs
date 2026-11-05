@@ -104,7 +104,6 @@ internal static class ClrToDuckDBConverter
             (DuckDBType.TimeNs, DuckDBTimeOnly value) => NativeMethods.Value.DuckDBCreateTimeNs(DuckDBTimeNs.FromTicks(value.Ticks)),
             (DuckDBType.TimeNs, TimeOnly value) => NativeMethods.Value.DuckDBCreateTimeNs(DuckDBTimeNs.FromTicks(value.Ticks)),
             (DuckDBType.TimeNs, TimeSpan value) => NativeMethods.Value.DuckDBCreateTimeNs(DuckDBTimeNs.FromTicks(TimeOnly.FromTimeSpan(value).Ticks)),
-            (DuckDBType.TimeNs, DuckDBTimeNs value) => NativeMethods.Value.DuckDBCreateTimeNs(value),
             (DuckDBType.TimeTz, DateTimeOffset value) => NativeMethods.Value.DuckDBCreateTimeTz(value.ToTimeTzStruct()),
             (DuckDBType.Blob, byte[] value) => NativeMethods.Value.DuckDBCreateBlob(value, value.Length),
             (DuckDBType.List, ICollection value) => CreateCollectionValue(logicalType, value, true, dbType),

@@ -152,7 +152,7 @@ public struct DuckDBTimeNs
     public long Nanos { get; set; }
 
     /// <summary>Creates a time from .NET ticks (100-nanosecond units).</summary>
-    public static DuckDBTimeNs FromTicks(long ticks) => new() { Nanos = checked(ticks * 100) };
+    public static DuckDBTimeNs FromTicks(long ticks) => new() { Nanos = ticks * 100 };
 
     /// <summary>Gets the time in .NET ticks (100-nanosecond units), truncated from nanoseconds.</summary>
     public readonly long Ticks => Nanos / 100;

@@ -12,11 +12,86 @@ namespace DuckDB.NET.Test;
 public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
+    public void EveryDateIsStoredAsDuckDBStoresIt()
+    {
+        var lastTickOfTheDay = new TimeOnly(TimeSpan.TicksPerDay - 1);
+
+        for (var dayNumber = 0; dayNumber <= DateOnly.MaxValue.DayNumber; dayNumber++)
+        {
+            var date = DateOnly.FromDayNumber(dayNumber);
+            var expected = NativeMethods.DateTimeHelpers.DuckDBToDate(new DuckDBDateOnly(date.Year, (byte)date.Month, (byte)date.Day)).Days;
+
+            // Compared without FluentAssertions: there are 3.6 million days.
+            if (date.ToDuckDBDate().Days != expected ||
+                date.ToDateTime(TimeOnly.MinValue).ToDuckDBDate().Days != expected ||
+                date.ToDateTime(lastTickOfTheDay).ToDuckDBDate().Days != expected)
+            {
+                Assert.Fail($"{date:O}: DuckDB stores {expected}, as DateOnly it became {date.ToDuckDBDate().Days}, as DateTime {date.ToDateTime(TimeOnly.MinValue).ToDuckDBDate().Days} and {date.ToDateTime(lastTickOfTheDay).ToDuckDBDate().Days}");
+            }
+        }
+    }
+
+    [Fact]
+    public void TimestampsAreStoredAsDuckDBStoresThem()
+    {
+        TimeSpan[] offsets = [TimeSpan.Zero, TimeSpan.FromHours(14), TimeSpan.FromHours(-14), TimeSpan.FromMinutes(330), TimeSpan.FromMinutes(-1)];
+
+        var index = 0;
+        foreach (var ticks in Ticks(200_000))
+        {
+            var dateTime = new DateTime(ticks, (DateTimeKind)(index % 3));
+            var expected = DuckDBMicroseconds(dateTime);
+
+            var offset = offsets[index++ % offsets.Length];
+            var utcTicks = ticks - offset.Ticks;
+            var withOffset = utcTicks < 0 || utcTicks > DateTime.MaxValue.Ticks ? new DateTimeOffset(ticks, TimeSpan.Zero) : new DateTimeOffset(ticks, offset);
+
+            if (dateTime.ToTimestampStruct(DuckDBType.Timestamp).Micros != expected ||
+                dateTime.ToTimestampStruct(DuckDBType.TimestampTz).Micros != expected ||
+                withOffset.ToTimestampStruct().Micros != DuckDBMicroseconds(withOffset.UtcDateTime))
+            {
+                Assert.Fail($"{dateTime:O}: DuckDB stores {expected}, the conversion gave {dateTime.ToTimestampStruct(DuckDBType.Timestamp).Micros}; " +
+                            $"{withOffset:O}: DuckDB stores {DuckDBMicroseconds(withOffset.UtcDateTime)}, the conversion gave {withOffset.ToTimestampStruct().Micros}");
+            }
+        }
+    }
+
+    [Fact]
+    public void TimesAreStoredAsDuckDBStoresThem()
+    {
+        var random = new Random(20261012);
+
+        // Every second of the day with a fraction of its own, and the last tick of the day.
+        for (var second = 0; second <= 86400; second++)
+        {
+            var ticks = second == 86400 ? TimeSpan.TicksPerDay - 1 : second * TimeSpan.TicksPerSecond + random.NextInt64(TimeSpan.TicksPerSecond);
+            var time = new TimeOnly(ticks);
+
+            var microsecond = (int)(ticks % TimeSpan.TicksPerSecond / 10);
+            var expected = NativeMethods.DateTimeHelpers.DuckDBToTime(new DuckDBTimeOnly((byte)time.Hour, (byte)time.Minute, (byte)time.Second, microsecond)).Micros;
+
+            var onADay = new DateTime(2024, 2, 29).AddTicks(ticks);
+
+            // A TIMETZ: the offset moves by 61 minutes from one second to the next, over the whole range of a DateTimeOffset.
+            var offset = TimeSpan.FromMinutes((second * 61) % (28 * 60 + 1) - 14 * 60);
+            var withOffset = new DateTimeOffset(onADay, offset);
+            var expectedTimeTz = NativeMethods.DateTimeHelpers.DuckDBCreateTimeTz(expected, (int)offset.TotalSeconds).Bits;
+
+            if (time.ToDuckDBTime().Micros != expected ||
+                onADay.ToDuckDBTime().Micros != expected ||
+                withOffset.ToTimeTzStruct().Bits != expectedTimeTz)
+            {
+                Assert.Fail($"{time:O}: DuckDB stores {expected}, as TimeOnly it became {time.ToDuckDBTime().Micros}, as DateTime {onADay.ToDuckDBTime().Micros}; " +
+                            $"with the offset {offset} DuckDB stores {expectedTimeTz:X16}, the conversion gave {withOffset.ToTimeTzStruct().Bits:X16}");
+            }
+        }
+    }
+
+    [Fact]
     public void TimeNsAppenderPreservesSubMicrosecondPrecision()
     {
         var time = new TimeOnly(12, 34, 56).Add(TimeSpan.FromTicks(1_234_567));
         var dateTime = new DateTime(2024, 2, 29, 12, 34, 56).AddTicks(1_234_567);
-        var nanosecondTime = new DuckDBTimeNs { Nanos = 45_296_123_456_789 };
         var table = $"time_ns_appender_{Guid.NewGuid():N}";
         Connection.ExecuteNonQuery($"CREATE TABLE {table} (time_ns TIME_NS)");
 
@@ -24,11 +99,9 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         {
             appender.CreateRow().AppendValue(time).EndRow();
             appender.CreateRow().AppendValue(dateTime).EndRow();
-            appender.CreateRow().AppendValue(nanosecondTime).EndRow();
         }
 
-        var expectedRows = $"(0, {TimeNsLiteral(time)}), (1, {TimeNsLiteral(TimeOnly.FromDateTime(dateTime))}), " +
-                           "(2, TIME_NS '12:34:56.123456789')";
+        var expectedRows = $"(0, {TimeNsLiteral(time)}), (1, {TimeNsLiteral(TimeOnly.FromDateTime(dateTime))})";
         Command.CommandText = $"SELECT actual.time_ns = expected.value FROM {table} AS actual " +
                               $"JOIN (VALUES {expectedRows}) AS expected(ordinal, value) ON actual.rowid = expected.ordinal " +
                               "ORDER BY actual.rowid";
@@ -40,8 +113,6 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
             reader.Read().Should().BeTrue();
             reader.GetBoolean(0).Should().BeTrue();
 
-            reader.Read().Should().BeTrue();
-            reader.GetBoolean(0).Should().BeTrue();
             reader.Read().Should().BeFalse();
         }
     }
@@ -119,12 +190,10 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         var time = new TimeOnly(12, 34, 56).Add(TimeSpan.FromTicks(1_234_567));
         var dateTime = new DateTime(2024, 2, 29, 12, 34, 56).AddTicks(1_234_567);
         var endOfDay = new DuckDBTimeOnly(24, 0, 0);
-        var nanosecondTime = new DuckDBTimeNs { Nanos = 45_296_123_456_789 };
 
         AssertTimeNsParameterMatches(new DuckDBParameter(time), TimeNsLiteral(time)).Should().BeTrue();
         AssertTimeNsParameterMatches(new DuckDBParameter(dateTime), TimeNsLiteral(TimeOnly.FromDateTime(dateTime))).Should().BeTrue();
         AssertTimeNsParameterMatches(new DuckDBParameter(endOfDay), "TIME_NS '24:00:00'").Should().BeTrue();
-        AssertTimeNsParameterMatches(new DuckDBParameter(nanosecondTime), "TIME_NS '12:34:56.123456789'").Should().BeTrue();
     }
 
     [Fact]
@@ -149,58 +218,6 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         }
     }
 
-    [Fact]
-    public void TimeNsScalarFunctionWritesSubMicrosecondAnd24HourResults()
-    {
-        var subMicrosecond = new DuckDBTimeNs { Nanos = 45_296_123_456_789 };
-        var endOfDay = new DuckDBTimeNs { Nanos = 86_400_000_000_000 };
-        Connection.RegisterScalarFunction<int, DuckDBTimeNs>("time_ns_scalar", value => value == 0 ? subMicrosecond : endOfDay);
-
-        Command.CommandText = "WITH actual AS (SELECT i AS ordinal, time_ns_scalar(i::INTEGER) AS time_value FROM range(2) t(i)) " +
-                              "SELECT actual.time_value, actual.time_value = expected.time_value FROM actual " +
-                              "JOIN (VALUES (0, TIME_NS '12:34:56.123456789'), (1, TIME_NS '24:00:00')) AS expected(ordinal, time_value) " +
-                              "ON actual.ordinal = expected.ordinal ORDER BY actual.ordinal";
-        using var reader = Command.ExecuteReader();
-        reader.GetDataTypeName(0).Should().Be("TimeNs");
-
-        reader.Read().Should().BeTrue();
-        reader.GetFieldValue<DuckDBTimeNs>(0).Nanos.Should().Be(subMicrosecond.Nanos);
-        reader.GetBoolean(1).Should().BeTrue();
-
-        reader.Read().Should().BeTrue();
-        reader.GetFieldValue<DuckDBTimeNs>(0).Nanos.Should().Be(endOfDay.Nanos);
-        reader.GetBoolean(1).Should().BeTrue();
-        reader.Read().Should().BeFalse();
-    }
-
-    [Fact]
-    public void TimeNsTableFunctionWritesSubMicrosecondAnd24HourResults()
-    {
-        var values = new[]
-        {
-            new DuckDBTimeNs { Nanos = 45_296_123_456_789 },
-            new DuckDBTimeNs { Nanos = 86_400_000_000_000 },
-        };
-        Connection.RegisterTableFunction("time_ns_table", () =>
-            new TableFunction([new ColumnInfo("time_value", typeof(DuckDBTimeNs))], values),
-            (item, writers, rowIndex) => writers[0].WriteValue((DuckDBTimeNs)item, rowIndex));
-
-        Command.CommandText = "SELECT time_value, time_value = CASE WHEN time_value = TIME_NS '12:34:56.123456789' " +
-                              "THEN TIME_NS '12:34:56.123456789' ELSE TIME_NS '24:00:00' END " +
-                              "FROM time_ns_table() ORDER BY time_value";
-        using var reader = Command.ExecuteReader();
-        reader.GetDataTypeName(0).Should().Be("TimeNs");
-
-        reader.Read().Should().BeTrue();
-        reader.GetFieldValue<DuckDBTimeNs>(0).Nanos.Should().Be(values[0].Nanos);
-        reader.GetBoolean(1).Should().BeTrue();
-
-        reader.Read().Should().BeTrue();
-        reader.GetFieldValue<DuckDBTimeNs>(0).Nanos.Should().Be(values[1].Nanos);
-        reader.GetBoolean(1).Should().BeTrue();
-        reader.Read().Should().BeFalse();
-    }
-
     private bool AssertTimeNsParameterMatches(DuckDBParameter parameter, string expected)
     {
         Command.Parameters.Clear();
@@ -213,82 +230,6 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     private static string TimeNsLiteral(TimeOnly value) => $"TIME_NS '{value.ToString("HH:mm:ss.fffffff", CultureInfo.InvariantCulture)}'";
-
-    [Fact]
-    public void EveryDateIsStoredAsDuckDBStoresIt()
-    {
-        var lastTickOfTheDay = new TimeOnly(TimeSpan.TicksPerDay - 1);
-
-        for (var dayNumber = 0; dayNumber <= DateOnly.MaxValue.DayNumber; dayNumber++)
-        {
-            var date = DateOnly.FromDayNumber(dayNumber);
-            var expected = NativeMethods.DateTimeHelpers.DuckDBToDate(new DuckDBDateOnly(date.Year, (byte)date.Month, (byte)date.Day)).Days;
-
-            // Compared without FluentAssertions: there are 3.6 million days.
-            if (date.ToDuckDBDate().Days != expected ||
-                date.ToDateTime(TimeOnly.MinValue).ToDuckDBDate().Days != expected ||
-                date.ToDateTime(lastTickOfTheDay).ToDuckDBDate().Days != expected)
-            {
-                Assert.Fail($"{date:O}: DuckDB stores {expected}, as DateOnly it became {date.ToDuckDBDate().Days}, as DateTime {date.ToDateTime(TimeOnly.MinValue).ToDuckDBDate().Days} and {date.ToDateTime(lastTickOfTheDay).ToDuckDBDate().Days}");
-            }
-        }
-    }
-
-    [Fact]
-    public void TimestampsAreStoredAsDuckDBStoresThem()
-    {
-        TimeSpan[] offsets = [TimeSpan.Zero, TimeSpan.FromHours(14), TimeSpan.FromHours(-14), TimeSpan.FromMinutes(330), TimeSpan.FromMinutes(-1)];
-
-        var index = 0;
-        foreach (var ticks in Ticks(200_000))
-        {
-            var dateTime = new DateTime(ticks, (DateTimeKind)(index % 3));
-            var expected = DuckDBMicroseconds(dateTime);
-
-            var offset = offsets[index++ % offsets.Length];
-            var utcTicks = ticks - offset.Ticks;
-            var withOffset = utcTicks < 0 || utcTicks > DateTime.MaxValue.Ticks ? new DateTimeOffset(ticks, TimeSpan.Zero) : new DateTimeOffset(ticks, offset);
-
-            if (dateTime.ToTimestampStruct(DuckDBType.Timestamp).Micros != expected ||
-                dateTime.ToTimestampStruct(DuckDBType.TimestampTz).Micros != expected ||
-                withOffset.ToTimestampStruct().Micros != DuckDBMicroseconds(withOffset.UtcDateTime))
-            {
-                Assert.Fail($"{dateTime:O}: DuckDB stores {expected}, the conversion gave {dateTime.ToTimestampStruct(DuckDBType.Timestamp).Micros}; " +
-                            $"{withOffset:O}: DuckDB stores {DuckDBMicroseconds(withOffset.UtcDateTime)}, the conversion gave {withOffset.ToTimestampStruct().Micros}");
-            }
-        }
-    }
-
-    [Fact]
-    public void TimesAreStoredAsDuckDBStoresThem()
-    {
-        var random = new Random(20261012);
-
-        // Every second of the day with a fraction of its own, and the last tick of the day.
-        for (var second = 0; second <= 86400; second++)
-        {
-            var ticks = second == 86400 ? TimeSpan.TicksPerDay - 1 : second * TimeSpan.TicksPerSecond + random.NextInt64(TimeSpan.TicksPerSecond);
-            var time = new TimeOnly(ticks);
-
-            var microsecond = (int)(ticks % TimeSpan.TicksPerSecond / 10);
-            var expected = NativeMethods.DateTimeHelpers.DuckDBToTime(new DuckDBTimeOnly((byte)time.Hour, (byte)time.Minute, (byte)time.Second, microsecond)).Micros;
-
-            var onADay = new DateTime(2024, 2, 29).AddTicks(ticks);
-
-            // A TIMETZ: the offset moves by 61 minutes from one second to the next, over the whole range of a DateTimeOffset.
-            var offset = TimeSpan.FromMinutes((second * 61) % (28 * 60 + 1) - 14 * 60);
-            var withOffset = new DateTimeOffset(onADay, offset);
-            var expectedTimeTz = NativeMethods.DateTimeHelpers.DuckDBCreateTimeTz(expected, (int)offset.TotalSeconds).Bits;
-
-            if (time.ToDuckDBTime().Micros != expected ||
-                onADay.ToDuckDBTime().Micros != expected ||
-                withOffset.ToTimeTzStruct().Bits != expectedTimeTz)
-            {
-                Assert.Fail($"{time:O}: DuckDB stores {expected}, as TimeOnly it became {time.ToDuckDBTime().Micros}, as DateTime {onADay.ToDuckDBTime().Micros}; " +
-                            $"with the offset {offset} DuckDB stores {expectedTimeTz:X16}, the conversion gave {withOffset.ToTimeTzStruct().Bits:X16}");
-            }
-        }
-    }
 
     // The values go through the appender and through parameters, and DuckDB takes them apart again: a read as
     // DuckDBTimestamp, DuckDBDateOnly, DuckDBTimeOnly or DuckDBTimeTz has DuckDB split the stored value, and epoch_us
