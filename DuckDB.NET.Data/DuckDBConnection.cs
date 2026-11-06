@@ -154,7 +154,19 @@ public partial class DuckDBConnection : DbConnection
 
     public DuckDBAppender CreateAppender(string? catalog, string? schema, string table)
     {
-        EnsureConnectionOpen();
+        var nativeAppender = CreateNativeAppender(catalog, schema, table);
+
+        return new DuckDBAppender(nativeAppender, GetTableName());
+
+        string GetTableName()
+        {
+            return string.IsNullOrEmpty(schema) ? table : $"{schema}.{table}";
+        }
+    }
+
+    private Native.DuckDBAppender CreateNativeAppender(string? catalog, string? schema, string table, [CallerMemberName] string operation = "")
+    {
+        EnsureConnectionOpen(operation);
 
         var appenderState = NativeMethods.Appender.DuckDBAppenderCreateExt(NativeConnection, catalog, schema, table, out var nativeAppender);
 
@@ -170,12 +182,7 @@ public partial class DuckDBConnection : DbConnection
             }
         }
 
-        return new DuckDBAppender(nativeAppender, GetTableName());
-
-        string GetTableName()
-        {
-            return string.IsNullOrEmpty(schema) ? table : $"{schema}.{table}";
-        }
+        return nativeAppender;
     }
 
     /// <summary>
