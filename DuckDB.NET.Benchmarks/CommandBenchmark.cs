@@ -8,8 +8,10 @@ namespace DuckDB.NET.Benchmarks;
 // read with the typed getters. Every new command is parsed and prepared each time it runs, so most of the time is
 // DuckDB's. The Reused* benchmarks keep one prepared command and change the value of its parameters: since 2.0,
 // Prepare() keeps the statement, so they skip the parse and the prepare. In the released package before 2.0,
-// Prepare() does nothing, so the same benchmarks measure an unprepared command there. On DuckDB 2.0 a statement that
-// reads a table is still planned on every execution (duckdb#24696); the expression and the insert are not.
+// Prepare() does nothing, so the same benchmarks measure an unprepared command there; that package also runs an older
+// DuckDB engine, so what Prepare() saves is read inside one job: SelectExpression against ReusedExpression, InsertRow
+// against ReusedInsert, SelectByIntParameter against ReusedCommand. On DuckDB 2.0 a statement that reads a table is
+// still planned on every execution (duckdb#24696); the expression and the insert are not.
 [MemoryDiagnoser]
 public class CommandBenchmark
 {

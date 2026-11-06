@@ -231,6 +231,26 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         command.ExecuteScalar().Should().Be(7);
     }
 
+    // Closing the connection destroys a replaced statement that an execution still holds.
+    [Fact]
+    public void ClosingTheConnectionDestroysAReplacedStatementStillTaken()
+    {
+        using var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT 7";
+        command.Prepare();
+
+        var held = connection.GetOrPrepareStatement(command.CommandText);
+        held.TryRent().Should().BeTrue();
+        command.Prepare();
+
+        connection.Close();
+        held.IsDisposed.Should().BeTrue();
+        held.Return();
+    }
+
     // Values are converted to the parameter types of the preparation, so a column altered to another type needs
     // Prepare() again; it then stores 1.75, not the 2 the old INTEGER type would give.
     [Fact]
