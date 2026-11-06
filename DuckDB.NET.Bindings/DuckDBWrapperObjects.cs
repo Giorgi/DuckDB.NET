@@ -77,6 +77,15 @@ public class DuckDBArrowOptions() : SafeHandleZeroOrMinusOneIsInvalid(true)
     }
 }
 
+public class DuckDBArrowConvertedSchema() : SafeHandleZeroOrMinusOneIsInvalid(true)
+{
+    protected override bool ReleaseHandle()
+    {
+        NativeMethods.Arrow.DuckDBDestroyArrowConvertedSchema(ref handle);
+        return true;
+    }
+}
+
 public class DuckDBErrorData() : SafeHandleZeroOrMinusOneIsInvalid(true)
 {
     public bool HasError => !IsInvalid && NativeMethods.ErrorData.DuckDBErrorDataHasError(this);
