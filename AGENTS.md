@@ -141,6 +141,21 @@ dotnet run -c Release -f net10.0 --project DuckDB.NET.Benchmarks -- --filter "*N
 - **`DuckDBMappedAppender<T, TMap>`:** the type-checked alternative (`CreateAppender<T, TMap>(table)`). A
   `DuckDBAppenderMap<T>` subclass declares the columns with `Map`, `DefaultValue` and `NullValue`, and type
   mismatches are reported when the appender is created. See `AppenderMap-Usage.md`.
+- **`DuckDBArrowAppender`:** appends Apache Arrow record batches and streams (`CreateArrowAppender(table)`, then
+  `AppendBatch`, `AppendStream` or `AppendStreamAsync`) through `duckdb_schema_from_arrow`,
+  `duckdb_data_chunk_from_arrow` and `duckdb_append_data_chunk`. It does not use the vector writers. It is a separate
+  type on purpose, so rows and batches cannot be mixed on one appender. Columns are matched by position, and DuckDB
+  casts each Arrow column to the column type, so unlike `DuckDBAppender` this path is type-checked. A failure after
+  the schema is converted faults the appender.
+  - **Ownership:** DuckDB takes ownership of the exported `ArrowArray` (it sets `release` to NULL), and destroying the
+    chunk releases it and unpins the managed buffers. Always free the `CArrowArray` in a `finally`.
+  - **Shape:** v2.0.0 does not check the array's shape, and `RecordBatch` does not check that its columns are as long
+    as the batch. A shorter column is read past its end (garbage, or a crash for strings), so the appender checks
+    every column's length before exporting. Keep that check.
+  - **Slicing:** DuckDB v2.0.0 cannot cast a chunk longer than 2048 rows (duckdb/duckdb#27664, fixed after 2.0.0), so
+    longer batches are appended in `RecordBatch.Slice` pieces. Never dispose the slices: they share the batch's
+    buffers. `AppendBatch_CastsColumnsInLongBatches` fails without the slicing. Reconsider it once the engine has the
+    fix. The design and probe results are in `issues/arrow-appender-design.md`.
 - **UDFs:** scalar functions (`DuckDBConnection.ScalarFunction*.cs`) and table functions
   (`DuckDBConnection.TableFunction*.cs`) are registered through generic overloads for different parameter counts.
   Callbacks are pinned with `GCHandle`. A table function creates its data enumerator per scan init, not per bind,
@@ -162,7 +177,8 @@ pins it. Each direction has its own place, and the tests are the reference where
   `NumericReadPathAgreementTests` and `ObjectTargetReadTests`.
 - **Writing** (the appender and function results): the decisions and "Behaviour that is kept on purpose" in
   `DataChunk/Writer/DESIGN.md`; there is no table. Pinned by `TemporalWriteConversionTests`,
-  `DecimalWriteConversionTests`, `StringWriteConversionTests` and `EnumWriteConversionTests`.
+  `DecimalWriteConversionTests`, `StringWriteConversionTests` and `EnumWriteConversionTests`. `DuckDBArrowAppender` is
+  not covered there: DuckDB's own Arrow type mapping and casts decide what converts, pinned by `ArrowAppenderTests`.
 - **Parameters** (a .NET value or `DbType` bound to a command): `PreparedStatement/ClrToDuckDBConverter.cs` and
   `DuckDBTypeMap.cs`, with no written summary. Pinned by the tests in `DuckDB.NET.Test/Parameters`.
 - **For users:** `docs/type-mapping.md` in the docs repository. Update it when a conversion changes.
