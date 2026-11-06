@@ -36,6 +36,11 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBBindValue(DuckDBPreparedStatement preparedStatement, long index, DuckDBValue val);
 
+        // Maybe [SuppressGCTransition]: clears the map of bound values, freeing each value
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_clear_bindings")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBState DuckDBClearBindings(DuckDBPreparedStatement preparedStatement);
+
         // Maybe [SuppressGCTransition]: linear search + std::string construction (small allocation)
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_parameter_index", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
