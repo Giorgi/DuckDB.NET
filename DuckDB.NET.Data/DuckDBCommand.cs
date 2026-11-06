@@ -210,6 +210,9 @@ public class DuckDBCommand : DbCommand
     /// <remarks>
     /// A command of several statements is not prepared: a later statement can depend on an earlier one having run,
     /// so each is still prepared just before it runs. Errors in the text are reported here instead of at execution.
+    /// Parameter values are converted to the parameter types DuckDB reports when the statement is prepared; after a
+    /// change of schema that changes those types (a column altered to another type, a table replaced with other
+    /// types), call Prepare() again, or a value may be converted to the old type first.
     /// As IDbCommand.Prepare documents, throws InvalidOperationException when "The Connection is not set. -or- The
     /// Connection is not Open()."
     /// </remarks>
