@@ -160,7 +160,7 @@ public class SchemaTests : DuckDBTestBase
         Assert.True((bool)integer["IsSearchable"]);
 
         var blob = schema.Rows.Cast<DataRow>().First(row => (int)row["ProviderDbType"] == (int)DuckDBType.Blob);
-        Assert.Equal(typeof(Stream).FullName, blob["DataType"]);
+        Assert.Equal(typeof(byte[]).FullName, blob["DataType"]);
 
         var timestampTz = schema.Rows.Cast<DataRow>().First(row => (int)row["ProviderDbType"] == (int)DuckDBType.TimestampTz);
         Assert.Equal(typeof(DateTime).FullName, timestampTz["DataType"]);

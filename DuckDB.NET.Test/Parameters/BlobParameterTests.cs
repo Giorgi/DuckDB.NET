@@ -23,14 +23,7 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             }
         }
 
-        using (var streamItem = (Stream)reader.GetValue(0))
-        {
-            using (var streamReader = new StreamReader(streamItem, leaveOpen: true))
-            {
-                var text = streamReader.ReadToEnd();
-                text.Should().Be("ABCD");
-            }
-        }
+        reader.GetValue(0).Should().BeOfType<byte[]>().Which.Should().Equal("ABCD"u8.ToArray());
 
         Command.CommandText = "SELECT 'AB\\x0aCD'::BLOB";
         Command.ExecuteNonQuery();
@@ -51,7 +44,7 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             }
         }
 
-        reader.GetFieldType(0).Should().Be(typeof(Stream));
+        reader.GetFieldType(0).Should().Be(typeof(byte[]));
     }
 
     [Fact]
@@ -63,7 +56,28 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         reader.Read().Should().BeTrue();
 
         reader.GetFieldValue<byte[]>(0).Should().Equal(1, 2, 3, 4);
-        reader.GetValue(0).Should().BeOfType<UnmanagedMemoryStream>();
+        reader.GetValue(0).Should().BeOfType<byte[]>().Which.Should().Equal(1, 2, 3, 4);
+        reader.GetProviderSpecificValue(0).Should().BeOfType<byte[]>().Which.Should().Equal(1, 2, 3, 4);
+        reader.GetFieldValue<Stream>(0).Should().BeOfType<UnmanagedMemoryStream>();
+    }
+
+    // A BLOB used to come back from GetValue as a stream over the chunk's memory, which ExecuteScalar returned after
+    // closing its reader: once later results reused that memory, the stream read their bytes.
+    [Fact]
+    public void ExecuteScalarBlobKeepsItsBytesAfterTheReaderIsClosed()
+    {
+        Command.CommandText = "SELECT repeat('x', 5000)::BLOB";
+        var value = Command.ExecuteScalar();
+
+        for (var i = 0; i < 5; i++)
+        {
+            using var command = Connection.CreateCommand();
+            command.CommandText = "SELECT repeat('y', 5000)::BLOB FROM range(2000)";
+            using var reader = command.ExecuteReader();
+            while (reader.Read()) { }
+        }
+
+        value.Should().BeOfType<byte[]>().Which.Should().Equal(Enumerable.Repeat((byte)'x', 5000));
     }
 
     [Fact]
@@ -175,7 +189,7 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             }
         }
 
-        reader.GetFieldType(1).Should().Be(typeof(Stream));
+        reader.GetFieldType(1).Should().Be(typeof(byte[]));
     }
 
     [Fact]
@@ -189,12 +203,7 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         using var reader = Command.ExecuteReader();
         reader.Read().Should().BeTrue();
 
-        using var stream = (Stream)reader.GetValue(0);
-        var resultBytes = new byte[value.Length];
-
-        stream.Read(resultBytes, 0, resultBytes.Length);
-
-        resultBytes.Should().BeEquivalentTo(value);
+        reader.GetValue(0).Should().BeOfType<byte[]>().Which.Should().Equal(value);
     }
 
     private sealed class BlobStruct

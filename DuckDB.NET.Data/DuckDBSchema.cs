@@ -230,7 +230,7 @@ internal static class DuckDBSchema
         DuckDBType.Double => typeof(double),
         DuckDBType.Decimal => typeof(decimal),
         DuckDBType.Varchar => typeof(string),
-        DuckDBType.Blob => typeof(Stream),
+        DuckDBType.Blob => typeof(byte[]),
         DuckDBType.Uuid => typeof(Guid),
         DuckDBType.Date => typeof(DateOnly),
         DuckDBType.Time => typeof(TimeOnly),

@@ -325,7 +325,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     {
         var columnIndex = 30;
         reader.GetOrdinal("blob").Should().Be(columnIndex);
-        reader.GetProviderSpecificFieldType(columnIndex).Should().Be(typeof(Stream));
+        reader.GetProviderSpecificFieldType(columnIndex).Should().Be(typeof(byte[]));
 
         using (var stream = reader.GetStream(columnIndex))
         {

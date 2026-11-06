@@ -185,7 +185,9 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
             DuckDBType.TimestampS => typeof(DateTime),
             DuckDBType.TimestampMs => typeof(DateTime),
             DuckDBType.TimestampNs => typeof(DateTime),
-            DuckDBType.Blob => typeof(Stream),
+            // A copy (2.0 item 14; Stream before). The stream points into the chunk, so a stream from GetValue or
+            // ExecuteScalar read freed memory once the reader moved on. GetStream and GetFieldValue<Stream> still give one.
+            DuckDBType.Blob => typeof(byte[]),
             DuckDBType.Enum => typeof(string),
             DuckDBType.Uuid => typeof(Guid),
             DuckDBType.Struct => typeof(Dictionary<string, object>),
@@ -226,7 +228,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
             DuckDBType.TimestampS => typeof(DuckDBTimestamp),
             DuckDBType.TimestampMs => typeof(DuckDBTimestamp),
             DuckDBType.TimestampNs => typeof(DuckDBTimestamp),
-            DuckDBType.Blob => typeof(Stream),
+            DuckDBType.Blob => typeof(byte[]),
             DuckDBType.Enum => typeof(string),
             DuckDBType.Uuid => typeof(Guid),
             DuckDBType.Struct => typeof(Dictionary<string, object>),
