@@ -15,6 +15,7 @@ public partial class DuckDBConnection : DbConnection
     private bool inMemoryDuplication = false;
     private readonly object preparedStatementsLock = new();
     private Dictionary<string, PreparedStatementEntry>? preparedStatements;
+    private List<PreparedStatementEntry>? retiredStatements;
 
     private static readonly StateChangeEventArgs FromClosedToOpenEventArgs = new(ConnectionState.Closed, ConnectionState.Open);
     private static readonly StateChangeEventArgs FromOpenToClosedEventArgs = new(ConnectionState.Open, ConnectionState.Closed);
@@ -115,7 +116,6 @@ public partial class DuckDBConnection : DbConnection
         connectionReference = inMemoryDuplication ? connectionManager.DuplicateConnectionReference(connectionReference!)
                                                   : connectionManager.GetConnectionReference(ParsedConnection);
 
-        OpenCount++;
         connectionState = ConnectionState.Open;
         OnStateChange(FromClosedToOpenEventArgs);
     }
@@ -254,34 +254,61 @@ public partial class DuckDBConnection : DbConnection
     }
 
     /// <summary>
-    /// How many times the connection was opened. A prepared command records it, so it can tell that the connection
-    /// was closed in between (which destroyed its statement) and prepare the statement again.
+    /// Prepares the command text anew and makes it the statement that commands with this text on this connection use.
+    /// The statement it replaces is destroyed; commands that still hold it take the new one on their next execution.
+    /// Null for a command of several statements, which is prepared on each execution instead.
     /// </summary>
-    internal int OpenCount { get; private set; }
+    internal PreparedStatementEntry? PrepareStatement(string commandText)
+    {
+        var entry = PreparedStatement.PreparedStatement.PrepareSingle(NativeConnection, commandText);
+
+        lock (preparedStatementsLock)
+        {
+            preparedStatements ??= new Dictionary<string, PreparedStatementEntry>(StringComparer.Ordinal);
+
+            if (preparedStatements.Remove(commandText, out var replaced))
+            {
+                Retire(replaced);
+            }
+
+            if (entry is not null)
+            {
+                preparedStatements[commandText] = entry;
+            }
+        }
+
+        return entry;
+    }
 
     /// <summary>
-    /// The statement prepared for the command text on this connection, prepared now if it is not kept yet. Null for
-    /// a command of several statements, which is prepared on each execution instead. Entries are kept until the
-    /// connection closes; commands with the same text share one.
+    /// The statement kept for the command text, prepared now if there is none. Entries are kept until the connection
+    /// closes.
     /// </summary>
     internal PreparedStatementEntry? GetOrPrepareStatement(string commandText)
     {
         lock (preparedStatementsLock)
         {
-            preparedStatements ??= new Dictionary<string, PreparedStatementEntry>(StringComparer.Ordinal);
-
-            if (preparedStatements.TryGetValue(commandText, out var entry) && !entry.IsDisposed)
+            if (preparedStatements is not null && preparedStatements.TryGetValue(commandText, out var entry) && !entry.IsStale)
             {
                 return entry;
             }
+        }
 
-            entry = PreparedStatement.PreparedStatement.PrepareSingle(NativeConnection, commandText);
-            if (entry is not null)
-            {
-                preparedStatements[commandText] = entry;
-            }
+        return PrepareStatement(commandText);
+    }
 
-            return entry;
+    private void Retire(PreparedStatementEntry entry)
+    {
+        entry.MarkRetired();
+
+        // An execution on another thread may hold it; then it is destroyed when the connection closes.
+        if (entry.TryRent())
+        {
+            entry.Dispose();
+        }
+        else
+        {
+            (retiredStatements ??= []).Add(entry);
         }
     }
 
@@ -289,17 +316,21 @@ public partial class DuckDBConnection : DbConnection
     {
         lock (preparedStatementsLock)
         {
-            if (preparedStatements is null)
+            if (preparedStatements is not null)
             {
-                return;
+                foreach (var entry in preparedStatements.Values)
+                {
+                    entry.Dispose();
+                }
             }
 
-            foreach (var entry in preparedStatements.Values)
+            foreach (var entry in retiredStatements ?? [])
             {
                 entry.Dispose();
             }
 
             preparedStatements = null;
+            retiredStatements = null;
         }
     }
 

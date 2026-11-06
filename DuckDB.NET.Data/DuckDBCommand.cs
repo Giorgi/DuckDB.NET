@@ -14,11 +14,10 @@ public class DuckDBCommand : DbCommand
     private DuckDBConnection? connection;
     private readonly DuckDBParameterCollection parameters = new();
 
-    // Set by Prepare(). The entry belongs to the connection, which destroys it when it closes; preparedOpenCount
-    // tells whether the connection was closed and opened again since, so the statement must be prepared again.
+    // Set by Prepare(). The entry belongs to the connection, which destroys it when it closes or when the text is
+    // prepared again; the command then takes the connection's current one on its next execution.
     private bool prepared;
     private PreparedStatementEntry? preparedEntry;
-    private int preparedOpenCount;
 
     protected override DbTransaction? DbTransaction { get; set; }
     protected override DbParameterCollection DbParameterCollection => parameters;
@@ -201,18 +200,19 @@ public class DuckDBCommand : DbCommand
     }
 
     /// <summary>
-    /// Prepares the statement of the command once, so later executions only bind the parameters and execute: they
-    /// skip splitting the text into statements, parsing and preparing. The statement is kept by the connection until
-    /// it closes, and commands with the same text on that connection share it. After the connection is closed and
-    /// opened again, the next execution prepares it again. Changing <see cref="CommandText"/> or
-    /// <see cref="Connection"/> undoes the preparation.
+    /// Prepares the statement of the command, so later executions only bind the parameters and execute: they skip
+    /// splitting the text into statements, parsing and preparing. The connection keeps the statement until it closes,
+    /// and commands with the same text on that connection share it. Each call prepares the statement anew, and the
+    /// other commands with that text then use the new one. After the connection is closed and opened again, the next
+    /// execution prepares it again. Changing <see cref="CommandText"/> or <see cref="Connection"/> undoes the
+    /// preparation.
     /// </summary>
     /// <remarks>
     /// A command of several statements is not prepared: a later statement can depend on an earlier one having run,
     /// so each is still prepared just before it runs. Errors in the text are reported here instead of at execution.
-    /// Parameter values are converted to the parameter types DuckDB reports when the statement is prepared; after a
-    /// change of schema that changes those types (a column altered to another type, a table replaced with other
-    /// types), call Prepare() again, or a value may be converted to the old type first.
+    /// A prepared statement keeps what was true when it was prepared: the types of its parameters (values are
+    /// converted to them), and the definitions of the views and macros and the settings it uses. After changing them
+    /// (a column altered to another type, CREATE OR REPLACE VIEW, SET), call Prepare() again.
     /// As IDbCommand.Prepare documents, throws InvalidOperationException when "The Connection is not set. -or- The
     /// Connection is not Open()."
     /// </remarks>
@@ -220,15 +220,8 @@ public class DuckDBCommand : DbCommand
     {
         EnsureConnectionOpen();
 
-        PrepareStatement();
+        preparedEntry = connection!.PrepareStatement(CommandText);
         prepared = true;
-    }
-
-    private void PrepareStatement()
-    {
-        var commandConnection = connection!;
-        preparedEntry = commandConnection.GetOrPrepareStatement(CommandText);
-        preparedOpenCount = commandConnection.OpenCount;
     }
 
     private void Unprepare()
@@ -251,10 +244,10 @@ public class DuckDBCommand : DbCommand
     private IEnumerable<StatementResult> ExecutePrepared(DuckDBNativeConnection nativeConnection, DuckDBParameterCollection parameterCollection,
                                                          bool useStreamingMode)
     {
-        if (preparedOpenCount != connection!.OpenCount || preparedEntry is { IsDisposed: true })
+        if (preparedEntry is { IsStale: true })
         {
-            // The connection was closed since Prepare(), which destroyed the statement.
-            PrepareStatement();
+            // The connection was closed since Prepare(), or the text was prepared again.
+            preparedEntry = connection!.GetOrPrepareStatement(CommandText);
         }
 
         var entry = preparedEntry;

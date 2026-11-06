@@ -16,6 +16,7 @@ internal sealed class PreparedStatementEntry : IDisposable
     private readonly DuckDBType[] parameterTypes;
     private Dictionary<string, long>? parameterIndexes;
     private int inUse;
+    private volatile bool retired;
 
     public PreparedStatementEntry(DuckDBPreparedStatement statement)
     {
@@ -48,6 +49,17 @@ internal sealed class PreparedStatementEntry : IDisposable
     public bool IsDisposed { get; private set; }
 
     /// <summary>
+    /// Destroyed, or replaced by a newer preparation of the same text: a command that holds it takes the current
+    /// statement from the connection instead.
+    /// </summary>
+    public bool IsStale => IsDisposed || retired;
+
+    /// <summary>How many times it was executed; tests use it to see which statement an execution took.</summary>
+    public int ExecutionCount { get; private set; }
+
+    public void MarkRetired() => retired = true;
+
+    /// <summary>
     /// Takes the statement for one execution. False when another execution has it (two commands with the same text,
     /// on two threads of one connection): the caller then prepares a statement of its own, as an unprepared command
     /// does. DuckDB does not allow binding one statement from two threads.
@@ -69,6 +81,7 @@ internal sealed class PreparedStatementEntry : IDisposable
         }
 
         PreparedStatement.BindParameters(statement, parameters, this);
+        ExecutionCount++;
 
         return PreparedStatement.Execute(statement, useStreamingMode, connection);
     }

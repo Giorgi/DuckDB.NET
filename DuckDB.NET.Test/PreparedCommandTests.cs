@@ -63,8 +63,9 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         command.Invoking(c => c.Prepare()).Should().Throw<DuckDBException>().WithMessage("*prepared_nowhere*");
     }
 
-    // While a value is bound, DuckDB reports an untyped parameter as the type of that value. Reading the types after
-    // an execution without clearing the bindings would convert 1.5 to the BIGINT of the previous value and return 2.
+    // While a value is bound, DuckDB reports an untyped parameter as the type of that value. The types are read once
+    // and the bindings are cleared before each execution; without both, 1.5 would be converted to the BIGINT of the
+    // previous value and come back as 2.
     [Fact]
     public void UntypedParameterTakesEachValueAsItIs()
     {
@@ -129,7 +130,61 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         command.ExecuteScalar().Should().Be(3);
 
         command.Parameters[1].ParameterName = "c";
-        command.Invoking(c => c.ExecuteScalar()).Should().Throw<DuckDBException>().WithMessage("*b*");
+        command.Invoking(c => c.ExecuteScalar()).Should().Throw<DuckDBException>().WithMessage("*not provided*b*");
+    }
+
+    [Fact]
+    public void PrepareReportsTextWithoutAStatement()
+    {
+        using var command = Connection.CreateCommand();
+        command.CommandText = "-- nothing";
+
+        command.Invoking(c => c.Prepare()).Should().Throw<DuckDBException>().WithMessage("*no statement*");
+    }
+
+    // A statement keeps the definitions it was prepared with; Prepare() again prepares it anew, and other commands with
+    // the same text take the new statement too.
+    [Fact]
+    public void PrepareAgainSeesANewViewDefinition()
+    {
+        Connection.ExecuteNonQuery("CREATE VIEW prepared_view AS SELECT 1 AS v");
+
+        using var first = Connection.CreateCommand();
+        using var second = Connection.CreateCommand();
+        first.CommandText = second.CommandText = "SELECT v FROM prepared_view";
+        first.Prepare();
+        first.ExecuteScalar().Should().Be(1);
+
+        Connection.ExecuteNonQuery("CREATE OR REPLACE VIEW prepared_view AS SELECT 2 AS v");
+
+        second.Prepare();
+        second.ExecuteScalar().Should().Be(2);
+        first.ExecuteScalar().Should().Be(2);
+
+        first.Prepare();
+        first.ExecuteScalar().Should().Be(2);
+    }
+
+    // Values are converted to the parameter types of the preparation, so a column altered to another type needs
+    // Prepare() again; it then stores 1.75, not the 2 the old INTEGER type would give.
+    [Fact]
+    public void PrepareAgainAfterAColumnChangesType()
+    {
+        Connection.ExecuteNonQuery("CREATE TABLE prepared_altered (v INTEGER)");
+
+        using var command = Connection.CreateCommand();
+        command.CommandText = "INSERT INTO prepared_altered VALUES ($1)";
+        command.Parameters.Add(new DuckDBParameter(1));
+        command.Prepare();
+        command.ExecuteNonQuery();
+
+        Connection.ExecuteNonQuery("ALTER TABLE prepared_altered ALTER v TYPE DECIMAL(10,2)");
+
+        command.Prepare();
+        command.Parameters[0].Value = 1.75m;
+        command.ExecuteNonQuery();
+
+        Connection.Query<decimal>("SELECT v FROM prepared_altered ORDER BY rowid").Should().Equal(1m, 1.75m);
     }
 
     [Fact]
@@ -364,10 +419,12 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         command.Prepare();
 
         var entry = Connection.GetOrPrepareStatement(command.CommandText);
+        var executions = entry.ExecutionCount;
         entry.TryRent().Should().BeTrue();
         try
         {
             command.ExecuteScalar().Should().Be(101);
+            entry.ExecutionCount.Should().Be(executions, "the taken statement must not be used");
         }
         finally
         {
@@ -376,6 +433,7 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
         command.Parameters[0].Value = 2;
         command.ExecuteScalar().Should().Be(102);
+        entry.ExecutionCount.Should().Be(executions + 1);
     }
 
     [Fact]

@@ -54,7 +54,7 @@ internal sealed class PreparedStatement : IDisposable
             if (statementCount <= 0)
             {
                 var error = NativeMethods.ExtractStatements.DuckDBExtractStatementsError(extractedStatements);
-                throw new DuckDBException(error);
+                throw new DuckDBException(string.IsNullOrEmpty(error) ? "The command text holds no statement to prepare" : error);
             }
 
             if (statementCount != 1)
