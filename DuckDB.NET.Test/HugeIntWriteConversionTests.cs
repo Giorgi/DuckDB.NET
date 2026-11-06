@@ -212,8 +212,8 @@ public class HugeIntWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestB
         reader.GetInt64(1).Should().Be(0);
     }
 
-    // A parameter of a table function is a DuckDB value, read by DuckDBValue.GetValue<T>, which reinterprets what it
-    // makes as T: an Int128 read as a BigInteger gave the bytes of the BigInteger.
+    // A parameter of a table function is a DuckDB value, read by DuckDBValue.GetValue<T>, which makes an Int128, a
+    // UInt128 or a BigInteger as asked.
     [Fact]
     public void ATableFunctionTakesInt128AndUInt128Parameters()
     {

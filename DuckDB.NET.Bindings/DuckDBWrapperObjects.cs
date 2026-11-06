@@ -162,7 +162,7 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
 
             DuckDBType.Uuid => Cast(new Guid(NativeMethods.Value.DuckDBGetVarchar(this))),
 
-            // Cast reinterprets the value without a check (see DATE below), so an Int128 or a UInt128 is produced as itself.
+            // An Int128 or a UInt128 is produced as itself; any other type gets the BigInteger.
             DuckDBType.HugeInt when typeof(T) == typeof(Int128) => Cast(NativeMethods.Value.DuckDBGetHugeInt(this).ToInt128()),
             DuckDBType.HugeInt => Cast(NativeMethods.Value.DuckDBGetHugeInt(this).ToBigInteger()),
             DuckDBType.UnsignedHugeInt when typeof(T) == typeof(UInt128) => Cast(NativeMethods.Value.DuckDBGetUHugeInt(this).ToUInt128()),
@@ -170,8 +170,7 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
 
             DuckDBType.Varchar => Cast(NativeMethods.Value.DuckDBGetVarchar(this)),
 
-            // DATE and TIME can be read as the .NET types or as the provider's own types. Cast reinterprets the value
-            // without a check, so the value has to be produced as exactly the requested type.
+            // DATE and TIME can be read as the .NET types or as the provider's own types.
             DuckDBType.Date when typeof(T) == typeof(DuckDBDateOnly) => Cast(DuckDBDateOnly.FromDuckDBDate(NativeMethods.Value.DuckDBGetDate(this))),
             DuckDBType.Date => Cast((DateOnly)DuckDBDateOnly.FromDuckDBDate(NativeMethods.Value.DuckDBGetDate(this))),
             DuckDBType.Time when typeof(T) == typeof(DuckDBTimeOnly) => Cast(NativeMethods.DateTimeHelpers.DuckDBFromTime(NativeMethods.Value.DuckDBGetTime(this))),
@@ -188,9 +187,16 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
             _ => throw new NotImplementedException($"Cannot read value of type {typeof(T).FullName}")
         };
 
+        // The value as it was produced, or as object, a nullable or an interface of it. Any other type is refused: the
+        // value used to be reinterpreted as T, which read past it or took an integer for a reference.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        static T Cast<TSource>(TSource value) => Unsafe.As<TSource, T>(ref value);
+        static T Cast<TSource>(TSource value) => typeof(T) == typeof(TSource)
+            ? Unsafe.As<TSource, T>(ref value)
+            : value is T result ? result : throw CannotCast(typeof(TSource), typeof(T));
     }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static InvalidCastException CannotCast(Type from, Type to) => new($"Cannot read a value of type {from.Name} as {to.Name}.");
 
     private DateTime GetTimestampValue(DuckDBTimestampStruct timestampStruct, DuckDBType duckDBType)
     {
