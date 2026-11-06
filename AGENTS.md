@@ -95,9 +95,14 @@ dotnet run -c Release -f net10.0 --project DuckDB.NET.Benchmarks -- --filter "*N
 
 ### Commands and results
 
-- **Execution:** `DuckDBCommand` calls `PreparedStatement.PrepareMultiple`, an iterator that extracts the statements
-  and prepares and executes one statement per `MoveNext()`. Parameters are converted by `DuckDBTypeMap` and
-  `ClrToDuckDBConverter` (positional and named).
+- **Execution:** `DuckDBCommand.ExecuteStatements()` takes one of two paths. An unprepared command calls
+  `PreparedStatement.PrepareMultiple`, an iterator that extracts the statements and prepares and executes one
+  statement per `MoveNext()`. After `Prepare()`, a single-statement command executes a `PreparedStatementEntry` that
+  its connection keeps, keyed by text and shared by commands with that text, until `Close()`. Parameters are
+  converted by `DuckDBTypeMap` and `ClrToDuckDBConverter` (positional and named). **Before changing the execution
+  path, the statement store or a parameter conversion, read `DESIGN.md` in `PreparedStatement`:** it describes both
+  paths, the conversion order, what DuckDB 2.0 does with a prepared statement, and the rules that must hold
+  (iterators, rent/return, clearing bindings, destroying statements before the database goes).
 - **Result modes:** `UseStreamingMode` **defaults to `false`**, so results are materialized. `true` uses
   `duckdb_execute_prepared_streaming` and `duckdb_stream_fetch_chunk`.
 - **Errors:** every native result error goes through `DuckDBResultExtensions.ThrowOnError`. An interrupt becomes
