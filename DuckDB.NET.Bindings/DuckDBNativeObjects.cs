@@ -244,9 +244,8 @@ public struct DuckDBString
 
     /// <summary>
     /// Builds a string that is kept inside the value: the UTF-8 bytes of <paramref name="value"/>, then zeros.
-    /// Returns false, with a default value, when they take more than 12 bytes, or when <paramref name="value"/>
-    /// contains a NUL character, because DuckDB.NET ends a string at its first NUL (DuckDB itself would keep it).
-    /// Write such a string through DuckDB, with its length.
+    /// Returns false, with a default value, when they take more than 12 bytes. Write such a string through DuckDB,
+    /// with its length.
     /// </summary>
     public static unsafe bool TryCreateInlined(ReadOnlySpan<char> value, out DuckDBString result)
     {
@@ -263,9 +262,8 @@ public struct DuckDBString
         {
             var bytes = new Span<byte>(data, InlineStringMaxLength);
 
-            // Characters of more than one byte, more than 12 bytes together; or a NUL character (UTF-8 has a zero
-            // byte only for it), which DuckDB.NET ends a string at.
-            if (!Encoding.UTF8.TryGetBytes(value, bytes, out var length) || bytes[..length].Contains((byte)0))
+            // Characters of more than one byte, more than 12 bytes together.
+            if (!Encoding.UTF8.TryGetBytes(value, bytes, out var length))
             {
                 result = default;
                 return false;

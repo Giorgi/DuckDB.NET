@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace DuckDB.NET.Data.PreparedStatement;
 
 internal static class ClrToDuckDBConverter
@@ -17,7 +19,7 @@ internal static class ClrToDuckDBConverter
         { DbType.UInt64, value => NativeMethods.Value.DuckDBCreateUInt64((ulong)value) },
         { DbType.Single, value => NativeMethods.Value.DuckDBCreateFloat((float)value) },
         { DbType.Double, value => NativeMethods.Value.DuckDBCreateDouble((double)value) },
-        { DbType.String, value => NativeMethods.Value.DuckDBCreateVarchar((string?)value) },
+        { DbType.String, value => CreateVarchar((string?)value) },
         { DbType.VarNumeric, value => BigIntegerWithoutTargetType((BigInteger)value) },
         { DbType.Binary, value =>
             {
@@ -70,15 +72,15 @@ internal static class ClrToDuckDBConverter
 
             (DuckDBType.Boolean, bool value) => NativeMethods.Value.DuckDBCreateBool(value),
 
-            (DuckDBType.TinyInt, _) => TryConvertTo<sbyte>(out var result) ? NativeMethods.Value.DuckDBCreateInt8(result) : NativeMethods.Value.DuckDBCreateVarchar(item.ToString()),
-            (DuckDBType.SmallInt, _) => TryConvertTo<short>(out var result) ? NativeMethods.Value.DuckDBCreateInt16(result) : NativeMethods.Value.DuckDBCreateVarchar(item.ToString()),
-            (DuckDBType.Integer, _) => TryConvertTo<int>(out var result) ? NativeMethods.Value.DuckDBCreateInt32(result) : NativeMethods.Value.DuckDBCreateVarchar(item.ToString()),
-            (DuckDBType.BigInt, _) => TryConvertTo<long>(out var result) ? NativeMethods.Value.DuckDBCreateInt64(result) : NativeMethods.Value.DuckDBCreateVarchar(item.ToString()),
+            (DuckDBType.TinyInt, _) => TryConvertTo<sbyte>(out var result) ? NativeMethods.Value.DuckDBCreateInt8(result) : CreateVarchar(item.ToString()),
+            (DuckDBType.SmallInt, _) => TryConvertTo<short>(out var result) ? NativeMethods.Value.DuckDBCreateInt16(result) : CreateVarchar(item.ToString()),
+            (DuckDBType.Integer, _) => TryConvertTo<int>(out var result) ? NativeMethods.Value.DuckDBCreateInt32(result) : CreateVarchar(item.ToString()),
+            (DuckDBType.BigInt, _) => TryConvertTo<long>(out var result) ? NativeMethods.Value.DuckDBCreateInt64(result) : CreateVarchar(item.ToString()),
 
-            (DuckDBType.UnsignedTinyInt, _) => TryConvertTo<byte>(out var result) ? NativeMethods.Value.DuckDBCreateUInt8(result) : NativeMethods.Value.DuckDBCreateVarchar(item.ToString()),
-            (DuckDBType.UnsignedSmallInt, _) => TryConvertTo<ushort>(out var result) ? NativeMethods.Value.DuckDBCreateUInt16(result) : NativeMethods.Value.DuckDBCreateVarchar(item.ToString()),
-            (DuckDBType.UnsignedInteger, _) => TryConvertTo<uint>(out var result) ? NativeMethods.Value.DuckDBCreateUInt32(result) : NativeMethods.Value.DuckDBCreateVarchar(item.ToString()),
-            (DuckDBType.UnsignedBigInt, _) => TryConvertTo<ulong>(out var result) ? NativeMethods.Value.DuckDBCreateUInt64(result) : NativeMethods.Value.DuckDBCreateVarchar(item.ToString()),
+            (DuckDBType.UnsignedTinyInt, _) => TryConvertTo<byte>(out var result) ? NativeMethods.Value.DuckDBCreateUInt8(result) : CreateVarchar(item.ToString()),
+            (DuckDBType.UnsignedSmallInt, _) => TryConvertTo<ushort>(out var result) ? NativeMethods.Value.DuckDBCreateUInt16(result) : CreateVarchar(item.ToString()),
+            (DuckDBType.UnsignedInteger, _) => TryConvertTo<uint>(out var result) ? NativeMethods.Value.DuckDBCreateUInt32(result) : CreateVarchar(item.ToString()),
+            (DuckDBType.UnsignedBigInt, _) => TryConvertTo<ulong>(out var result) ? NativeMethods.Value.DuckDBCreateUInt64(result) : CreateVarchar(item.ToString()),
 
             (DuckDBType.Float, float value) => NativeMethods.Value.DuckDBCreateFloat(value),
             (DuckDBType.Double, double value) => NativeMethods.Value.DuckDBCreateDouble(value),
@@ -88,7 +90,7 @@ internal static class ClrToDuckDBConverter
             (DuckDBType.UnsignedHugeInt, BigInteger value) => NativeMethods.Value.DuckDBCreateUHugeInt(new DuckDBUHugeInt(value)),
             (DuckDBType.VarInt, BigInteger value) => BigIntegerToDuckDBValue(value),
 
-            (DuckDBType.Varchar, string value) => NativeMethods.Value.DuckDBCreateVarchar(value),
+            (DuckDBType.Varchar, string value) => CreateVarchar(value),
             (DuckDBType.Uuid, Guid value) => NativeMethods.Value.DuckDBCreateUuid(value.ToHugeInt(false)),
 
             (DuckDBType.Timestamp, DateTime value) => NativeMethods.Value.DuckDBCreateTimestamp(value.ToTimestampStruct(duckDBType)),
@@ -117,7 +119,7 @@ internal static class ClrToDuckDBConverter
             (DuckDBType.Array, ICollection value) => CreateCollectionValue(logicalType, value, false, dbType),
             (_, ICollection value) when item is not byte[] => CreateListFromClrType(value, dbType),
             _ when ValueCreators.TryGetValue(dbType, out var converter) => converter(item),
-            _ => NativeMethods.Value.DuckDBCreateVarchar(item.ToString())
+            _ => CreateVarchar(item.ToString())
         };
 
         bool TryConvertTo<T>(out T result) where T : struct
@@ -160,7 +162,7 @@ internal static class ClrToDuckDBConverter
 
         if (elementType == null)
         {
-            return NativeMethods.Value.DuckDBCreateVarchar(collection.ToString());
+            return CreateVarchar(collection.ToString());
         }
 
         using var childType = elementType.GetLogicalType();
@@ -236,6 +238,14 @@ internal static class ClrToDuckDBConverter
         {
             return NativeMethods.Value.DuckDBCreateBignum(new DuckDBBignum((IntPtr)data, (ulong)bytes.Length, isNegative ? (byte)1 : (byte)0));
         }
+    }
+
+    // Encoded here and passed as bytes, so a NUL character in the string is kept. Never null: ToDuckDBValue sends a
+    // null value as NULL.
+    private static DuckDBValue CreateVarchar(string? value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        return NativeMethods.Value.DuckDBCreateVarchar(Encoding.UTF8.GetBytes(value));
     }
 
     private static DuckDBValue DecimalToDuckDBValue(decimal value)

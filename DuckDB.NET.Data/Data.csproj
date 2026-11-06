@@ -82,6 +82,8 @@ Behavior changes:
 
   <ItemGroup>
     <ProjectReference Include="..\DuckDB.NET.Bindings\Bindings.csproj" />
+    <!-- Internal in each assembly, so Data compiles its own copy for net8.0. -->
+    <Compile Include="..\DuckDB.NET.Bindings\OverloadResolutionPriorityAttribute.cs" Link="Extensions\OverloadResolutionPriorityAttribute.cs" />
   </ItemGroup>
 
 </Project>

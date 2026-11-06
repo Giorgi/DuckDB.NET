@@ -295,18 +295,17 @@ between two runs.
 - **The short string is built by `DuckDBString.TryCreateInlined`** in Bindings, the struct the reader reads, so
   the layout is declared once for both directions. The bytes after the string have to be zero: DuckDB compares and
   hashes a short string by its 16 bytes. The method keeps that rule, so `DuckDBStringInlined` is internal
-  (Bindings exposes nothing internal to Data, since the two are separate packages). It also refuses a string with
-  a NUL character, which the writer then sends the long way (below). Tier 1 code of `AppendString` on .NET 10 is
-  the same as when the writer filled a public `DuckDBStringInlined` itself (166 instructions against 163, the same
-  calls; `azure/jitcmp-string`). On .NET 8 `TryCreateInlined` is inlined too, but the `Contains` inside it is not:
-  a call to `SpanHelpers.NonPackedContainsValueType` per short string, where the writer's own `Contains` was
-  unrolled. One short run on .NET 8 (2 launches, the maintainer's PC) showed no difference (0.93 and 0.97, noise
-  about 10%); kept as it is. Rejected: the NUL check in the writer, on the characters (`string.Contains('\0')`
-  is a call per string, since the packed search cannot look for 0) or on the bytes through `DuckDBString.Data`
-  (six more instructions, among them a `cmov` that always loads 8 bytes, since the JIT cannot see the length is at
-  most 12).
-- **Kept:** a string ends at its first NUL character, as it did when DuckDB measured it as a C string. A
-  parameter does the same.
+  (Bindings exposes nothing internal to Data, since the two are separate packages). Tier 1 code of `AppendString`
+  on .NET 10 was the same as when the writer filled a public `DuckDBStringInlined` itself (166 instructions against
+  163, the same calls; `azure/jitcmp-string`), measured while the method still searched the bytes for a NUL.
+- **A NUL character is stored like any other** (2.0). Until 2.0 a string ended at its first NUL, as it did
+  when DuckDB measured it as a C string: `TryCreateInlined` refused such a string and the long path cut it. Both
+  checks are gone. A parameter keeps it too: `ClrToDuckDBConverter.CreateVarchar` encodes the string into a
+  `byte[]` (one allocation per string parameter, chosen for simplicity) and passes it to the
+  `DuckDBCreateVarchar(ReadOnlySpan<byte>)` overload in Bindings, which calls `duckdb_create_varchar_length` with the
+  span's length. The `DuckDBCreateVarchar(string?)` import of `duckdb_create_varchar` stays as it was, for callers
+  of `NativeMethods`, with `[OverloadResolutionPriority(1)]` so that `null` still binds to it. The cost of the
+  removed search was not measured on its own.
 - **Checked:** 27,016 strings appended to a VARCHAR, a VARCHAR[] and a BLOB column and returned from a scalar
   function are stored byte for byte as before, on both runtimes. `StringWriteConversionTests` guards the layout
   by comparing with the bytes DuckDB reads back and with strings DuckDB made.
@@ -653,7 +652,6 @@ between two runs.
 - **A TIMESTAMP_S and a TIMESTAMP_MS round toward zero before 1970,** so 1969-12-31 23:59:59.9999999 is stored
   as 1970-01-01 00:00:00. DuckDB's own cast rounds down.
 - **A `DateTime` outside 1677 to 2262 wraps around in a TIMESTAMP_NS,** with no error.
-- **A string ends at its first NUL character** (decision 11).
 - **The expression of a column of a table function is not evaluated when the query does not read the column**
   (decision 14). A table function registered with a method that takes an `object` is still called for every
   row, and decides itself what to write.

@@ -18,7 +18,6 @@ internal sealed unsafe class StringVectorDataWriter(IntPtr vector, void* vectorD
 
     internal override bool AppendString(string value, ulong rowIndex)
     {
-        // A string with a NUL character is not inlined either: it goes the long way, which ends it there.
         if (value.Length > InlineLength || !DuckDBString.TryCreateInlined(value, out var inline))
         {
             return AppendLongString(value, rowIndex);
@@ -39,14 +38,6 @@ internal sealed unsafe class StringVectorDataWriter(IntPtr vector, void* vectorD
             : rented = ArrayPool<byte>.Shared.Rent(Encoding.UTF8.GetByteCount(value));
 
         var length = Encoding.UTF8.GetBytes(value, buffer);
-
-        // The string ends at its first NUL character, as it did when DuckDB measured it as a C string.
-        var terminator = buffer[..length].IndexOf((byte)0);
-
-        if (terminator >= 0)
-        {
-            length = terminator;
-        }
 
         fixed (byte* pointer = buffer)
         {
