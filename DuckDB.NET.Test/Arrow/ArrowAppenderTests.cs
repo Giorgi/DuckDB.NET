@@ -446,6 +446,53 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Connection.Query<int>("SELECT i FROM arrow_partial ORDER BY rowid").Should().Equal(-1, -2);
     }
 
+    [Fact]
+    public void AppendBatch_ConstraintFailureAtFlushDropsEarlierBatches()
+    {
+        // Constraints are checked when the appender flushes. A batch over the flush threshold (204,800 rows) makes
+        // AppendBatch flush, and the failed flush drops the earlier, valid batch as well.
+        Connection.ExecuteNonQuery("CREATE TABLE arrow_not_null(i INTEGER NOT NULL)");
+
+        var schema = new Schema.Builder().Field(f => f.Name("i").DataType(Int32Type.Default)).Build();
+        var valid = new Int32Array.Builder();
+        for (var i = 0; i < 10; i++) valid.Append(i);
+
+        var withNull = new Int32Array.Builder();
+        for (var i = 0; i < 300_000; i++)
+        {
+            if (i == 150_000) withNull.AppendNull(); else withNull.Append(i);
+        }
+
+        using (var appender = Connection.CreateArrowAppender("arrow_not_null"))
+        {
+            appender.AppendBatch(new RecordBatch(schema, [valid.Build()], 10));
+
+            var bad = new RecordBatch(schema, [withNull.Build()], 300_000);
+            appender.Invoking(a => a.AppendBatch(bad)).Should().Throw<DuckDBException>().WithMessage("*NOT NULL*");
+        }
+
+        Connection.QuerySingle<long>("SELECT count(*) FROM arrow_not_null").Should().Be(0);
+    }
+
+    [Fact]
+    public void Dispose_ConstraintFailureDropsUnflushedBatches()
+    {
+        // Below the flush threshold nothing is checked until the appender is closed: both batches append, and the
+        // duplicate key fails at Dispose, which drops both.
+        Connection.ExecuteNonQuery("CREATE TABLE arrow_primary_key(i INTEGER PRIMARY KEY)");
+
+        var schema = new Schema.Builder().Field(f => f.Name("i").DataType(Int32Type.Default)).Build();
+        var appender = Connection.CreateArrowAppender("arrow_primary_key");
+
+        appender.AppendBatch(new RecordBatch(schema, [new Int32Array.Builder().Append(1).Append(2).Build()], 2));
+        appender.AppendBatch(new RecordBatch(schema, [new Int32Array.Builder().Append(3).Append(1).Build()], 2));
+
+        appender.Invoking(a => a.Dispose()).Should().Throw<DuckDBException>();
+        appender.Invoking(a => a.Dispose()).Should().NotThrow();
+
+        Connection.QuerySingle<long>("SELECT count(*) FROM arrow_primary_key").Should().Be(0);
+    }
+
     private sealed class ListStream(Schema schema, IReadOnlyList<RecordBatch> batches, Action<int> beforeRead) : Apache.Arrow.Ipc.IArrowArrayStream
     {
         private int next;

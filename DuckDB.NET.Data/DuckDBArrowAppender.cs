@@ -19,9 +19,16 @@ namespace DuckDB.NET.Data;
 /// the table when the appender flushes, closes or is disposed. Instances are not thread-safe.
 /// </para>
 /// <para>
-/// If DuckDB fails to convert or append a batch, none of that batch is appended and the appender is faulted:
+/// If DuckDB fails to convert or cast a batch, none of that batch is appended and the appender is faulted:
 /// no more batches can be appended. The batches appended before the failure are still written when the
-/// appender is closed or disposed. Wrap the appends in a transaction if you need all-or-nothing.
+/// appender is closed or disposed.
+/// </para>
+/// <para>
+/// Constraints such as NOT NULL, PRIMARY KEY and UNIQUE are checked only when the appender flushes: by itself
+/// every 204,800 rows, and when it is closed or disposed. A constraint failure is thrown by the call that
+/// flushed, which can be a later <see cref="AppendBatch"/>, <see cref="Close"/> or <see cref="Dispose"/>, and
+/// it drops every batch appended since the last flush, not only the one with the bad row. Wrap the appends in
+/// a transaction if you need all-or-nothing.
 /// </para>
 /// <para>
 /// To copy a query result, read it on another connection: a connection with an open streaming result cannot
