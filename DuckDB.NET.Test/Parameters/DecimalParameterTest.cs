@@ -510,4 +510,14 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
         Command.ExecuteScalar().Should().Be(5.0m);
     }
+
+    [Fact]
+    public void ExplicitDecimalDbTypeWithATextValueKeepsItsNulCharacters()
+    {
+        Command.CommandText = "SELECT length(?)";
+        Command.Parameters.Clear();
+        Command.Parameters.Add(new DuckDBParameter("a\0b") { DbType = DbType.Decimal });
+
+        Command.ExecuteScalar().Should().Be(3L);
+    }
 }
