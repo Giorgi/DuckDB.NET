@@ -152,10 +152,11 @@ dotnet run -c Release -f net10.0 --project DuckDB.NET.Benchmarks -- --filter "*N
   - **Shape:** v2.0.0 does not check the array's shape, and `RecordBatch` does not check that its columns are as long
     as the batch. A shorter column is read past its end (garbage, or a crash for strings), so the appender checks
     every column's length before exporting. Keep that check.
-  - **Slicing:** DuckDB v2.0.0 cannot cast a chunk longer than 2048 rows (duckdb/duckdb#27664, fixed after 2.0.0), so
-    longer batches are appended in `RecordBatch.Slice` pieces. Never dispose the slices: they share the batch's
-    buffers. `AppendBatch_CastsColumnsInLongBatches` fails without the slicing. Reconsider it once the engine has the
-    fix. The design and probe results are in `issues/arrow-appender-design.md`.
+  - **One chunk per batch:** a batch goes to DuckDB as one chunk of any length, so a failed batch appends nothing.
+    That needs an engine with duckdb/duckdb#27664: DuckDB v2.0.0 cannot cast a chunk longer than 2048 rows, and
+    `AppendBatch_CastsColumnsInLongBatches` fails on it. The appender lives on `nightly-builds` until DuckDB.NET
+    targets such an engine (2.0.1). On 2.0.0 it would have to append batches in `RecordBatch.Slice` pieces of 2048
+    rows (commit 323c21d), which costs 1.20x on 65536-row batches.
 - **UDFs:** scalar functions (`DuckDBConnection.ScalarFunction*.cs`) and table functions
   (`DuckDBConnection.TableFunction*.cs`) are registered through generic overloads for different parameter counts.
   Callbacks are pinned with `GCHandle`. A table function creates its data enumerator per scan init, not per bind,

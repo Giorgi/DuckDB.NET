@@ -53,7 +53,8 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(5000)]
     public void AppendBatch_CastsColumnsInLongBatches(int rowCount)
     {
-        // An int32 column into BIGINT needs a cast, which DuckDB 2.0.0 cannot do on chunks longer than 2048 rows.
+        // An int32 column into BIGINT needs a cast. DuckDB 2.0.0 cannot cast a chunk longer than 2048 rows
+        // (duckdb/duckdb#27664), and the appender sends the whole batch as one chunk, so this needs a fixed engine.
         var table = $"arrow_cast_{rowCount}";
         Connection.ExecuteNonQuery($"CREATE TABLE {table}(exact INTEGER, widened BIGINT)");
 
@@ -379,8 +380,8 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void AppendBatch_LongMixedBatchFromOffset()
     {
-        // Strings, booleans and NULLs across the 2048-row slice boundaries, with a cast, from a batch that starts at
-        // an offset.
+        // Strings, booleans and NULLs across 2048-row vector boundaries, with a cast, from a batch that starts at an
+        // offset.
         const int rowCount = 5003;
         Connection.ExecuteNonQuery("CREATE TABLE arrow_long_mixed(i BIGINT, s VARCHAR, b BOOLEAN)");
 
@@ -421,10 +422,10 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    public void AppendBatch_FailingLongBatchKeepsTheSlicesBeforeTheFailure()
+    public void AppendBatch_FailingLongBatchAppendsNothingOfIt()
     {
-        // Pins the documented behaviour: a batch longer than 2048 rows is appended in slices, so when a later slice
-        // fails, the earlier ones are written when the appender is disposed.
+        // The batch goes to DuckDB as one chunk, so a value that fails to cast after the first 2048 rows leaves none
+        // of the batch behind. The batch appended before it is still written.
         Connection.ExecuteNonQuery("CREATE TABLE arrow_partial(i INTEGER)");
 
         var schema = new Schema.Builder().Field(f => f.Name("i").DataType(StringType.Default)).Build();
@@ -436,11 +437,13 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
         using (var appender = Connection.CreateArrowAppender("arrow_partial"))
         {
+            appender.AppendBatch(new RecordBatch(schema, [new StringArray.Builder().Append("-1").Append("-2").Build()], 2));
+
             var batch = new RecordBatch(schema, [values.Build()], 5000);
             appender.Invoking(a => a.AppendBatch(batch)).Should().Throw<DuckDBException>();
         }
 
-        Connection.QuerySingle<(long Count, long Max)>("SELECT count(*), max(i) FROM arrow_partial").Should().Be((2048L, 2047L));
+        Connection.Query<int>("SELECT i FROM arrow_partial ORDER BY rowid").Should().Equal(-1, -2);
     }
 
     private sealed class ListStream(Schema schema, IReadOnlyList<RecordBatch> batches, Action<int> beforeRead) : Apache.Arrow.Ipc.IArrowArrayStream

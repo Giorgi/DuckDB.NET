@@ -12,9 +12,8 @@ namespace DuckDB.NET.Benchmarks;
 // Arrow path itself. The batches are built once in GlobalSetup, so building them is not measured.
 // - AppendBatches: DuckDBArrowAppender into INTEGER columns, the types match exactly.
 // - AppendBatchesWithCast: the same int32 data into BIGINT columns, so DuckDB casts every column.
-// - NativeNoSlicing: the same C API calls as AppendBatches, made directly and without slicing batches longer than
-//   VectorSize. On batches of up to 2048 rows it shows the wrapper's overhead, on longer ones the cost of slicing.
-//   It works only because the types match: DuckDB v2.0.0 cannot cast a chunk longer than 2048 rows.
+// - NativeCalls: the same C API calls as AppendBatches, made directly, so the difference is the wrapper's overhead.
+// Batches longer than 2048 rows with a cast need an engine with duckdb/duckdb#27664; DuckDB v2.0.0 fails them.
 // Only builds that have DuckDBArrowAppender can run it (ARROW_APPENDER, set in the project file), so every job of a
 // run must be such a build.
 [MemoryDiagnoser]
@@ -111,7 +110,7 @@ public class ArrowAppenderBenchmark
     }
 
     [Benchmark(Baseline = true)]
-    public unsafe void NativeNoSlicing()
+    public unsafe void NativeCalls()
     {
         var nativeConnection = connection.NativeConnection;
 

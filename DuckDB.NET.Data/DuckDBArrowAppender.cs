@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using Apache.Arrow;
 using Apache.Arrow.C;
 using Apache.Arrow.Ipc;
-using DuckDB.NET.Data.Common;
 
 namespace DuckDB.NET.Data;
 
@@ -20,10 +19,13 @@ namespace DuckDB.NET.Data;
 /// the table when the appender flushes, closes or is disposed. Instances are not thread-safe.
 /// </para>
 /// <para>
-/// If DuckDB fails to convert or append a batch, the appender is faulted: no more batches can be appended,
-/// and part of the failed batch may already have been appended. The data appended before the failure is
-/// still written when the appender is closed or disposed. Wrap the append in a transaction if you need
-/// all-or-nothing.
+/// If DuckDB fails to convert or append a batch, none of that batch is appended and the appender is faulted:
+/// no more batches can be appended. The batches appended before the failure are still written when the
+/// appender is closed or disposed. Wrap the appends in a transaction if you need all-or-nothing.
+/// </para>
+/// <para>
+/// To copy a query result, read it on another connection: a connection with an open streaming result cannot
+/// run the appender's work.
 /// </para>
 /// </remarks>
 public sealed class DuckDBArrowAppender : IDisposable
@@ -188,22 +190,9 @@ public sealed class DuckDBArrowAppender : IDisposable
 
         try
         {
-            // DuckDB v2.0.0 fails to append a chunk of more than VectorSize rows when a column needs a cast
-            // (duckdb/duckdb#27664, fixed after 2.0.0), so a longer batch is appended in slices. Slicing
-            // copies nothing. The slices are not disposed: they share the batch's buffers, and disposing
-            // them would free memory the batch still owns.
-            var vectorSize = (int)DuckDBGlobalData.VectorSize;
-
-            if (batch.Length <= vectorSize)
-            {
-                AppendSlice(batch, schema);
-                return;
-            }
-
-            for (var offset = 0; offset < batch.Length; offset += vectorSize)
-            {
-                AppendSlice(batch.Slice(offset, Math.Min(vectorSize, batch.Length - offset)), schema);
-            }
+            // The whole batch goes to DuckDB as one chunk, whatever its length. That needs an engine with
+            // duckdb/duckdb#27664: DuckDB v2.0.0 cannot cast a chunk of more than 2048 rows.
+            AppendChunk(batch, schema);
         }
         catch
         {
@@ -250,7 +239,7 @@ public sealed class DuckDBArrowAppender : IDisposable
         }
     }
 
-    private unsafe void AppendSlice(RecordBatch batch, DuckDBArrowConvertedSchema schema)
+    private unsafe void AppendChunk(RecordBatch batch, DuckDBArrowConvertedSchema schema)
     {
         var cArray = CArrowArray.Create();
 
