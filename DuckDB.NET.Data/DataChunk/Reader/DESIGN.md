@@ -278,6 +278,15 @@ not use profile data to guess the target as it does for a plain virtual call.
   remainder. The steps were kept on purpose, so the result has the same scale as before: `1.5` from a DECIMAL(38,4),
   where a DECIMAL(18,4) gives `1.5000`. The old and the new conversion were compared on the bits of the result and
   on whether they throw, for every scale from 0 to 38: 46,820,592 conversions on each runtime, none different.
+  Since 2.0 a value that fits 96 bits is built directly instead (next bullet), so that scale is gone.
+- **A wide DECIMAL that fits 96 bits, with a scale of at most 28, is built from its digits and the scale** (2.0),
+  like the narrower sizes, with no division: `1.5000` from a DECIMAL(38,4) as from a DECIMAL(18,4), where it was
+  `1.5`. `GetDecimal` only calls `GetWideDecimal` for a HUGEINT, which builds such a value and calls the
+  `NoInlining` `DivideWideDecimal` for the rest. A first version built the value inside `GetDecimal`: its frame
+  grew from 80 to 136 bytes on Windows and DECIMAL(18,4) reads took 1.51 to 1.70 times as long in two check
+  passes on the VM. Measured on the Linux VM, .NET 10, 4 processes, against the build before: DECIMAL(38,4)
+  with `GetDecimal` 0.20 (184.7 to 36.9 ms for 4,000,000 values), DECIMAL(18,4) 0.95 (its `GetDecimal` is the
+  same code as before on both OSes), HUGEINT as `long` 1.01. Pinned by `AWideDecimalKeepsTheScaleOfItsColumn`.
 - **Not changed by this decision:** `GetValue` and `GetFieldValue<BigInteger>` returned a `BigInteger`; a read as
   `float`, `double` or `decimal` is refused; VARINT is stored as a byte string and still goes through `BigInteger`.
   Since 2.0 `GetValue` returns `Int128` for HUGEINT and `UInt128` for UHUGEINT (item 9); the `GetValue` row of the
@@ -539,10 +548,8 @@ not use profile data to guess the target as it does for a plain virtual call.
   constructor of `DateTimeOffset` is a call that validates the offset. That is the cost of the type.
 - **A read as `DuckDBTimestamp`, `DuckDBDateOnly`, `DuckDBTimeOnly` or `DuckDBTimeTz` calls DuckDB,** by design
   (decision 8).
-- **A wide DECIMAL (stored as a HUGEINT) is still divided on every read:** about 50 to 70 ns per value, where a
-  DECIMAL(18,4), which is built from the stored integer and the scale with no division, takes about 14 ns. A value
-  that fits 96 bits with a scale of at most 28 could be built the same way. That is not done because it changes what
-  the value looks like: `1.5000` where it is `1.5` today. Its speed is not measured.
+- **A wide DECIMAL beyond 96 bits, or with a scale above 28, is still divided on every read:** about 50 to 70 ns
+  per value. A value that fits is built directly since 2.0 (decision above).
 - **`GetValue` boxes every value** except booleans. It returns `object`; nothing can be done about it here.
 - **A scalar function whose callback is written against the interfaces reads its inputs through
   `IDuckDBDataReader.GetValue<T>`,** a generic method on an interface, which is looked up at run time on every

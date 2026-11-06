@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace DuckDB.NET.Data.DataChunk.Reader;
 
 internal sealed class DecimalVectorDataReader : VectorDataReaderBase
@@ -133,14 +135,29 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
         }
     }
 
-    // A DECIMAL of more than 18 digits, which DuckDB stores as a HUGEINT. It is a method of its own because the
-    // division and the try block need a large stack frame, and inside GetDecimal that frame is set up and
-    // cleared on every call, also for the three storage sizes that do not need it.
+    // A DECIMAL of more than 18 digits, which DuckDB stores as a HUGEINT. A method of its own, so that GetDecimal keeps
+    // the small frame of the three smaller sizes. A value that fits the 96 bits of a decimal, with a scale a decimal
+    // can hold, is built like them: from its digits and the scale, with no division, so it keeps the scale of the
+    // column (1.5000 from a DECIMAL(38,4), 1.5 before 2.0).
     private decimal GetWideDecimal(ulong offset)
     {
-        // A HUGEINT is an Int128. Dividing it as one allocates nothing; a BigInteger allocates for
-        // the value, the quotient and the remainder.
         var raw = GetFieldData<DuckDBHugeInt>(offset).ToInt128();
+        var abs = (UInt128)Int128.Abs(raw);
+
+        if (abs >> 96 == 0 && Scale <= DecimalExtensions.MaxDecimalScale)
+        {
+            return new decimal((int)(uint)abs, (int)(uint)(abs >> 32), (int)(uint)(abs >> 64), raw < 0, Scale);
+        }
+
+        return DivideWideDecimal(raw);
+    }
+
+    // A value beyond the 96 bits of a decimal, or a scale above 28. Not inlined: the division and the try block need a
+    // large stack frame, which would otherwise be set up and cleared for every wide value.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private decimal DivideWideDecimal(Int128 raw)
+    {
+        // Dividing an Int128 allocates nothing; a BigInteger allocates for the value, the quotient and the remainder.
 
         var (quotient, remainder) = Int128.DivRem(raw, DecimalExtensions.Int128PowersOfTen[Scale]);
 

@@ -878,6 +878,39 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         reader.GetFieldValue<Int128>(1).Should().Be(-largest);
     }
 
+    // A wide DECIMAL that fits the 96 bits of a decimal is built from its digits and the scale, as the narrower ones
+    // are, so it keeps the scale of its column: 1.5000 from a DECIMAL(38,4) as from a DECIMAL(18,4). Before 2.0 it was
+    // divided, which dropped the trailing zeros. A value beyond 96 bits, or a scale above 28, is still divided.
+    [Fact]
+    public void AWideDecimalKeepsTheScaleOfItsColumn()
+    {
+        Command.CommandText = """
+            SELECT 1.5::DECIMAL(38,4), (-1.5)::DECIMAL(38,4), 0::DECIMAL(38,4), 1.5::DECIMAL(18,4),
+                   79228162514264337593543950335::DECIMAL(38,0), (-79228162514264337593543950335)::DECIMAL(38,0),
+                   7922816251426433759354395033.5::DECIMAL(38,1), 79228162514264337593543950336::DECIMAL(38,0),
+                   1.5::DECIMAL(38,30)
+            """;
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        string Text(int ordinal) => reader.GetDecimal(ordinal).ToString(CultureInfo.InvariantCulture);
+
+        Text(0).Should().Be("1.5000");
+        ((decimal)reader.GetValue(0)).ToString(CultureInfo.InvariantCulture).Should().Be("1.5000");
+        Text(1).Should().Be("-1.5000");
+        Text(2).Should().Be("0.0000");
+        Text(3).Should().Be("1.5000");
+
+        // The largest and smallest values of 96 bits, the last with a scale.
+        reader.GetDecimal(4).Should().Be(decimal.MaxValue);
+        reader.GetDecimal(5).Should().Be(decimal.MinValue);
+        Text(6).Should().Be("7922816251426433759354395033.5");
+
+        // One past 96 bits, and a scale above 28, take the division.
+        reader.Invoking(r => r.GetDecimal(7)).Should().Throw<OverflowException>();
+        reader.GetDecimal(8).Should().Be(1.5m);
+    }
+
     // A list item, a map key or value and a struct field read as Int128 or UInt128, as a column does.
     [Fact]
     public void ListsMapsAndStructsOfHugeIntsReadAsInt128AndUInt128()
