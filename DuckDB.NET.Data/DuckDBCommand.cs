@@ -5,6 +5,7 @@ using System.Threading;
 using Apache.Arrow;
 using Apache.Arrow.Ipc;
 using DuckDB.NET.Data.Arrow;
+using DuckDB.NET.Data.PreparedStatement;
 
 namespace DuckDB.NET.Data;
 
@@ -12,6 +13,12 @@ public class DuckDBCommand : DbCommand
 {
     private DuckDBConnection? connection;
     private readonly DuckDBParameterCollection parameters = new();
+
+    // Set by Prepare(). The entry belongs to the connection, which destroys it when it closes; preparedOpenCount
+    // tells whether the connection was closed and opened again since, so the statement must be prepared again.
+    private bool prepared;
+    private PreparedStatementEntry? preparedEntry;
+    private int preparedOpenCount;
 
     protected override DbTransaction? DbTransaction { get; set; }
     protected override DbParameterCollection DbParameterCollection => parameters;
@@ -40,14 +47,28 @@ public class DuckDBCommand : DbCommand
         set
         {
             // TODO: We shouldn't be able to change the CommandText when the command is in execution (requires CommandState implementation)
-            field = value ?? string.Empty;
+            var commandText = value ?? string.Empty;
+            if (!string.Equals(field, commandText, StringComparison.Ordinal))
+            {
+                Unprepare();
+            }
+
+            field = commandText;
         }
     } = string.Empty;
 
     protected override DbConnection? DbConnection
     {
         get => connection;
-        set => connection = (DuckDBConnection?)value;
+        set
+        {
+            if (!ReferenceEquals(connection, value))
+            {
+                Unprepare();
+            }
+
+            connection = (DuckDBConnection?)value;
+        }
     }
 
     public DuckDBCommand()
@@ -70,7 +91,7 @@ public class DuckDBCommand : DbCommand
     {
         EnsureConnectionOpen();
 
-        var results = PreparedStatement.PreparedStatement.PrepareMultiple(connection!.NativeConnection, CommandText, parameters, UseStreamingMode);
+        var results = ExecuteStatements();
 
         // DbCommand.ExecuteNonQuery: "For UPDATE, INSERT, and DELETE statements, the return value is the number of
         // rows affected by the command. For all other types of statements, the return value is -1."
@@ -121,7 +142,7 @@ public class DuckDBCommand : DbCommand
     {
         EnsureConnectionOpen();
 
-        var results = PreparedStatement.PreparedStatement.PrepareMultiple(connection!.NativeConnection, CommandText, parameters, UseStreamingMode);
+        var results = ExecuteStatements();
 
         var reader = new DuckDBDataReader(this, results, behavior);
 
@@ -140,7 +161,7 @@ public class DuckDBCommand : DbCommand
     {
         EnsureConnectionOpen();
 
-        var results = PreparedStatement.PreparedStatement.PrepareMultiple(connection!.NativeConnection, CommandText, parameters, UseStreamingMode);
+        var results = ExecuteStatements();
 
         foreach (var (result, _) in results)
         {
@@ -148,7 +169,7 @@ public class DuckDBCommand : DbCommand
 
             if (NativeMethods.Query.DuckDBResultReturnType(current) == DuckDBResultType.QueryResult)
             {
-                return new DuckDBArrowArrayStream(current, connection.NativeConnection);
+                return new DuckDBArrowArrayStream(current, connection!.NativeConnection);
             }
 
             current.Close();
@@ -180,10 +201,83 @@ public class DuckDBCommand : DbCommand
     }
 
     /// <summary>
-    /// Statements are prepared when the command executes, so this only checks what IDbCommand.Prepare documents:
-    /// InvalidOperationException when "The Connection is not set. -or- The Connection is not Open()."
+    /// Prepares the statement of the command once, so later executions only bind the parameters and execute: they
+    /// skip splitting the text into statements, parsing and preparing. The statement is kept by the connection until
+    /// it closes, and commands with the same text on that connection share it. After the connection is closed and
+    /// opened again, the next execution prepares it again. Changing <see cref="CommandText"/> or
+    /// <see cref="Connection"/> undoes the preparation.
     /// </summary>
-    public override void Prepare() => EnsureConnectionOpen();
+    /// <remarks>
+    /// A command of several statements is not prepared: a later statement can depend on an earlier one having run,
+    /// so each is still prepared just before it runs. Errors in the text are reported here instead of at execution.
+    /// As IDbCommand.Prepare documents, throws InvalidOperationException when "The Connection is not set. -or- The
+    /// Connection is not Open()."
+    /// </remarks>
+    public override void Prepare()
+    {
+        EnsureConnectionOpen();
+
+        PrepareStatement();
+        prepared = true;
+    }
+
+    private void PrepareStatement()
+    {
+        var commandConnection = connection!;
+        preparedEntry = commandConnection.GetOrPrepareStatement(CommandText);
+        preparedOpenCount = commandConnection.OpenCount;
+    }
+
+    private void Unprepare()
+    {
+        prepared = false;
+        preparedEntry = null;
+    }
+
+    private IEnumerable<StatementResult> ExecuteStatements()
+    {
+        var nativeConnection = connection!.NativeConnection;
+
+        if (prepared && (preparedOpenCount != connection.OpenCount || preparedEntry is { IsDisposed: true }))
+        {
+            // The connection was closed since Prepare(), which destroyed the statement.
+            PrepareStatement();
+        }
+
+        var entry = prepared ? preparedEntry : null;
+
+        return entry is null
+            ? PreparedStatement.PreparedStatement.PrepareMultiple(nativeConnection, CommandText, parameters, UseStreamingMode)
+            : ExecutePrepared(entry, nativeConnection, parameters, UseStreamingMode);
+    }
+
+    private IEnumerable<StatementResult> ExecutePrepared(PreparedStatementEntry entry, DuckDBNativeConnection nativeConnection,
+                                                         DuckDBParameterCollection parameterCollection, bool useStreamingMode)
+    {
+        if (!entry.TryRent())
+        {
+            // Another execution is binding the shared statement (a command with the same text on another thread).
+            foreach (var result in PreparedStatement.PreparedStatement.PrepareMultiple(nativeConnection, CommandText, parameterCollection, useStreamingMode))
+            {
+                yield return result;
+            }
+
+            yield break;
+        }
+
+        DuckDBResult queryResult;
+        try
+        {
+            queryResult = entry.Execute(parameterCollection, useStreamingMode, nativeConnection);
+        }
+        finally
+        {
+            // The result does not need the statement, so it is free again before the result is read.
+            entry.Return();
+        }
+
+        yield return new StatementResult(queryResult, entry.StatementType);
+    }
 
     protected override DbParameter CreateDbParameter() => new DuckDBParameter();
 

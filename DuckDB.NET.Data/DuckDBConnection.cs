@@ -1,4 +1,5 @@
 ﻿using DuckDB.NET.Data.Connection;
+using DuckDB.NET.Data.PreparedStatement;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
@@ -12,7 +13,9 @@ public partial class DuckDBConnection : DbConnection
     private DuckDBConnectionString? parsedConnection;
     private ConnectionReference? connectionReference;
     private bool inMemoryDuplication = false;
-    
+    private readonly object preparedStatementsLock = new();
+    private Dictionary<string, PreparedStatementEntry>? preparedStatements;
+
     private static readonly StateChangeEventArgs FromClosedToOpenEventArgs = new(ConnectionState.Closed, ConnectionState.Open);
     private static readonly StateChangeEventArgs FromOpenToClosedEventArgs = new(ConnectionState.Open, ConnectionState.Closed);
 
@@ -89,6 +92,9 @@ public partial class DuckDBConnection : DbConnection
             return;
         }
 
+        // Before the native connection goes back: the database must not outlive ConnectionManager's last reference.
+        DisposePreparedStatements();
+
         if (connectionReference is not null) //Should always be the case
         {
             connectionManager.ReturnConnectionReference(connectionReference);
@@ -109,6 +115,7 @@ public partial class DuckDBConnection : DbConnection
         connectionReference = inMemoryDuplication ? connectionManager.DuplicateConnectionReference(connectionReference!)
                                                   : connectionManager.GetConnectionReference(ParsedConnection);
 
+        OpenCount++;
         connectionState = ConnectionState.Open;
         OnStateChange(FromClosedToOpenEventArgs);
     }
@@ -244,6 +251,56 @@ public partial class DuckDBConnection : DbConnection
         }
 
         base.Dispose(disposing);
+    }
+
+    /// <summary>
+    /// How many times the connection was opened. A prepared command records it, so it can tell that the connection
+    /// was closed in between (which destroyed its statement) and prepare the statement again.
+    /// </summary>
+    internal int OpenCount { get; private set; }
+
+    /// <summary>
+    /// The statement prepared for the command text on this connection, prepared now if it is not kept yet. Null for
+    /// a command of several statements, which is prepared on each execution instead. Entries are kept until the
+    /// connection closes; commands with the same text share one.
+    /// </summary>
+    internal PreparedStatementEntry? GetOrPrepareStatement(string commandText)
+    {
+        lock (preparedStatementsLock)
+        {
+            preparedStatements ??= new Dictionary<string, PreparedStatementEntry>(StringComparer.Ordinal);
+
+            if (preparedStatements.TryGetValue(commandText, out var entry) && !entry.IsDisposed)
+            {
+                return entry;
+            }
+
+            entry = PreparedStatement.PreparedStatement.PrepareSingle(NativeConnection, commandText);
+            if (entry is not null)
+            {
+                preparedStatements[commandText] = entry;
+            }
+
+            return entry;
+        }
+    }
+
+    private void DisposePreparedStatements()
+    {
+        lock (preparedStatementsLock)
+        {
+            if (preparedStatements is null)
+            {
+                return;
+            }
+
+            foreach (var entry in preparedStatements.Values)
+            {
+                entry.Dispose();
+            }
+
+            preparedStatements = null;
+        }
     }
 
     private void EnsureConnectionOpen([CallerMemberName] string operation = "")
