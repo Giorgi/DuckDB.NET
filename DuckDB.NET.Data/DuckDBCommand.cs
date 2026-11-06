@@ -15,8 +15,10 @@ public class DuckDBCommand : DbCommand
     private readonly DuckDBParameterCollection parameters = new();
 
     // Set by Prepare(). The entry belongs to the connection, which destroys it when it closes or when the text is
-    // prepared again; the command then takes the connection's current one on its next execution.
+    // prepared again; the command then takes the connection's current one on its next execution. After a failed
+    // Prepare() the command has no entry and prepares again on its next execution.
     private bool prepared;
+    private bool preparePending;
     private PreparedStatementEntry? preparedEntry;
 
     protected override DbTransaction? DbTransaction { get; set; }
@@ -220,16 +222,19 @@ public class DuckDBCommand : DbCommand
     {
         EnsureConnectionOpen();
 
+        prepared = true;
         try
         {
             preparedEntry = connection!.PrepareStatement(CommandText);
-            prepared = true;
+            preparePending = false;
         }
         catch
         {
-            // The command does not keep a statement that no longer matches the database; its next execution prepares
-            // as an unprepared command does and reports the error.
-            Unprepare();
+            // The command keeps no statement that no longer matches the database (a view it reads was dropped), but
+            // stays prepared: its next execution prepares again, reporting the error if it remains and keeping the
+            // statement if the cause has passed (another result was open on the connection).
+            preparedEntry = null;
+            preparePending = true;
             throw;
         }
     }
@@ -237,6 +242,7 @@ public class DuckDBCommand : DbCommand
     private void Unprepare()
     {
         prepared = false;
+        preparePending = false;
         preparedEntry = null;
     }
 
@@ -254,10 +260,11 @@ public class DuckDBCommand : DbCommand
     private IEnumerable<StatementResult> ExecutePrepared(DuckDBNativeConnection nativeConnection, DuckDBParameterCollection parameterCollection,
                                                          bool useStreamingMode)
     {
-        if (preparedEntry is { IsStale: true })
+        if (preparePending || preparedEntry is { IsStale: true })
         {
-            // The connection was closed since Prepare(), or the text was prepared again.
+            // The connection was closed since Prepare(), the text was prepared again, or Prepare() failed.
             preparedEntry = connection!.GetOrPrepareStatement(CommandText);
+            preparePending = false;
         }
 
         var entry = preparedEntry;

@@ -73,7 +73,9 @@ internal sealed class PreparedStatementEntry : IDisposable
     /// </summary>
     public void Return()
     {
-        Volatile.Write(ref inUse, 0);
+        // A full fence: the read of retired below must not move before this write, or a Retire() on another thread
+        // could see the entry still taken while this thread sees it not yet retired, and nobody would destroy it.
+        Interlocked.Exchange(ref inUse, 0);
 
         if (retired && TryRent())
         {

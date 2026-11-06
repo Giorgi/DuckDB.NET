@@ -185,6 +185,33 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         second.Invoking(c => c.ExecuteScalar()).Should().Throw<DuckDBException>();
     }
 
+    // A Prepare() that fails while another result is open leaves the command prepared: its next execution prepares the
+    // statement again, once the other result is closed.
+    [Fact]
+    public void PrepareThatFailsWhileAResultIsOpenIsRetried()
+    {
+        using var command = Connection.CreateCommand();
+        command.CommandText = "SELECT $1::INTEGER + 2";
+        command.Parameters.Add(new DuckDBParameter(1));
+
+        using (var streaming = Connection.CreateCommand())
+        {
+            streaming.CommandText = "SELECT * FROM range(100000) r(i)";
+            streaming.UseStreamingMode = true;
+            using var reader = streaming.ExecuteReader();
+            reader.Read().Should().BeTrue();
+
+            command.Invoking(c => c.Prepare()).Should().Throw<DuckDBException>();
+        }
+
+        command.ExecuteScalar().Should().Be(3);
+
+        var entry = Connection.GetOrPrepareStatement(command.CommandText);
+        var executions = entry.ExecutionCount;
+        command.ExecuteScalar().Should().Be(3);
+        entry.ExecutionCount.Should().Be(executions + 1, "the command is still prepared");
+    }
+
     // A statement replaced while an execution holds it is destroyed when that execution gives it back.
     [Fact]
     public void ReplacedStatementIsDestroyedWhenGivenBack()
