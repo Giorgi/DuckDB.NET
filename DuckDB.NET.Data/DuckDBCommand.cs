@@ -212,7 +212,7 @@ public class DuckDBCommand : DbCommand
     /// so each is still prepared just before it runs. Errors in the text are reported here instead of at execution.
     /// A prepared statement keeps what was true when it was prepared: the types of its parameters (values are
     /// converted to them), and the definitions of the views and macros and the settings it uses. After changing them
-    /// (a column altered to another type, CREATE OR REPLACE VIEW, SET), call Prepare() again.
+    /// (a column altered to another type, CREATE OR REPLACE or DROP of a view or macro, SET), call Prepare() again.
     /// As IDbCommand.Prepare documents, throws InvalidOperationException when "The Connection is not set. -or- The
     /// Connection is not Open()."
     /// </remarks>
@@ -220,8 +220,18 @@ public class DuckDBCommand : DbCommand
     {
         EnsureConnectionOpen();
 
-        preparedEntry = connection!.PrepareStatement(CommandText);
-        prepared = true;
+        try
+        {
+            preparedEntry = connection!.PrepareStatement(CommandText);
+            prepared = true;
+        }
+        catch
+        {
+            // The command does not keep a statement that no longer matches the database; its next execution prepares
+            // as an unprepared command does and reports the error.
+            Unprepare();
+            throw;
+        }
     }
 
     private void Unprepare()

@@ -16,6 +16,7 @@ internal sealed class PreparedStatementEntry : IDisposable
     private readonly DuckDBType[] parameterTypes;
     private Dictionary<string, long>? parameterIndexes;
     private int inUse;
+    private int disposed;
     private volatile bool retired;
 
     public PreparedStatementEntry(DuckDBPreparedStatement statement)
@@ -46,7 +47,7 @@ internal sealed class PreparedStatementEntry : IDisposable
 
     public long ParameterCount { get; }
 
-    public bool IsDisposed { get; private set; }
+    public bool IsDisposed => Volatile.Read(ref disposed) != 0;
 
     /// <summary>
     /// Destroyed, or replaced by a newer preparation of the same text: a command that holds it takes the current
@@ -66,7 +67,19 @@ internal sealed class PreparedStatementEntry : IDisposable
     /// </summary>
     public bool TryRent() => !IsDisposed && Interlocked.CompareExchange(ref inUse, 1, 0) == 0;
 
-    public void Return() => Volatile.Write(ref inUse, 0);
+    /// <summary>
+    /// Gives the statement back after an execution. One that was replaced while it was executing is destroyed here:
+    /// nobody else uses it any more, and the connection would otherwise keep it until it closes.
+    /// </summary>
+    public void Return()
+    {
+        Volatile.Write(ref inUse, 0);
+
+        if (retired && TryRent())
+        {
+            Dispose();
+        }
+    }
 
     /// <summary>
     /// Binds the parameters and executes. The bindings of the previous execution are cleared first, so a named
@@ -105,12 +118,11 @@ internal sealed class PreparedStatementEntry : IDisposable
 
     public void Dispose()
     {
-        if (IsDisposed)
+        if (Interlocked.Exchange(ref disposed, 1) != 0)
         {
             return;
         }
 
-        IsDisposed = true;
         DisposeParameterTypes();
         statement.Dispose();
     }

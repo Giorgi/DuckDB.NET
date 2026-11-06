@@ -165,6 +165,45 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         first.ExecuteScalar().Should().Be(2);
     }
 
+    // A failed Prepare() drops the kept statement, so neither command answers from a view that is gone.
+    [Fact]
+    public void FailedPrepareAfterADropDoesNotKeepTheOldStatement()
+    {
+        Connection.ExecuteNonQuery("CREATE VIEW prepared_dropped AS SELECT 1 AS v");
+
+        using var first = Connection.CreateCommand();
+        using var second = Connection.CreateCommand();
+        first.CommandText = second.CommandText = "SELECT v FROM prepared_dropped";
+        first.Prepare();
+        second.Prepare();
+        first.ExecuteScalar().Should().Be(1);
+
+        Connection.ExecuteNonQuery("DROP VIEW prepared_dropped");
+
+        first.Invoking(c => c.Prepare()).Should().Throw<DuckDBException>();
+        first.Invoking(c => c.ExecuteScalar()).Should().Throw<DuckDBException>();
+        second.Invoking(c => c.ExecuteScalar()).Should().Throw<DuckDBException>();
+    }
+
+    // A statement replaced while an execution holds it is destroyed when that execution gives it back.
+    [Fact]
+    public void ReplacedStatementIsDestroyedWhenGivenBack()
+    {
+        using var command = Connection.CreateCommand();
+        command.CommandText = "SELECT 7";
+        command.Prepare();
+
+        var held = Connection.GetOrPrepareStatement(command.CommandText);
+        held.TryRent().Should().BeTrue();
+
+        command.Prepare();
+        held.IsDisposed.Should().BeFalse("an execution still holds it");
+
+        held.Return();
+        held.IsDisposed.Should().BeTrue();
+        command.ExecuteScalar().Should().Be(7);
+    }
+
     // Values are converted to the parameter types of the preparation, so a column altered to another type needs
     // Prepare() again; it then stores 1.75, not the 2 the old INTEGER type would give.
     [Fact]

@@ -256,11 +256,28 @@ public partial class DuckDBConnection : DbConnection
     /// <summary>
     /// Prepares the command text anew and makes it the statement that commands with this text on this connection use.
     /// The statement it replaces is destroyed; commands that still hold it take the new one on their next execution.
-    /// Null for a command of several statements, which is prepared on each execution instead.
+    /// Null for a command of several statements, which is prepared on each execution instead. When preparing fails,
+    /// the kept statement is dropped too: it no longer matches the database (a view it reads was dropped).
     /// </summary>
     internal PreparedStatementEntry? PrepareStatement(string commandText)
     {
-        var entry = PreparedStatement.PreparedStatement.PrepareSingle(NativeConnection, commandText);
+        PreparedStatementEntry? entry;
+        try
+        {
+            entry = PreparedStatement.PreparedStatement.PrepareSingle(NativeConnection, commandText);
+        }
+        catch
+        {
+            lock (preparedStatementsLock)
+            {
+                if (preparedStatements is not null && preparedStatements.Remove(commandText, out var stale))
+                {
+                    Retire(stale);
+                }
+            }
+
+            throw;
+        }
 
         lock (preparedStatementsLock)
         {
@@ -301,14 +318,17 @@ public partial class DuckDBConnection : DbConnection
     {
         entry.MarkRetired();
 
-        // An execution on another thread may hold it; then it is destroyed when the connection closes.
+        // An execution on another thread may hold it; then that execution destroys it when it gives it back, and the
+        // connection keeps it until then, to destroy it when it closes if that comes first.
         if (entry.TryRent())
         {
             entry.Dispose();
         }
         else
         {
-            (retiredStatements ??= []).Add(entry);
+            retiredStatements ??= [];
+            retiredStatements.RemoveAll(retired => retired.IsDisposed);
+            retiredStatements.Add(entry);
         }
     }
 
