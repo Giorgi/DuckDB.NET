@@ -493,6 +493,50 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Connection.QuerySingle<long>("SELECT count(*) FROM arrow_primary_key").Should().Be(0);
     }
 
+    [Fact]
+    public void AppendStream_ReadsArrowStreamReader()
+    {
+        // An ArrowStreamReader is read with its synchronous ReadNextRecordBatch.
+        Connection.ExecuteNonQuery("CREATE TABLE arrow_ipc(i INTEGER, s VARCHAR)");
+
+        var schema = new Schema.Builder()
+            .Field(f => f.Name("i").DataType(Int32Type.Default))
+            .Field(f => f.Name("s").DataType(StringType.Default))
+            .Build();
+
+        using var buffer = new MemoryStream();
+        using (var writer = new Apache.Arrow.Ipc.ArrowStreamWriter(buffer, schema, leaveOpen: true))
+        {
+            foreach (var (start, length) in new[] { (0, 3000), (3000, 5000) })
+            {
+                var ints = new Int32Array.Builder();
+                var strings = new StringArray.Builder();
+                for (var i = start; i < start + length; i++)
+                {
+                    ints.Append(i);
+                    strings.Append("s" + i);
+                }
+
+                writer.WriteRecordBatch(new RecordBatch(schema, [ints.Build(), strings.Build()], length));
+            }
+
+            writer.WriteEnd();
+        }
+
+        buffer.Position = 0;
+
+        long appended;
+        using (var reader = new Apache.Arrow.Ipc.ArrowStreamReader(buffer))
+        using (var appender = Connection.CreateArrowAppender("arrow_ipc"))
+        {
+            appended = appender.AppendStream(reader);
+        }
+
+        appended.Should().Be(8000);
+        Connection.QuerySingle<(long Count, long Wrong)>("SELECT count(*), count(*) FILTER (WHERE i <> rowid OR s <> 's' || rowid) FROM arrow_ipc")
+            .Should().Be((8000L, 0L));
+    }
+
     private sealed class ListStream(Schema schema, IReadOnlyList<RecordBatch> batches, Action<int> beforeRead) : Apache.Arrow.Ipc.IArrowArrayStream
     {
         private int next;
