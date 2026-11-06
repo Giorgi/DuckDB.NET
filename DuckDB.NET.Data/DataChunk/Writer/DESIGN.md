@@ -586,7 +586,12 @@ between two runs.
 - **Checked:** what the appender stores, through a row and as a list item, for 15 values and types in TIME, TIME_NS,
   DATE, TIMETZ, TIMESTAMP and TIMESTAMP_NS, was compared before and after: the same for every accepted value, and
   refused exactly in the cases above.
-- **Not measured yet.** `DateAppenderBenchmark` has the cases (`2d14164`).
+- **Measured** on the Azure VM (AMD EPYC 9V45, Linux, .NET 10, DuckDB 2.0.0), `DateAppenderBenchmark`, against the
+  build before (`8929163`), per-process medians of 4 launches: every case 0.99 to 1.03, the INTEGER control 1.00. The
+  appends compile as before (Tier 1): TIME `AppendTimeOnly(TimeOnly)` 47 bytes in both, `AppendTimeOnly(DuckDBTimeOnly)`
+  105 instead of 108, the TIME_NS appends unchanged; no calls and no frame. The gain is in the code, not the time:
+  the TIME branch is gone from the `DateTime` path of the timestamps, which measured 1.00 (`AppendDateTimeToTimestamp`).
+  Results in `azure/results/2.0-run/time-split`.
 - **Pinned by:** `TemporalWriteConversionTests` (`ATimeIsRefusedInAColumnOfAnotherDateOrTimeType`,
   `ADateIsRefusedInATimeColumn`, `ATimeIsRefusedInADateColumnOfATableFunction`,
   `DateTimeAppendedToATimeIsItsTimeOfDay`).

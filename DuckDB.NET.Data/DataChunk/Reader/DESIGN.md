@@ -515,14 +515,26 @@ not use profile data to guess the target as it does for a plain virtual call.
   stored structs are not types a value is read as (`GetFieldValue<DuckDBTime>` throws as before). Every read of
   either column, in every target type including the refused ones, in a column, a list and a struct, gave the same
   value or the same exception before and after the move.
+  - **Measured** on the Azure VM (AMD EPYC 9V45, Linux, .NET 10, DuckDB 2.0.0), `DateTimeReaderBenchmark`, against
+    the build before (`8929163`), per-process medians of 4 launches, the INTEGER control at 1.01: TIME as `TimeOnly`
+    0.94, `DateTime` 0.95, `TimeSpan` 0.93, `DuckDBTimeOnly` 0.86; TIME_NS as `TimeOnly` 0.85, `DateTime` 0.73,
+    `TimeSpan` 0.89, `DuckDBTimeOnly` 0.89. Results in `azure/results/2.0-run/time-split`.
+  - **The code (Tier 1, same VM):** each of the new `GetValidValue<T>` is 21 to 88 bytes with no test of the column
+    type, where the shared method was 304 to 501 bytes with a 64-byte frame and one stack store. `Unsafe.As` on the
+    `TStorage` local leaves no code.
+  - **The readers left behind gained too.** Without the TIME branches the JIT inlines the timestamp conversion
+    (`GetTicks`) into `DateTimeVectorDataReader.GetValidValue<DateTime>`: 501 bytes instead of 380, frame 64 instead of
+    48, but no call on the timestamp path. TIMESTAMP as `DateTime` 0.95, TIMESTAMP_NS 0.95, through `GetValue` 0.84.
+    DATE 1.00 to 1.01 (`GetValidValue<DateOnly>` 203 bytes instead of 279), TIMETZ 1.00, TIMESTAMPTZ as
+    `DateTimeOffset` 1.02.
 
 ### Costs that are known and not yet removed
 
 - **`DateTimeVectorDataReader.GetValidValue<T>` clears part of its stack frame on every call:** 40 bytes for
   `TimeOnly` and `DateOnly`, 24 for `DateTime` (.NET 10), measured when it also served TIME and TIME_NS. The method
   holds the branches of every column type it serves, and the ones that return a DuckDB struct need stack slots
-  (decision 4). TIME and TIME_NS have moved to a reader of their own; what is left for DATE, TIMETZ and the
-  timestamps is not measured.
+  (decision 4). TIME and TIME_NS have moved to a reader of their own (see "Smaller decisions"), which made TIME reads
+  0.86 to 0.95. DATE, TIMETZ and the timestamps keep one stack store each in a 48- or 64-byte frame.
 - **A TIMESTAMPTZ or TIMETZ read as `DateTimeOffset` keeps about 15 ns per value** where a `DateTime` takes 5: the
   constructor of `DateTimeOffset` is a call that validates the offset. That is the cost of the type.
 - **A read as `DuckDBTimestamp`, `DuckDBDateOnly`, `DuckDBTimeOnly` or `DuckDBTimeTz` calls DuckDB,** by design
