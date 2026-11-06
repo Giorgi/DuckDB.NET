@@ -22,9 +22,14 @@ internal sealed unsafe class NumericVectorDataWriter(IntPtr vector, void* vector
 
     internal override bool AppendNumeric(double value, ulong rowIndex) => AppendValueInternal(value, rowIndex);
 
-    internal override bool AppendBigInteger(BigInteger value, ulong rowIndex) => ColumnType == DuckDBType.UnsignedHugeInt
-        ? AppendValueInternal(new DuckDBUHugeInt(value), rowIndex)
-        : AppendValueInternal(new DuckDBHugeInt(value), rowIndex);
+    // Only HUGEINT and UHUGEINT hold the 16 bytes; any other column refuses a BigInteger, as it refuses an Int128.
+    // Before 2.0 they were written there too, over the next values of a narrower column or as a broken VARINT.
+    internal override bool AppendBigInteger(BigInteger value, ulong rowIndex) => ColumnType switch
+    {
+        DuckDBType.HugeInt => AppendValueInternal(new DuckDBHugeInt(value), rowIndex),
+        DuckDBType.UnsignedHugeInt => AppendValueInternal(new DuckDBUHugeInt(value), rowIndex),
+        _ => base.AppendBigInteger(value, rowIndex)
+    };
 
     // An Int128 has the bytes of a HUGEINT and a UInt128 those of a UHUGEINT, on a little-endian machine, so they are
     // stored as they are, in either of the two columns, like the other integers: an Int128 of -1 in a UHUGEINT column is

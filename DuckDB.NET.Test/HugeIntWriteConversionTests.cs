@@ -100,6 +100,46 @@ public class HugeIntWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestB
         }
     }
 
+    // A BigInteger is refused there too. Before 2.0 its 16 bytes were written over the next values of a narrower
+    // column, and into a VARINT slot as a broken string.
+    [Fact]
+    public void BigIntegerIsRefusedByOtherColumns()
+    {
+        Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE bigIntegerWriteOther (a BIGINT, b DOUBLE, c VARINT)");
+
+        using (var appender = Connection.CreateAppender("bigIntegerWriteOther"))
+        {
+            appender.CreateRow().Invoking(r => r.AppendValue(BigInteger.One)).Should().Throw<InvalidOperationException>()
+                .WithMessage("Cannot write BigInteger to BigInt column");
+        }
+
+        using (var appender = Connection.CreateAppender("bigIntegerWriteOther"))
+        {
+            appender.CreateRow().AppendValue((long?)1).Invoking(r => r.AppendValue(BigInteger.One)).Should().Throw<InvalidOperationException>()
+                .WithMessage("Cannot write BigInteger to Double column");
+        }
+
+        using (var appender = Connection.CreateAppender("bigIntegerWriteOther"))
+        {
+            appender.CreateRow().AppendValue((long?)1).AppendValue((double?)1).Invoking(r => r.AppendValue(BigInteger.One))
+                .Should().Throw<InvalidOperationException>().WithMessage("Cannot write BigInteger to VarInt column");
+        }
+
+        // HUGEINT and UHUGEINT still take it.
+        Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE bigIntegerWriteHuge (signed HUGEINT, unsigned UHUGEINT)");
+
+        using (var appender = Connection.CreateAppender("bigIntegerWriteHuge"))
+        {
+            appender.CreateRow().AppendValue(BigInteger.MinusOne).AppendValue(new BigInteger(ulong.MaxValue) * 2).EndRow();
+        }
+
+        Command.CommandText = "SELECT signed::VARCHAR, unsigned::VARCHAR FROM bigIntegerWriteHuge";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+        reader.GetString(0).Should().Be("-1");
+        reader.GetString(1).Should().Be((new BigInteger(ulong.MaxValue) * 2).ToString(CultureInfo.InvariantCulture));
+    }
+
     [Fact]
     public void ListsOfInt128AndUInt128()
     {
