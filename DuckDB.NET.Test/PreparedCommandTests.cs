@@ -1,4 +1,5 @@
 ﻿using System.Threading;
+using Apache.Arrow;
 using DuckDB.NET.Data.Extensions;
 using DuckDB.NET.Test.Helpers;
 
@@ -274,7 +275,9 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     // The statement must be gone before the connection returns the native database: a second instance on the same
-    // file would lose data on Linux and macOS and fail with "file in use" on Windows.
+    // file would lose data on Linux and macOS and fail with "file in use" on Windows. On DuckDB 2.0 a prepared
+    // statement no longer keeps the database alive, so this passes there even without the release in Close(); it
+    // stays to catch a DuckDB version where it does again.
     [Fact]
     public void ClosingTheConnectionReleasesTheDatabaseOfAPreparedStatement()
     {
@@ -329,6 +332,76 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
         command.Prepare();
         command.ExecuteScalar().Should().Be("second");
+    }
+
+    // A failed preparation after a reopen is raised inside the reader's constructor, which closes the connection.
+    [Fact]
+    public void FailedPrepareAfterReopenStillClosesTheConnection()
+    {
+        using var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
+        connection.Open();
+        connection.ExecuteNonQuery("CREATE TABLE gone (i INTEGER)");
+
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT * FROM gone";
+        command.Prepare();
+
+        // A private in-memory database is gone when its connection closes, and the table with it.
+        connection.Close();
+        connection.Open();
+
+        command.Invoking(c => c.ExecuteReader(CommandBehavior.CloseConnection)).Should().Throw<DuckDBException>();
+        connection.State.Should().Be(ConnectionState.Closed);
+    }
+
+    // While the shared statement is taken, a command with the same text prepares a statement of its own.
+    [Fact]
+    public void TakenStatementFallsBackToPreparingAgain()
+    {
+        using var command = Connection.CreateCommand();
+        command.CommandText = "SELECT $1::INTEGER + 100";
+        command.Parameters.Add(new DuckDBParameter(1));
+        command.Prepare();
+
+        var entry = Connection.GetOrPrepareStatement(command.CommandText);
+        entry.TryRent().Should().BeTrue();
+        try
+        {
+            command.ExecuteScalar().Should().Be(101);
+        }
+        finally
+        {
+            entry.Return();
+        }
+
+        command.Parameters[0].Value = 2;
+        command.ExecuteScalar().Should().Be(102);
+    }
+
+    [Fact]
+    public void PreparedCommandAsArrowStream()
+    {
+        using var command = Connection.CreateCommand();
+        command.CommandText = "SELECT * FROM range($1::BIGINT) r(i)";
+        command.Parameters.Add(new DuckDBParameter(10L));
+        command.Prepare();
+
+        for (var count = 10L; count <= 20; count += 10)
+        {
+            command.Parameters[0].Value = count;
+            using var stream = command.ExecuteArrowStream();
+
+            var rows = 0L;
+            while (stream.ReadNextRecordBatchAsync().AsTask().Result is { } batch)
+            {
+                using (batch)
+                {
+                    rows += ((Int64Array)batch.Column(0)).Length;
+                }
+            }
+
+            rows.Should().Be(count);
+        }
     }
 
     // Two commands with the same text on two threads of one connection: one of them binds the shared statement, the

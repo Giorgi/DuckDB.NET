@@ -238,25 +238,28 @@ public class DuckDBCommand : DbCommand
     {
         var nativeConnection = connection!.NativeConnection;
 
-        if (prepared && (preparedOpenCount != connection.OpenCount || preparedEntry is { IsDisposed: true }))
+        return prepared
+            ? ExecutePrepared(nativeConnection, parameters, UseStreamingMode)
+            : PreparedStatement.PreparedStatement.PrepareMultiple(nativeConnection, CommandText, parameters, UseStreamingMode);
+    }
+
+    // An iterator, like PrepareMultiple, so that an error (also from preparing again) is raised where the reader
+    // expects it: inside its constructor, which then closes the connection for CommandBehavior.CloseConnection.
+    private IEnumerable<StatementResult> ExecutePrepared(DuckDBNativeConnection nativeConnection, DuckDBParameterCollection parameterCollection,
+                                                         bool useStreamingMode)
+    {
+        if (preparedOpenCount != connection!.OpenCount || preparedEntry is { IsDisposed: true })
         {
             // The connection was closed since Prepare(), which destroyed the statement.
             PrepareStatement();
         }
 
-        var entry = prepared ? preparedEntry : null;
+        var entry = preparedEntry;
 
-        return entry is null
-            ? PreparedStatement.PreparedStatement.PrepareMultiple(nativeConnection, CommandText, parameters, UseStreamingMode)
-            : ExecutePrepared(entry, nativeConnection, parameters, UseStreamingMode);
-    }
-
-    private IEnumerable<StatementResult> ExecutePrepared(PreparedStatementEntry entry, DuckDBNativeConnection nativeConnection,
-                                                         DuckDBParameterCollection parameterCollection, bool useStreamingMode)
-    {
-        if (!entry.TryRent())
+        if (entry is null || !entry.TryRent())
         {
-            // Another execution is binding the shared statement (a command with the same text on another thread).
+            // A command of several statements, or another execution is binding the shared statement (a command with
+            // the same text on another thread).
             foreach (var result in PreparedStatement.PreparedStatement.PrepareMultiple(nativeConnection, CommandText, parameterCollection, useStreamingMode))
             {
                 yield return result;
