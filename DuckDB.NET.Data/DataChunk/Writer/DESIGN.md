@@ -103,7 +103,13 @@ between two runs.
 - **The stored values did not change,** including the ones that look wrong; see "Behaviour" below. What is below
   a microsecond is dropped toward the earlier microsecond, before 1970 as after it: the ticks from 0001-01-01 and
   the ticks of the epoch are each divided by ten. Dividing the difference would round a value before 1970 up.
-- **What still calls DuckDB:** a `DuckDBDateOnly`, `DuckDBTimeOnly` or `DuckDBTimestamp`, which holds the parts.
+- **What still calls DuckDB:** a `DuckDBDateOnly` or `DuckDBTimestamp`, which holds the parts: putting a year, a
+  month and a day together needs the calendar. A `DuckDBTimeOnly` called DuckDB too until 2.0; now its ticks are
+  divided by ten, in the writer and in parameters. `duckdb_to_time` adds up the parts in int64 with no check
+  (`Time::FromTime` in DuckDB's `time.cpp`), so the stored value is the same, 24:00:00 included. It differs only
+  for parts no time has: an hour, minute or second above 127, which DuckDB reads as a negative `int8_t`. The ticks
+  are worked out in `long`; in `int`, a microsecond count beyond ±214,748,364 wrapped around (a TIME_NS write uses
+  them too).
 - **The guard, because this code assumes how DuckDB stores these types:**
   `DuckDB.NET.Test/TemporalWriteConversionTests.cs` compares the arithmetic with DuckDB's own four functions, for
   every day a `DateOnly` holds and every second of the day, and has DuckDB split or print what was written. A
@@ -289,18 +295,17 @@ between two runs.
 - **The short string is built by `DuckDBString.TryCreateInlined`** in Bindings, the struct the reader reads, so
   the layout is declared once for both directions. The bytes after the string have to be zero: DuckDB compares and
   hashes a short string by its 16 bytes. The method keeps that rule, so `DuckDBStringInlined` is internal
-  (Bindings exposes nothing internal to Data, since the two are separate packages). It also refuses a string with
-  a NUL character, which the writer then sends the long way (below). Tier 1 code of `AppendString` on .NET 10 is
-  the same as when the writer filled a public `DuckDBStringInlined` itself (166 instructions against 163, the same
-  calls; `azure/jitcmp-string`). On .NET 8 `TryCreateInlined` is inlined too, but the `Contains` inside it is not:
-  a call to `SpanHelpers.NonPackedContainsValueType` per short string, where the writer's own `Contains` was
-  unrolled. One short run on .NET 8 (2 launches, the maintainer's PC) showed no difference (0.93 and 0.97, noise
-  about 10%); kept as it is. Rejected: the NUL check in the writer, on the characters (`string.Contains('\0')`
-  is a call per string, since the packed search cannot look for 0) or on the bytes through `DuckDBString.Data`
-  (six more instructions, among them a `cmov` that always loads 8 bytes, since the JIT cannot see the length is at
-  most 12).
-- **Kept:** a string ends at its first NUL character, as it did when DuckDB measured it as a C string. A
-  parameter does the same.
+  (Bindings exposes nothing internal to Data, since the two are separate packages). Tier 1 code of `AppendString`
+  on .NET 10 was the same as when the writer filled a public `DuckDBStringInlined` itself (166 instructions against
+  163, the same calls; `azure/jitcmp-string`), measured while the method still searched the bytes for a NUL.
+- **A NUL character is stored like any other** (2.0). Until 2.0 a string ended at its first NUL, as it did
+  when DuckDB measured it as a C string: `TryCreateInlined` refused such a string and the long path cut it. Both
+  checks are gone. A parameter keeps it too: `ClrToDuckDBConverter.CreateVarchar` encodes the string into a
+  `byte[]` (one allocation per string parameter, chosen for simplicity) and passes it to the
+  `DuckDBCreateVarchar(ReadOnlySpan<byte>)` overload in Bindings, which calls `duckdb_create_varchar_length` with the
+  span's length. The `DuckDBCreateVarchar(string?)` import of `duckdb_create_varchar` stays as it was, for callers
+  of `NativeMethods`, with `[OverloadResolutionPriority(1)]` so that `null` still binds to it. The cost of the
+  removed search was not measured on its own.
 - **Checked:** 27,016 strings appended to a VARCHAR, a VARCHAR[] and a BLOB column and returned from a scalar
   function are stored byte for byte as before, on both runtimes. `StringWriteConversionTests` guards the layout
   by comparing with the bytes DuckDB reads back and with strings DuckDB made.
@@ -520,12 +525,75 @@ between two runs.
 
   On .NET 10 a nullable result now costs what an `int` result costs. On .NET 8 there is no gain: the lambda is not
   inlined there, the result comes back in a register, and there is no stall to remove.
-- **Pinned by:** `ScalarFunctionNullableTypesTests`: a function that returns its argument for all 21 types, with
+- **Pinned by:** `ScalarFunctionNullableTypesTests`: a function that returns its argument for every type (21 then, 23 with `Int128` and `UInt128`), with
   values and NULLs, compared by DuckDB with the column; and a varargs function with a nullable result. Both pass on
   the build before and on the build after.
 - **Not changed:** a nullable argument is still read through the delegate of reader decision 6. Measured on its own
   it costs about 1 ns (`int?` -> `int` 4.8 against 3.8 ms for `int` -> `int`, .NET 10); `performance-open-items.md`,
   item 20.
+
+### 17. `Int128` and `UInt128` are written as the 16 bytes of a HUGEINT and a UHUGEINT
+
+- **What (2.0 item 9):** `AppendNumeric(Int128, ulong)` and `AppendNumeric(UInt128, ulong)`, plain virtual methods
+  as in decision 1, with lines in the switch of `WriteValue<T>` and in `WriteNullable`. `NumericVectorDataWriter`
+  stores the value as it is: on a little-endian machine an `Int128` has the bytes of a HUGEINT (lower half first).
+  The appender row has `AppendValue(Int128?)` and `AppendValue(UInt128?)`; the mapped
+  appender, the typed scalar functions (`WriteResult`) and table functions reach the same methods, and
+  `ClrToDuckDBTypeMap` maps the two types to HUGEINT and UHUGEINT for function signatures.
+- **Like the other integers, the value is not checked against the column** (decided by the maintainer,
+  2026-11-05). Either type goes into either 128-bit column, reinterpreted: an `Int128` of -1 in a UHUGEINT column is
+  2^128 - 1, as a `long` of -1 in a UBIGINT column is 2^64 - 1. The mapped appender, which checks types when it is
+  created, accepts each for its own column only, as it accepts `long` for BIGINT only. A first version checked the
+  range across the two columns, as a `BigInteger` does; `BigInteger` checks because it has to be converted, and the
+  check was a rule only these two integer types had.
+- **Any other column refuses them,** with the `InvalidOperationException` of the base class. This is not the rule of
+  the other types, which write their bytes whatever the column (see "Behaviour"): 16 bytes do not fit the slot of a
+  narrower column and would overwrite the next value or run past the vector. A `BigInteger` still does that, and in a
+  VARINT column, which also gets `NumericVectorDataWriter`, writes a `DuckDBHugeInt` into a string slot.
+- **Why the appender row lowers the priority of two overloads:** `AppendValue(UInt128?)` made every int or long
+  constant argument ambiguous (CS0121): `AppendValue(1)` converts to `UInt128` through `byte`, and C# has no rule that
+  prefers `sbyte` to `UInt128`. `[OverloadResolutionPriority(-1)]` on `AppendValue(UInt128?)` and
+  `AppendValue(BigInteger?)` (both on `IDuckDBAppenderRow` and on the class) removes the ambiguity for C# 13 and
+  later: checked with a consumer assembly, every constant and every variable of the other numeric types binds as
+  before, and `Int128`, `UInt128` and `BigInteger` bind to their own overloads. Lowering only `UInt128?` would send a
+  `UInt128` to `BigInteger?`, to which it converts too. C# 12, the default for a net8.0 project, ignores the
+  attribute, and there such a constant needs its type. The net8.0 build declares the attribute itself
+  (`Extensions/OverloadResolutionPriorityAttribute.cs`). Decided by the maintainer, 2026-11-05.
+- **The items of a list:** `IEnumerable<Int128>` and the three others are the last value-type lines of
+  `CollectionVectorDataWriter.WriteCollection`, so a list of any other type is tested against no more interfaces
+  than before (see "Costs" below).
+- **Not measured.** The write is the store of a 16-byte value, as for a `BigInteger` after its conversion.
+- **Pinned by:** `HugeIntWriteConversionTests`, which compares every value with the one DuckDB parses from its text,
+  and the `Int128` and `UInt128` lines of `ScalarFunctionNullableTypesTests`.
+
+### 18. TIME and TIME_NS have a writer of their own
+
+- **What (2.0 perf audit, item 11):** `TimeVectorDataWriter<TStorage>`, with the stored struct as the type
+  parameter (`DuckDBTime` or `DuckDBTimeNs`), the mirror of `TimeVectorDataReader<TStorage>`. It takes a
+  `TimeOnly`, a `DuckDBTimeOnly` and a `DateTime` (its time of day), turns each into ticks from midnight, and
+  `Store` is the one place where the units differ, a test of `TStorage` that the JIT folds. It replaced
+  `TimeNsVectorDataWriter` and took TIME out of `DateTimeVectorDataWriter`, which keeps DATE, TIMETZ and the
+  timestamps. A TIME goes through `DateTimeExtensions.ToDuckDBTime(long)`, as the three `ToDuckDBTime` extensions
+  that parameters use do, so the division by ten is written once.
+- **Why:** `DateTimeVectorDataWriter.AppendDateTime` tested the column for DATE and for TIME on every `DateTime`
+  written to a timestamp column, and a TIME_NS had a class of its own while a TIME did not.
+- **What it refuses that used to be stored:** a `TimeOnly` or `DuckDBTimeOnly` in a DATE, TIMETZ or timestamp
+  column, and a `DateOnly` or `DuckDBDateOnly` in a TIME column, with the `InvalidOperationException` of the base
+  class, as a TIME_NS already refused a date. Each was stored as the bytes of the other type. A time in a DATE column
+  wrote 8-byte values into a 4-byte vector, past its end from row 1024 on, which crashed the test process within one
+  chunk. Nothing could have used what the others stored.
+- **Checked:** what the appender stores, through a row and as a list item, for 15 values and types in TIME, TIME_NS,
+  DATE, TIMETZ, TIMESTAMP and TIMESTAMP_NS, was compared before and after: the same for every accepted value, and
+  refused exactly in the cases above.
+- **Measured** on the Azure VM (AMD EPYC 9V45, Linux, .NET 10, DuckDB 2.0.0), `DateAppenderBenchmark`, against the
+  build before (`8929163`), per-process medians of 4 launches: every case 0.99 to 1.03, the INTEGER control 1.00. The
+  appends compile as before (Tier 1): TIME `AppendTimeOnly(TimeOnly)` 47 bytes in both, `AppendTimeOnly(DuckDBTimeOnly)`
+  105 instead of 108, the TIME_NS appends unchanged; no calls and no frame. The gain is in the code, not the time:
+  the TIME branch is gone from the `DateTime` path of the timestamps, which measured 1.00 (`AppendDateTimeToTimestamp`).
+  Results in `azure/results/2.0-run/time-split`.
+- **Pinned by:** `TemporalWriteConversionTests` (`ATimeIsRefusedInAColumnOfAnotherDateOrTimeType`,
+  `ADateIsRefusedInATimeColumn`, `ATimeIsRefusedInADateColumnOfATableFunction`,
+  `DateTimeAppendedToATimeIsItsTimeOfDay`).
 
 ## Costs that are known and not yet removed
 
@@ -571,15 +639,19 @@ between two runs.
 ## Behaviour that is kept on purpose
 
 - **The appender does no type checking.** It writes the bytes of the .NET type it is given. `AppendValue(1)`
-  into an INTEGER column stores garbage, and a `DateTime` appended to a TIME column stores the microseconds of
-  the timestamp. The mapped appender checks types when it is created. A value of the right type that is out of
-  range is another matter: a decimal is checked against the width of its column (decision 10).
+  into an INTEGER column stores garbage. The mapped appender checks types when it is created. A value of the right
+  type that is out of range is another matter: a decimal is checked against the width of its column (decision 10).
+  A writer refuses a type it has no method for, so since decision 18 a time is refused in a date or timestamp
+  column and a date in a TIME column. A `DateOnly` in a TIMETZ or timestamp column, and a `DateTime` in a TIMETZ
+  column, still store the bytes of the other type.
+- **A `DateTime` appended to a TIME or TIME_NS column stores its time of day,** as a TIME parameter does and as a
+  TIME read as `DateTime` gives it back. Until 2.0 a TIME stored the microseconds of the whole timestamp, more
+  than a day, which no one could have used.
 - **A decimal loses the digits after the point that its column has no room for, toward zero,** where DuckDB
   rounds a parameter (decision 10).
 - **A TIMESTAMP_S and a TIMESTAMP_MS round toward zero before 1970,** so 1969-12-31 23:59:59.9999999 is stored
   as 1970-01-01 00:00:00. DuckDB's own cast rounds down.
 - **A `DateTime` outside 1677 to 2262 wraps around in a TIMESTAMP_NS,** with no error.
-- **A string ends at its first NUL character** (decision 11).
 - **The expression of a column of a table function is not evaluated when the query does not read the column**
   (decision 14). A table function registered with a method that takes an `object` is still called for every
   row, and decides itself what to write.

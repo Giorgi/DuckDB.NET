@@ -20,9 +20,9 @@ internal sealed class StringVectorDataReader : VectorDataReaderBase
         return DuckDBType switch
         {
             DuckDBType.Bit => GetBitString<T>(offset),
-            DuckDBType.Blob => typeof(T) == typeof(byte[])
-                ? (T)(object)GetBytes(offset)
-                : (T)(object)GetStream(offset),
+            DuckDBType.Blob => typeof(T) == typeof(Stream)
+                ? (T)(object)GetStream(offset)
+                : (T)(object)GetBytes(offset),
             DuckDBType.Varchar => (T)(object)GetString(offset),
             _ => base.GetValidValue<T>(offset)
         };
@@ -33,7 +33,7 @@ internal sealed class StringVectorDataReader : VectorDataReaderBase
         return DuckDBType switch
         {
             DuckDBType.Bit => GetBitString(offset),
-            DuckDBType.Blob => targetType == typeof(byte[]) ? GetBytes(offset) : GetStream(offset),
+            DuckDBType.Blob => targetType == typeof(Stream) ? GetStream(offset) : GetBytes(offset),
             DuckDBType.Varchar => GetString(offset),
             _ => base.GetValueCore(offset, targetType)
         };

@@ -16,13 +16,13 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     private static readonly string[] HugeIntColumns = ["HUGEINT", "UHUGEINT"];
 
     private static readonly Type[] IntegerTargets = [typeof(sbyte), typeof(short), typeof(int), typeof(long), typeof(byte), typeof(ushort), typeof(uint), typeof(ulong)];
-    private static readonly Type[] Targets = [.. IntegerTargets, typeof(float), typeof(double), typeof(decimal), typeof(BigInteger)];
+    private static readonly Type[] Targets = [.. IntegerTargets, typeof(Int128), typeof(UInt128), typeof(float), typeof(double), typeof(decimal), typeof(BigInteger)];
 
     private static readonly Dictionary<string, Type> ColumnClrTypes = new()
     {
         ["TINYINT"] = typeof(sbyte), ["SMALLINT"] = typeof(short), ["INTEGER"] = typeof(int), ["BIGINT"] = typeof(long),
         ["UTINYINT"] = typeof(byte), ["USMALLINT"] = typeof(ushort), ["UINTEGER"] = typeof(uint), ["UBIGINT"] = typeof(ulong),
-        ["FLOAT"] = typeof(float), ["DOUBLE"] = typeof(double), ["HUGEINT"] = typeof(BigInteger), ["UHUGEINT"] = typeof(BigInteger),
+        ["FLOAT"] = typeof(float), ["DOUBLE"] = typeof(double), ["HUGEINT"] = typeof(Int128), ["UHUGEINT"] = typeof(UInt128),
     };
 
     private static readonly MethodInfo GetFieldValueMethod = typeof(DuckDBDataReader).GetMethod(nameof(DuckDBDataReader.GetFieldValue));
@@ -40,12 +40,12 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
     // Reads one value from a column of one type as every .NET type in the table, and expects:
     //
-    //                       | sbyte, short, int, long,   | float, double,       |
-    //   Column type         | byte, ushort, uint, ulong  | decimal              | BigInteger
-    //   --------------------+----------------------------+----------------------+---------------------
-    //   TINYINT to UBIGINT  | the value, if it fits      | the value            | the value
-    //   FLOAT, DOUBLE       | the value, if it fits      | the value            | InvalidCastException
-    //   HUGEINT, UHUGEINT   | the value, if it fits      | InvalidCastException | the value
+    //                       | sbyte, short, int, long,   |                       | float, double,       |
+    //   Column type         | byte, ushort, uint, ulong  | Int128, UInt128       | decimal              | BigInteger
+    //   --------------------+----------------------------+-----------------------+----------------------+---------------------
+    //   TINYINT to UBIGINT  | the value, if it fits      | the value, if it fits | the value            | the value
+    //   FLOAT, DOUBLE       | the value, if it fits      | InvalidCastException  | the value            | InvalidCastException
+    //   HUGEINT, UHUGEINT   | the value, if it fits      | the value, if it fits | InvalidCastException | the value
     //
     // "If it fits" means the value is in the range of the .NET type. If it is not, the read throws
     // InvalidCastException. "TINYINT to UBIGINT" is the eight signed and unsigned integer column types.
@@ -353,7 +353,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     // A FLOAT or DOUBLE read as an integer type gives the value when it is whole and fits, and throws
-    // InvalidCastException otherwise (2.0 item 5; before 2.0 a fraction was rounded half to even). There is no
+    // InvalidCastException otherwise (before 2.0 a fraction was rounded half to even). There is no
     // tolerance for a value that is nearly whole. NaN, the infinities and a value out of range are refused as before.
     [Theory]
     [InlineData("FLOAT", "Single")]
@@ -642,8 +642,326 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         reader.Invoking(r => r.GetDecimal(0)).Should().Throw<InvalidCastException>();
     }
 
+    // Int128 and UInt128 are the exact types of HUGEINT and UHUGEINT. Each reads the whole range of
+    // its column, and every other integer column, VARINT and a whole DECIMAL when the value fits. They are also the
+    // default types of the two columns (2.0; BigInteger before), which still read as BigInteger.
+    [Fact]
+    public void Int128AndUInt128ReadTheWholeRangeOfHugeIntAndUHugeInt()
+    {
+        Command.CommandText = """
+            SELECT '-170141183460469231731687303715884105728'::HUGEINT AS huge_min,
+                   '170141183460469231731687303715884105727'::HUGEINT AS huge_max,
+                   0::UHUGEINT AS unsigned_min,
+                   '340282366920938463463374607431768211455'::UHUGEINT AS unsigned_max,
+                   '170141183460469231731687303715884105728'::UHUGEINT AS above_int128_max,
+                   (-1)::HUGEINT AS minus_one,
+                   (-9223372036854775808)::BIGINT AS long_min,
+                   18446744073709551615::UBIGINT AS ulong_max,
+                   (-128)::TINYINT AS sbyte_min,
+                   NULL::HUGEINT AS nothing
+            """;
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        var hugeMin = reader.GetOrdinal("huge_min");
+        var hugeMax = reader.GetOrdinal("huge_max");
+        var unsignedMin = reader.GetOrdinal("unsigned_min");
+        var unsignedMax = reader.GetOrdinal("unsigned_max");
+        var aboveInt128Max = reader.GetOrdinal("above_int128_max");
+        var minusOne = reader.GetOrdinal("minus_one");
+        var longMin = reader.GetOrdinal("long_min");
+        var ulongMax = reader.GetOrdinal("ulong_max");
+        var sbyteMin = reader.GetOrdinal("sbyte_min");
+        var nothing = reader.GetOrdinal("nothing");
+
+        reader.GetFieldValue<Int128>(hugeMin).Should().Be(Int128.MinValue);
+        reader.GetFieldValue<Int128>(hugeMax).Should().Be(Int128.MaxValue);
+        reader.GetFieldValue<Int128>(minusOne).Should().Be(Int128.NegativeOne);
+        reader.GetFieldValue<UInt128>(unsignedMin).Should().Be(UInt128.Zero);
+        reader.GetFieldValue<UInt128>(unsignedMax).Should().Be(UInt128.MaxValue);
+
+        // Across the two columns, where the value fits.
+        reader.GetFieldValue<Int128>(unsignedMin).Should().Be(Int128.Zero);
+        reader.GetFieldValue<UInt128>(hugeMax).Should().Be((UInt128)Int128.MaxValue);
+        reader.GetFieldValue<UInt128>(aboveInt128Max).Should().Be((UInt128)Int128.MaxValue + 1);
+
+        reader.Invoking(r => r.GetFieldValue<Int128>(aboveInt128Max)).Should().Throw<InvalidCastException>()
+            .WithMessage("Cannot cast from UnsignedHugeInt to Int128 in column above_int128_max");
+        reader.Invoking(r => r.GetFieldValue<Int128>(unsignedMax)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetFieldValue<UInt128>(minusOne)).Should().Throw<InvalidCastException>()
+            .WithMessage("Cannot cast from HugeInt to UInt128 in column minus_one");
+        reader.Invoking(r => r.GetFieldValue<UInt128>(hugeMin)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetFieldValue<UInt128?>(hugeMin)).Should().Throw<InvalidCastException>();
+
+        // The narrower integer columns widen.
+        reader.GetFieldValue<Int128>(longMin).Should().Be((Int128)long.MinValue);
+        reader.GetFieldValue<Int128>(ulongMax).Should().Be((Int128)ulong.MaxValue);
+        reader.GetFieldValue<UInt128>(ulongMax).Should().Be((UInt128)ulong.MaxValue);
+        reader.GetFieldValue<Int128>(sbyteMin).Should().Be((Int128)(-128));
+        reader.Invoking(r => r.GetFieldValue<UInt128>(longMin)).Should().Throw<InvalidCastException>()
+            .WithMessage("Cannot cast from Int64 to UInt128 in column long_min");
+        reader.Invoking(r => r.GetFieldValue<UInt128>(sbyteMin)).Should().Throw<InvalidCastException>();
+
+        // The nullable forms.
+        reader.GetFieldValue<Int128?>(nothing).Should().BeNull();
+        reader.GetFieldValue<UInt128?>(nothing).Should().BeNull();
+        reader.GetFieldValue<Int128?>(hugeMin).Should().Be(Int128.MinValue);
+        reader.GetFieldValue<UInt128?>(unsignedMax).Should().Be(UInt128.MaxValue);
+        reader.GetFieldValue<Int128?>(longMin).Should().Be((Int128)long.MinValue);
+
+        // The default types are Int128 and UInt128; BigInteger still reads; the provider-specific types are the DuckDB
+        // structs, as before.
+        reader.GetFieldType(hugeMax).Should().Be(typeof(Int128));
+        reader.GetFieldType(unsignedMax).Should().Be(typeof(UInt128));
+        reader.GetValue(hugeMax).Should().Be(Int128.MaxValue);
+        reader.GetValue(unsignedMax).Should().Be(UInt128.MaxValue);
+        reader.GetFieldValue<object>(hugeMin).Should().Be(Int128.MinValue);
+        reader.GetFieldValue<BigInteger>(hugeMax).Should().Be((BigInteger)Int128.MaxValue);
+        reader.GetFieldValue<BigInteger>(unsignedMax).Should().Be((BigInteger)UInt128.MaxValue);
+        reader.GetProviderSpecificValue(hugeMax).Should().BeOfType<DuckDBHugeInt>();
+        reader.GetProviderSpecificValue(unsignedMax).Should().BeOfType<DuckDBUHugeInt>();
+    }
+
+    // The default types reach what is built on GetFieldType and GetValue: the schema table, a DataTable and
+    // ExecuteScalar. sum() of an integer column is a HUGEINT, so its result is an Int128 now (a BigInteger before 2.0).
+    [Fact]
+    public void Int128AndUInt128AreTheTypesOfTheSchemaTableADataTableAndExecuteScalar()
+    {
+        Command.CommandText = "SELECT '-170141183460469231731687303715884105728'::HUGEINT AS huge, '340282366920938463463374607431768211455'::UHUGEINT AS unsigned, 42::VARINT AS big";
+
+        using (var reader = Command.ExecuteReader())
+        {
+            var schema = reader.GetSchemaTable();
+            schema.Rows[0][System.Data.Common.SchemaTableColumn.DataType].Should().Be(typeof(Int128));
+            schema.Rows[1][System.Data.Common.SchemaTableColumn.DataType].Should().Be(typeof(UInt128));
+            schema.Rows[2][System.Data.Common.SchemaTableColumn.DataType].Should().Be(typeof(BigInteger));
+        }
+
+        using (var reader = Command.ExecuteReader())
+        {
+            var table = new System.Data.DataTable();
+            table.Load(reader);
+            table.Columns["huge"].DataType.Should().Be(typeof(Int128));
+            table.Columns["unsigned"].DataType.Should().Be(typeof(UInt128));
+            table.Columns["big"].DataType.Should().Be(typeof(BigInteger));
+            table.Rows[0]["huge"].Should().Be(Int128.MinValue);
+            table.Rows[0]["unsigned"].Should().Be(UInt128.MaxValue);
+            table.Rows[0]["big"].Should().Be(new BigInteger(42));
+        }
+
+        Command.CommandText = "SELECT sum(i) FROM range(10) t(i)";
+        Command.ExecuteScalar().Should().Be((Int128)45);
+    }
+
+    // Values read as objects inside a struct, a map and a list of structs, and the input of a scalar function read as
+    // an object, have the default types too.
+    [Fact]
+    public void NestedHugeIntsReadAsObjectsAreInt128AndUInt128()
+    {
+        Command.CommandText = """
+            SELECT {'h': (-1)::HUGEINT, 'u': '340282366920938463463374607431768211455'::UHUGEINT, 'v': 7::VARINT} AS fields,
+                   MAP {(-2)::HUGEINT: 3::UHUGEINT} AS map,
+                   [{'h': 4::HUGEINT}] AS list_of_structs
+            """;
+        using (var reader = Command.ExecuteReader())
+        {
+            reader.Read();
+
+            var fields = reader.GetFieldValue<Dictionary<string, object>>(0);
+            fields["h"].Should().Be(Int128.NegativeOne);
+            fields["u"].Should().Be(UInt128.MaxValue);
+            fields["v"].Should().Be(new BigInteger(7));
+
+            reader.GetValue(1).Should().BeOfType<Dictionary<Int128, UInt128>>()
+                .Which.Should().Equal(new Dictionary<Int128, UInt128> { [-2] = 3 });
+
+            reader.GetValue(2).Should().BeOfType<List<Dictionary<string, object>>>()
+                .Which.Single()["h"].Should().Be((Int128)4);
+        }
+
+        Connection.RegisterScalarFunction<Int128, string>("hugeint_input_type", (readers, writer, rowCount) =>
+        {
+            for (ulong index = 0; index < rowCount; index++)
+            {
+                writer.WriteValue($"{readers[0].GetValue(index).GetType().Name} {readers[0].GetValue<object>(index).GetType().Name}", index);
+            }
+        });
+
+        Command.CommandText = "SELECT hugeint_input_type(5::HUGEINT)";
+        Command.ExecuteScalar().Should().Be("Int128 Int128");
+    }
+
+    [Fact]
+    public void VarIntReadsAsInt128AndUInt128WhenItFits()
+    {
+        Command.CommandText = """
+            SELECT '170141183460469231731687303715884105727'::VARINT AS int128_max,
+                   '170141183460469231731687303715884105728'::VARINT AS above_int128_max,
+                   '-170141183460469231731687303715884105728'::VARINT AS int128_min,
+                   '-170141183460469231731687303715884105729'::VARINT AS below_int128_min,
+                   '340282366920938463463374607431768211455'::VARINT AS uint128_max,
+                   '340282366920938463463374607431768211456'::VARINT AS above_uint128_max,
+                   (-1)::VARINT AS minus_one
+            """;
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetFieldValue<Int128>(reader.GetOrdinal("int128_max")).Should().Be(Int128.MaxValue);
+        reader.GetFieldValue<Int128>(reader.GetOrdinal("int128_min")).Should().Be(Int128.MinValue);
+        reader.GetFieldValue<Int128>(reader.GetOrdinal("minus_one")).Should().Be(Int128.NegativeOne);
+        reader.GetFieldValue<UInt128>(reader.GetOrdinal("above_int128_max")).Should().Be((UInt128)Int128.MaxValue + 1);
+        reader.GetFieldValue<UInt128>(reader.GetOrdinal("uint128_max")).Should().Be(UInt128.MaxValue);
+        reader.GetFieldValue<UInt128?>(reader.GetOrdinal("uint128_max")).Should().Be(UInt128.MaxValue);
+
+        reader.Invoking(r => r.GetFieldValue<Int128>(r.GetOrdinal("above_int128_max"))).Should().Throw<InvalidCastException>()
+            .WithMessage("Cannot cast from VarInt to Int128 in column above_int128_max");
+        reader.Invoking(r => r.GetFieldValue<Int128>(r.GetOrdinal("below_int128_min"))).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetFieldValue<UInt128>(r.GetOrdinal("above_uint128_max"))).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetFieldValue<UInt128>(r.GetOrdinal("minus_one"))).Should().Throw<InvalidCastException>()
+            .WithMessage("Cannot cast from VarInt to UInt128 in column minus_one");
+    }
+
+    // As a HUGEINT is refused as float and double, FLOAT and DOUBLE are refused as Int128 and UInt128, whatever the
+    // value, also a whole one.
+    [Fact]
+    public void FloatAndDoubleAreNotReadAsInt128OrUInt128()
+    {
+        Command.CommandText = "SELECT 42::DOUBLE AS d, 42::FLOAT AS f";
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.Invoking(r => r.GetFieldValue<Int128>(0)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Double to Int128 in column d");
+        reader.Invoking(r => r.GetFieldValue<UInt128>(0)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Double to UInt128 in column d");
+        reader.Invoking(r => r.GetFieldValue<Int128?>(0)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetFieldValue<Int128>(1)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Single to Int128 in column f");
+        reader.Invoking(r => r.GetFieldValue<UInt128?>(1)).Should().Throw<InvalidCastException>();
+    }
+
+    // A DECIMAL reads as Int128 and UInt128 as it does as long: the value when it is whole and fits. The four widths
+    // are stored in 2, 4, 8 and 16 bytes.
+    [Theory]
+    [InlineData("DECIMAL(4,1)")]
+    [InlineData("DECIMAL(9,2)")]
+    [InlineData("DECIMAL(18,3)")]
+    [InlineData("DECIMAL(38,4)")]
+    public void DecimalReadsAsInt128AndUInt128WhenItIsWhole(string type)
+    {
+        Command.CommandText = $"SELECT 42::{type} AS whole, (-42)::{type} AS minus_whole, 1.5::{type} AS fraction, (-0.5)::{type} AS minus_half";
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetFieldValue<Int128>(0).Should().Be((Int128)42);
+        reader.GetFieldValue<UInt128>(0).Should().Be((UInt128)42);
+        reader.GetFieldValue<Int128?>(1).Should().Be((Int128)(-42));
+
+        reader.Invoking(r => r.GetFieldValue<UInt128>(1)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Decimal to UInt128 in column minus_whole");
+        reader.Invoking(r => r.GetFieldValue<Int128>(2)).Should().Throw<InvalidCastException>()
+            .WithMessage("Cannot cast a value with a non-zero fractional part to Int128 in column fraction");
+        reader.Invoking(r => r.GetFieldValue<UInt128>(2)).Should().Throw<InvalidCastException>()
+            .WithMessage("Cannot cast a value with a non-zero fractional part to UInt128 in column fraction");
+        reader.Invoking(r => r.GetFieldValue<UInt128?>(3)).Should().Throw<InvalidCastException>()
+            .WithMessage("Cannot cast a value with a non-zero fractional part to UInt128 in column minus_half");
+    }
+
+    // The widest DECIMAL is beyond the range of decimal, and within that of Int128.
+    [Fact]
+    public void WidestDecimalReadsAsInt128()
+    {
+        Command.CommandText = "SELECT '99999999999999999999999999999999999999'::DECIMAL(38,0), '-99999999999999999999999999999999999999'::DECIMAL(38,0)";
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        var largest = Int128.Parse("99999999999999999999999999999999999999", CultureInfo.InvariantCulture);
+
+        reader.GetFieldValue<Int128>(0).Should().Be(largest);
+        reader.GetFieldValue<UInt128>(0).Should().Be((UInt128)largest);
+        reader.GetFieldValue<Int128>(1).Should().Be(-largest);
+    }
+
+    // A wide DECIMAL that fits the 96 bits of a decimal is built from its digits and the scale, as the narrower ones
+    // are, so it keeps the scale of its column: 1.5000 from a DECIMAL(38,4) as from a DECIMAL(18,4). Before 2.0 it was
+    // divided, which dropped the trailing zeros. A value beyond 96 bits, or a scale above 28, is still divided.
+    [Fact]
+    public void AWideDecimalKeepsTheScaleOfItsColumn()
+    {
+        Command.CommandText = """
+            SELECT 1.5::DECIMAL(38,4), (-1.5)::DECIMAL(38,4), 0::DECIMAL(38,4), 1.5::DECIMAL(18,4),
+                   79228162514264337593543950335::DECIMAL(38,0), (-79228162514264337593543950335)::DECIMAL(38,0),
+                   7922816251426433759354395033.5::DECIMAL(38,1), 79228162514264337593543950336::DECIMAL(38,0),
+                   1.5::DECIMAL(38,30)
+            """;
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        string Text(int ordinal) => reader.GetDecimal(ordinal).ToString(CultureInfo.InvariantCulture);
+
+        Text(0).Should().Be("1.5000");
+        ((decimal)reader.GetValue(0)).ToString(CultureInfo.InvariantCulture).Should().Be("1.5000");
+        Text(1).Should().Be("-1.5000");
+        Text(2).Should().Be("0.0000");
+        Text(3).Should().Be("1.5000");
+
+        // The largest and smallest values of 96 bits, the last with a scale.
+        reader.GetDecimal(4).Should().Be(decimal.MaxValue);
+        reader.GetDecimal(5).Should().Be(decimal.MinValue);
+        Text(6).Should().Be("7922816251426433759354395033.5");
+
+        // One past 96 bits, and a scale above 28, take the division.
+        reader.Invoking(r => r.GetDecimal(7)).Should().Throw<OverflowException>();
+        reader.GetDecimal(8).Should().Be(1.5m);
+    }
+
+    // A list item, a map key or value and a struct field read as Int128 or UInt128, as a column does.
+    [Fact]
+    public void ListsMapsAndStructsOfHugeIntsReadAsInt128AndUInt128()
+    {
+        Command.CommandText = """
+            SELECT [1, -2]::HUGEINT[] AS list,
+                   [1, NULL]::HUGEINT[] AS list_with_null,
+                   ['340282366920938463463374607431768211455']::UHUGEINT[] AS unsigned_list,
+                   [1, 2]::INTEGER[] AS integers,
+                   MAP {'-170141183460469231731687303715884105728'::HUGEINT: '340282366920938463463374607431768211455'::UHUGEINT} AS map,
+                   {'Signed': (-5)::HUGEINT, 'Unsigned': 7::BIGINT} AS fields
+            """;
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetFieldValue<List<Int128>>(0).Should().Equal(1, -2);
+        reader.GetFieldValue<List<Int128?>>(1).Should().Equal(1, null);
+        reader.Invoking(r => r.GetFieldValue<List<Int128>>(1)).Should().Throw<InvalidCastException>();
+        reader.GetFieldValue<List<UInt128>>(2).Should().Equal(UInt128.MaxValue);
+        reader.Invoking(r => r.GetFieldValue<List<Int128>>(2)).Should().Throw<InvalidCastException>();
+        reader.GetFieldValue<List<UInt128>>(3).Should().Equal(1u, 2u);
+        reader.Invoking(r => r.GetFieldValue<List<UInt128>>(0)).Should().Throw<InvalidCastException>();
+
+        reader.GetFieldValue<Dictionary<Int128, UInt128>>(4).Should().Equal(new Dictionary<Int128, UInt128> { [Int128.MinValue] = UInt128.MaxValue });
+        reader.GetFieldValue<Dictionary<Int128, UInt128?>>(4).Should().Equal(new Dictionary<Int128, UInt128?> { [Int128.MinValue] = UInt128.MaxValue });
+        reader.Invoking(r => r.GetFieldValue<Dictionary<Int128, Int128>>(4)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetFieldValue<Dictionary<UInt128, UInt128>>(4)).Should().Throw<InvalidCastException>();
+
+        var fields = reader.GetFieldValue<WideFields>(5);
+        fields.Signed.Should().Be((Int128)(-5));
+        fields.Unsigned.Should().Be((UInt128)7);
+
+        var nullableFields = reader.GetFieldValue<NullableWideFields>(5);
+        nullableFields.Signed.Should().Be((Int128)(-5));
+        nullableFields.Unsigned.Should().Be((UInt128)7);
+    }
+
+    private class WideFields
+    {
+        public Int128 Signed { get; set; }
+        public UInt128 Unsigned { get; set; }
+    }
+
+    private class NullableWideFields
+    {
+        public Int128? Signed { get; set; }
+        public UInt128? Unsigned { get; set; }
+    }
+
     // A DECIMAL read as an integer type gives the value when it is whole and fits, and throws InvalidCastException
-    // otherwise, as FLOAT and DOUBLE do (2.0 item 5; before 2.0 every read as sbyte to ulong was refused). Each width
+    // otherwise, as FLOAT and DOUBLE do (before 2.0 every read as sbyte to ulong was refused). Each width
     // is stored in another integer: 2, 4, 8 and 16 bytes. FLOAT and DOUBLE stay refused whatever the value.
     [Theory]
     [InlineData("DECIMAL(4,0)")]
@@ -1042,7 +1360,9 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         row.Should().Be(rowCount);
     }
 
-    // The values are multiples of 10^22, which is more than a long holds.
+    // The values are multiples of 10^22, which is more than a long holds. The UHUGEINT values go past the largest
+    // Int128. Int128 and UInt128 are read through the fast path of ReadValidValue (StorageType), which must follow
+    // the vector of each new chunk.
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -1054,7 +1374,8 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         Command.CommandText = $"""
             SELECT i,
                    CASE WHEN i % 17 = 0 THEN NULL ELSE (i - 2500)::HUGEINT * 10000000000000000000000::HUGEINT END AS huge,
-                   CASE WHEN i % 19 = 0 THEN NULL ELSE ((i - 2500)::HUGEINT * 10000000000000000000000::HUGEINT)::VARINT END AS big
+                   CASE WHEN i % 19 = 0 THEN NULL ELSE ((i - 2500)::HUGEINT * 10000000000000000000000::HUGEINT)::VARINT END AS big,
+                   CASE WHEN i % 23 = 0 THEN NULL ELSE i::UHUGEINT * 68056473384187692692674921486353642::UHUGEINT END AS uhuge
             FROM range(0, {rowCount}) t(i)
             ORDER BY i
             """;
@@ -1063,11 +1384,14 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         var rowNumberColumn = reader.GetOrdinal("i");
         var hugeColumn = reader.GetOrdinal("huge");
         var bigColumn = reader.GetOrdinal("big");
+        var uhugeColumn = reader.GetOrdinal("uhuge");
 
-        reader.GetFieldType(hugeColumn).Should().Be(typeof(BigInteger));
+        reader.GetFieldType(hugeColumn).Should().Be(typeof(Int128));
         reader.GetFieldType(bigColumn).Should().Be(typeof(BigInteger));
+        reader.GetFieldType(uhugeColumn).Should().Be(typeof(UInt128));
 
         var hugeStep = BigInteger.Pow(10, 22);
+        var uhugeStep = UInt128.Parse("68056473384187692692674921486353642", CultureInfo.InvariantCulture);
         var row = 0;
 
         while (reader.Read())
@@ -1080,11 +1404,21 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
             reader.GetFieldValue<BigInteger?>(hugeColumn).Should().Be(huge, $"row {row}");
             reader.GetFieldValue<BigInteger?>(bigColumn).Should().Be(big, $"row {row}");
+            reader.GetFieldValue<Int128?>(hugeColumn).Should().Be(huge.HasValue ? (Int128)huge.Value : null, $"row {row}");
+
+            UInt128? uhuge = row % 23 == 0 ? null : (UInt128)row * uhugeStep;
+            reader.GetFieldValue<UInt128?>(uhugeColumn).Should().Be(uhuge, $"row {row}");
+
+            if (uhuge.HasValue)
+            {
+                reader.GetFieldValue<UInt128>(uhugeColumn).Should().Be(uhuge.Value, $"row {row}");
+            }
 
             if (huge.HasValue)
             {
                 reader.GetFieldValue<BigInteger>(hugeColumn).Should().Be(huge.Value, $"row {row}");
-                reader.GetValue(hugeColumn).Should().Be(huge.Value, $"row {row}");
+                reader.GetFieldValue<Int128>(hugeColumn).Should().Be((Int128)huge.Value, $"row {row}");
+                reader.GetValue(hugeColumn).Should().Be((Int128)huge.Value, $"row {row}");
                 reader.GetFieldValue<DuckDBHugeInt>(hugeColumn).ToBigInteger().Should().Be(huge.Value, $"row {row}");
 
                 if (row == 2500)
@@ -1117,7 +1451,13 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // The helpers of ReadNumericColumnAsEveryNumericType.
 
     // Every value used there is a whole number that float, double and decimal hold exactly.
-    private static decimal AsDecimal(object value) => value is BigInteger big ? (decimal)big : Convert.ToDecimal(value, CultureInfo.InvariantCulture);
+    private static decimal AsDecimal(object value) => value switch
+    {
+        BigInteger big => (decimal)big,
+        Int128 wide => (decimal)wide,
+        UInt128 wide => (decimal)wide,
+        _ => Convert.ToDecimal(value, CultureInfo.InvariantCulture)
+    };
 
     // What the reader converts at all, whatever the value.
     private static bool IsSupported(string column, Type target)
@@ -1132,13 +1472,16 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
             return true;
         }
 
+        var isWideInteger = target == typeof(Int128) || target == typeof(UInt128) || target == typeof(BigInteger);
+
         if (Array.IndexOf(HugeIntColumns, column) >= 0)
         {
-            return target == typeof(BigInteger);
+            return isWideInteger;
         }
 
-        // FLOAT and DOUBLE are read as an integer, as each other and as decimal, and not as BigInteger.
-        return target != typeof(BigInteger);
+        // FLOAT and DOUBLE are read as an integer, as each other and as decimal, and not as Int128, UInt128 or
+        // BigInteger.
+        return !isWideInteger;
     }
 
     private static bool Fits(BigInteger value, Type target)
@@ -1151,8 +1494,9 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         if (target == typeof(ushort)) return value >= ushort.MinValue && value <= ushort.MaxValue;
         if (target == typeof(uint)) return value >= uint.MinValue && value <= uint.MaxValue;
         if (target == typeof(ulong)) return value >= ulong.MinValue && value <= ulong.MaxValue;
+        if (target == typeof(UInt128)) return value >= 0;
 
-        // float, double, decimal and BigInteger hold every value the test uses.
+        // Int128, float, double, decimal and BigInteger hold every value the test uses.
         return true;
     }
 }

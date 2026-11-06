@@ -27,7 +27,8 @@ internal sealed partial class ListVectorDataReader
                     ?? Value<DuckDBDateOnly>(elementType) ?? Value<DuckDBTimeOnly>(elementType) ?? Value<DuckDBTimeTz>(elementType)
                     ?? Value<DuckDBTimestamp>(elementType) ?? Value<DuckDBInterval>(elementType)
                     ?? Value<DuckDBHugeInt>(elementType) ?? Value<DuckDBUHugeInt>(elementType) ?? Value<DuckDBDecimal>(elementType)
-                    ?? Reference<string>(elementType) ?? Reference<Stream>(elementType) ?? Reference<BitArray>(elementType);
+                    ?? Reference<string>(elementType) ?? Reference<byte[]>(elementType) ?? Reference<Stream>(elementType)
+                    ?? Reference<BitArray>(elementType);
 
         if (known != null)
         {

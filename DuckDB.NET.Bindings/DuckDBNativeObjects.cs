@@ -147,6 +147,24 @@ public struct DuckDBTime
 }
 
 [StructLayout(LayoutKind.Sequential)]
+public struct DuckDBTimeNs
+{
+    public long Nanos { get; set; }
+
+    /// <summary>Creates a time from .NET ticks (100-nanosecond units).</summary>
+    public static DuckDBTimeNs FromTicks(long ticks) => new() { Nanos = ticks * 100 };
+
+    /// <summary>Gets the time in .NET ticks (100-nanosecond units), truncated from nanoseconds.</summary>
+    public readonly long Ticks => Nanos / 100;
+
+    /// <summary>Gets the time in microseconds, truncated from nanoseconds.</summary>
+    public readonly long Microseconds => Nanos / 1_000;
+
+    /// <summary>Splits the time into hour, minute, second and microsecond, dropping what is below a microsecond.</summary>
+    public readonly DuckDBTimeOnly ToDuckDBTimeOnly() => NativeMethods.DateTimeHelpers.DuckDBFromTime(new DuckDBTime { Micros = Microseconds });
+}
+
+[StructLayout(LayoutKind.Sequential)]
 public struct DuckDBTimeTzStruct
 {
     public ulong Bits { get; set; }
@@ -226,9 +244,8 @@ public struct DuckDBString
 
     /// <summary>
     /// Builds a string that is kept inside the value: the UTF-8 bytes of <paramref name="value"/>, then zeros.
-    /// Returns false, with a default value, when they take more than 12 bytes, or when <paramref name="value"/>
-    /// contains a NUL character, because DuckDB.NET ends a string at its first NUL (DuckDB itself would keep it).
-    /// Write such a string through DuckDB, with its length.
+    /// Returns false, with a default value, when they take more than 12 bytes. Write such a string through DuckDB,
+    /// with its length.
     /// </summary>
     public static unsafe bool TryCreateInlined(ReadOnlySpan<char> value, out DuckDBString result)
     {
@@ -245,9 +262,8 @@ public struct DuckDBString
         {
             var bytes = new Span<byte>(data, InlineStringMaxLength);
 
-            // Characters of more than one byte, more than 12 bytes together; or a NUL character (UTF-8 has a zero
-            // byte only for it), which DuckDB.NET ends a string at.
-            if (!Encoding.UTF8.TryGetBytes(value, bytes, out var length) || bytes[..length].Contains((byte)0))
+            // Characters of more than one byte, more than 12 bytes together.
+            if (!Encoding.UTF8.TryGetBytes(value, bytes, out var length))
             {
                 result = default;
                 return false;

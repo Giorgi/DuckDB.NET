@@ -176,6 +176,8 @@ public static class DuckDBConnectionScalarFunctionExtensions
             if (typeof(TResult) == typeof(ushort?)) { WriteNullableResult(writer, (ushort?)(object?)result, index); return; }
             if (typeof(TResult) == typeof(uint?)) { WriteNullableResult(writer, (uint?)(object?)result, index); return; }
             if (typeof(TResult) == typeof(ulong?)) { WriteNullableResult(writer, (ulong?)(object?)result, index); return; }
+            if (typeof(TResult) == typeof(Int128?)) { WriteNullableResult(writer, (Int128?)(object?)result, index); return; }
+            if (typeof(TResult) == typeof(UInt128?)) { WriteNullableResult(writer, (UInt128?)(object?)result, index); return; }
             if (typeof(TResult) == typeof(float?)) { WriteNullableResult(writer, (float?)(object?)result, index); return; }
             if (typeof(TResult) == typeof(double?)) { WriteNullableResult(writer, (double?)(object?)result, index); return; }
             if (typeof(TResult) == typeof(decimal?)) { WriteNullableResult(writer, (decimal?)(object?)result, index); return; }

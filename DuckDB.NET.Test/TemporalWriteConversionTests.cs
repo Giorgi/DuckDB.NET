@@ -68,7 +68,8 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
             var time = new TimeOnly(ticks);
 
             var microsecond = (int)(ticks % TimeSpan.TicksPerSecond / 10);
-            var expected = NativeMethods.DateTimeHelpers.DuckDBToTime(new DuckDBTimeOnly((byte)time.Hour, (byte)time.Minute, (byte)time.Second, microsecond)).Micros;
+            var parts = new DuckDBTimeOnly((byte)time.Hour, (byte)time.Minute, (byte)time.Second, microsecond);
+            var expected = NativeMethods.DateTimeHelpers.DuckDBToTime(parts).Micros;
 
             var onADay = new DateTime(2024, 2, 29).AddTicks(ticks);
 
@@ -79,13 +80,245 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
             if (time.ToDuckDBTime().Micros != expected ||
                 onADay.ToDuckDBTime().Micros != expected ||
+                parts.ToDuckDBTime().Micros != expected ||
                 withOffset.ToTimeTzStruct().Bits != expectedTimeTz)
             {
-                Assert.Fail($"{time:O}: DuckDB stores {expected}, as TimeOnly it became {time.ToDuckDBTime().Micros}, as DateTime {onADay.ToDuckDBTime().Micros}; " +
+                Assert.Fail($"{time:O}: DuckDB stores {expected}, as TimeOnly it became {time.ToDuckDBTime().Micros}, as DateTime {onADay.ToDuckDBTime().Micros}, " +
+                            $"as DuckDBTimeOnly {parts.ToDuckDBTime().Micros}; " +
                             $"with the offset {offset} DuckDB stores {expectedTimeTz:X16}, the conversion gave {withOffset.ToTimeTzStruct().Bits:X16}");
             }
         }
+
+        // 24:00:00, which only a DuckDBTimeOnly holds.
+        var endOfDay = new DuckDBTimeOnly(24, 0, 0);
+        endOfDay.ToDuckDBTime().Micros.Should().Be(NativeMethods.DateTimeHelpers.DuckDBToTime(endOfDay).Micros);
     }
+
+    // TIME and TIME_NS have a writer of their own, so a time is refused in the other date and time columns, and a date
+    // in a TIME column, as a value and as a list item. They used to be stored as the bytes of the other type; a time
+    // in a DATE column wrote 8-byte values into a 4-byte vector, past its end from row 1024 on, which crashed the
+    // process within one chunk. The writer now refuses the type in any row, so row 0 tests it.
+    [Theory]
+    [InlineData("DATE")]
+    [InlineData("TIMETZ")]
+    [InlineData("TIMESTAMP")]
+    [InlineData("TIMESTAMP_S")]
+    [InlineData("TIMESTAMP_MS")]
+    [InlineData("TIMESTAMP_NS")]
+    [InlineData("TIMESTAMPTZ")]
+    public void ATimeIsRefusedInAColumnOfAnotherDateOrTimeType(string columnType)
+    {
+        AppendIsRefused(columnType, row => row.AppendValue((TimeOnly?)new TimeOnly(12, 0)), "TimeOnly");
+        AppendIsRefused(columnType, row => row.AppendValue((DuckDBTimeOnly?)new DuckDBTimeOnly(12, 0, 0)), "DuckDBTimeOnly");
+        AppendIsRefused($"{columnType}[]", row => row.AppendValue(new List<TimeOnly> { new(12, 0) }), "TimeOnly");
+        AppendIsRefused($"{columnType}[]", row => row.AppendValue(new List<DuckDBTimeOnly> { new(12, 0, 0) }), "DuckDBTimeOnly");
+    }
+
+    // The output of a table function reaches the same writers: a time written into a DATE column is refused there too.
+    // The message is checked, not the inner exception, which UdfExceptionStore can mix up between parallel tests.
+    [Fact]
+    public void ATimeIsRefusedInADateColumnOfATableFunction()
+    {
+        var name = $"time_into_date_{Guid.NewGuid():N}";
+        Connection.RegisterTableFunction(name, () => new TableFunction([new ColumnInfo("d", typeof(DateOnly))], new[] { 1 }),
+            (_, writers, rowIndex) => writers[0].WriteValue(new TimeOnly(12, 0), rowIndex));
+
+        Command.CommandText = $"SELECT * FROM {name}()";
+        Command.Invoking(command => command.ExecuteScalar())
+            .Should().Throw<DuckDBException>().WithMessage("*Cannot write TimeOnly to Date column*");
+    }
+
+    [Theory]
+    [InlineData("TIME")]
+    [InlineData("TIME_NS")]
+    public void ADateIsRefusedInATimeColumn(string columnType)
+    {
+        AppendIsRefused(columnType, row => row.AppendValue((DateOnly?)new DateOnly(2024, 2, 29)), "DateOnly");
+        AppendIsRefused(columnType, row => row.AppendValue((DuckDBDateOnly?)new DuckDBDateOnly(2024, 2, 29)), "DuckDBDateOnly");
+        AppendIsRefused($"{columnType}[]", row => row.AppendValue(new List<DateOnly> { new(2024, 2, 29) }), "DateOnly");
+        AppendIsRefused($"{columnType}[]", row => row.AppendValue(new List<DuckDBDateOnly> { new(2024, 2, 29) }), "DuckDBDateOnly");
+    }
+
+    private void AppendIsRefused(string columnType, Action<IDuckDBAppenderRow> append, string typeName)
+    {
+        var table = $"refused_{Guid.NewGuid():N}";
+        Connection.ExecuteNonQuery($"CREATE TABLE {table} (v {columnType})");
+
+        using var appender = Connection.CreateAppender(table);
+        var row = appender.CreateRow();
+        row.Invoking(append).Should().Throw<InvalidOperationException>().WithMessage($"Cannot write {typeName} to *");
+    }
+
+    // A DateTime appended to a TIME column, in a row and as a list item, is stored as its time of day. DuckDB casts the
+    // same moment, written as a TIMESTAMP literal, to a TIME for the expected value; before 1970 and at both ends of
+    // the range of a DateTime too. What is below a microsecond is dropped.
+    [Theory]
+    [InlineData("2024-02-29 12:34:56.1234567")]
+    [InlineData("1969-07-20 20:17:40.9999999")]
+    [InlineData("0001-01-01 00:00:00.0000001")]
+    [InlineData("9999-12-31 23:59:59.9999999")]
+    public void DateTimeAppendedToATimeIsItsTimeOfDay(string text)
+    {
+        var dateTime = DateTime.ParseExact(text, "yyyy-MM-dd HH:mm:ss.fffffff", CultureInfo.InvariantCulture);
+        var table = $"time_from_datetime_{Guid.NewGuid():N}";
+        Connection.ExecuteNonQuery($"CREATE TABLE {table} (t TIME, times TIME[])");
+
+        using (var appender = Connection.CreateAppender(table))
+        {
+            appender.CreateRow().AppendValue(dateTime).AppendValue(new List<DateTime> { dateTime }).EndRow();
+        }
+
+        var literal = text[..^1];
+        Command.CommandText = $"SELECT t = CAST(TIMESTAMP '{literal}' AS TIME), times[1] = CAST(TIMESTAMP '{literal}' AS TIME) FROM {table}";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+        reader.GetBoolean(0).Should().BeTrue();
+        reader.GetBoolean(1).Should().BeTrue();
+    }
+
+    [Fact]
+    public void TimeNsAppenderPreservesSubMicrosecondPrecision()
+    {
+        var time = new TimeOnly(12, 34, 56).Add(TimeSpan.FromTicks(1_234_567));
+        var dateTime = new DateTime(2024, 2, 29, 12, 34, 56).AddTicks(1_234_567);
+        var table = $"time_ns_appender_{Guid.NewGuid():N}";
+        Connection.ExecuteNonQuery($"CREATE TABLE {table} (time_ns TIME_NS)");
+
+        using (var appender = Connection.CreateAppender(table))
+        {
+            appender.CreateRow().AppendValue(time).EndRow();
+            appender.CreateRow().AppendValue(dateTime).EndRow();
+        }
+
+        var expectedRows = $"(0, {TimeNsLiteral(time)}), (1, {TimeNsLiteral(TimeOnly.FromDateTime(dateTime))})";
+        Command.CommandText = $"SELECT actual.time_ns = expected.value FROM {table} AS actual " +
+                              $"JOIN (VALUES {expectedRows}) AS expected(ordinal, value) ON actual.rowid = expected.ordinal " +
+                              "ORDER BY actual.rowid";
+        using (var reader = Command.ExecuteReader())
+        {
+            reader.Read().Should().BeTrue();
+            reader.GetBoolean(0).Should().BeTrue();
+
+            reader.Read().Should().BeTrue();
+            reader.GetBoolean(0).Should().BeTrue();
+
+            reader.Read().Should().BeFalse();
+        }
+    }
+
+    [Fact]
+    public void TimeNsAppenderPreserves24Hours()
+    {
+        var table = $"time_ns_end_of_day_{Guid.NewGuid():N}";
+        Connection.ExecuteNonQuery($"CREATE TABLE {table} (time_ns TIME_NS)");
+
+        using (var appender = Connection.CreateAppender(table))
+        {
+            appender.CreateRow().AppendValue(new DuckDBTimeOnly(24, 0, 0)).EndRow();
+        }
+
+        Command.CommandText = $"SELECT time_ns = TIME_NS '24:00:00' FROM {table}";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+        reader.GetBoolean(0).Should().BeTrue();
+    }
+
+    [Fact]
+    public void TimeNsListsWriteDateTimeDuckDBTimeOnlyNullableAndEmptyItems()
+    {
+        var table = $"time_ns_lists_{Guid.NewGuid():N}";
+        Connection.ExecuteNonQuery($"CREATE TABLE {table} (times TIME_NS[])");
+
+        var time = new TimeOnly(12, 34, 56).Add(TimeSpan.FromTicks(1_234_567));
+        var dateTime = new DateTime(2024, 2, 29, 12, 34, 56).AddTicks(1_234_567);
+        var duckDBTime = new DuckDBTimeOnly(12, 34, 56, 123456);
+
+        using (var appender = Connection.CreateAppender(table))
+        {
+            appender.CreateRow().AppendValue(new List<TimeOnly> { time }).EndRow();
+            appender.CreateRow().AppendValue(new List<DateTime> { dateTime }).EndRow();
+            appender.CreateRow().AppendValue(new List<DuckDBTimeOnly> { duckDBTime, new(24, 0, 0) }).EndRow();
+            appender.CreateRow().AppendValue(new List<TimeOnly?> { null, time }).EndRow();
+            appender.CreateRow().AppendValue(new List<TimeOnly>()).EndRow();
+        }
+
+        var expectedTime = TimeNsLiteral(time);
+        var expectedDateTime = TimeNsLiteral(TimeOnly.FromDateTime(dateTime));
+        var expectedDuckDBTime = $"TIME_NS '{duckDBTime.Hour:D2}:{duckDBTime.Min:D2}:{duckDBTime.Sec:D2}.{duckDBTime.Microsecond:D6}'";
+        Command.CommandText = $"SELECT len(times), times[1] = {expectedTime}, times[1] = {expectedDateTime}, " +
+                              $"times[1] = {expectedDuckDBTime}, times[2] = TIME_NS '24:00:00', " +
+                              $"times[1] IS NULL, times[2] = {expectedTime} FROM {table} ORDER BY rowid";
+        using var reader = Command.ExecuteReader();
+
+        reader.Read().Should().BeTrue();
+        reader.GetInt64(0).Should().Be(1);
+        reader.GetBoolean(1).Should().BeTrue();
+
+        reader.Read().Should().BeTrue();
+        reader.GetInt64(0).Should().Be(1);
+        reader.GetBoolean(2).Should().BeTrue();
+
+        reader.Read().Should().BeTrue();
+        reader.GetInt64(0).Should().Be(2);
+        reader.GetBoolean(3).Should().BeTrue();
+        reader.GetBoolean(4).Should().BeTrue();
+
+        reader.Read().Should().BeTrue();
+        reader.GetInt64(0).Should().Be(2);
+        reader.GetBoolean(5).Should().BeTrue();
+        reader.GetBoolean(6).Should().BeTrue();
+
+        reader.Read().Should().BeTrue();
+        reader.GetInt64(0).Should().Be(0);
+        reader.Read().Should().BeFalse();
+    }
+
+    [Fact]
+    public void TimeNsParametersPreservePrecisionForTemporalTypes()
+    {
+        var time = new TimeOnly(12, 34, 56).Add(TimeSpan.FromTicks(1_234_567));
+        var dateTime = new DateTime(2024, 2, 29, 12, 34, 56).AddTicks(1_234_567);
+        var endOfDay = new DuckDBTimeOnly(24, 0, 0);
+
+        AssertTimeNsParameterMatches(new DuckDBParameter(time), TimeNsLiteral(time)).Should().BeTrue();
+        AssertTimeNsParameterMatches(new DuckDBParameter(dateTime), TimeNsLiteral(TimeOnly.FromDateTime(dateTime))).Should().BeTrue();
+        AssertTimeNsParameterMatches(new DuckDBParameter(endOfDay), "TIME_NS '24:00:00'").Should().BeTrue();
+    }
+
+    [Fact]
+    public void TimeNsParametersPreserveTimeSpanTicksAndRejectOutOfRangeValues()
+    {
+        var timeSpan = TimeSpan.FromTicks(452_961_234_567);
+        var expectedTime = TimeOnly.FromTimeSpan(timeSpan);
+
+        AssertTimeNsParameterMatches(new DuckDBParameter(DbType.Time, timeSpan), TimeNsLiteral(expectedTime)).Should().BeTrue();
+
+        foreach (var invalid in new[] { TimeSpan.FromTicks(-1), TimeSpan.FromDays(1) })
+        {
+            Command.Parameters.Clear();
+            Command.CommandText = "SELECT ?::TIME_NS";
+            Command.Parameters.Add(new DuckDBParameter(DbType.Time, invalid));
+            Action execute = () =>
+            {
+                using var reader = Command.ExecuteReader();
+            };
+
+            execute.Should().Throw<ArgumentOutOfRangeException>();
+        }
+    }
+
+    private bool AssertTimeNsParameterMatches(DuckDBParameter parameter, string expected)
+    {
+        Command.Parameters.Clear();
+        Command.CommandText = $"SELECT ?::TIME_NS = {expected}";
+        Command.Parameters.Add(parameter);
+
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+        return reader.GetBoolean(0);
+    }
+
+    private static string TimeNsLiteral(TimeOnly value) => $"TIME_NS '{value.ToString("HH:mm:ss.fffffff", CultureInfo.InvariantCulture)}'";
 
     // The values go through the appender and through parameters, and DuckDB takes them apart again: a read as
     // DuckDBTimestamp, DuckDBDateOnly, DuckDBTimeOnly or DuckDBTimeTz has DuckDB split the stored value, and epoch_us

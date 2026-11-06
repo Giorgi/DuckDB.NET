@@ -175,15 +175,19 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
             DuckDBType.Interval => typeof(TimeSpan),
             DuckDBType.Date => typeof(DateOnly),
             DuckDBType.Time => typeof(TimeOnly),
+            DuckDBType.TimeNs => typeof(TimeOnly),
             DuckDBType.TimeTz => typeof(DateTimeOffset),
-            DuckDBType.HugeInt => typeof(BigInteger),
-            DuckDBType.UnsignedHugeInt => typeof(BigInteger),
+            // The exact types of the two columns (BigInteger before 2.0). VARINT has no bound and stays BigInteger.
+            DuckDBType.HugeInt => typeof(Int128),
+            DuckDBType.UnsignedHugeInt => typeof(UInt128),
             DuckDBType.Varchar => typeof(string),
             DuckDBType.Decimal => typeof(decimal),
             DuckDBType.TimestampS => typeof(DateTime),
             DuckDBType.TimestampMs => typeof(DateTime),
             DuckDBType.TimestampNs => typeof(DateTime),
-            DuckDBType.Blob => typeof(Stream),
+            // A copy (Stream before 2.0). The stream points into the chunk, so a stream from GetValue or
+            // ExecuteScalar read freed memory once the reader moved on. GetStream and GetFieldValue<Stream> still give one.
+            DuckDBType.Blob => typeof(byte[]),
             DuckDBType.Enum => typeof(string),
             DuckDBType.Uuid => typeof(Guid),
             DuckDBType.Struct => typeof(Dictionary<string, object>),
@@ -215,6 +219,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
             DuckDBType.Interval => typeof(DuckDBInterval),
             DuckDBType.Date => typeof(DuckDBDateOnly),
             DuckDBType.Time => typeof(DuckDBTimeOnly),
+            DuckDBType.TimeNs => typeof(DuckDBTimeOnly),
             DuckDBType.TimeTz => typeof(DuckDBTimeTz),
             DuckDBType.HugeInt => typeof(DuckDBHugeInt),
             DuckDBType.UnsignedHugeInt => typeof(DuckDBUHugeInt),
@@ -223,7 +228,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
             DuckDBType.TimestampS => typeof(DuckDBTimestamp),
             DuckDBType.TimestampMs => typeof(DuckDBTimestamp),
             DuckDBType.TimestampNs => typeof(DuckDBTimestamp),
-            DuckDBType.Blob => typeof(Stream),
+            DuckDBType.Blob => typeof(byte[]),
             DuckDBType.Enum => typeof(string),
             DuckDBType.Uuid => typeof(Guid),
             DuckDBType.Struct => typeof(Dictionary<string, object>),
@@ -246,7 +251,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
     [MethodImpl(MethodImplOptions.NoInlining)]
     private protected InvalidCastException CannotCast(string from, Type to) => new($"Cannot cast from {from} to {to.Name} in column {ColumnName}");
 
-    // A FLOAT, DOUBLE or DECIMAL with a fraction, read as an integer type (2.0 item 5).
+    // A FLOAT, DOUBLE or DECIMAL with a fraction, read as an integer type.
     [MethodImpl(MethodImplOptions.NoInlining)]
     private protected InvalidCastException CannotCastFraction(Type to) => new($"Cannot cast a value with a non-zero fractional part to {to.Name} in column {ColumnName}");
 
@@ -307,7 +312,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
             if (underlyingType is null) return null!;
 
             var known = Known<bool>() ?? Known<byte>() ?? Known<sbyte>() ?? Known<short>() ?? Known<ushort>()
-                        ?? Known<int>() ?? Known<uint>() ?? Known<long>() ?? Known<ulong>()
+                        ?? Known<int>() ?? Known<uint>() ?? Known<long>() ?? Known<ulong>() ?? Known<Int128>() ?? Known<UInt128>()
                         ?? Known<float>() ?? Known<double>() ?? Known<decimal>() ?? Known<BigInteger>()
                         ?? Known<DateTime>() ?? Known<DateOnly>() ?? Known<TimeOnly>() ?? Known<TimeSpan>() ?? Known<DateTimeOffset>()
                         ?? Known<Guid>()

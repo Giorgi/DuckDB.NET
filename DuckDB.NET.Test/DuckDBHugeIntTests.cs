@@ -38,9 +38,9 @@ public class DuckDBHugeIntTests
         }
     }
 
-    // The constructor and ToBigInteger both go through Int128, so a round trip alone would not notice a mistake
+    // The constructors and ToBigInteger all go through Int128, so a round trip alone would not notice a mistake
     // they share. The two halves are compared with the ones that division gives: the value is
-    // Upper * 2^64 + Lower, with Lower never negative.
+    // Upper * 2^64 + Lower, with Lower never negative. The Int128 constructor must give the same halves.
     [Theory]
     [InlineData("0")]
     [InlineData("1")]
@@ -73,6 +73,11 @@ public class DuckDBHugeIntTests
         ((BigInteger)hugeInt.Lower).Should().Be(lower);
         hugeInt.ToBigInteger().Should().Be(value);
         hugeInt.ToInt128().Should().Be(Int128.Parse(text, CultureInfo.InvariantCulture));
+
+        var fromInt128 = new DuckDBHugeInt(Int128.Parse(text, CultureInfo.InvariantCulture));
+
+        ((BigInteger)fromInt128.Upper).Should().Be(upper);
+        ((BigInteger)fromInt128.Lower).Should().Be(lower);
     }
 
     [Theory]
@@ -95,6 +100,11 @@ public class DuckDBHugeIntTests
         ((BigInteger)hugeInt.Lower).Should().Be(lower);
         hugeInt.ToBigInteger().Should().Be(value);
         hugeInt.ToUInt128().Should().Be(UInt128.Parse(text, CultureInfo.InvariantCulture));
+
+        var fromUInt128 = new DuckDBUHugeInt(UInt128.Parse(text, CultureInfo.InvariantCulture));
+
+        ((BigInteger)fromUInt128.Upper).Should().Be(upper);
+        ((BigInteger)fromUInt128.Lower).Should().Be(lower);
     }
 
     // The conversion to Int128 or UInt128 throws OverflowException by itself. Callers get the exception and the

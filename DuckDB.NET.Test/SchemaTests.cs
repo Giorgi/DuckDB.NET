@@ -160,13 +160,19 @@ public class SchemaTests : DuckDBTestBase
         Assert.True((bool)integer["IsSearchable"]);
 
         var blob = schema.Rows.Cast<DataRow>().First(row => (int)row["ProviderDbType"] == (int)DuckDBType.Blob);
-        Assert.Equal(typeof(Stream).FullName, blob["DataType"]);
+        Assert.Equal(typeof(byte[]).FullName, blob["DataType"]);
 
         var timestampTz = schema.Rows.Cast<DataRow>().First(row => (int)row["ProviderDbType"] == (int)DuckDBType.TimestampTz);
         Assert.Equal(typeof(DateTime).FullName, timestampTz["DataType"]);
 
         var bignum = schema.Rows.Cast<DataRow>().First(row => (int)row["ProviderDbType"] == (int)DuckDBType.VarInt);
         Assert.Equal(typeof(System.Numerics.BigInteger).FullName, bignum["DataType"]);
+
+        // The types GetFieldType gives for these columns.
+        var hugeInt = schema.Rows.Cast<DataRow>().First(row => (int)row["ProviderDbType"] == (int)DuckDBType.HugeInt);
+        Assert.Equal(typeof(Int128).FullName, hugeInt["DataType"]);
+        var unsignedHugeInt = schema.Rows.Cast<DataRow>().First(row => (int)row["ProviderDbType"] == (int)DuckDBType.UnsignedHugeInt);
+        Assert.Equal(typeof(UInt128).FullName, unsignedHugeInt["DataType"]);
 
         Assert.DoesNotContain(
             schema.Rows.Cast<DataRow>().GroupBy(row => (string)row["TypeName"], StringComparer.OrdinalIgnoreCase),

@@ -121,21 +121,13 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     [Fact]
     public void ReadHugeInt()
     {
-        VerifyDataStruct("hugeint", 5, new List<BigInteger>
-        {
-            BigInteger.Parse("-170141183460469231731687303715884105728"),
-            BigInteger.Parse("170141183460469231731687303715884105727")
-        }, typeof(DuckDBHugeInt));
+        VerifyDataStruct("hugeint", 5, new List<Int128> { Int128.MinValue, Int128.MaxValue }, typeof(DuckDBHugeInt));
     }
 
     [Fact]
     public void ReadUHugeInt()
     {
-        VerifyDataStruct("uhugeint", 6, new List<BigInteger>
-        {
-            BigInteger.Zero,
-            BigInteger.Parse("340282366920938463463374607431768211455")
-        }, typeof(DuckDBUHugeInt));
+        VerifyDataStruct("uhugeint", 6, new List<UInt128> { UInt128.Zero, UInt128.MaxValue }, typeof(DuckDBUHugeInt));
     }
 
     [Fact]
@@ -189,6 +181,16 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         {
             new(0,0,0),
             new(24, 0, 0,0)
+        }, typeof(DuckDBTimeOnly), true);
+    }
+
+    [Fact]
+    public void ReadTimeNsInAllTypesFixture()
+    {
+        VerifyDataStruct("time_ns", 56, new List<DuckDBTimeOnly>
+        {
+            new(0, 0, 0),
+            new(24, 0, 0, 0)
         }, typeof(DuckDBTimeOnly), true);
     }
 
@@ -323,7 +325,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     {
         var columnIndex = 30;
         reader.GetOrdinal("blob").Should().Be(columnIndex);
-        reader.GetProviderSpecificFieldType(columnIndex).Should().Be(typeof(Stream));
+        reader.GetProviderSpecificFieldType(columnIndex).Should().Be(typeof(byte[]));
 
         using (var stream = reader.GetStream(columnIndex))
         {

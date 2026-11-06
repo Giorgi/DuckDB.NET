@@ -16,11 +16,14 @@ public readonly struct DuckDBHugeInt
             throw new ArgumentOutOfRangeException(nameof(value), $"value must be between {HugeIntMinValue} and {HugeIntMaxValue}");
         }
 
-        // The two halves of the Int128 are the two halves of the HUGEINT, the sign included.
-        var wide = (Int128)value;
+        this = new DuckDBHugeInt((Int128)value);
+    }
 
-        Upper = (long)(wide >> 64);
-        Lower = (ulong)wide;
+    // The two halves of the Int128 are the two halves of the HUGEINT, the sign included: >> keeps the sign.
+    public DuckDBHugeInt(Int128 value)
+    {
+        Upper = (long)(value >> 64);
+        Lower = (ulong)value;
     }
 
     public DuckDBHugeInt(ulong lower, long upper)
@@ -53,10 +56,13 @@ public readonly struct DuckDBUHugeInt
             throw new ArgumentOutOfRangeException(nameof(value), $"value must be between {HugeIntMinValue} and {HugeIntMaxValue}");
         }
 
-        var wide = (UInt128)value;
+        this = new DuckDBUHugeInt((UInt128)value);
+    }
 
-        Upper = (ulong)(wide >> 64);
-        Lower = (ulong)wide;
+    public DuckDBUHugeInt(UInt128 value)
+    {
+        Upper = (ulong)(value >> 64);
+        Lower = (ulong)value;
     }
 
     public DuckDBUHugeInt(ulong lower, ulong upper)

@@ -817,9 +817,9 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.GetProviderSpecificValue(4).Should().BeOfType<DuckDBUHugeInt>().Which.ToBigInteger().Should().Be(new BigInteger(42));
         reader.GetProviderSpecificValue(5).Should().Be(DBNull.Value);
 
-        // Reading as BigInteger is unchanged.
-        reader.GetValue(0).Should().Be(DuckDBHugeInt.HugeIntMaxValue);
-        reader.GetValue(3).Should().Be(DuckDBUHugeInt.HugeIntMaxValue);
+        // The default types are Int128 and UInt128 (2.0); reading as BigInteger is unchanged.
+        reader.GetValue(0).Should().Be(Int128.MaxValue);
+        reader.GetValue(3).Should().Be(UInt128.MaxValue);
         reader.GetFieldValue<BigInteger>(0).Should().Be(DuckDBHugeInt.HugeIntMaxValue);
         reader.GetFieldValue<BigInteger>(3).Should().Be(DuckDBUHugeInt.HugeIntMaxValue);
     }

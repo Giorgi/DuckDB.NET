@@ -29,10 +29,10 @@ internal sealed unsafe class DateTimeVectorDataWriter(IntPtr vector, void* vecto
 
     internal override bool AppendDateOnly(DateOnly value, ulong rowIndex) => AppendValueInternal(value.ToDuckDBDate(), rowIndex);
 
-    internal override bool AppendTimeOnly(TimeOnly value, ulong rowIndex) => AppendValueInternal(value.ToDuckDBTime(), rowIndex);
-
-    // The DuckDB types hold a year, a month and a day, or an hour, a minute and a second. DuckDB puts them together.
+    // A DuckDBDateOnly holds a year, a month and a day, and DuckDB puts them together.
     internal override bool AppendDateOnly(DuckDBDateOnly value, ulong rowIndex) => AppendValueInternal(value.ToDuckDBDate(), rowIndex);
 
-    internal override bool AppendTimeOnly(DuckDBTimeOnly value, ulong rowIndex) => AppendValueInternal(NativeMethods.DateTimeHelpers.DuckDBToTime(value), rowIndex);
+    // TIME and TIME_NS have a writer of their own, TimeVectorDataWriter. So a TimeOnly or a DuckDBTimeOnly is refused
+    // here: it used to be stored as a TIME, which in a DATE column wrote 8-byte values into a 4-byte vector, past its
+    // end from row 1024 on.
 }

@@ -27,6 +27,8 @@ internal static class TypeExtensions
         { typeof(DuckDBTimeOnly), DuckDBType.Time},
         { typeof(DateTimeOffset), DuckDBType.TimestampTz},
         { typeof(BigInteger), DuckDBType.HugeInt},
+        { typeof(Int128), DuckDBType.HugeInt},
+        { typeof(UInt128), DuckDBType.UnsignedHugeInt},
         { typeof(string), DuckDBType.Varchar},
         { typeof(byte[]), DuckDBType.Blob},
         { typeof(decimal), DuckDBType.Decimal},
@@ -52,6 +54,7 @@ internal static class TypeExtensions
                typeof(T) == typeof(short) || typeof(T) == typeof(ushort) ||
                typeof(T) == typeof(int) || typeof(T) == typeof(uint) ||
                typeof(T) == typeof(long) || typeof(T) == typeof(ulong) ||
+               typeof(T) == typeof(Int128) || typeof(T) == typeof(UInt128) ||
                typeof(T) == typeof(BigInteger);
     }
 

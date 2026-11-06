@@ -56,13 +56,23 @@ not use profile data to guess the target as it does for a plain virtual call.
   subclass decides what it stores.
 - **Measured:** `GetInt32` on an INTEGER column went from about 13 ns to about 1 ns per value over decisions 1 and 2.
 - **Which readers set it:** the numeric reader, the boolean reader, and the BigInteger reader for HUGEINT and
-  UHUGEINT (as the DuckDB structs). The string, date-time, decimal and Guid readers cannot: their values need a
-  conversion.
+  UHUGEINT. The string, date-time, decimal and Guid readers cannot: their values need a conversion.
+- **HUGEINT and UHUGEINT as `Int128` and `UInt128`** (2.0 item 9). Their `StorageType` was the DuckDB struct; since
+  `Int128` and `UInt128` are the default types it is those. DuckDB stores the lower 64 bits first, then the upper, so on
+  a little-endian machine the vector holds the bytes of an `Int128`. `GetValidValue` reads the structs, which lost the
+  fast path, from the vector itself, so they are not boxed through the base class; they keep the generic virtual
+  lookup. Read in the compiled code (.NET 8, Tier 1, Windows x64): `ReadValidValue<Int128>` compares `StorageType`,
+  loads the 16 bytes with `vmovups` (unaligned, so the alignment of the vector does not matter) and stores them. It is
+  not inlined into `GetFieldValue<Int128>` on .NET 8, because the method still holds the generic virtual call for other
+  types; a `ReadInt128` method (decision 5) would remove that call there. On .NET 10 (10.0.14, Tier 1, Windows x64) it
+  is inlined into `GetFieldValue<Int128>` and its caller: the compare, the load, and a copy through a 16-byte stack
+  slot into the return buffer; the generic virtual call is left on the branch for other types. Not measured.
 
 ### 3. One numeric reader class per stored type
 
 - **What:** `NumericVectorDataReader<TStorage>`, created by the factory with the stored type fixed. HUGEINT,
-  UHUGEINT and VARINT are in `BigIntegerVectorDataReader`, because their .NET type is not a plain value.
+  UHUGEINT and VARINT are in `BigIntegerVectorDataReader`: VARINT because its .NET type, `BigInteger`, is not a
+  plain value, and HUGEINT and UHUGEINT for the reasons in decision 7.
 - **Why:** the earlier single class asked which of ten column types it had, in a `switch`, for every value. With the
   stored type as a type parameter it is a constant for the JIT.
 - **How conversions work:** `NumericConverter.Convert` uses `CreateChecked` from generic math, so there is no table
@@ -245,15 +255,18 @@ not use profile data to guess the target as it does for a plain virtual call.
   generic math. So `CreateChecked` gives the right range check for every integer target, signed and unsigned, with no
   code of our own to get wrong at the limits. On .NET 10 the read as `long` compiles to two loads, a shift and a
   compare: the upper half must be the sign extension of the lower half. On .NET 8 the conversion is a call.
-- **Why the class is still separate, and not `NumericVectorDataReader<Int128>`:** the .NET type of a HUGEINT column
-  is `BigInteger` and its provider-specific type is `DuckDBHugeInt`. The generic numeric reader returns its stored
-  type from `GetValue` and uses it for the fast path, so it would hand out boxed `Int128` values.
+- **Why the class is still separate, and not `NumericVectorDataReader<Int128>`:** when this was decided, the .NET
+  type of a HUGEINT column was `BigInteger`, and the generic numeric reader returns its stored type from `GetValue`.
+  Since 2.0 the .NET type is `Int128` (item 9), so that reason is gone. Others remain: the provider-specific type is
+  `DuckDBHugeInt`; HUGEINT is refused as `float`, `double` and
+  `decimal`, which the generic reader converts; and a read as `BigInteger` goes through `ToBigInteger`. The fast path
+  for `Int128` comes from `StorageType` instead (decision 2).
 - **The message of a refused read names the column type:** "Cannot cast from HugeInt to Int64 in column x", and
   `UnsignedHugeInt` and `VarInt` likewise. These are the names `GetDataTypeName` returns. It said `BigInteger`
   before, which was the type the reader happened to convert from.
 - **A `BigInteger` is made in one place:** `DuckDBHugeInt.ToBigInteger()` and `DuckDBUHugeInt.ToBigInteger()`, which
   convert from `Int128` and `UInt128` directly. They used to compute `Upper * 2^64 + Lower`. The reader calls them
-  when a `BigInteger` is asked for (`GetFieldValue<BigInteger>`, `GetValue`), and so does the decimal reader when a
+  when a `BigInteger` is asked for (`GetFieldValue<BigInteger>`; `GetValue` too, until 2.0), and so does the decimal reader when a
   DECIMAL stored as a HUGEINT is read as `BigInteger`. The two methods are public, so their results must not change.
 - **The constructors go through `Int128` and `UInt128` as well** (decision 7 in `../Writer/DESIGN.md`). So the
   constructor and `ToBigInteger()` do not check each other: a round trip would not notice a mistake they share.
@@ -265,8 +278,19 @@ not use profile data to guess the target as it does for a plain virtual call.
   remainder. The steps were kept on purpose, so the result has the same scale as before: `1.5` from a DECIMAL(38,4),
   where a DECIMAL(18,4) gives `1.5000`. The old and the new conversion were compared on the bits of the result and
   on whether they throw, for every scale from 0 to 38: 46,820,592 conversions on each runtime, none different.
-- **Not changed:** `GetValue` and `GetFieldValue<BigInteger>` return a `BigInteger`; a read as `float`, `double` or
-  `decimal` is refused; VARINT is stored as a byte string and still goes through `BigInteger`.
+  Since 2.0 a value that fits 96 bits is built directly instead (next bullet), so that scale is gone.
+- **A wide DECIMAL that fits 96 bits, with a scale of at most 28, is built from its digits and the scale** (2.0),
+  like the narrower sizes, with no division: `1.5000` from a DECIMAL(38,4) as from a DECIMAL(18,4), where it was
+  `1.5`. `GetDecimal` only calls `GetWideDecimal` for a HUGEINT, which builds such a value and calls the
+  `NoInlining` `DivideWideDecimal` for the rest. A first version built the value inside `GetDecimal`: its frame
+  grew from 80 to 136 bytes on Windows and DECIMAL(18,4) reads took 1.51 to 1.70 times as long in two check
+  passes on the VM. Measured on the Linux VM, .NET 10, 4 processes, against the build before: DECIMAL(38,4)
+  with `GetDecimal` 0.20 (184.7 to 36.9 ms for 4,000,000 values), DECIMAL(18,4) 0.95 (its `GetDecimal` is the
+  same code as before on both OSes), HUGEINT as `long` 1.01. Pinned by `AWideDecimalKeepsTheScaleOfItsColumn`.
+- **Not changed by this decision:** `GetValue` and `GetFieldValue<BigInteger>` returned a `BigInteger`; a read as
+  `float`, `double` or `decimal` is refused; VARINT is stored as a byte string and still goes through `BigInteger`.
+  Since 2.0 `GetValue` returns `Int128` for HUGEINT and `UInt128` for UHUGEINT (item 9); the `GetValue` row of the
+  table below measured the `BigInteger` it made then.
 - **Measured** against the build with decision 3, 1,000,000 rows of four HUGEINT columns read with `GetInt64`, two
   runs on each runtime: 146 and 150 ms to 30 ms on .NET 10 (0.20 to 0.21), 151 and 154 ms to 33 ms on .NET 8 (0.22).
   The build with decision 5 measured 134 and 130 ms in an earlier, separate run. Per value, moving through the rows
@@ -294,12 +318,15 @@ not use profile data to guess the target as it does for a plain virtual call.
   and a timestamp as a count in the unit of the column, both from 1970-01-01. A `DateTime` counts ticks of 100 ns
   from 0001-01-01. So the read is one multiplication, one addition and one comparison for the range. Both paths do
   it: the typed one and `GetValue(offset, Type)`.
-- **TIME and TIMETZ the same way.** A TIME is microseconds from midnight, so as `TimeOnly` or `DateTime` it is
-  `micros * 10` ticks. A TIMETZ is 64 bits: the microseconds in the upper 40, and in the lower 24 the offset from
-  UTC, stored as 57,599 (the largest offset, 15:59:59) minus the offset in seconds. That layout is `dtime_tz_t` in
-  DuckDB's `datetime.hpp`, read at `v1.5.6`; the constants carry the reference. As `DateTimeOffset`
-  the time is put on 0001-01-02 (see "Behaviour"). DuckDB used to divide each value into hour, minute, second and
-  microsecond (`duckdb_from_time`, `duckdb_from_time_tz`), and the reader multiplied them back.
+- **TIME, TIME_NS and TIMETZ the same way,** TIME and TIME_NS in `TimeVectorDataReader<TStorage>` (see "Smaller
+  decisions"). A TIME is microseconds from midnight, so as `TimeOnly` or `DateTime` it is `micros * 10` ticks.
+  A TIME_NS is nanoseconds from midnight, so it is `nanos / 100` ticks, dropping what is
+  below 100 ns; as `DuckDBTimeOnly` it drops what is below a microsecond. A TIMETZ is 64 bits: the microseconds in
+  the upper 40, and in the lower 24 the offset from UTC, stored as 57,599 (the largest offset, 15:59:59) minus the
+  offset in seconds. That layout is `dtime_tz_t` in DuckDB's `datetime.hpp`, read at `v1.5.6`; the constants carry
+  the reference. As `DateTimeOffset` the time is put on 0001-01-02 (see "Behaviour"). DuckDB used to divide each
+  TIME and TIMETZ value into hour, minute, second and microsecond (`duckdb_from_time`, `duckdb_from_time_tz`), and
+  the reader multiplied them back.
 - **Why:** the read used to ask DuckDB whether the value was finite (`duckdb_is_finite_*`), have DuckDB split it into
   year, month, day and time (`duckdb_from_timestamp`, `duckdb_from_date`), and put the parts back together with
   `new DateTime(year, month, day).AddTicks(...)`. The split measured 18 of the 22.9 ns of a timestamp conversion.
@@ -455,8 +482,9 @@ not use profile data to guess the target as it does for a plain virtual call.
 
 ### Smaller decisions
 
-- **`BigIntegerVectorDataReader` is a separate, non-generic class.** HUGEINT, UHUGEINT and VARINT read as
-  `BigInteger`, which is not a plain value, so they cannot be `NumericVectorDataReader<TStorage>`. Loosening the
+- **`BigIntegerVectorDataReader` is a separate, non-generic class.** VARINT reads as `BigInteger`, which is not a
+  plain value, so it cannot be `NumericVectorDataReader<TStorage>`. HUGEINT and UHUGEINT have been `Int128` and
+  `UInt128` since 2.0; decision 7 gives the reasons that keep them in this class. Loosening the
   constraint on `TStorage` to fit them in would make the class compile to code shared between types, and the stored
   type would stop being a constant for the JIT.
 - **`DecimalVectorDataReader` has no inner reader.** It reads a HUGEINT-backed decimal from its own data pointer. It
@@ -484,28 +512,44 @@ not use profile data to guess the target as it does for a plain virtual call.
   generic virtual lookup (checked in the .NET 8 disassembly). `GetValue` on an INTEGER column stays 77 bytes and
   clears no stack. It used to call `Convert.ChangeType`, which boxed a second time and had rules of its own.
 - **`BigIntegerVectorDataReader.GetValueCore` and `DecimalVectorDataReader.GetValueCore` work the same way.** The BigInteger
-  reader takes `BigInteger` first, then its own DuckDB struct, then maps the eight integer types to
+  reader takes the column types first (`Int128`, `UInt128`, `BigInteger`), then its own DuckDB struct, then maps the eight integer types to
   `GetValidValue<X>`. The decimal reader gives its `decimal` only to a type that can hold one (`IsAssignableFrom`:
   `decimal`, `decimal?`, `object`), which is exactly what the typed path's unbox accepts, and refuses any other type
   with `CannotCast`. It used to return the `decimal` for any type, and the read failed later in the list, the
   dictionary or the property setter with another exception.
+- **TIME and TIME_NS have their own reader, `TimeVectorDataReader<TStorage>`,** with the stored struct as the type
+  parameter (`DuckDBTime` or `DuckDBTimeNs`), as decision 3 does for numbers. The two differ only in the unit, so
+  the rules (`TimeOnly`, `DateTime`, `TimeSpan`, `DuckDBTimeOnly`, 24:00:00) are written once, and the unit is a
+  constant for the JIT: no test of the column type and no divisor kept in a field. `StorageType` is not set, so the
+  stored structs are not types a value is read as (`GetFieldValue<DuckDBTime>` throws as before). Every read of
+  either column, in every target type including the refused ones, in a column, a list and a struct, gave the same
+  value or the same exception before and after the move.
+  - **Measured** on the Azure VM (AMD EPYC 9V45, Linux, .NET 10, DuckDB 2.0.0), `DateTimeReaderBenchmark`, against
+    the build before (`8929163`), per-process medians of 4 launches, the INTEGER control at 1.01: TIME as `TimeOnly`
+    0.94, `DateTime` 0.95, `TimeSpan` 0.93, `DuckDBTimeOnly` 0.86; TIME_NS as `TimeOnly` 0.85, `DateTime` 0.73,
+    `TimeSpan` 0.89, `DuckDBTimeOnly` 0.89. Results in `azure/results/2.0-run/time-split`.
+  - **The code (Tier 1, same VM):** each of the new `GetValidValue<T>` is 21 to 88 bytes with no test of the column
+    type, where the shared method was 304 to 501 bytes with a 64-byte frame and one stack store. `Unsafe.As` on the
+    `TStorage` local leaves no code.
+  - **The readers left behind gained too.** Without the TIME branches the JIT inlines the timestamp conversion
+    (`GetTicks`) into `DateTimeVectorDataReader.GetValidValue<DateTime>`: 501 bytes instead of 380, frame 64 instead of
+    48, but no call on the timestamp path. TIMESTAMP as `DateTime` 0.95, TIMESTAMP_NS 0.95, through `GetValue` 0.84.
+    DATE 1.00 to 1.01 (`GetValidValue<DateOnly>` 203 bytes instead of 279), TIMETZ 1.00, TIMESTAMPTZ as
+    `DateTimeOffset` 1.02.
 
 ### Costs that are known and not yet removed
 
 - **`DateTimeVectorDataReader.GetValidValue<T>` clears part of its stack frame on every call:** 40 bytes for
-  `TimeOnly` and `DateOnly`, 24 for `DateTime` (.NET 10). The method holds the branches of every column type it
-  serves, and the ones that return a DuckDB struct need stack slots (decision 4). One method per column type would
-  remove it and might add a call in its place. Not measured; a TIME value costs about 2 ns in all as it is.
+  `TimeOnly` and `DateOnly`, 24 for `DateTime` (.NET 10), measured when it also served TIME and TIME_NS. The method
+  holds the branches of every column type it serves, and the ones that return a DuckDB struct need stack slots
+  (decision 4). TIME and TIME_NS have moved to a reader of their own (see "Smaller decisions"), which made TIME reads
+  0.86 to 0.95. DATE, TIMETZ and the timestamps keep one stack store each in a 48- or 64-byte frame.
 - **A TIMESTAMPTZ or TIMETZ read as `DateTimeOffset` keeps about 15 ns per value** where a `DateTime` takes 5: the
   constructor of `DateTimeOffset` is a call that validates the offset. That is the cost of the type.
 - **A read as `DuckDBTimestamp`, `DuckDBDateOnly`, `DuckDBTimeOnly` or `DuckDBTimeTz` calls DuckDB,** by design
   (decision 8).
-- **`TIME_NS` has no reader.** A column of that type gets the plain `VectorDataReaderBase` and every read throws
-  "Unrecognised type 39".
-- **A wide DECIMAL (stored as a HUGEINT) is still divided on every read:** about 50 to 70 ns per value, where a
-  DECIMAL(18,4), which is built from the stored integer and the scale with no division, takes about 14 ns. A value
-  that fits 96 bits with a scale of at most 28 could be built the same way. That is not done because it changes what
-  the value looks like: `1.5000` where it is `1.5` today. Its speed is not measured.
+- **A wide DECIMAL beyond 96 bits, or with a scale above 28, is still divided on every read:** about 50 to 70 ns
+  per value. A value that fits is built directly since 2.0 (decision above).
 - **`GetValue` boxes every value** except booleans. It returns `object`; nothing can be done about it here.
 - **A scalar function whose callback is written against the interfaces reads its inputs through
   `IDuckDBDataReader.GetValue<T>`,** a generic method on an interface, which is looked up at run time on every
@@ -526,6 +570,16 @@ ENUM row, and `TemporalConversionTests.cs` and `Parameters/TimeTests.cs` the dat
 | DECIMAL | the value if it is whole and fits | refused | the value | the value if it is whole |
 | ENUM | its position in the list of names, if it fits | refused | refused | its position |
 
+- **`Int128` and `UInt128` are integer types in this table** (2.0 item 9), with one exception: FLOAT and DOUBLE are
+  refused as both, whatever the value, as HUGEINT, UHUGEINT and VARINT are refused as `float` and `double`. So
+  HUGEINT reads as `Int128` and UHUGEINT as `UInt128` as they are; across the two, and from VARINT, DECIMAL and
+  ENUM, the value is read when it fits (`Int128.CreateChecked`, `UInt128.CreateChecked` in `NumericConverter`).
+  **They are also the default types of the two columns** (2.0): `GetValue`, `GetFieldType`, `ExecuteScalar`, the
+  schema table and the `object` path give `Int128` for HUGEINT and `UInt128` for UHUGEINT, where they gave
+  `BigInteger`. VARINT, which has no bound, stays `BigInteger`; `GetFieldValue<BigInteger>` still reads all three, and
+  `GetProviderSpecificValue` gives the DuckDB structs, as before. Neither type has a typed `Read...` method (decision
+  5), so such a read goes through `GetValidValue<T>`, with its lookup; it was not measured. Pinned by the cases of
+  the two types in `NumericReaderConversionTests` and `NumericReadPathAgreementTests`.
 - A refused read throws `InvalidCastException`. Where this code refuses it (an integer that does not fit, a DOUBLE
   out of range, an ENUM), the message names both types and the column: `Cannot cast from Int32 to Byte in column x`.
   HUGEINT, UHUGEINT and VARINT as `double` say `Cannot cast from HugeInt to Double in column x`, and DOUBLE as
@@ -587,6 +641,9 @@ Dates, times and timestamps (decision 8):
   (`ArgumentOutOfRangeException` from its constructor), is one day as `TimeSpan`, and is 0001-01-02 as `DateTime`.
   Npgsql reads a `time` as `TimeOnly` and `TimeSpan` in the same way. A TIMETZ does not read as `TimeSpan`, there
   as here. `TimeSpan` has no typed `Read...` method (decision 5); nothing has measured that read.
+- A TIME_NS reads as `TimeOnly` (what `GetValue` returns), `TimeSpan`, `DateTime` or `DuckDBTimeOnly`, and
+  `24:00:00` reads as for a TIME. The .NET types drop nanoseconds below 100 ns; `DuckDBTimeOnly` drops those below a
+  microsecond, as `DuckDBTimestamp` does for a TIMESTAMP_NS.
 - A TIMETZ reads as `DateTimeOffset` (what `GetValue` returns) with the time on 0001-01-02, or as `DuckDBTimeTz`.
   A `DateTimeOffset` needs a date. On 0001-01-01 a time earlier in the day than its own positive offset, such as
   `00:30:00+01`, would be an instant before year 1, which `DateTimeOffset` refuses; Npgsql uses the second day for

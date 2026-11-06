@@ -1,9 +1,12 @@
 using BenchmarkDotNet.Attributes;
 using DuckDB.NET.Data;
+using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Benchmarks;
 
 // Reads of the date and time types, four columns of each so that a read is a large part of the time per row.
+// TIME_NS goes through text: DuckDB 1.5 has no cast from TIME. The TIME_NS benchmarks need a 2.0 build, as 1.5.6 does
+// not read the type.
 [MemoryDiagnoser]
 public class DateTimeReaderBenchmark
 {
@@ -27,7 +30,9 @@ public class DateTimeReaderBenchmark
                               Columns("tz", "(TIMESTAMP '2020-01-01 10:20:30.123456' + INTERVAL ({0}) SECOND)::TIMESTAMPTZ") + ", " +
                               Columns("d", "DATE '1990-01-01' + ({0} % 20000)::INTEGER") + ", " +
                               Columns("t", "TIME '00:00:00.123456' + INTERVAL ({0} % 86000) SECOND") + ", " +
-                              Columns("tt", "(TIME '00:00:00.123456' + INTERVAL ({0} % 86000) SECOND)::TIMETZ") +
+                              Columns("tn", "(TIME '00:00:00.123456' + INTERVAL ({0} % 86000) SECOND)::VARCHAR::TIME_NS") + ", " +
+                              Columns("tt", "(TIME '00:00:00.123456' + INTERVAL ({0} % 86000) SECOND)::TIMETZ") + ", " +
+                              Columns("n", "({0})::INTEGER") +
                               $" FROM range({RowCount}) t(i);";
         command.ExecuteNonQuery();
 
@@ -153,6 +158,90 @@ public class DateTimeReaderBenchmark
         while (reader.Read())
         {
             sum += reader.GetDateTime(0).Ticks + reader.GetDateTime(1).Ticks + reader.GetDateTime(2).Ticks + reader.GetDateTime(3).Ticks;
+        }
+
+        return sum;
+    }
+
+    [Benchmark]
+    public long ReadTimesAsTimeSpan() => SumTimeSpans("t");
+
+    [Benchmark]
+    public long ReadTimesAsDuckDBTimeOnly() => SumDuckDBTimeOnly("t");
+
+    [Benchmark]
+    public long ReadTimeNsAsTimeOnly()
+    {
+        using var reader = Read("tn");
+
+        var sum = 0L;
+        while (reader.Read())
+        {
+            sum += reader.GetFieldValue<TimeOnly>(0).Ticks + reader.GetFieldValue<TimeOnly>(1).Ticks +
+                   reader.GetFieldValue<TimeOnly>(2).Ticks + reader.GetFieldValue<TimeOnly>(3).Ticks;
+        }
+
+        return sum;
+    }
+
+    [Benchmark]
+    public long ReadTimeNsAsDateTime()
+    {
+        using var reader = Read("tn");
+
+        var sum = 0L;
+        while (reader.Read())
+        {
+            sum += reader.GetDateTime(0).Ticks + reader.GetDateTime(1).Ticks + reader.GetDateTime(2).Ticks + reader.GetDateTime(3).Ticks;
+        }
+
+        return sum;
+    }
+
+    [Benchmark]
+    public long ReadTimeNsAsTimeSpan() => SumTimeSpans("tn");
+
+    [Benchmark]
+    public long ReadTimeNsAsDuckDBTimeOnly() => SumDuckDBTimeOnly("tn");
+
+    // A control: an INTEGER column is read by a reader that no change to the date and time readers touches.
+    [Benchmark]
+    public long ReadIntegersControl()
+    {
+        using var reader = Read("n");
+
+        var sum = 0L;
+        while (reader.Read())
+        {
+            sum += reader.GetInt32(0) + reader.GetInt32(1) + reader.GetInt32(2) + reader.GetInt32(3);
+        }
+
+        return sum;
+    }
+
+    private long SumTimeSpans(string name)
+    {
+        using var reader = Read(name);
+
+        var sum = 0L;
+        while (reader.Read())
+        {
+            sum += reader.GetFieldValue<TimeSpan>(0).Ticks + reader.GetFieldValue<TimeSpan>(1).Ticks +
+                   reader.GetFieldValue<TimeSpan>(2).Ticks + reader.GetFieldValue<TimeSpan>(3).Ticks;
+        }
+
+        return sum;
+    }
+
+    private long SumDuckDBTimeOnly(string name)
+    {
+        using var reader = Read(name);
+
+        var sum = 0L;
+        while (reader.Read())
+        {
+            sum += reader.GetFieldValue<DuckDBTimeOnly>(0).Microsecond + reader.GetFieldValue<DuckDBTimeOnly>(1).Microsecond +
+                   reader.GetFieldValue<DuckDBTimeOnly>(2).Microsecond + reader.GetFieldValue<DuckDBTimeOnly>(3).Microsecond;
         }
 
         return sum;

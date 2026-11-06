@@ -72,7 +72,20 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
 
     public IDuckDBAppenderRow AppendValue(Guid? value) => AppendValueInternalStruct(value);
 
+    // The priority of BigInteger? and UInt128? is lowered so that an int or long constant, AppendValue(1), binds to
+    // the overload it bound to before UInt128? was added (sbyte? for 1), and is not ambiguous. A constant converts to
+    // UInt128 through byte, ushort, uint or ulong, and C# has no rule that prefers sbyte, short, int or long to
+    // UInt128. Both are lowered so that a UInt128 argument still binds to UInt128? and not to BigInteger?, to which
+    // it converts as well. C# 12 ignores the attribute: there such a constant is ambiguous and needs its type.
+    [OverloadResolutionPriority(-1)]
     public IDuckDBAppenderRow AppendValue(BigInteger? value) => AppendValueInternalStruct(value);
+
+    // The exact types of HUGEINT and UHUGEINT. Like the other integers, the bytes are stored without a check, so either
+    // goes into the other column too, reinterpreted.
+    public IDuckDBAppenderRow AppendValue(Int128? value) => AppendValueInternalStruct(value);
+
+    [OverloadResolutionPriority(-1)]
+    public IDuckDBAppenderRow AppendValue(UInt128? value) => AppendValueInternalStruct(value);
 
     #region Append Signed Int
 
@@ -256,7 +269,12 @@ public interface IDuckDBAppenderRow
     IDuckDBAppenderRow AppendValue(string? value);
     IDuckDBAppenderRow AppendValue(decimal? value);
     IDuckDBAppenderRow AppendValue(Guid? value);
+    // Lowered for the reason given on DuckDBAppenderRow.AppendValue(BigInteger?).
+    [OverloadResolutionPriority(-1)]
     IDuckDBAppenderRow AppendValue(BigInteger? value);
+    IDuckDBAppenderRow AppendValue(Int128? value);
+    [OverloadResolutionPriority(-1)]
+    IDuckDBAppenderRow AppendValue(UInt128? value);
     IDuckDBAppenderRow AppendValue(sbyte? value);
     IDuckDBAppenderRow AppendValue(short? value);
     IDuckDBAppenderRow AppendValue(int? value);
