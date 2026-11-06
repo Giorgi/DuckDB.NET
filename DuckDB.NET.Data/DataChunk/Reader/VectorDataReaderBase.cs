@@ -177,7 +177,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
             DuckDBType.Time => typeof(TimeOnly),
             DuckDBType.TimeNs => typeof(TimeOnly),
             DuckDBType.TimeTz => typeof(DateTimeOffset),
-            // The exact types of the two columns (2.0 item 9; BigInteger before). VARINT has no bound and stays BigInteger.
+            // The exact types of the two columns (BigInteger before 2.0). VARINT has no bound and stays BigInteger.
             DuckDBType.HugeInt => typeof(Int128),
             DuckDBType.UnsignedHugeInt => typeof(UInt128),
             DuckDBType.Varchar => typeof(string),
@@ -185,7 +185,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
             DuckDBType.TimestampS => typeof(DateTime),
             DuckDBType.TimestampMs => typeof(DateTime),
             DuckDBType.TimestampNs => typeof(DateTime),
-            // A copy (2.0 item 14; Stream before). The stream points into the chunk, so a stream from GetValue or
+            // A copy (Stream before 2.0). The stream points into the chunk, so a stream from GetValue or
             // ExecuteScalar read freed memory once the reader moved on. GetStream and GetFieldValue<Stream> still give one.
             DuckDBType.Blob => typeof(byte[]),
             DuckDBType.Enum => typeof(string),
@@ -251,7 +251,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
     [MethodImpl(MethodImplOptions.NoInlining)]
     private protected InvalidCastException CannotCast(string from, Type to) => new($"Cannot cast from {from} to {to.Name} in column {ColumnName}");
 
-    // A FLOAT, DOUBLE or DECIMAL with a fraction, read as an integer type (2.0 item 5).
+    // A FLOAT, DOUBLE or DECIMAL with a fraction, read as an integer type.
     [MethodImpl(MethodImplOptions.NoInlining)]
     private protected InvalidCastException CannotCastFraction(Type to) => new($"Cannot cast a value with a non-zero fractional part to {to.Name} in column {ColumnName}");
 

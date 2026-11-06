@@ -70,7 +70,7 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
             TimeOnly val => AppendTimeOnly(val, rowIndex),
             DateTimeOffset val => AppendDateTimeOffset(val, rowIndex),
 
-            // Last of the value types (2.0 item 9): for a T that is not a value type, such as object, every value of a
+            // Last of the value types: for a T that is not a value type, such as object, every value of a
             // type above is tested against no more types than before.
             Int128 val => AppendNumeric(val, rowIndex),
             UInt128 val => AppendNumeric(val, rowIndex),

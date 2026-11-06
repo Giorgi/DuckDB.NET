@@ -4,7 +4,7 @@ using DuckDB.NET.Data.Mapping;
 
 namespace DuckDB.NET.Test;
 
-// Int128 and UInt128 written by the appender, the mapped appender and functions (2.0 item 9). An Int128 is what a
+// Int128 and UInt128 written by the appender, the mapped appender and functions. An Int128 is what a
 // HUGEINT holds and a UInt128 what a UHUGEINT holds; like the other integers, each also goes to the other column
 // without a check, reinterpreted. Every
 // value is compared with the one DuckDB parses from its text, so a mistake in the two halves that a round trip

@@ -171,7 +171,7 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
     private BigInteger GetBigInteger(ulong offset) => GetWhole(offset, typeof(BigInteger));
 
     // A DECIMAL read as an integer type: a whole value that fits reads, a value with a fraction is refused, and so is a
-    // value out of range (2.0 item 5; before 2.0 every read as sbyte to ulong was refused). The same rule as FLOAT and
+    // value out of range (before 2.0 every read as sbyte to ulong was refused). The same rule as FLOAT and
     // DOUBLE. The value is never made a decimal, so a DECIMAL(38) beyond the range of decimal reads if T holds it.
     private T GetInteger<T>(ulong offset)
     {

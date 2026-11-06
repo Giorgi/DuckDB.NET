@@ -9,8 +9,8 @@ namespace DuckDB.NET.Test;
 // class are read with the target type known only at run time. Both must convert with the same rules, so that a
 // value reads the same wherever it is stored.
 //
-// A FLOAT, DOUBLE or DECIMAL with a fraction, read as an integer type, is refused on every path (2.0 item 5; before
-// 2.0 a FLOAT or DOUBLE was rounded half to even and a DECIMAL was refused whatever its value).
+// A FLOAT, DOUBLE or DECIMAL with a fraction, read as an integer type, is refused on every path (before 2.0
+// a FLOAT or DOUBLE was rounded half to even and a DECIMAL was refused whatever its value).
 public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     private static readonly string[] Columns =

@@ -69,9 +69,9 @@ internal sealed class NumericVectorDataReader<TStorage> : VectorDataReaderBase w
     }
 
     // A FLOAT or DOUBLE read as an integer type: a whole value that fits reads; a value with a fraction is refused
-    // (2.0 item 5; before 2.0 it was rounded half to even), and so are NaN, infinity and a value out of range, as
+    // (before 2.0 it was rounded half to even), and so are NaN, infinity and a value out of range, as
     // before. The same rule as a DECIMAL. A float arrives as a double, exactly. BigInteger is refused, as before, and
-    // so are Int128 and UInt128 (2.0 item 9), as a HUGEINT read as float or double is refused.
+    // so are Int128 and UInt128, as a HUGEINT read as float or double is refused.
     private T FloatingPointToInteger<T>(double value)
     {
         if (typeof(T) == typeof(BigInteger) || typeof(T) == typeof(Int128) || typeof(T) == typeof(UInt128))

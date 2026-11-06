@@ -215,7 +215,7 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.GetString(1).Should().Be(text);
     }
 
-    // Int128 and UInt128 (2.0 item 9) are sent as a HUGEINT and a UHUGEINT. They used to be sent as text.
+    // Int128 and UInt128 are sent as a HUGEINT and a UHUGEINT. They used to be sent as text.
     public static IEnumerable<object[]> Int128Values() =>
     [
         [Int128.MinValue, "-170141183460469231731687303715884105728"],

@@ -74,7 +74,7 @@ internal abstract class CollectionVectorDataWriter : VectorDataWriterBase
             IEnumerable<DateTimeOffset> items => WriteItems(items, start),
             IEnumerable<DateTimeOffset?> items => WriteItems(items, start),
 
-            // Last of the value types (2.0 item 9), so that a list of any type above is tested against no more
+            // Last of the value types, so that a list of any type above is tested against no more
             // interfaces than before.
             IEnumerable<Int128> items => WriteItems(items, start),
             IEnumerable<Int128?> items => WriteItems(items, start),

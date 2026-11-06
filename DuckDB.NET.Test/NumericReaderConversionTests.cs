@@ -353,7 +353,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     // A FLOAT or DOUBLE read as an integer type gives the value when it is whole and fits, and throws
-    // InvalidCastException otherwise (2.0 item 5; before 2.0 a fraction was rounded half to even). There is no
+    // InvalidCastException otherwise (before 2.0 a fraction was rounded half to even). There is no
     // tolerance for a value that is nearly whole. NaN, the infinities and a value out of range are refused as before.
     [Theory]
     [InlineData("FLOAT", "Single")]
@@ -642,7 +642,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         reader.Invoking(r => r.GetDecimal(0)).Should().Throw<InvalidCastException>();
     }
 
-    // Int128 and UInt128 (2.0 item 9) are the exact types of HUGEINT and UHUGEINT. Each reads the whole range of
+    // Int128 and UInt128 are the exact types of HUGEINT and UHUGEINT. Each reads the whole range of
     // its column, and every other integer column, VARINT and a whole DECIMAL when the value fits. They are also the
     // default types of the two columns (2.0; BigInteger before), which still read as BigInteger.
     [Fact]
@@ -928,7 +928,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     // A DECIMAL read as an integer type gives the value when it is whole and fits, and throws InvalidCastException
-    // otherwise, as FLOAT and DOUBLE do (2.0 item 5; before 2.0 every read as sbyte to ulong was refused). Each width
+    // otherwise, as FLOAT and DOUBLE do (before 2.0 every read as sbyte to ulong was refused). Each width
     // is stored in another integer: 2, 4, 8 and 16 bytes. FLOAT and DOUBLE stay refused whatever the value.
     [Theory]
     [InlineData("DECIMAL(4,0)")]
