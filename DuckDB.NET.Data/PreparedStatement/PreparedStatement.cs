@@ -17,15 +17,15 @@ internal sealed class PreparedStatement : IDisposable
 
         using (extractedStatements)
         {
-            if (statementCount <= 0)
+            if (statementCount == 0)
             {
                 var error = NativeMethods.ExtractStatements.DuckDBExtractStatementsError(extractedStatements);
                 throw new DuckDBException(error);
             }
 
-            for (int index = 0; index < statementCount; index++)
+            for (ulong index = 0; index < statementCount; index++)
             {
-                var status = NativeMethods.ExtractStatements.DuckDBPrepareExtractedStatement(connection, extractedStatements, index, out var statement);
+                var status = NativeMethods.ExtractStatements.DuckDBPrepareExtractedStatement(connection, extractedStatements, (long)index, out var statement);
 
                 if (status.IsSuccess())
                 {
@@ -51,7 +51,7 @@ internal sealed class PreparedStatement : IDisposable
 
         using (extractedStatements)
         {
-            if (statementCount <= 0)
+            if (statementCount == 0)
             {
                 var error = NativeMethods.ExtractStatements.DuckDBExtractStatementsError(extractedStatements);
                 throw new DuckDBException(string.IsNullOrEmpty(error) ? "The command text holds no statement to prepare" : error);

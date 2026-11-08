@@ -141,11 +141,11 @@ public partial class NativeMethods
         // Maybe [SuppressGCTransition]: UTF-8 validation + creates Value::VARCHAR — string allocation
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_append_varchar_length", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial DuckDBState DuckDBAppendVarchar(DuckDBAppender appender, string val, int length);
+        public static partial DuckDBState DuckDBAppendVarchar(DuckDBAppender appender, string val, ulong length);
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_append_blob")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static unsafe partial DuckDBState DuckDBAppendBlob(DuckDBAppender appender, byte* data, int length);
+        public static unsafe partial DuckDBState DuckDBAppendBlob(DuckDBAppender appender, byte* data, ulong length);
 
         [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_append_null")]
@@ -159,6 +159,6 @@ public partial class NativeMethods
         // Maybe [SuppressGCTransition]: evaluates default expression — typically small but expression-dependent
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_append_default_to_chunk")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial DuckDBState DuckDBAppendDefaultToChunk(DuckDBAppender appender, DuckDBDataChunk chunk, int column, ulong row);
+        public static partial DuckDBState DuckDBAppendDefaultToChunk(DuckDBAppender appender, DuckDBDataChunk chunk, ulong column, ulong row);
     }
 }

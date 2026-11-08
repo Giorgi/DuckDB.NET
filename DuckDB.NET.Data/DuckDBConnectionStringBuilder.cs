@@ -80,7 +80,7 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
     {
         var configCount = NativeMethods.Configuration.DuckDBConfigCount();
 
-        for (var index = 0; index < configCount; index++)
+        for (nuint index = 0; index < configCount; index++)
         {
             NativeMethods.Configuration.DuckDBGetConfigFlag(index, out var name, out _);
             ConfigurationOptions.Add(name);
@@ -700,7 +700,7 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
         var descriptors = new List<PropertyDescriptor>(ConfigurationOptions.Count);
         var configCount = NativeMethods.Configuration.DuckDBConfigCount();
 
-        for (var index = 0; index < configCount; index++)
+        for (nuint index = 0; index < configCount; index++)
         {
             NativeMethods.Configuration.DuckDBGetConfigFlag(index, out var name, out var description);
 

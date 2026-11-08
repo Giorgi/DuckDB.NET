@@ -38,6 +38,6 @@ public partial class NativeMethods
         [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_data_chunk_set_size")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial long DuckDBDataChunkSetSize(DuckDBDataChunk chunk, ulong size);
+        public static partial void DuckDBDataChunkSetSize(DuckDBDataChunk chunk, ulong size);
     }
 }
