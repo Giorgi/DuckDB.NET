@@ -179,7 +179,7 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
     {
         GetCurrentWriter();
 
-        var state = NativeMethods.Appender.DuckDBAppendDefaultToChunk(nativeAppender, dataChunk, ValueCount, ChunkRowIndex);
+        var state = NativeMethods.Appender.DuckDBAppendDefaultToChunk(nativeAppender, dataChunk, (ulong)ValueCount, ChunkRowIndex);
 
         if (state == DuckDBState.Error)
         {

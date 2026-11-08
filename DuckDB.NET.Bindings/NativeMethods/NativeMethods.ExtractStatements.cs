@@ -7,7 +7,7 @@ public partial class NativeMethods
     {
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_extract_statements", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial int DuckDBExtractStatements(DuckDBNativeConnection connection, string query, out DuckDBExtractedStatements extractedStatements);
+        public static partial ulong DuckDBExtractStatements(DuckDBNativeConnection connection, string query, out DuckDBExtractedStatements extractedStatements);
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_prepare_extracted_statement")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
