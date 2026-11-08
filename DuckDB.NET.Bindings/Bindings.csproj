@@ -16,7 +16,7 @@ Performance:
 Fixes:
 - DuckDBInterval reads and writes negative days and microseconds
 - DuckDBHugeInt accepts -2^127, and its limits no longer fail under cultures with another minus sign
-- Seven native declarations now match duckdb.h: DuckDBAppendVarchar (with length), DuckDBAppendBlob and DuckDBAppendDefaultToChunk take ulong, DuckDBConfigCount and DuckDBGetConfigFlag use nuint (size_t), DuckDBExtractStatements returns ulong and DuckDBDataChunkSetSize returns void
+- Some native function declarations were corrected to match duckdb.h
     </PackageReleaseNotes>
     <RootNamespace>DuckDB.NET.Native</RootNamespace>
     <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx</RuntimeIdentifiers>
