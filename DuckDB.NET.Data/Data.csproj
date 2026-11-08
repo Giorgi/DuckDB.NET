@@ -5,54 +5,43 @@
     <PackageReleaseNotes>
 - Updated to DuckDB v2.0.0
 
-New features:
-- Read a TIME column as TimeSpan
-- Read FLOAT as double, DOUBLE as float, and both as decimal, in columns, list items, maps and structs
-- Read HUGEINT and UHUGEINT columns as DuckDBHugeInt and DuckDBUHugeInt with GetFieldValue and GetProviderSpecificValue
-- The mapped appender now accepts DuckDBDateOnly and DuckDBTimeOnly properties, and scalar functions accept them as parameters and results
-- BigInteger values can now be bound and appended to UHUGEINT columns as unsigned values, including through the mapped appender
-- A table function over an array now uses the length of the array as its cardinality hint when none is given
-
-Performance (measured against 1.5.6 on .NET 10 with a million rows; the gains are in moving values between DuckDB and .NET, so bulk appends, reading large results and queries that call C# functions benefit most, while queries dominated by DuckDB's own work change little):
-- Reading numbers and booleans through GetInt32, GetFieldValue&lt;T&gt; and the other typed getters 3.5 to 6 times faster, an integer column read as double 12 times faster
-- Reading short strings up to 1.35 times faster
-- Reading dates, times and timestamps 3 to 12 times faster, appending a DateTime 14 to 26 times faster
-- UUID, DECIMAL and HUGEINT reads 1.7 to 7 times faster
-- Typed scalar functions 5 to 8 times faster, 1.6 times with a string argument
-- Table functions 2.5 to 6 times faster
-- With projection pushdown, the columns a query does not read are no longer computed: a query that reads one column of a four-column table function is about 6 times faster, and the gain grows with the number of unread columns
-- LIST, STRUCT and MAP columns read into .NET types up to 6 times faster
-- Appending BigInteger, lists, strings, C# enums and through the mapped appender 1.3 to 4 times faster; numbers 1.2 to 1.4 times faster; decimals of up to 18 digits 1.3 to 2 times faster depending on the CPU, wider decimals more than twice as fast
-
-Memory (per million rows, against 1.5.6):
-- Appending no longer allocates for each value. 1.5.6 allocated about 750 bytes for every DateTime (2.9 GB for four TIMESTAMP columns), 756 MB for a record of mixed types in the mapped appender, 211 MB for lists of int?, 188 MB for C# enums and up to 315 MB for BigInteger; each is now about 0.1 MB
-- Scalar functions with nullable arguments or results, and table functions over structs or rows with nullable columns, no longer allocate for each row: 21 to 47 MB in 1.5.6, now about 0.1 MB
-- An integer read as double no longer allocates (375 MB for eight million values in 1.5.6), a DECIMAL wider than 18 digits is read without a BigInteger (107 MB, now none), and a large HUGEINT read as BigInteger allocates a third as much
-- LIST, STRUCT and MAP reads allocate up to 60% less, and GetValues 9 to 17% less
-
-Fixes:
-- A Read() after the end of a streaming result, and the first Read() of an empty streaming result, no longer throw (#358)
-- Reading an ENUM column as a type other than string no longer reads past the stored value
-- Reading a BIT column as an unsupported type throws InvalidCastException instead of ending the process with a stack overflow
-- Negative intervals can be read as TimeSpan, bound and appended
-- A TIMETZ read as DateTimeOffset no longer throws for a time earlier in the day than its positive offset
-- -2^127 is accepted as a HUGEINT value, and the HUGEINT limits no longer fail under cultures with another minus sign
-- A decimal parameter is sent with the exact number of its digits; 1000 was sent as DECIMAL(3,0)
-- A list parameter that DuckDB cannot build is refused instead of crashing the process
-- The exception of a scalar function that throws in WHERE or HAVING is now the InnerException of the error
-- A table function projection that calls a constructor (a record or a tuple) is refused with a clear message instead of a NullReferenceException
-- The mapped appender disposes its appender when validation fails
-- DuckDBClientFactory.CanCreateCommandBuilder and CanCreateDataAdapter return false instead of throwing
-- Writing a TimeOnly or DuckDBTimeOnly to a DATE column, through the appender or the output of a table function, no longer writes past the end of the column's memory, which could crash the process
-
-Behavior changes:
-- Appending a decimal too wide for its column throws instead of storing a value the column cannot hold
-- A TimeSpan parameter where DuckDB cannot infer the type is bound as an INTERVAL instead of as text; declare DbType.Time to bind it as a time
-- Looking up a missing parameter by name through DbParameterCollection throws IndexOutOfRangeException, as the typed indexer does
-- A TIMETZ read as DateTimeOffset is placed on 0001-01-02 instead of 0001-01-01
+Breaking changes:
+- DuckDB.NET.Data 2.0 needs DuckDB.NET.Bindings 2.0: upgrade both packages together
+- HUGEINT and UHUGEINT are read as Int128 and UInt128 by default (GetValue, ExecuteScalar, GetFieldType, the schema tables, DataTable and values nested in lists, maps and structs), instead of BigInteger. sum() of an integer column is a HUGEINT, so (BigInteger)command.ExecuteScalar() after a SUM throws: cast to Int128, or read it with GetFieldValue&lt;BigInteger&gt;. VARINT stays BigInteger. A DataTable with such a column is written by WriteXml but not read back by ReadXml unless Int128 and UInt128 are added to the DataSet type allow-list
+- IDuckDBAppenderRow has new members AppendValue(Int128?), AppendValue(UInt128?), AppendValue(DateOnly?) and AppendValue(TimeOnly?): a class that implements the interface must add them. With C# 12 (the default for net8.0 projects) an integer constant passed to AppendValue is ambiguous; give it the type of its column, for example (int?)1
+- DuckDBDateOnly and DuckDBTimeOnly convert to DateOnly and TimeOnly only explicitly. dateOnly.Equals(duckDBDateOnly) now returns false and dateOnly.CompareTo(duckDBDateOnly) throws: cast the DuckDB value first. Assignments and comparisons that relied on the implicit conversion need a cast, and assemblies built against 1.x that call it need a rebuild
+- A typed scalar function with no nullable parameter returns NULL for a NULL argument without being called, for a column as for a constant. In projects without nullable reference types this includes string and object parameters, which were called with null: declare the parameter string? or mark it [AllowNull] to be called. A function closed over string? in a generic method is treated as not nullable
+- A FLOAT, DOUBLE or DECIMAL value with a fractional part, read as an integer type, throws InvalidCastException instead of being rounded: cast in SQL (x::INTEGER) or read it as double or decimal and round
+- A list item, map key or value or struct field read as a type it cannot be read as throws InvalidCastException instead of ArgumentException or OverflowException. Reads that the column allowed and these paths refused now give the value: an integer as BigInteger, a HUGEINT, UHUGEINT or VARINT as a smaller integer type when it fits, an ENUM as any integer type
+- A STRUCT read into a C# struct gives the values of its fields; under JIT every property was left at its default
+- A BLOB read with GetValue, ExecuteScalar, GetProviderSpecificValue or as object is a byte[] instead of a Stream, and GetFieldType and the schema tables report byte[]. GetStream and GetFieldValue&lt;Stream&gt; still return a stream. The stream pointed into the reader's memory, so one returned by ExecuteScalar read freed memory
+- A DECIMAL of more than 18 digits that fits a decimal keeps the scale of its column: 1.5 from a DECIMAL(38,4) reads as 1.5000, as it does from a DECIMAL(18,4). Equality and arithmetic are unchanged; ToString and serialization show the trailing zeros
+- A string with NUL characters is stored in full by the appender, the mapped appender, the results of scalar and table functions, and parameters; it was cut at the first NUL
+- A BigInteger appended to a column other than HUGEINT or UHUGEINT throws InvalidOperationException, as an Int128 does; its 16 bytes overwrote neighbouring values
+- A table function parameter read with GetValue&lt;T&gt; as a type other than its own, object, a nullable or an interface of it throws InvalidCastException; the bytes were reinterpreted as T
+- An Int128 or UInt128 parameter is sent as a HUGEINT or UHUGEINT value instead of text, with DbType VarNumeric
 - A DateTime appended to a TIME column stores its time of day; it stored the microseconds of the whole timestamp, more than a day
 - A TimeOnly or DuckDBTimeOnly written to a DATE, TIMETZ or timestamp column, and a DateOnly or DuckDBDateOnly written to a TIME column, by the appender or a table function, throw InvalidOperationException instead of storing the bytes of the other type
-- A BigInteger parameter where DuckDB cannot infer the type is bound as HUGEINT if it fits, as UHUGEINT up to 2^128 - 1 and as BIGNUM beyond, instead of throwing for values outside the HUGEINT range
+- A DATE, TIMESTAMP, TIME, TIMETZ or INTERVAL value read into an object property of a class or struct, or with GetValue&lt;object&gt; in a function, is a DateOnly, DateTime, TimeOnly, DateTimeOffset or TimeSpan, the column's own .NET type, instead of the DuckDB struct. Numbers, HUGEINT, ENUM, STRUCT, LIST and MAP values read into object follow the same rule; they threw or gave an empty object
+- A class derived from Dictionary&lt;string, object&gt; is refused as a MAP target, as Dictionary&lt;string, object&gt; already was
+- ExecuteNonQuery and RecordsAffected return -1 for statements other than INSERT, UPDATE, DELETE, MERGE and COPY, and the reader counts the rows of these statements (#374)
+- DbCommand.CommandType defaults to Text and DbParameter.Direction to Input; both started at 0, which is not a valid value (#372)
+- GetOrdinal falls back to a case-insensitive search, and throws IndexOutOfRangeException for a missing column (#375)
+- Prepare() requires an open connection (#378)
+- Unsupported savepoint operations fail the same way on every method (#380)
+
+New features:
+- Int128 and UInt128 (#370): read HUGEINT and UHUGEINT as Int128 and UInt128, and every other integer column, VARINT, a whole DECIMAL and ENUM when the value fits; append them with AppendValue and the mapped appender; use them as scalar and table function types; Int128 and UInt128 parameters are sent as HUGEINT and UHUGEINT values
+- DuckDBCommand.Prepare() prepares the statement once and keeps it on the connection, shared by commands with the same text, until the connection closes; later executions only bind and execute. A command of several statements is not prepared. After a schema change that alters a parameter's type, call Prepare() again
+- TIME_NS columns can be read and written as TimeOnly, TimeSpan, DateTime and DuckDBTimeOnly, in columns, lists, maps, structs and DuckDBValue (#386, #387)
+- Typed reads of LIST, MAP and STRUCT columns: a List&lt;T&gt; of any element type, a Dictionary&lt;TKey, TValue&gt; and a class or struct are filled without boxing, and lists and dictionaries are created at their size. Classes derived from List&lt;T&gt; or Dictionary&lt;TKey, TValue&gt;, generic or not, are read through their base. The common element, key and value types also work under Native AOT, where lists of most element types threw MissingMethodException
+- [AllowNull] on a scalar function parameter makes it nullable, as string? and [MaybeNull] do
+- GetFieldValue&lt;byte[]&gt; reads a BLOB, also as a list item, map value or struct field (#384)
+- GetBytes and GetChars read part of a BLOB or a string into a buffer, and return the length for a null buffer (#377)
+- GetSchema("DataTypes") and the ADO.NET metadata collections describe DuckDB's types (#364)
+- GetValues copies only as many values as the array holds (#376), and Close() can be called more than once (#373)
+
+Thanks to Alaric Dailey (@alaricd) for his pull requests that brought DuckDB.NET's ADO.NET behaviour in line with the documented contracts, and to Michał Rusinek (@Mr444-dev) for TIME_NS support.
     </PackageReleaseNotes>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>

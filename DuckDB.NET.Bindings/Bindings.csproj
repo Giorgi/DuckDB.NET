@@ -5,17 +5,20 @@
     <PackageReleaseNotes>
 - Updated to DuckDB v2.0.0
 
-New features:
-- DuckDBHugeInt.ToInt128 and DuckDBUHugeInt.ToUInt128
-- Equality without boxing for DuckDBDateOnly, DuckDBTimeOnly, DuckDBTimestamp, DuckDBInterval and DuckDBTimeTz (IEquatable&lt;T&gt;)
-- Bindings for duckdb_scalar_function_set_bind_data_copy and duckdb_unsafe_vector_assign_string_element_len
+Breaking changes:
+- DuckDB.NET.Bindings 2.0 needs DuckDB.NET.Data 2.0: DuckDB.NET.Data 1.x with Bindings 2.0 throws TypeLoadException at the first string append. Upgrade both packages together
+- DuckDBString.value and the nested type DuckDBString._value_e__Union are removed: read a string with Length and Data, and build a short one with DuckDBString.TryCreateInlined
+- DuckDBString.TryCreateInlined returns true for a short string that contains a NUL character; it returned false
+- NativeMethods.Value.DuckDBCreateVarchar takes a non-nullable string (null crashes the process; use DuckDBCreateNullValue for NULL), and has a new overload for UTF-8 bytes, DuckDBCreateVarchar(ReadOnlySpan&lt;byte&gt;), which keeps NUL characters. With C# 12, DuckDBCreateVarchar(null) and DuckDBCreateVarchar(default) are ambiguous, and a method group or a reflection lookup of DuckDBCreateVarchar needs the parameter type
+- DuckDBStringInlined is internal: build a short string with DuckDBString.TryCreateInlined
+- DuckDBValue.GetValue&lt;T&gt; gives the value as its own type, as object, a nullable of it or an interface it implements; any other T throws InvalidCastException. It reinterpreted the value's memory as T
 
-Performance:
-- Creating a DuckDBHugeInt or DuckDBUHugeInt from a BigInteger is faster and no longer allocates
+New features:
+- DuckDBHugeInt and DuckDBUHugeInt can be created from an Int128 and a UInt128
+- DuckDBType has the DuckDB 1.5 types STRING_LITERAL, INTEGER_LITERAL, TIME_NS, GEOMETRY and VARIANT
+- Bindings for duckdb_prepared_statement_type, duckdb_clear_bindings and duckdb_create_varchar_length
 
 Fixes:
-- DuckDBInterval reads and writes negative days and microseconds
-- DuckDBHugeInt accepts -2^127, and its limits no longer fail under cultures with another minus sign
 - Some native function declarations were corrected to match duckdb.h
     </PackageReleaseNotes>
     <RootNamespace>DuckDB.NET.Native</RootNamespace>
