@@ -1,8 +1,8 @@
 namespace DuckDB.NET.Test;
 
 /// <summary>
-/// Calls the bindings whose parameter or return types were declared with the wrong width (see
-/// <see cref="NativeSignatureTests"/>), with values that only come out right when the declaration matches duckdb.h.
+/// Calls the bindings whose parameter or return types were declared with a width different from duckdb.h, with values
+/// that only come out right when the declaration matches the C prototype.
 /// </summary>
 public class NativeBindingWidthTests
 {
