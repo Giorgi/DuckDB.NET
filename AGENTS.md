@@ -34,6 +34,9 @@ dotnet run -c Release -f net10.0 --project DuckDB.NET.Benchmarks -- --filter "*N
 - The `DownloadNativeLibs` target in `Bindings.csproj` (with `DownloadNativeLibs.targets`) downloads the DuckDB
   release zips into `DuckDB.NET.Bindings/obj/runtimes/<rid>/native`. The test project always triggers this download,
   whatever `BuildType` is.
+- **In CI,** except nightly builds, the Build, CodeQL and Sonar workflows fill `obj/runtimes` first with `.github/actions/duckdb-natives`: from
+  the Actions cache (keyed by OS and DuckDB release), or downloaded with the workflow's token. Anonymous release
+  downloads failed with 504 for hours on 2026-11-09. Only pushes and manual runs save to the cache, never pull requests.
 - **The cache is version-blind:** a platform is downloaded only if its folder is missing. After changing the DuckDB
   version, delete `DuckDB.NET.Bindings/obj/runtimes`, rebuild, and confirm the version with `SELECT version()`.
 - **Nightly builds:** `/p:NightlyBuild=true /p:DuckDbArtifactRoot=https://artifacts.duckdb.org/<branch>` downloads

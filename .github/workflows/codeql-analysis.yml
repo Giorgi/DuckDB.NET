@@ -74,6 +74,12 @@ jobs:
     # - name: Autobuild
     #   uses: github/codeql-action/autobuild@v3
 
+    - name: Get the DuckDB native libraries
+      uses: ./.github/actions/duckdb-natives
+      with:
+        token: ${{ github.token }}
+        save: ${{ github.event_name == 'push' }}
+
     - name: Build
       run: dotnet build
 

@@ -1,0 +1,70 @@
+name: DuckDB native libraries
+description: >-
+  Puts the native libraries of the DuckDB release named in Bindings.csproj into DuckDB.NET.Bindings/obj/runtimes,
+  from the cache or downloaded with a token, so the build finds them there and downloads nothing itself.
+
+# The build downloads the release without a token, and on 2026-11-09 GitHub answered such downloads with 504 for
+# hours ("CI jobs and release downloads may fail with a 504 Gateway Timeout status if they make anonymous calls").
+# Downloads with a token were not affected. DownloadNativeLibs skips every platform whose folder exists.
+
+inputs:
+  token:
+    description: The token to download the release with
+    required: true
+  save:
+    description: "'true' to save the libraries to the cache after a download. Only for runs of trusted code."
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Find the DuckDB release
+      id: release
+      shell: bash
+      run: |
+        tag=$(grep -oE 'releases/download/v[^<]+' DuckDB.NET.Bindings/Bindings.csproj | head -n 1 | sed 's|releases/download/||')
+        if [ -z "$tag" ]; then
+          echo "::error::No DuckDB release URL in DuckDB.NET.Bindings/Bindings.csproj"
+          exit 1
+        fi
+        echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+    - name: Restore the native libraries
+      id: cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: DuckDB.NET.Bindings/obj/runtimes
+        key: duckdb-natives-${{ runner.os }}-${{ steps.release.outputs.tag }}
+
+    - name: Download the native libraries
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        TAG: ${{ steps.release.outputs.tag }}
+      run: |
+        set -euo pipefail
+        mkdir -p DuckDB.NET.Bindings/obj/runtimes
+        cd DuckDB.NET.Bindings/obj/runtimes
+        # The same runtime identifiers and platforms as the _NativeLib items in Bindings.csproj.
+        for pair in win-x64:windows-amd64 win-arm64:windows-arm64 linux-x64:linux-amd64 linux-arm64:linux-arm64 osx:osx-universal; do
+          rid=${pair%%:*}
+          file=duckdb-shared-libs-${pair#*:}.tar.gz
+          for attempt in 1 2 3 4 5; do
+            if gh release download "$TAG" --repo duckdb/duckdb --pattern "$file" --clobber; then break; fi
+            if [ "$attempt" = 5 ]; then exit 1; fi
+            sleep 15
+          done
+          mkdir -p "$rid/native"
+          # Relative paths: GNU tar (e.g. Git for Windows) reads "C:\..." as a remote host
+          tar -xzf "$file" -C "$rid/native"
+          rm "$file"
+        done
+
+    - name: Save the native libraries
+      if: inputs.save == 'true' && steps.cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: DuckDB.NET.Bindings/obj/runtimes
+        key: duckdb-natives-${{ runner.os }}-${{ steps.release.outputs.tag }}

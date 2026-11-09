@@ -81,6 +81,14 @@ jobs:
       with:
         global-json-file: global.json
 
+    # Saved to the cache only by runs of the repository's own branches, never by a pull request.
+    - name: Get the DuckDB native libraries
+      if: env.NightlyBuild != 'true'
+      uses: ./.github/actions/duckdb-natives
+      with:
+        token: ${{ github.token }}
+        save: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+
     - name: Build
       run: dotnet build --configuration Release /p:BuildType=Full
 
@@ -145,6 +153,7 @@ jobs:
     - name: Upload coverage reports to Coveralls Parallel
       uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
       if: github.event_name != 'schedule'
+      continue-on-error: true
       with:
         github-token: ${{ secrets.github_token }}
         flag-name: run-${{ matrix.os }}
@@ -210,6 +219,7 @@ jobs:
     steps:
     - name: Coveralls Finished
       uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
+      continue-on-error: true
       with:
         github-token: ${{ secrets.github_token }}
         parallel-finished: true

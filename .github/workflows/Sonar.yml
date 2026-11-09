@@ -55,6 +55,13 @@ jobs:
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
+
+      # Saved to the cache only by pushes: a pull request run here can build a fork's code.
+      - name: Get the DuckDB native libraries
+        uses: ./.github/actions/duckdb-natives
+        with:
+          token: ${{ github.token }}
+          save: ${{ github.event_name == 'push' }}
       
       - name: Cache SonarCloud packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
