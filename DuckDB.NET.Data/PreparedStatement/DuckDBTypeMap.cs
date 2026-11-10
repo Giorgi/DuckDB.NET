@@ -13,7 +13,7 @@ internal static class DuckDBTypeMap
         {typeof(double), DbType.Double},
         {typeof(string), DbType.String},
         {typeof(Guid), DbType.Guid},
-        {typeof(decimal), DbType.Currency},
+        {typeof(decimal), DbType.Decimal},
         {typeof(byte), DbType.Byte},
         {typeof(ushort), DbType.UInt16},
         {typeof(uint), DbType.UInt32},
