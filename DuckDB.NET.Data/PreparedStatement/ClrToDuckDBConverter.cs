@@ -104,7 +104,7 @@ internal static class ClrToDuckDBConverter
             (DuckDBType.Float, float value) => NativeMethods.Value.DuckDBCreateFloat(value),
             (DuckDBType.Double, double value) => NativeMethods.Value.DuckDBCreateDouble(value),
 
-            (DuckDBType.Decimal, decimal value) => DecimalToDuckDBValue(value),
+            (DuckDBType.Decimal, decimal value) => DecimalToDuckDBValue(value, logicalType),
             (DuckDBType.VarInt, BigInteger value) => BigIntegerToDuckDBValue(value),
 
             (DuckDBType.Varchar, string value) => CreateVarchar(value),
@@ -314,6 +314,49 @@ internal static class ClrToDuckDBConverter
     {
         ArgumentNullException.ThrowIfNull(value);
         return NativeMethods.Value.DuckDBCreateVarchar(Encoding.UTF8.GetBytes(value));
+    }
+
+    // A decimal for a DECIMAL parameter goes with the parameter's width and scale when it fits them exactly, because
+    // DuckDB binds the statement again for a value of another type, which makes an INSERT slower: a decimal's own
+    // width and scale rarely match the column's. Otherwise it goes with its own, and DuckDB rounds the digits the
+    // parameter has no room for, or refuses a value that is too large, as before.
+    private static DuckDBValue DecimalToDuckDBValue(decimal value, DuckDBLogicalType parameterType)
+    {
+        var width = NativeMethods.LogicalType.DuckDBDecimalWidth(parameterType);
+        var scale = NativeMethods.LogicalType.DuckDBDecimalScale(parameterType);
+
+        value.GetParts(out var low, out var high, out var isNegative, out var valueScale);
+        var magnitude = new UInt128(high, low);
+
+        // Both results are below 10^width, so 10^38 at most: the multiplication cannot overflow the 128 bits.
+        if (valueScale <= scale)
+        {
+            var shift = scale - valueScale;
+
+            if (magnitude == 0 || DecimalExtensions.CountDigits(magnitude) + shift <= width)
+            {
+                return CreateDecimal(magnitude * (UInt128)DecimalExtensions.Int128PowersOfTen[shift], isNegative, width, scale);
+            }
+        }
+        else
+        {
+            // More digits after the point than the parameter has: exact only when the extra ones are zeros (2.50m for a
+            // scale of 1).
+            var (quotient, remainder) = UInt128.DivRem(magnitude, (UInt128)DecimalExtensions.Int128PowersOfTen[valueScale - scale]);
+
+            if (remainder == 0 && DecimalExtensions.CountDigits(quotient) <= width)
+            {
+                return CreateDecimal(quotient, isNegative, width, scale);
+            }
+        }
+
+        return DecimalToDuckDBValue(value);
+    }
+
+    private static DuckDBValue CreateDecimal(UInt128 magnitude, bool isNegative, byte width, byte scale)
+    {
+        var integer = isNegative ? -(Int128)magnitude : (Int128)magnitude;
+        return NativeMethods.Value.DuckDBCreateDecimal(new DuckDBDecimal(width, scale, new DuckDBHugeInt(integer)));
     }
 
     private static DuckDBValue DecimalToDuckDBValue(decimal value)

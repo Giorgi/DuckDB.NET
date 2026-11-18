@@ -1,4 +1,5 @@
 using System.Globalization;
+using DuckDB.NET.Data.PreparedStatement;
 
 namespace DuckDB.NET.Test.Parameters;
 
@@ -455,5 +456,83 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         Command.Parameters.Clear();
         Command.CommandText = "SELECT list(value ORDER BY rowid)::VARCHAR FROM DecimalParameterRefused";
         Command.ExecuteScalar().Should().Be("[999, -999, 999]");
+    }
+
+    // The width and scale of the DECIMAL value the converter creates for a DECIMAL(width, scale) parameter.
+    private static (byte Width, byte Scale) SentDecimalType(decimal value, byte width, byte scale)
+    {
+        using var parameterType = NativeMethods.LogicalType.DuckDBCreateDecimalType(width, scale);
+        using var duckDBValue = ((object)value).ToDuckDBValue(parameterType, DuckDBType.Decimal, DbType.Decimal);
+
+        // The value owns its type: mark the handle invalid so that it is not destroyed a second time.
+        var valueType = NativeMethods.Value.DuckDBGetValueType(duckDBValue);
+        try
+        {
+            return (NativeMethods.LogicalType.DuckDBDecimalWidth(valueType), NativeMethods.LogicalType.DuckDBDecimalScale(valueType));
+        }
+        finally
+        {
+            valueType.SetHandleAsInvalid();
+        }
+    }
+
+    // A decimal that fits the parameter exactly goes with the parameter's width and scale, so that DuckDB does not bind
+    // the statement again for a value of another type. Any other goes with its own, and DuckDB rounds or refuses it.
+    [Theory]
+    [InlineData("2.5", 18, 4, 18, 4)]
+    [InlineData("-2.5", 18, 4, 18, 4)]
+    [InlineData("1234.5678", 18, 4, 18, 4)]
+    [InlineData("2.50", 18, 1, 18, 1)]          // the extra digit after the point is a zero
+    [InlineData("0", 4, 4, 4, 4)]
+    [InlineData("0.0001", 4, 4, 4, 4)]
+    [InlineData("12", 2, 0, 2, 0)]
+    [InlineData("79228162514264337593543950335", 38, 0, 38, 0)]      // decimal.MaxValue, 29 digits
+    [InlineData("79228162514264337593543950335", 38, 9, 38, 9)]      // 29 + 9 digits
+    [InlineData("0.0000000000000000000000000001", 38, 38, 38, 38)]  // the smallest decimal, scale 28
+    [InlineData("2.55", 18, 1, 3, 2)]           // DuckDB rounds it to the parameter's scale
+    [InlineData("123", 2, 0, 3, 0)]             // too many digits: DuckDB refuses it
+    [InlineData("79228162514264337593543950335", 38, 10, 29, 0)]     // 39 digits at scale 10
+    [InlineData("0.5", 1, 0, 2, 1)]
+    public void DecimalIsSentWithTheParametersWidthAndScaleWhenItFits(string text, byte width, byte scale, byte sentWidth, byte sentScale)
+    {
+        var value = decimal.Parse(text, CultureInfo.InvariantCulture);
+
+        SentDecimalType(value, width, scale).Should().Be((sentWidth, sentScale));
+    }
+
+    // The stored and compared values are the same whichever width and scale the value goes with.
+    [Fact]
+    public void DecimalParameterKeepsItsValue()
+    {
+        Command.CommandText = "CREATE OR REPLACE TABLE DecimalParameterScale (value DECIMAL(18,4));";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "INSERT INTO DecimalParameterScale VALUES ($1)";
+        foreach (var value in new[] { 2.5m, -2.5m, 2.50000m, 0m, 12345678901234.5678m, 1.23456m })
+        {
+            Command.Parameters.Clear();
+            Command.Parameters.Add(new DuckDBParameter(value));
+            Command.ExecuteNonQuery();
+        }
+
+        Command.Parameters.Clear();
+        Command.CommandText = "SELECT list(value::VARCHAR ORDER BY rowid)::VARCHAR FROM DecimalParameterScale";
+        Command.ExecuteScalar().Should().Be("[2.5000, -2.5000, 2.5000, 0.0000, 12345678901234.5678, 1.2346]");
+
+        Command.CommandText = "SELECT count(*) FROM DecimalParameterScale WHERE value = $1";
+        foreach (var (value, count) in new[] { (2.5m, 2L), (2.50m, 2L), (1.2346m, 1L), (1.23456m, 0L) })
+        {
+            Command.Parameters.Clear();
+            Command.Parameters.Add(new DuckDBParameter(value));
+            Command.ExecuteScalar().Should().Be(count, $"for {value}");
+        }
+
+        Command.CommandText = "CREATE OR REPLACE TABLE DecimalListParameterScale (value DECIMAL(9,2)[]);";
+        Command.Parameters.Clear();
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "INSERT INTO DecimalListParameterScale VALUES ($1) RETURNING value::VARCHAR";
+        Command.Parameters.Add(new DuckDBParameter(new List<decimal> { 1.5m, -3m, 0.125m }));
+        Command.ExecuteScalar().Should().Be("[1.50, -3.00, 0.13]");
     }
 }
