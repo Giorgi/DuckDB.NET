@@ -328,11 +328,11 @@ internal static class ClrToDuckDBConverter
         value.GetParts(out var low, out var high, out var isNegative, out var valueScale);
         var magnitude = new UInt128(high, low);
 
-        // Both results are below 10^width, so 10^38 at most: the multiplication cannot overflow the 128 bits.
         if (valueScale <= scale)
         {
             var shift = scale - valueScale;
 
+            // The product has fewer digits than the width, 38 at most, so it cannot overflow the 128 bits.
             if (magnitude == 0 || DecimalExtensions.CountDigits(magnitude) + shift <= width)
             {
                 return CreateDecimal(magnitude * (UInt128)DecimalExtensions.Int128PowersOfTen[shift], isNegative, width, scale);
