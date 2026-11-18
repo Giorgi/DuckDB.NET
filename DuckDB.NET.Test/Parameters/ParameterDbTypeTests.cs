@@ -61,6 +61,45 @@ public class ParameterDbTypeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    public void ANewParameterHasTheObjectDbType()
+    {
+        new DuckDBParameter().DbType.Should().Be(DbType.Object);
+        new DuckDBParameter { Value = DBNull.Value }.DbType.Should().Be(DbType.Object);
+    }
+
+    [Fact]
+    public void ResetDbTypeTakesTheTypeOfTheCurrentValue()
+    {
+        var parameter = new DuckDBParameter { Value = 5, DbType = DbType.Time };
+
+        parameter.ResetDbType();
+
+        parameter.DbType.Should().Be(DbType.Int32);
+    }
+
+    [Fact]
+    public void ResetDbTypeWithoutAValueGivesObject()
+    {
+        var parameter = new DuckDBParameter { DbType = DbType.Time };
+
+        parameter.ResetDbType();
+
+        parameter.DbType.Should().Be(DbType.Object);
+    }
+
+    [Fact]
+    public void ResetDbTypeOnAParameterConstructedWithADbType()
+    {
+        var parameter = new DuckDBParameter(DbType.Int64, 5);
+
+        parameter.ResetDbType();
+        parameter.DbType.Should().Be(DbType.Int32);
+
+        parameter.Value = "text";
+        parameter.DbType.Should().Be(DbType.String);
+    }
+
+    [Fact]
     public void ConstructorsThatTakeAValueStillInferItsType()
     {
         new DuckDBParameter(5).DbType.Should().Be(DbType.Int32);

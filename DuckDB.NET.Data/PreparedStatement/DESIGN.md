@@ -101,9 +101,9 @@ The loops index the typed collection instead of using `foreach` or LINQ, which a
 
 - **The target type**, the logical type and type id DuckDB reports for the parameter. When DuckDB cannot infer one
   (an *untyped* parameter: `SELECT $1`, `$1 + 1`, `price * $1`, `$1 = $2`), the type id is `Invalid`.
-- **The `DbType`** of the `DuckDBParameter`. Setting `Value` sets `DbType` to the one `DuckDBTypeMap` gives for the
-  value's CLR type (`Object` for an unknown type or null), so a `DbType` set before `Value` is overwritten. The
-  constructors that take a `DbType` keep it.
+- **The `DbType`** of the `DuckDBParameter`. A `DbType` that was assigned, or passed to a constructor, stays when
+  `Value` changes. Until then, and after `ResetDbType()`, it is the one `DuckDBTypeMap` gives for the current value's
+  CLR type (`Object` for an unknown type or null, so a new parameter has `Object`), as in Npgsql.
 
 The decision order, first match wins:
 

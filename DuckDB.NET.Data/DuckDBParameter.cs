@@ -6,10 +6,10 @@ namespace DuckDB.NET.Data;
 
 public class DuckDBParameter : DbParameter
 {
-    private const DbType DefaultDbType = DbType.String;
-
     private object? value;
-    private DbType dbType = DefaultDbType;
+
+    // With no value there is no type to infer: Object, as in Npgsql.
+    private DbType dbType = DbType.Object;
 
     // Once a DbType is assigned it stays: assigning Value afterwards must not replace it with the type inferred from the value.
     // Until then (and after ResetDbType) the type follows the value, as it does for SqlParameter and NpgsqlParameter.
@@ -56,7 +56,7 @@ public class DuckDBParameter : DbParameter
     public override int Size { get; set; }
 
     public DuckDBParameter()
-        : this(string.Empty, DefaultDbType, null, inferDbType: true)
+        : this(string.Empty, DbType.Object, null, inferDbType: true)
     { }
 
     public DuckDBParameter(object value) 
@@ -88,9 +88,10 @@ public class DuckDBParameter : DbParameter
         SourceColumn = string.Empty;
     }
 
+    // Back to the type of the current value, as if no DbType had been assigned.
     public override void ResetDbType()
     {
-        dbType = DefaultDbType;
+        dbType = DuckDBTypeMap.GetDbTypeForValue(value);
         inferDbType = true;
     }
 }
