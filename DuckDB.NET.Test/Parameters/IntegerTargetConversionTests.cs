@@ -71,24 +71,114 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         }
     }
 
-    // An integer value or an enum that fits is converted in .NET, so DuckDB gets the parameter's own type and does not
-    // pay for a cast on INSERT. Anything else goes as its own type.
-    [Fact]
-    public void ValueThatFitsIsSentAsTheTypeOfTheParameter()
+    // The ten integer parameter types, which are also the ten integer value types.
+    private static readonly (Type Type, DuckDBType DuckDBType, object Min, object Max)[] Targets =
+    [
+        (typeof(sbyte), DuckDBType.TinyInt, sbyte.MinValue, sbyte.MaxValue),
+        (typeof(short), DuckDBType.SmallInt, short.MinValue, short.MaxValue),
+        (typeof(int), DuckDBType.Integer, int.MinValue, int.MaxValue),
+        (typeof(long), DuckDBType.BigInt, long.MinValue, long.MaxValue),
+        (typeof(Int128), DuckDBType.HugeInt, Int128.MinValue, Int128.MaxValue),
+        (typeof(byte), DuckDBType.UnsignedTinyInt, byte.MinValue, byte.MaxValue),
+        (typeof(ushort), DuckDBType.UnsignedSmallInt, ushort.MinValue, ushort.MaxValue),
+        (typeof(uint), DuckDBType.UnsignedInteger, uint.MinValue, uint.MaxValue),
+        (typeof(ulong), DuckDBType.UnsignedBigInt, ulong.MinValue, ulong.MaxValue),
+        (typeof(UInt128), DuckDBType.UnsignedHugeInt, UInt128.MinValue, UInt128.MaxValue),
+    ];
+
+    public static TheoryData<Type, DuckDBType> IntegerTargets
+    {
+        get
+        {
+            var data = new TheoryData<Type, DuckDBType>();
+            foreach (var target in Targets)
+            {
+                data.Add(target.Type, target.DuckDBType);
+            }
+
+            return data;
+        }
+    }
+
+    private static BigInteger AsBigInteger(object value) => value switch
+    {
+        BigInteger big => big,
+        Int128 int128 => int128,
+        UInt128 uint128 => uint128,
+        ulong uint64 => uint64,
+        _ => Convert.ToInt64(value, CultureInfo.InvariantCulture),
+    };
+
+    // An integer value or an enum that fits is converted in .NET, so DuckDB gets the parameter's own type.
+    [Theory]
+    [MemberData(nameof(IntegerTargets))]
+    public void ValueThatFitsIsSentAsTheTypeOfTheParameter(Type parameterType, DuckDBType parameterDuckDBType)
     {
         foreach (var value in IntegerValues)
         {
-            SentType(value, typeof(int), DuckDBType.Integer).Should().Be(DuckDBType.Integer, value.GetType().Name);
-            SentType(value, typeof(Int128), DuckDBType.HugeInt).Should().Be(DuckDBType.HugeInt, value.GetType().Name);
-            SentType(value, typeof(UInt128), DuckDBType.UnsignedHugeInt).Should().Be(DuckDBType.UnsignedHugeInt, value.GetType().Name);
+            SentType(value, parameterType, parameterDuckDBType).Should().Be(parameterDuckDBType, value.GetType().Name);
         }
 
-        SentType(DayOfWeek.Friday, typeof(byte), DuckDBType.UnsignedTinyInt).Should().Be(DuckDBType.UnsignedTinyInt);
+        SentType(DayOfWeek.Friday, parameterType, parameterDuckDBType).Should().Be(parameterDuckDBType);
+    }
 
+    // Anything else goes as its own type.
+    [Fact]
+    public void ValueThatDoesNotFitIsSentAsItsOwnType()
+    {
         SentType(300, typeof(sbyte), DuckDBType.TinyInt).Should().Be(DuckDBType.Integer);
         SentType(LongEnum.Large, typeof(int), DuckDBType.Integer).Should().Be(DuckDBType.BigInt);
         SentType(2.5m, typeof(int), DuckDBType.Integer).Should().Be(DuckDBType.Decimal);
         SentType("42", typeof(int), DuckDBType.Integer).Should().Be(DuckDBType.Varchar);
+    }
+
+    // The limits of every integer type, one beyond them and the powers of two at the type boundaries, against every
+    // integer parameter type: sent as the parameter's type exactly when the value is in its range.
+    [Fact]
+    public void ValueIsSentAsTheTypeOfTheParameterExactlyWhenItFits()
+    {
+        var values = new List<object>();
+        foreach (var target in Targets)
+        {
+            values.AddRange([target.Min, target.Max, AsBigInteger(target.Min) - 1, AsBigInteger(target.Max) + 1]);
+        }
+
+        foreach (var exponent in new[] { 63, 64, 127, 128 })
+        {
+            values.AddRange([BigInteger.Pow(2, exponent), -BigInteger.Pow(2, exponent)]);
+        }
+
+        foreach (var target in Targets)
+        {
+            foreach (var value in values)
+            {
+                var number = AsBigInteger(value);
+                var fits = number >= AsBigInteger(target.Min) && number <= AsBigInteger(target.Max);
+
+                var ownType = value is BigInteger
+                    ? number >= AsBigInteger(Int128.MinValue) && number <= AsBigInteger(Int128.MaxValue) ? DuckDBType.HugeInt
+                      : number >= 0 && number <= AsBigInteger(UInt128.MaxValue) ? DuckDBType.UnsignedHugeInt : DuckDBType.VarInt
+                    : Targets.Single(t => t.Type == value.GetType()).DuckDBType;
+
+                SentType(value, target.Type, target.DuckDBType).Should().Be(fits ? target.DuckDBType : ownType,
+                    $"{value} ({value.GetType().Name}) for {target.DuckDBType}");
+            }
+        }
+    }
+
+    // Some function arguments take only the exact type, so a long is narrowed to the INTEGER that lpad reports. A
+    // value that is not an integer goes as its own type, and such an argument does not bind with it.
+    [Fact]
+    public void FunctionArgumentTakesAnIntegerThatFits()
+    {
+        Command.CommandText = "SELECT lpad('2', $1, '0');";
+        Command.Parameters.Add(new DuckDBParameter(3L));
+        Command.ExecuteScalar().Should().Be("002");
+
+        Command.CommandText = "SELECT substring('abcdef', $1, 2);";
+        Command.Parameters.Clear();
+        Command.Parameters.Add(new DuckDBParameter(3.0d));
+        Command.Invoking(command => command.ExecuteScalar()).Should().Throw<DuckDBException>().WithMessage("*Binder Error*");
     }
 
     [Theory]
@@ -201,6 +291,17 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    public void StringCharAndBooleanInAComparisonAreCastByDuckDB()
+    {
+        Where("INTEGER", "2").Should().Be("2");
+        Where("INTEGER", " 2 ").Should().Be("2");
+        Where("INTEGER", "2.0").Should().Be("2");
+        Where("INTEGER", '2').Should().Be("2");
+        Where("INTEGER", true).Should().Be("1");
+        Where("INTEGER", false).Should().Be("none");
+    }
+
+    [Fact]
     public void StringsAreParsedByDuckDB()
     {
         Insert("INTEGER", "42").Should().Be("42");
@@ -242,23 +343,20 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         InsertFails("BIGINT", Guid.NewGuid());
     }
 
-    // These values are not sent as text any more; before, a BigInteger went as text in the current culture, and
-    // "−5" (U+2212) was refused. The text fallback itself is pinned by the next test.
-    [Theory]
-    [InlineData("de-DE")]
-    [InlineData("sv-SE")]
-    public void NegativeValuesAreNotSentAsCultureText(string culture)
+    // A BigInteger is not sent as text any more; before, it went as text in the current culture, and sv-SE's "−5"
+    // (U+2212) was refused. The text fallback itself is pinned by the next test.
+    [Fact]
+    public void NegativeBigIntegerIsNotSentAsCultureText()
     {
         var previous = CultureInfo.CurrentCulture;
         try
         {
-            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("sv-SE");
+            CultureInfo.CurrentCulture.NumberFormat.NegativeSign.Should().Be("−", "the test needs the ICU data of sv-SE");
 
             foreach (var column in new[] { "TINYINT", "INTEGER", "BIGINT", "HUGEINT" })
             {
                 Insert(column, new BigInteger(-5)).Should().Be("-5", $"BigInteger into {column}");
-                Insert(column, -5).Should().Be("-5", $"int into {column}");
-                Insert(column, -2.5m).Should().Be("-3", $"decimal into {column}");
             }
         }
         finally

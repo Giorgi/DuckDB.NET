@@ -70,7 +70,9 @@ internal static class ClrToDuckDBConverter
     //    type is an INTERVAL. A collection is built item by item, each item by these rules with the type of the items.
     // 4. Anything else goes through the creator of the DbType, or as text formatted without the current culture.
     // Whatever does not have the parameter's type is cast by DuckDB, as it would cast a SQL literal: it rounds a
-    // fraction, parses a string, and refuses a value that does not fit.
+    // fraction and parses a string. A value that does not fit is refused on INSERT, matches no row in a comparison,
+    // and fails to bind as a function argument. An enum is its number only for an integer parameter; elsewhere it
+    // goes as its name.
     public static DuckDBValue ToDuckDBValue(this object? item, DuckDBLogicalType logicalType, DuckDBType duckDBType, DbType dbType)
     {
         if (item.IsNull())
@@ -82,8 +84,10 @@ internal static class ClrToDuckDBConverter
         {
             (DuckDBType.Boolean, bool value) => NativeMethods.Value.DuckDBCreateBool(value),
 
-            // An integer that fits is converted here: DuckDB 2.0.0 executes an INSERT 1.28 times as long when the value's
-            // type differs from the parameter's. Anything else goes as its own type (or as text), and DuckDB casts it
+            // An integer that fits is converted here, for two reasons. DuckDB binds the statement again when the value's
+            // type differs from the parameter's, which makes an INSERT slower. And some function arguments take only
+            // the exact type: lpad('2', $1, '0') reports INTEGER and does not bind with a BIGINT value, so a long works
+            // there only because it is narrowed. Anything else goes as its own type (or as text), and DuckDB casts it
             // like a SQL literal.
             (DuckDBType.TinyInt, _) => TryConvertTo<sbyte>(item, out var result) ? NativeMethods.Value.DuckDBCreateInt8(result) : ValueOfItsOwnType(item),
             (DuckDBType.SmallInt, _) => TryConvertTo<short>(item, out var result) ? NativeMethods.Value.DuckDBCreateInt16(result) : ValueOfItsOwnType(item),
@@ -271,8 +275,10 @@ internal static class ClrToDuckDBConverter
         return values;
     }
 
-    // DuckDB reported no type for the parameter, for example in "SELECT $1" or "$1::UHUGEINT", so pick the smallest
-    // type that holds the value exactly: HUGEINT, then UHUGEINT, then BIGNUM.
+    // A BigInteger with no integer type to convert to: DuckDB reported no type for the parameter (an uncast "SELECT $1",
+    // or a parameter cast to two different types), the value does not fit the integer parameter, or the parameter has
+    // another type and the value goes through DbType.VarNumeric. Pick the smallest type that holds the value exactly:
+    // HUGEINT, then UHUGEINT, then BIGNUM.
     private static DuckDBValue BigIntegerWithoutTargetType(BigInteger value)
     {
         if (value >= DuckDBHugeInt.HugeIntMinValue && value <= DuckDBHugeInt.HugeIntMaxValue)

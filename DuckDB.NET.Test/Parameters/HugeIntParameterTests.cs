@@ -177,9 +177,10 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         Command.Invoking(command => command.ExecuteNonQuery()).Should().Throw<DuckDBException>();
     }
 
-    // With a cast or no context, DuckDB reports no parameter type and the value picks its own type.
+    // With no integer type to convert to, the value picks its own type, here UHUGEINT. DuckDB reports no type for a
+    // parameter cast to two different types, and VARCHAR for $1::VARCHAR.
     [Theory]
-    [InlineData("SELECT ($1::UHUGEINT)::VARCHAR;")]
+    [InlineData("SELECT ($1::UHUGEINT)::VARCHAR, $1::VARCHAR;")]
     [InlineData("SELECT $1::VARCHAR;")]
     public void BindBigIntegerAboveHugeIntRangeWithoutColumn(string query)
     {
