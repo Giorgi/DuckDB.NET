@@ -493,11 +493,58 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [InlineData("123", 2, 0, 3, 0)]             // too many digits: DuckDB refuses it
     [InlineData("79228162514264337593543950335", 38, 10, 29, 0)]     // 39 digits at scale 10
     [InlineData("0.5", 1, 0, 2, 1)]
+    [InlineData("99", 2, 0, 2, 0)]              // the limits of the width
+    [InlineData("100", 2, 0, 3, 0)]
+    [InlineData("0.99", 2, 2, 2, 2)]
+    [InlineData("1", 2, 2, 1, 0)]
+    [InlineData("99.0", 2, 0, 2, 0)]            // extra zeros after the point, then the width: DuckDB does not check
+    [InlineData("123.0", 2, 0, 4, 1)]           // the width of a value it is given, so this check is the only one
+    [InlineData("100.0", 2, 0, 4, 1)]
+    [InlineData("0.00", 18, 1, 18, 1)]          // zero with extra zeros after the point
+    [InlineData("-79228162514264337593543950335", 38, 9, 38, 9)]     // decimal.MinValue
+    [InlineData("-79228162514264337593543950335", 38, 10, 29, 0)]
     public void DecimalIsSentWithTheParametersWidthAndScaleWhenItFits(string text, byte width, byte scale, byte sentWidth, byte sentScale)
     {
         var value = decimal.Parse(text, CultureInfo.InvariantCulture);
 
         SentDecimalType(value, width, scale).Should().Be((sentWidth, sentScale));
+    }
+
+    [Fact]
+    public void NegativeZeroIsSentWithTheParametersWidthAndScale()
+    {
+        var negativeZero = new decimal(0, 0, 0, true, 2);
+
+        SentDecimalType(negativeZero, 18, 1).Should().Be(((byte)18, (byte)1));
+        SentDecimalType(negativeZero, 18, 4).Should().Be(((byte)18, (byte)4));
+
+        Command.CommandText = "SELECT $1::VARCHAR FROM (SELECT 1) WHERE $1 = 0::DECIMAL(18,4)";
+        Command.Parameters.Add(new DuckDBParameter(negativeZero));
+        Command.ExecuteScalar().Should().Be("0.00");
+    }
+
+    // A value that is too wide must still be refused, by DuckDB, after the extra zeros after its point are removed.
+    [Fact]
+    public void DecimalTooWideAfterItsZerosIsRefused()
+    {
+        Command.CommandText = "CREATE OR REPLACE TABLE DecimalParameterTooWide (value DECIMAL(2,0));";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "INSERT INTO DecimalParameterTooWide VALUES ($1)";
+        foreach (var value in new[] { 123.0m, 100.0m, -100.00m })
+        {
+            Command.Parameters.Clear();
+            Command.Parameters.Add(new DuckDBParameter(value));
+            Command.Invoking(command => command.ExecuteNonQuery()).Should().Throw<DuckDBException>().WithMessage("*Conversion Error*", $"for {value}");
+        }
+
+        Command.Parameters.Clear();
+        Command.Parameters.Add(new DuckDBParameter(99.0m));
+        Command.ExecuteNonQuery();
+
+        Command.Parameters.Clear();
+        Command.CommandText = "SELECT list(value::VARCHAR ORDER BY rowid)::VARCHAR FROM DecimalParameterTooWide";
+        Command.ExecuteScalar().Should().Be("[99]");
     }
 
     // The stored and compared values are the same whichever width and scale the value goes with.
@@ -532,7 +579,15 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         Command.ExecuteNonQuery();
 
         Command.CommandText = "INSERT INTO DecimalListParameterScale VALUES ($1) RETURNING value::VARCHAR";
-        Command.Parameters.Add(new DuckDBParameter(new List<decimal> { 1.5m, -3m, 0.125m }));
-        Command.ExecuteScalar().Should().Be("[1.50, -3.00, 0.13]");
+        Command.Parameters.Add(new DuckDBParameter(new List<decimal> { 1.5m, -3m, 0.125m, -9999999.99m }));
+        Command.ExecuteScalar().Should().Be("[1.50, -3.00, 0.13, -9999999.99]");
+
+        Command.CommandText = "CREATE OR REPLACE TABLE DecimalArrayParameterScale (value DECIMAL(9,2)[3]);";
+        Command.Parameters.Clear();
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "INSERT INTO DecimalArrayParameterScale VALUES ($1) RETURNING value::VARCHAR";
+        Command.Parameters.Add(new DuckDBParameter(new[] { 1.5m, 2.50m, 0.125m }));
+        Command.ExecuteScalar().Should().Be("[1.50, 2.50, 0.13]");
     }
 }
