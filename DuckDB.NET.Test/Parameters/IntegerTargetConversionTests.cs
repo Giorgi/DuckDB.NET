@@ -389,7 +389,7 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
             Command.ExecuteScalar().Should().Be("-1.50");
 
             Command.CommandText = "SELECT $1;";
-            Command.Parameters.Add(new DuckDBParameter(-1.5m) { DbType = DbType.Decimal });
+            Command.Parameters.Add(new DuckDBParameter(-1.5m) { DbType = DbType.AnsiString });
             Command.ExecuteScalar().Should().Be("-1.5");
         }
         finally
