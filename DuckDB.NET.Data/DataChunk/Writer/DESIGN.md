@@ -433,22 +433,27 @@ between two runs.
   - the same with a comparison against the one instance of that writer: 0.54 for four columns. The method
     compiled for the columns of the query replaced it: no test at all, and nothing for a column that is not
     read.
-- **Tell DuckDB the length of an array.** When the data of a function is an array and the function gives no
-  `CardinalityHint`, its length is passed on. Only for an array, whose length cannot change:
-  `duckdb_bind_set_cardinality` sets the number as the most rows the function can return when `is_exact` is
-  false, and as an estimate only when it is true (read at v1.5.6), the reverse of what the names say. DuckDB
-  then adds integers without a check for overflow when that many rows cannot overflow, so a function that
-  returns more rows than it said gets a wrong sum: 3 rows of 4,000,000,000,000,000,000 after a count of 2 gave
-  -6,446,744,073,709,551,616. DuckDB 2.0 has the two the right way round (commit `90cb1904ca5` of DuckDB, read
-  on the `v2.0-cyanoptera` branch), and there a maximum that is too small also removes a `LIMIT` that is larger
-  (read, not run). The length of an array is true either way.
-- **A `CardinalityHint` of a function has the same trap** with `IsExact: false` on DuckDB 1.5. It is passed on
-  as it is and not swapped: the comment on the type says what each value does, and 2.0 corrects it.
+- **Tell DuckDB the count of a collection.** When the function gives no `CardinalityHint` and its data is an
+  array, an `ICollection` (`List<T>` and most collections) or an `IReadOnlyCollection<T>` of a reference type
+  (`HashSet<string>`), the count is passed on. The length of an array cannot change before the scan reads it,
+  so it is exact (`is_exact` true), and DuckDB also has it as the most rows there are. Any other collection's
+  count is taken at bind and can be too small by the time the scan reads it, so it is an estimate only
+  (`is_exact` false), which DuckDB uses for planning only. A set of a value type such as `HashSet<int>` is
+  neither and gets no number; an iterator gets none.
+- **`is_exact` true makes the number a maximum as well,** and DuckDB relies on it: it adds integers without a
+  check for overflow when that many rows cannot overflow, and it removes a `LIMIT` larger than the maximum (the
+  test checks the plan of an array and of a `List`). A function that returns more rows than it said then gets a
+  wrong sum: 3 rows of
+  4,000,000,000,000,000,000 after a count of 2 gave -6,446,744,073,709,551,616. A `CardinalityHint` is passed on
+  as it is; the comment on the type says what each value does.
+- **DuckDB 1.5 had the flag the other way round** (read at v1.5.6): `false` set the maximum and `true` only the
+  estimate, so the default `CardinalityHint` was a maximum. That is why 1.5.x passed only an array's length,
+  true as either. DuckDB 2.0 corrected it (commit `90cb1904ca5` of DuckDB, read on the `v2.0-cyanoptera` branch).
 - **Pinned by:** `RegisterTableFunctionSimplifiedReadsEverySourceTheSameWay` (an array, a `List`, an iterator
   and a set; a class and a struct; three chunks; two scans in one query),
   `RegisterTableFunctionSimplifiedReadsEachColumnOnceForARow` (no value is asked for a column that is not read,
   and each set of columns has its own method), `RegisterTableFunctionSimplifiedRefusesAListThatChangesLength`,
-  and `RegisterTableFunctionOverAnArray_LengthAppearsInQueryPlan`.
+  and `RegisterTableFunctionOverACollection_CountAppearsInQueryPlan`.
 - **Under Native AOT** the compiled methods are interpreted, as the one compiled at registration was. The
   registration with a method that takes an `object` uses no expression tree.
 

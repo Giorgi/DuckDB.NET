@@ -36,6 +36,7 @@ Breaking changes:
 - GetOrdinal falls back to a case-insensitive search, and throws IndexOutOfRangeException for a missing column (#375)
 - Prepare() requires an open connection (#378)
 - Unsupported savepoint operations fail the same way on every method (#380)
+- CardinalityHint: IsExact means what its name says, as DuckDB 2.0 corrected it. With DuckDB 1.5, false made the number the most rows the function can return and true only an estimate; now false is an estimate, and true is an exact count that DuckDB also takes as a maximum. A table function that passed true for a guess and returns more rows can get a wrong sum or a LIMIT that is not applied: pass false
 
 New features:
 - Int128 and UInt128 (#370): read HUGEINT and UHUGEINT as Int128 and UInt128, and every other integer column, VARINT, a whole DECIMAL and ENUM when the value fits; append them with AppendValue and the mapped appender; use them as scalar and table function types; Int128 and UInt128 parameters are sent as HUGEINT and UHUGEINT values
@@ -47,6 +48,7 @@ New features:
 - GetBytes and GetChars read part of a BLOB or a string into a buffer, and return the length for a null buffer (#377)
 - GetSchema("DataTypes") and the ADO.NET metadata collections describe DuckDB's types (#364)
 - GetValues copies only as many values as the array holds (#376), and Close() can be called more than once (#373)
+- A table function over a collection tells DuckDB how many rows it has, for the query plan: the length of an array as exact, the count of a List&lt;T&gt; and other collections as an estimate
 - Parameters: an integer or decimal parameter is sent with the parameter's exact type when the value fits, so DuckDB does not bind the statement again on every execution. DbType.Decimal and DbType.DateTime2 are sent as DECIMAL and TIMESTAMP in any culture (#382, by Alaric Dailey). DbType.Int32 with an Int128 that fits works, and a List&lt;Int128&gt; for a BOOLEAN[] column is cast by DuckDB
 
 Thanks to Alaric Dailey (@alaricd) for his pull requests that brought DuckDB.NET's ADO.NET behaviour in line with the documented contracts, and to Michał Rusinek (@Mr444-dev) for TIME_NS support.

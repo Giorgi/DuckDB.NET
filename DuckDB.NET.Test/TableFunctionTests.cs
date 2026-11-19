@@ -509,11 +509,10 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         reported.Should().Be(cardinality.ToString());
     }
 
-    // A function that gives no number of rows: for an array DuckDB is told its length. Not for a List, which can
-    // be longer when it is read: DuckDB takes the number as the most rows there can be, and a sum over more rows
-    // than that is wrong. A number that the function gives itself is passed on as it is.
+    // A function that gives no number of rows: for a collection DuckDB is told its count, as an estimate. A number
+    // that the function gives itself is passed on as it is.
     [Fact]
-    public void RegisterTableFunctionOverAnArray_LengthAppearsInQueryPlan()
+    public void RegisterTableFunctionOverACollection_CountAppearsInQueryPlan()
     {
         var rows = Enumerable.Range(0, 1234).ToArray();
 
@@ -526,19 +525,40 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Connection.RegisterTableFunction("plan_array_with_hint", _ => new TableFunction([new ColumnInfo("value", typeof(int))], rows, new CardinalityHint(77)),
             (item, writers, rowIndex) => writers[0].WriteValue((int)item, rowIndex));
 
+        Connection.RegisterTableFunction("plan_set", _ => new TableFunction([new ColumnInfo("value", typeof(string))], rows.Select(r => r.ToString()).ToHashSet()),
+            (item, writers, rowIndex) => writers[0].WriteValue((string)item, rowIndex));
+
+        Connection.RegisterTableFunction("plan_iterator", _ => new TableFunction([new ColumnInfo("value", typeof(int))], rows.Select(r => r)),
+            (item, writers, rowIndex) => writers[0].WriteValue((int)item, rowIndex));
+
         Connection.RegisterTableFunction("plan_typed", () => rows, row => new { Value = row });
+        Connection.RegisterTableFunction("plan_typed_list", () => rows.ToList(), row => new { Value = row });
 
         EstimatedCardinality("plan_array").Should().Be("1234");
+        EstimatedCardinality("plan_list").Should().Be("1234");
+        EstimatedCardinality("plan_set").Should().Be("1234");
+        EstimatedCardinality("plan_iterator").Should().NotBe("1234");
         EstimatedCardinality("plan_typed").Should().Be("1234");
-        EstimatedCardinality("plan_list").Should().NotBe("1234");
+        EstimatedCardinality("plan_typed_list").Should().Be("1234");
         EstimatedCardinality("plan_array_with_hint").Should().Be("77");
 
         Connection.Query<int>("SELECT * FROM plan_array()").Should().Equal(rows);
+        Connection.Query<int>("SELECT * FROM plan_list()").Should().Equal(rows);
 
-        // A sum that needs more than 64 bits: DuckDB adds without a check for overflow when the number of rows
-        // it was told cannot reach that, so the number must not be too small. It is the length of the array.
-        Connection.RegisterTableFunction("plan_three_rows", () => new[] { 1, 2, 3 }, row => new { Value = row });
-        Connection.QuerySingle<string>("SELECT sum(4000000000000000000)::VARCHAR FROM plan_three_rows()").Should().Be("12000000000000000000");
+        // The length of an array is exact, so DuckDB also has it as the most rows there are, and drops a LIMIT
+        // that is larger. The count of a List is an estimate, and the LIMIT stays.
+        PlanOf("SELECT * FROM plan_array() LIMIT 2000").Should().NotContain("Limit");
+        PlanOf("SELECT * FROM plan_typed() LIMIT 2000").Should().NotContain("Limit");
+        PlanOf("SELECT * FROM plan_list() LIMIT 2000").Should().Contain("Limit");
+        Connection.Query<int>("SELECT * FROM plan_array() LIMIT 2000").Should().Equal(rows);
+
+        // A sum that needs more than 64 bits: DuckDB adds without a check for overflow when the most rows it was
+        // told cannot reach that. The count is an estimate, not a maximum, so a collection that has more rows when
+        // it is read than its count said still gets the right sum.
+        Connection.RegisterTableFunction("plan_more_rows_than_counted", _ => new TableFunction([new ColumnInfo("value", typeof(int))], new CountsFewerThanItHas(2, 3)),
+            (item, writers, rowIndex) => writers[0].WriteValue((int)item, rowIndex));
+        EstimatedCardinality("plan_more_rows_than_counted").Should().Be("2");
+        Connection.QuerySingle<string>("SELECT sum(4000000000000000000)::VARCHAR FROM plan_more_rows_than_counted()").Should().Be("12000000000000000000");
 
         string EstimatedCardinality(string function)
         {
@@ -546,6 +566,19 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
             return JsonDocument.Parse(plan.Item2).RootElement[0].GetProperty("extra_info").GetProperty("Estimated Cardinality").GetString();
         }
+
+        string PlanOf(string query) => Connection.Query<(string, string)>($"EXPLAIN {query}").First().Item2;
+    }
+
+    // A collection whose Count is smaller than the number of items it gives, as a list that grows after it is
+    // counted would be.
+    private sealed class CountsFewerThanItHas(int count, int items) : System.Collections.ICollection
+    {
+        public int Count => count;
+        public bool IsSynchronized => false;
+        public object SyncRoot => this;
+        public void CopyTo(Array array, int index) => throw new NotSupportedException();
+        public System.Collections.IEnumerator GetEnumerator() => Enumerable.Range(1, items).GetEnumerator();
     }
 
     [Fact]
