@@ -74,9 +74,17 @@ internal static class ClrToDuckDBConverter
             return NativeMethods.Value.DuckDBCreateNullValue();
         }
 
-        if (dbType != DbType.Object && (item is not ICollection || item is byte[]))
+        // A byte[] is one value, except for a LIST or ARRAY parameter, which takes its bytes as items.
+        var isCollection = item is ICollection && (item is not byte[] || duckDBType is DuckDBType.List or DuckDBType.Array);
+
+        if (dbType != DbType.Object && !isCollection)
         {
-            item = DbTypeConverter.Convert(item, dbType, parameter);
+            item = DbTypeConverter.Convert(item, dbType, duckDBType, parameter);
+        }
+        else if (dbType == DbType.Binary && item is byte[])
+        {
+            // DbType.Binary describes the byte[] as a whole, not its bytes.
+            dbType = DbType.Object;
         }
 
         return (duckDBType, item) switch
@@ -223,7 +231,8 @@ internal static class ClrToDuckDBConverter
 
     private static DuckDBValue CreateListFromClrType(ICollection collection, DbType dbType, ParameterLabel parameter)
     {
-        var elementType = collection.GetType().GetInterface(typeof(IEnumerable<>).Name)?.GetGenericArguments()[0];
+        // With an assigned DbType the items are converted to its CLR type, so the list has that type's items.
+        var elementType = DuckDBTypeMap.GetClrType(dbType) ?? collection.GetType().GetInterface(typeof(IEnumerable<>).Name)?.GetGenericArguments()[0];
 
         if (elementType == null)
         {

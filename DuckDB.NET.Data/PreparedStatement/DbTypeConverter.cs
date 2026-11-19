@@ -9,9 +9,10 @@ namespace DuckDB.NET.Data.PreparedStatement;
 // the parameter.
 internal static class DbTypeConverter
 {
-    public static object Convert(object item, DbType dbType, ParameterLabel parameter)
+    // duckDBType is the parameter's type as DuckDB reports it (Invalid when it reports none): two pairs depend on it.
+    public static object Convert(object item, DbType dbType, DuckDBType duckDBType, ParameterLabel parameter)
     {
-        var target = new Target(dbType, parameter);
+        var target = new Target(dbType, duckDBType, parameter);
 
         return dbType switch
         {
@@ -118,12 +119,15 @@ internal static class DbTypeConverter
         };
     }
 
-    // A TimeSpan is a time of day, so it must be at least zero and less than a day; a DateTime keeps its time.
+    // A TimeSpan is a time of day, so it must be at least zero and less than a day; a DateTime keeps its time. For an
+    // INTERVAL parameter a TimeSpan stays as it is: DuckDB has no cast from TIME to INTERVAL, and SqlClient's
+    // convention gives every TimeSpan DbType.Time.
     private static object ToTime(object item, Target target)
     {
         return item switch
         {
             TimeOnly or DuckDBTimeOnly => item,
+            TimeSpan when target.DuckDBType == DuckDBType.Interval => item,
             TimeSpan value when value >= TimeSpan.Zero && value < TimeSpan.FromDays(1) => TimeOnly.FromTimeSpan(value),
             TimeSpan => throw Refuse(item, target, typeof(TimeOnly), Reason.OutOfRange),
             DateTime value => TimeOnly.FromDateTime(value),
@@ -142,19 +146,23 @@ internal static class DbTypeConverter
         };
     }
 
-    // A DateTime as a TIMESTAMPTZ parameter takes it: its date and time are taken as UTC, whatever its Kind.
+    // A DateTime becomes a DateTimeOffset only where DuckDB reports no type: its date and time are taken as UTC,
+    // whatever its Kind, as a TIMESTAMPTZ parameter takes them. Where it reports one, the DateTime stays as it is, so a
+    // TIMESTAMP keeps the clock time instead of having it moved by the session's time zone.
     private static object ToTimestampWithTimeZone(object item, Target target)
     {
         return item switch
         {
             DateTimeOffset => item,
+            DateTime when target.DuckDBType != DuckDBType.Invalid => item,
             DateTime value => new DateTimeOffset(value.Ticks, TimeSpan.Zero),
             _ => throw Refuse(item, target, typeof(DateTimeOffset))
         };
     }
 
-    // The DbType and the parameter it belongs to, for the message of a refused value.
-    private readonly record struct Target(DbType DbType, ParameterLabel Parameter);
+    // The DbType, the parameter's type and the parameter, for the rules that depend on them and for the message of a
+    // refused value.
+    private readonly record struct Target(DbType DbType, DuckDBType DuckDBType, ParameterLabel Parameter);
 
     private enum Reason
     {

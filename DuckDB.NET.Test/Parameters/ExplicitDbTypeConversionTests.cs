@@ -9,7 +9,11 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
 {
     public enum LargeEnum : long { Value = 1000 }
 
-    // The DbType, the value, then what "SELECT typeof($1), $1::VARCHAR" gives where DuckDB reports no type.
+    // DuckDB reports no type for a parameter in a subquery's select list. A cast of the parameter itself would give
+    // it the cast's type ("SELECT $1::VARCHAR" reports VARCHAR).
+    private const string Untyped = "SELECT typeof(v), v::VARCHAR FROM (SELECT $1 AS v)";
+
+    // The DbType, the value, then the type and text Untyped gives.
     public static TheoryData<DbType, object, string, string> Accepted => new()
     {
         { DbType.Int32, 5L, "INTEGER", "5" },
@@ -41,10 +45,9 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
         { DbType.Decimal, 0.1f, "DECIMAL(2,1)", "0.1" },
         { DbType.Currency, 2.5, "DECIMAL(2,1)", "2.5" },
         { DbType.Decimal, (Int128)12345, "DECIMAL(5,0)", "12345" },
-        // DuckDB gives typeof() of a string bound to a parameter with no type as UNKNOWN: a string literal.
-        { DbType.String, 'x', "UNKNOWN", "x" },
-        { DbType.AnsiString, "abc", "UNKNOWN", "abc" },
-        { DbType.StringFixedLength, 'y', "UNKNOWN", "y" },
+        { DbType.String, 'x', "VARCHAR", "x" },
+        { DbType.AnsiString, "abc", "VARCHAR", "abc" },
+        { DbType.StringFixedLength, 'y', "VARCHAR", "y" },
         { DbType.Boolean, true, "BOOLEAN", "true" },
         { DbType.Guid, new Guid("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"), "UUID", "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" },
         { DbType.Binary, new byte[] { 1, 2 }, "BLOB", "\\x01\\x02" },
@@ -57,14 +60,14 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
         { DbType.DateTime2, new DateTime(2026, 11, 19, 13, 45, 30), "TIMESTAMP", "2026-11-19 13:45:30" },
         { DbType.DateTimeOffset, new DateTime(2026, 11, 19, 13, 45, 30), "TIMESTAMP WITH TIME ZONE", null },
         { DbType.Object, 5, "INTEGER", "5" },
-        { DbType.Object, DayOfWeek.Tuesday, "UNKNOWN", "Tuesday" },
+        { DbType.Object, DayOfWeek.Tuesday, "VARCHAR", "Tuesday" },
     };
 
     [Theory]
     [MemberData(nameof(Accepted))]
     public void AcceptedWhereDuckDBReportsNoType(DbType dbType, object value, string type, string text)
     {
-        Command.CommandText = "SELECT typeof($1), $1::VARCHAR";
+        Command.CommandText = Untyped;
         Command.Parameters.Add(new DuckDBParameter { DbType = dbType, Value = value });
 
         using var reader = Command.ExecuteReader();
@@ -195,7 +198,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
     [Fact]
     public void TheDbTypeOfAListAppliesToItsItems()
     {
-        Command.CommandText = "SELECT typeof($1), $1::VARCHAR";
+        Command.CommandText = Untyped;
         Command.Parameters.Add(new DuckDBParameter { DbType = DbType.Int32, Value = new List<long> { 1, 2 } });
 
         using (var reader = Command.ExecuteReader())
@@ -229,6 +232,150 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
         Command.Parameters.Add(new DuckDBParameter(new List<Int128> { 42, 0 }));
 
         Command.ExecuteScalar().Should().Be("[true, false]");
+    }
+
+    // SqlClient's convention gives a TimeSpan DbType.Time; DuckDB has no cast from TIME to INTERVAL, so for an
+    // INTERVAL parameter the TimeSpan stays as it is, a day or more included.
+    [Fact]
+    public void ATimeSpanWithDbTypeTimeForAnInterval()
+    {
+        Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE ExplicitDbTypeIntervals (i INTERVAL, l INTERVAL[])");
+
+        Command.CommandText = "INSERT INTO ExplicitDbTypeIntervals VALUES ($1, $2) RETURNING i::VARCHAR || ' ' || l::VARCHAR";
+        Command.Parameters.Add(new DuckDBParameter(DbType.Time, TimeSpan.FromHours(1)));
+        Command.Parameters.Add(new DuckDBParameter(DbType.Time, new List<TimeSpan> { TimeSpan.FromDays(2) }));
+        Command.ExecuteScalar().Should().Be("01:00:00 [2 days]");
+
+        Command.Parameters.Clear();
+        Command.CommandText = "SELECT (TIMESTAMP '2026-01-01' + $1::INTERVAL)::VARCHAR";
+        Command.Parameters.Add(new DuckDBParameter(DbType.Time, TimeSpan.FromDays(2)));
+        Command.ExecuteScalar().Should().Be("2026-01-03 00:00:00");
+    }
+
+    // Where DuckDB reports a type, a DateTime with DbType.DateTimeOffset is not made a DateTimeOffset, so a TIMESTAMP
+    // keeps its clock time instead of having it moved by the session's time zone.
+    [Fact]
+    public void ADateTimeWithDbTypeDateTimeOffsetForATimestamp()
+    {
+        Connection.ExecuteNonQuery("SET TimeZone = 'Asia/Tbilisi'");
+        try
+        {
+            Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE ExplicitDbTypeTimestamps (t TIMESTAMP, z TIMESTAMPTZ)");
+
+            Command.CommandText = "INSERT INTO ExplicitDbTypeTimestamps VALUES ($1, $2) RETURNING t::VARCHAR || ' ' || z::VARCHAR";
+            Command.Parameters.Add(new DuckDBParameter(DbType.DateTimeOffset, new DateTime(2026, 11, 19, 13, 45, 30)));
+            Command.Parameters.Add(new DuckDBParameter(DbType.DateTimeOffset, new DateTime(2026, 11, 19, 13, 45, 30)));
+
+            // The TIMESTAMPTZ takes the clock time as UTC, as it does without the DbType.
+            Command.ExecuteScalar().Should().Be("2026-11-19 13:45:30 2026-11-19 17:45:30+04");
+
+            Command.Parameters.Clear();
+            // Where DuckDB reports no type, the DbType makes it a TIMESTAMPTZ, the clock time taken as UTC.
+            Command.CommandText = "SELECT v::VARCHAR FROM (SELECT $1 AS v)";
+            Command.Parameters.Add(new DuckDBParameter(DbType.DateTimeOffset, new DateTime(2026, 11, 19, 13, 45, 30)));
+            Command.ExecuteScalar().Should().Be("2026-11-19 17:45:30+04");
+        }
+        finally
+        {
+            Connection.ExecuteNonQuery("RESET TimeZone");
+        }
+    }
+
+    // A list DuckDB reports no type for has items of the DbType's type, as a single value with that DbType has.
+    [Theory]
+    [InlineData(DbType.Int32, "INTEGER[]", "[1, 2]")]
+    [InlineData(DbType.Int64, "BIGINT[]", "[1, 2]")]
+    [InlineData(DbType.Decimal, "DECIMAL(38,18)[]", "[1.000000000000000000, 2.000000000000000000]")]
+    [InlineData(DbType.Double, "DOUBLE[]", "[1.0, 2.0]")]
+    public void AnUntypedListHasItemsOfTheDbTypesType(DbType dbType, string type, string text)
+    {
+        Command.CommandText = Untyped;
+        Command.Parameters.Add(new DuckDBParameter(dbType, new List<long> { 1, 2 }));
+
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+        reader.GetString(0).Should().Be(type);
+        reader.GetString(1).Should().Be(text);
+    }
+
+    [Fact]
+    public void AnUntypedListOfTimeSpansWithDbTypeTimeIsAListOfTimes()
+    {
+        Command.CommandText = Untyped;
+        Command.Parameters.Add(new DuckDBParameter(DbType.Time, new List<TimeSpan> { TimeSpan.FromHours(1) }));
+
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+        reader.GetString(0).Should().Be("TIME[]");
+        reader.GetString(1).Should().Be("['01:00:00']");
+    }
+
+    // A typed list takes its items with the DbType applied to each.
+    [Fact]
+    public void ATypedListWithADbType()
+    {
+        Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE ExplicitDbTypeLists (i INTEGER[], d DATE[3])");
+
+        Command.CommandText = "INSERT INTO ExplicitDbTypeLists VALUES ($1, $2) RETURNING i::VARCHAR || ' ' || d::VARCHAR";
+        Command.Parameters.Add(new DuckDBParameter(DbType.Int32, new List<double> { 1, 2 }));
+        Command.Parameters.Add(new DuckDBParameter(DbType.Date, new[] { new DateTime(2026, 11, 19, 13, 0, 0), new DateTime(2026, 11, 20), new DateTime(2026, 11, 21) }));
+        Command.ExecuteScalar().Should().Be("[1, 2] [2026-11-19, 2026-11-20, 2026-11-21]");
+
+        Command.Parameters[0].Value = new List<double> { 1.5 };
+        Command.Invoking(command => command.ExecuteScalar()).Should().Throw<InvalidCastException>()
+            .WithMessage("Cannot cast from Double to Int32 for parameter $1 (DbType.Int32): the value has a non-zero fractional part");
+    }
+
+    // A byte[] for a list of UTINYINT is a list of its bytes, with DbType.Byte applied to each and DbType.Binary to none.
+    [Theory]
+    [InlineData(DbType.Byte)]
+    [InlineData(DbType.Binary)]
+    [InlineData(DbType.Object)]
+    public void AByteArrayForAListOfBytes(DbType dbType)
+    {
+        Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE ExplicitDbTypeBytes (b UTINYINT[])");
+
+        Command.CommandText = "INSERT INTO ExplicitDbTypeBytes VALUES ($1) RETURNING b::VARCHAR";
+        Command.Parameters.Add(new DuckDBParameter(dbType, new byte[] { 1, 2 }));
+
+        Command.ExecuteScalar().Should().Be("[1, 2]");
+    }
+
+    // A refused value on a prepared command leaves the command usable, and a value that converts then works.
+    [Fact]
+    public void APreparedCommandRefusesAndThenTakesAValue()
+    {
+        Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE ExplicitDbTypePrepared (i INTEGER)");
+
+        Command.CommandText = "INSERT INTO ExplicitDbTypePrepared VALUES ($1)";
+        Command.Parameters.Add(new DuckDBParameter { DbType = DbType.Int32, Value = 2.5 });
+        Command.Prepare();
+
+        Command.Invoking(command => command.ExecuteNonQuery()).Should().Throw<InvalidCastException>();
+
+        Command.Parameters[0].Value = 3.0;
+        Command.ExecuteNonQuery().Should().Be(1);
+        Command.Parameters[0].Value = 4L;
+        Command.ExecuteNonQuery().Should().Be(1);
+
+        Connection.Query<int>("SELECT i FROM ExplicitDbTypePrepared ORDER BY rowid").Should().Equal(3, 4);
+    }
+
+    // A null is a NULL whatever the DbType.
+    [Theory]
+    [InlineData(DbType.Int32)]
+    [InlineData(DbType.Date)]
+    [InlineData(DbType.String)]
+    public void ANullWithADbType(DbType dbType)
+    {
+        Command.CommandText = "SELECT $1 IS NULL, $2 IS NULL";
+        Command.Parameters.Add(new DuckDBParameter { DbType = dbType, Value = null });
+        Command.Parameters.Add(new DuckDBParameter { DbType = dbType, Value = DBNull.Value });
+
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+        reader.GetBoolean(0).Should().BeTrue();
+        reader.GetBoolean(1).Should().BeTrue();
     }
 
     // A DbType set before the value stays, so the value is converted (DbType.Time makes a TimeSpan a time of day).

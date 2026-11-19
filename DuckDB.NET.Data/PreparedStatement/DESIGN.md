@@ -114,17 +114,24 @@ The decision order, first match wins:
 1. **Null** (`null` or `DBNull`): SQL NULL.
 2. **An assigned `DbType`** converts the value to its CLR type when nothing is lost, or refuses it with an
    `InvalidCastException` naming both types, the parameter and the reason (`DbTypeConverter`). Every rule below then
-   sees the converted value, so the `DbType` decides the value and item 11's rules still fit it to the parameter's
-   type: Dapper's `DbType.Int64` on every `long` still sends an INTEGER for an INTEGER column. A collection passes the
-   `DbType` to each item. The families: integer `DbType`s take any integer, an enum, and a whole `float`, `double` or
+   sees the converted value, so the `DbType` decides the value and the integer and decimal rules still fit it to the
+   parameter's type: Dapper's `DbType.Int64` on every `long` still sends an INTEGER for an INTEGER column. A
+   collection passes the `DbType` to each item, and a list DuckDB reports no type for gets items of the `DbType`'s CLR
+   type (`DuckDBTypeMap.GetClrType`): `DbType.Int32` with a `List<long>` is an `INTEGER[]`, as a single `long` with
+   it is an INTEGER. A `byte[]` for a LIST or ARRAY parameter is a list of its bytes; `DbType.Binary` then applies to
+   none of them. The families: integer `DbType`s take any integer, an enum, and a whole `float`, `double` or
    `decimal` that fits; `VarNumeric` the same with no limit; `Single` and `Double` any number; `Decimal` and
    `Currency` integers that fit and a `float` or `double` by the C# cast (0.1 is 0.1m, as the reader converts a
    DOUBLE); the text `DbType`s a `string` or `char`; `Boolean`, `Guid` and `Binary` their own type; `Date` a
    `DateOnly`, `DuckDBDateOnly` or a `DateTime`'s date; `Time` a `TimeOnly`, `DuckDBTimeOnly`, a `TimeSpan` under a
    day or a `DateTime`'s time; `DateTime` and `DateTime2` a `DateTime`, `DuckDBTimestamp` or a `DateOnly` at
-   midnight; `DateTimeOffset` a `DateTimeOffset` or a `DateTime` (its clock time as UTC, as the TIMESTAMPTZ target
-   takes it). Everything else is refused, a string included (no parsing) and a number for a text `DbType`. Pinned by
-   `ExplicitDbTypeConversionTests`.
+   midnight; `DateTimeOffset` a `DateTimeOffset` or a `DateTime`. Everything else is refused, a string included (no
+   parsing) and a number for a text `DbType`. Two pairs depend on the parameter's type. For an INTERVAL parameter,
+   `DbType.Time` leaves a `TimeSpan` as it is, of any length: DuckDB has no cast from TIME to INTERVAL, and SqlClient's
+   convention gives every `TimeSpan` `DbType.Time`. `DbType.DateTimeOffset` makes a `DateTime` a `DateTimeOffset`
+   (its clock time as UTC, as a TIMESTAMPTZ parameter takes it) only where DuckDB reports no type; otherwise the
+   `DateTime` stays, so a TIMESTAMP column keeps its clock time instead of having it moved by the session's time zone.
+   Pinned by `ExplicitDbTypeConversionTests`.
 3. **Integer targets** (TINYINT to HUGEINT, UTINYINT to UHUGEINT): an integer of any width, `Int128`, `UInt128`,
    `BigInteger` or an enum (as its number) is converted to the target's type when it fits exactly (`TryConvertTo`:
    `CreateSaturating` there and back gives the same value). Anything else, and a value that does not fit, goes as its
