@@ -75,4 +75,18 @@ Thanks to Alaric Dailey (@alaricd) for his pull requests that brought DuckDB.NET
     <Compile Include="..\DuckDB.NET.Bindings\OverloadResolutionPriorityAttribute.cs" Link="Extensions\OverloadResolutionPriorityAttribute.cs" />
   </ItemGroup>
 
+  <!-- Data and Bindings ship together, and Data needs the Bindings of its own major version: Data 1.5.x, whose
+       dependency had no upper bound, failed with TypeLoadException under Bindings 2.0. NuGet takes a project
+       reference's version as a minimum, so the range is set on the item pack builds the dependency from. -->
+  <Target Name="LimitBindingsToThisMajorVersion" AfterTargets="_GetProjectReferenceVersions">
+    <PropertyGroup>
+      <_NextMajorVersion>$([MSBuild]::Add($(PackageVersion.Split('.')[0]), 1)).0.0</_NextMajorVersion>
+    </PropertyGroup>
+    <ItemGroup>
+      <_ProjectReferencesWithVersions Condition="'%(Filename)' == 'Bindings'">
+        <ProjectVersion>[%(ProjectVersion), $(_NextMajorVersion))</ProjectVersion>
+      </_ProjectReferencesWithVersions>
+    </ItemGroup>
+  </Target>
+
 </Project>
