@@ -97,46 +97,118 @@ The loops index the typed collection instead of using `foreach` or LINQ, which a
 
 ## Converting a value: `ClrToDuckDBConverter`
 
-`ToDuckDBValue(value, logicalType, duckDBType, dbType)` turns a .NET value into a `DuckDBValue`. Its inputs:
+`ToDuckDBValue(value, logicalType, duckDBType, dbType, parameter)` turns a .NET value into a `DuckDBValue`. Its
+inputs:
 
 - **The target type**, the logical type and type id DuckDB reports for the parameter. When DuckDB cannot infer one
   (an *untyped* parameter: `SELECT $1`, `$1 + 1`, `price * $1`, `$1 = $2`), the type id is `Invalid`.
-- **The `DbType`** of the `DuckDBParameter`. Setting `Value` sets `DbType` to the one `DuckDBTypeMap` gives for the
-  value's CLR type (`Object` for an unknown type or null), so a `DbType` set before `Value` is overwritten. The
-  constructors that take a `DbType` keep it.
+- **The assigned `DbType`** (`DuckDBParameter.AssignedDbType`). A `DbType` that was assigned, or passed to a
+  constructor, stays when `Value` changes. Until then, and after `ResetDbType()`, the parameter reports the one
+  `DuckDBTypeMap` gives for the current value's CLR type (`Object` for an unknown type or null, so a new parameter has
+  `Object`), as in Npgsql, and the converter is given `Object`: an inferred `DbType` converts nothing.
+- **The parameter's label** (`ParameterLabel`: its name, or its position as `$1`), formatted only for the message of
+  a refused value.
 
 The decision order, first match wins:
 
 1. **Null** (`null` or `DBNull`): SQL NULL.
-2. **`Int128`, `UInt128`:** HUGEINT and UHUGEINT whatever the target, because neither is `IConvertible` and the integer
-   targets below would send them as text.
-3. **The target type and the CLR type together**, in the `switch`:
-   - integer targets convert any value with `Convert.ChangeType` (current culture for strings), and send the
-     value's text when that fails, for example out of range;
-   - BOOLEAN, FLOAT, DOUBLE, DECIMAL, HUGEINT, UHUGEINT, BIGNUM, VARCHAR, UUID and BLOB take their own CLR type;
+2. **An assigned `DbType`** converts the value to its CLR type when nothing is lost, or refuses it with an
+   `InvalidCastException` naming both types, the parameter and the reason (`DbTypeConverter`). Every rule below then
+   sees the converted value, so the `DbType` decides the value and the integer and decimal rules still fit it to the
+   parameter's type: Dapper's `DbType.Int64` on every `long` still sends an INTEGER for an INTEGER column. A
+   collection passes the `DbType` to each item, and a list DuckDB reports no type for gets items of the `DbType`'s CLR
+   type (`DuckDBTypeMap.GetClrType`): `DbType.Int32` with a `List<long>` is an `INTEGER[]`, as a single `long` with
+   it is an INTEGER. Not for nested lists, whose items are lists, and not for `Decimal`, `Currency` and `VarNumeric`,
+   whose CLR types map to a fixed `DECIMAL(38,18)` and HUGEINT that a converted value can exceed: those lists keep
+   their element type. A `byte[]` for a LIST or ARRAY parameter is a list of its bytes; `DbType.Binary` then applies to
+   none of them. The families: integer `DbType`s take any integer, an enum, and a whole `float`, `double` or
+   `decimal` that fits; `VarNumeric` the same with no limit; `Single` and `Double` any number; `Decimal` and
+   `Currency` integers that fit and a `float` or `double` by the C# cast (0.1 is 0.1m, as the reader converts a
+   DOUBLE); the text `DbType`s a `string` or `char`; `Boolean`, `Guid` and `Binary` their own type; `Date` a
+   `DateOnly`, `DuckDBDateOnly` or a `DateTime`'s date; `Time` a `TimeOnly`, `DuckDBTimeOnly`, a `TimeSpan` under a
+   day or a `DateTime`'s time; `DateTime` and `DateTime2` a `DateTime`, `DuckDBTimestamp` or a `DateOnly` at
+   midnight; `DateTimeOffset` a `DateTimeOffset` or a `DateTime`. Everything else is refused, a string included (no
+   parsing) and a number for a text `DbType`. Two pairs depend on the parameter's type. For an INTERVAL parameter,
+   `DbType.Time` leaves a `TimeSpan` as it is, of any length: DuckDB has no cast from TIME to INTERVAL, and SqlClient's
+   convention gives every `TimeSpan` `DbType.Time`. `DbType.DateTimeOffset` makes a `DateTime` a `DateTimeOffset`
+   (its clock time as UTC, as a TIMESTAMPTZ parameter takes it) only where DuckDB reports no type; otherwise the
+   `DateTime` stays, so a TIMESTAMP column keeps its clock time instead of having it moved by the session's time zone.
+   Pinned by `ExplicitDbTypeConversionTests`.
+3. **Integer targets** (TINYINT to HUGEINT, UTINYINT to UHUGEINT): an integer of any width, `Int128`, `UInt128`,
+   `BigInteger` or an enum (as its number) is converted to the target's type when it fits exactly (`TryConvertTo`:
+   `CreateSaturating` there and back gives the same value). Anything else, and a value that does not fit, goes as its
+   own type (`ValueOfItsOwnType`: the creator of the `DbType` `DuckDBTypeMap` gives for the value, chosen by the value,
+   not by the parameter's `DbType`), or as text when it has none. DuckDB then casts it: it rounds a fraction, parses a
+   string, and refuses a value that does not fit.
+4. **Other targets with the matching CLR type**, in the `switch`:
+   - BOOLEAN, FLOAT, DOUBLE, DECIMAL, BIGNUM, VARCHAR, UUID and BLOB take their own CLR type;
    - dates, times and timestamps take `DateTime`, `DateTimeOffset`, `DateOnly`, `TimeOnly`, `TimeSpan` and the
      `DuckDB*` structs, converted to the precision of the target (`TIMESTAMP_S`, `_MS`, `_NS`, `TIME_NS`, ...);
    - LIST and ARRAY targets take an `ICollection`, each item converted to the child type with the same rules;
-   - an untyped target with a `TimeSpan` gives an INTERVAL, unless the `DbType` is `Time`.
-4. **Any other `ICollection`** (not `byte[]`): a LIST whose item type comes from the collection's element type.
-5. **By `DbType`** (`ValueCreators`): the value as its own type. This is the path for untyped parameters, and for a
-   value whose CLR type does not match the target (a `double` for a DECIMAL parameter): DuckDB casts it at execution.
-6. **Anything else:** the value's `ToString()` as VARCHAR, for DuckDB to cast.
+   - an untyped target with a `TimeSpan` gives an INTERVAL (`DbType.Time` has made it a `TimeOnly` already).
+5. **Any other `ICollection`** (not `byte[]`): a LIST whose item type comes from the collection's element type.
+6. **Anything else:** the value as its own type (`ValueCreators`, keyed by the `DbType` `DuckDBTypeMap` gives for the
+   value, so a creator only ever sees its own CLR type). This is the path for untyped parameters, and for a value
+   whose CLR type does not match the target (a `double` for a DECIMAL parameter): DuckDB casts it at execution. A
+   value with no creator (an enum, a `TimeSpan` for a typed target, a `Half`) goes as text, formatted with the
+   invariant culture (`IFormattable`) or `ToString()`. Not the current culture: DuckDB cannot parse a decimal comma or
+   the U+2212 minus sign.
+
+Why the converter produces the parameter's exact type where it can, although DuckDB would cast any value:
+
+- **A value of another type makes DuckDB bind the statement again.** `PreparedStatementData::RequireRebind` compares
+  the full logical type of every bound value with the parameter's (for a DECIMAL, the width and scale too). A
+  re-bind costs most on the prepared path, where it is the main work of an execution.
+- **Some function arguments take only the exact type.** `lpad('2', $1, '0')` reports INTEGER for `$1` and does not
+  bind with a BIGINT value; a `long` works there only because it is narrowed. A `double`, `decimal` or `bool` for
+  such an argument fails to bind.
+- **`Convert.ChangeType` is not used:** it rounds a fraction, depends on the current culture for strings, and does
+  not know `Int128` and `UInt128`.
+
+An enum is its number only for an integer target or an integer `DbType`. Elsewhere its `DbType` is `Object`, which
+has no creator, so it goes as its name (text): what a VARCHAR or ENUM column wants, and a conversion error for a
+DOUBLE.
 
 Details that matter:
 
-- **Decimals** go as the integer and scale of the `decimal`, with the width of its digits, not as text or double, so
-  no digit is lost. DuckDB casts to the parameter's width and scale. Building the value with the parameter's width
-  and scale instead was tried during the prepared-statement work and dropped: no measurable effect on 2.0.
+- **Decimals** go as the integer and scale of the `decimal`, never as text or double, so no digit is lost. For a
+  DECIMAL target, a value that fits the parameter's width and scale exactly (`2.50m` for a scale of 1 too) is built
+  with them, which avoids the re-bind; otherwise it goes with its own scale and the width of its digits, and DuckDB
+  rounds or refuses it. Measured on the Azure VM (DuckDB 2.0.0, .NET 10, four DECIMAL(18,4) parameters, against the
+  same code building every value with its own width and scale): an INSERT 0.69 of the time per execution, 0.37 after
+  `Prepare()` (269 to 99 ms for 1,000 executions, the same as four BIGINT parameters); a list of 10,000 decimals
+  0.61. A `decimal` in a list of an untyped parameter gets DECIMAL(38,18) items and is rescaled to them as well.
 - **`BigInteger`** with no target goes as the smallest of HUGEINT, UHUGEINT and BIGNUM that holds it exactly.
 - **Strings** are encoded to UTF-8 here and passed with their length, so a NUL character is kept.
 - **Lists and arrays:** DuckDB returns no value when an item cannot be converted to the item type, and
   `duckdb_bind_value` would crash on it. `ThrowIfNotCreated` releases the items and throws a `DuckDBException`.
+- **List items** go by the same rules as a single value, so an item with no matching arm goes as its own type, which
+  `duckdb_create_list_value` casts to the item type. In 1.x such an item went as its `ToString()` text, in the
+  current culture: a `DateTime` in a `VARCHAR[]` is now `2026-11-19 13:45:30` instead of `11/19/2026 13:45:30` (under
+  en-US), a `float` in a
+  `DOUBLE[]` is its exact value (`0.10000000149011612`) as it is for a DOUBLE column, and a `List<int>` for a
+  `BOOLEAN[]` works where it threw. A `DateTimeOffset` item for a `TIMESTAMP[]` or `VARCHAR[]` comes out in UTC,
+  where a single `DateTimeOffset` for a TIMESTAMP or VARCHAR parameter is cast in the session's time zone (seen on
+  2.0.0; the cause in DuckDB was not looked into).
+- **An assigned `DbType.Object`** converts nothing, so the value goes as its own type: `2.5` is a DOUBLE where it
+  used to be the text `'2.5'`.
+- **Changed from 1.x**, besides the list items and `DbType.Object` above (the release notes list them too):
+  - A `char` for an INTEGER parameter was its code (`'A'` was 65, through `Convert.ChangeType`); it is now the text
+    `'A'`, which DuckDB refuses, and `lpad('2', $1, '0')` with a `char` no longer binds.
+  - A fraction for an integer parameter is rounded by DuckDB, not by .NET: `2.5m` into an INTEGER is 3 (DuckDB's
+    DECIMAL cast rounds half away from zero) where it was 2 (`Convert.ChangeType` rounds half to even). A `double`
+    2.5 is still 2, because DuckDB's DOUBLE cast rounds half to even.
+  - An assigned `DbType` is kept and converts the value: `new DuckDBParameter(DbType.String, 5)` for an INTEGER
+    column worked and is now refused, and an untyped `List<TimeSpan>` with `DbType.Time` is a `TIME[]`, not an
+    `INTERVAL[]` (so a `TimeSpan` of a day or more in it is refused).
+  - A `decimal` infers `DbType.Decimal`, not `Currency`; a new parameter, and `ResetDbType()` without a value,
+    report `Object`, not `String`.
 - **Logical types** passed in are borrowed: the converter must not dispose them. Child types it fetches
   (`duckdb_list_type_child_type`) are its own and are disposed.
 
 Where the result types are tested: `DuckDB.NET.Test/Parameters` (one class per type family, `ExplicitCastTests`,
-`ListParameterTests`, `ParameterCollectionTests`) and `PreparedCommandTests` for typed and untyped parameters of a
+`ListParameterTests`, `ParameterCollectionTests`; `IntegerTargetConversionTests` pins the rules for integer targets)
+and `PreparedCommandTests` for typed and untyped parameters of a
 prepared command. For users, `docs/type-mapping.md` in the docs repository.
 
 ## What DuckDB does with a prepared statement (2.0)
@@ -284,8 +356,11 @@ The benchmarks that do not call `Prepare()` stayed within 2.5%. Compare inside o
 ## Known limits
 
 - **Stale parameter types after a type-changing DDL.** A prepared `INSERT INTO t VALUES ($1)` with `v INTEGER`, then
-  `ALTER TABLE t ALTER v TYPE DECIMAL(10,2)`: 1.75 is converted for an INTEGER and stored as 2.00 until `Prepare()` is
-  called again. Unprepared stores 1.75.
+  `ALTER TABLE t ALTER v TYPE DECIMAL(10,2)`: the converter still sees an INTEGER parameter until `Prepare()` is
+  called again. An integer is converted to INTEGER, which DuckDB casts to the new column type; `1.75m` and `1.75` are
+  not integers, go as their own types, make DuckDB bind the statement again against the altered table, and are stored
+  as 1.75 (before 2.0 they were converted to INTEGER and stored as 2.00). Other type changes were not checked; call
+  `Prepare()` again after one.
 - **The store grows until `Close()`.**
 - **A second thread on one connection** executing the same prepared text at the same moment takes the unprepared
   path for that execution.
