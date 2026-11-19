@@ -5,12 +5,11 @@ namespace DuckDB.NET.Data.PreparedStatement;
 
 internal static class ClrToDuckDBConverter
 {
+    // The creator of each DbType DuckDBTypeMap gives for a value, called only with a value of that DbType's CLR type.
     private static readonly Dictionary<DbType, Func<object, DuckDBValue>> ValueCreators = new()
     {
         { DbType.Guid, value => NativeMethods.Value.DuckDBCreateUuid(((Guid)value).ToHugeInt(false)) },
-        { DbType.Currency, value => DecimalToDuckDBValue((decimal)value) },
-        // Decimal and DateTime2 had no converter: any other value keeps the fallback below, as before.
-        { DbType.Decimal, value => value is decimal number ? DecimalToDuckDBValue(number) : CreateVarchar(value.ToString()) },
+        { DbType.Decimal, value => DecimalToDuckDBValue((decimal)value) },
         { DbType.Boolean, value => NativeMethods.Value.DuckDBCreateBool((bool)value) },
         { DbType.SByte, value => NativeMethods.Value.DuckDBCreateInt8((sbyte)value) },
         { DbType.Int16, value => NativeMethods.Value.DuckDBCreateInt16((short)value) },
@@ -44,38 +43,40 @@ internal static class ClrToDuckDBConverter
         },
         { DbType.Time, value =>
             {
-                // A TimeSpan is a time of day here: TimeOnly.FromTimeSpan refuses a negative one or one of a day or more.
-                var time = value switch
-                {
-                    TimeOnly timeOnly => timeOnly.ToDuckDBTime(),
-                    TimeSpan timeSpan => TimeOnly.FromTimeSpan(timeSpan).ToDuckDBTime(),
-                    _ => ((DuckDBTimeOnly)value).ToDuckDBTime()
-                };
+                var time = value is TimeOnly timeOnly ? timeOnly.ToDuckDBTime() : ((DuckDBTimeOnly)value).ToDuckDBTime();
                 return NativeMethods.Value.DuckDBCreateTime(time);
             }
         },
         { DbType.DateTime, TimestampToDuckDBValue },
-        { DbType.DateTime2, value => value is DateTime or DuckDBTimestamp ? TimestampToDuckDBValue(value) : CreateVarchar(value.ToString()) },
         { DbType.DateTimeOffset, value => NativeMethods.Value.DuckDBCreateTimestampTz(((DateTimeOffset)value).ToTimestampStruct()) },
     };
 
     // Creates the value bound to a parameter. duckDBType is the parameter's type as DuckDB reports it from the statement
-    // (Invalid when it cannot tell, as in "SELECT $1"); dbType is the parameter's DbType. The first rule that applies:
+    // (Invalid when it cannot tell, as in "SELECT $1"); dbType is the DbType the caller assigned, or Object when none
+    // was. The first rule that applies:
     // 1. null or DBNull is a NULL.
-    // 2. An integer parameter takes an integer or an enum that fits, converted to its type. Any other value, and one
+    // 2. An assigned DbType converts the value to its CLR type when nothing is lost, or refuses it (DbTypeConverter);
+    //    the rules below then see the converted value. A collection passes the DbType to each of its items.
+    // 3. An integer parameter takes an integer or an enum that fits, converted to its type. Any other value, and one
     //    that does not fit, goes as its own type, or as text when it has none.
-    // 3. Another parameter type takes a value of the matching .NET type as that type, and a TimeSpan with no reported
+    // 4. Another parameter type takes a value of the matching .NET type as that type, and a TimeSpan with no reported
     //    type is an INTERVAL. A collection is built item by item, each item by these rules with the type of the items.
-    // 4. Anything else goes through the creator of the DbType, or as text formatted without the current culture.
+    // 5. Anything else goes as its own type, or as text formatted without the current culture.
     // Whatever does not have the parameter's type is cast by DuckDB, as it would cast a SQL literal: it rounds a
     // fraction and parses a string. A value that does not fit is refused on INSERT, matches no row in a comparison,
-    // and fails to bind as a function argument. An enum is its number only for an integer parameter; elsewhere it
-    // goes as its name.
-    public static DuckDBValue ToDuckDBValue(this object? item, DuckDBLogicalType logicalType, DuckDBType duckDBType, DbType dbType)
+    // and fails to bind as a function argument. An enum is its number only for an integer parameter or an integer
+    // DbType; elsewhere it goes as its name.
+    // parameter names the parameter in the message of a refused value.
+    public static DuckDBValue ToDuckDBValue(this object? item, DuckDBLogicalType logicalType, DuckDBType duckDBType, DbType dbType, ParameterLabel parameter = default)
     {
         if (item.IsNull())
         {
             return NativeMethods.Value.DuckDBCreateNullValue();
+        }
+
+        if (dbType != DbType.Object && (item is not ICollection || item is byte[]))
+        {
+            item = DbTypeConverter.Convert(item, dbType, parameter);
         }
 
         return (duckDBType, item) switch
@@ -116,8 +117,8 @@ internal static class ClrToDuckDBConverter
             (DuckDBType.TimestampTz, DateTimeOffset value) => NativeMethods.Value.DuckDBCreateTimestampTz(value.ToTimestampStruct()),
             (DuckDBType.Interval, TimeSpan value) => NativeMethods.Value.DuckDBCreateInterval(value),
             // No inferred type (a bare "?"): TimeSpan has no DbType, and its ToString() isn't interval text
-            // DuckDB can parse once there are days ("1.01:01:01"). DbType.Time sends it as a time instead.
-            (DuckDBType.Invalid, TimeSpan value) when dbType != DbType.Time => NativeMethods.Value.DuckDBCreateInterval(value),
+            // DuckDB can parse once there are days ("1.01:01:01"). DbType.Time has made it a TimeOnly already.
+            (DuckDBType.Invalid, TimeSpan value) => NativeMethods.Value.DuckDBCreateInterval(value),
             (DuckDBType.Date, DateTime value) => NativeMethods.Value.DuckDBCreateDate(value.ToDuckDBDate()),
             (DuckDBType.Date, DuckDBDateOnly value) => NativeMethods.Value.DuckDBCreateDate(value.ToDuckDBDate()),
             (DuckDBType.Time, DateTime value) => NativeMethods.Value.DuckDBCreateTime(value.ToDuckDBTime()),
@@ -130,22 +131,22 @@ internal static class ClrToDuckDBConverter
             (DuckDBType.TimeNs, TimeSpan value) => NativeMethods.Value.DuckDBCreateTimeNs(DuckDBTimeNs.FromTicks(TimeOnly.FromTimeSpan(value).Ticks)),
             (DuckDBType.TimeTz, DateTimeOffset value) => NativeMethods.Value.DuckDBCreateTimeTz(value.ToTimeTzStruct()),
             (DuckDBType.Blob, byte[] value) => NativeMethods.Value.DuckDBCreateBlob(value, value.Length),
-            (DuckDBType.List, ICollection value) => CreateCollectionValue(logicalType, value, true, dbType),
-            (DuckDBType.Array, ICollection value) => CreateCollectionValue(logicalType, value, false, dbType),
-            (_, ICollection value) when item is not byte[] => CreateListFromClrType(value, dbType),
-            _ when ValueCreators.TryGetValue(dbType, out var converter) => converter(item),
-            _ => InvariantText(item)
+            (DuckDBType.List, ICollection value) => CreateCollectionValue(logicalType, value, true, dbType, parameter),
+            (DuckDBType.Array, ICollection value) => CreateCollectionValue(logicalType, value, false, dbType, parameter),
+            (_, ICollection value) when item is not byte[] => CreateListFromClrType(value, dbType, parameter),
+            _ => ValueOfItsDbType(item)
         };
     }
 
     // The value as its own type (an enum as its number), chosen by the value, not by the parameter's DbType.
     private static DuckDBValue ValueOfItsOwnType(object item)
     {
-        if (item is Enum)
-        {
-            item = EnumNumber(item);
-        }
+        return ValueOfItsDbType(item is Enum ? EnumNumber(item) : item);
+    }
 
+    // The creator of the DbType DuckDBTypeMap gives for the value, or text when it has none (an enum: its name).
+    private static DuckDBValue ValueOfItsDbType(object item)
+    {
         return ValueCreators.TryGetValue(DuckDBTypeMap.GetDbTypeForValue(item), out var creator) ? creator(item) : InvariantText(item);
     }
 
@@ -185,7 +186,7 @@ internal static class ClrToDuckDBConverter
     }
 
     // A boxed enum unboxes to its underlying type.
-    private static object EnumNumber(object item)
+    internal static object EnumNumber(object item)
     {
         return ((Enum)item).GetTypeCode() switch
         {
@@ -207,12 +208,12 @@ internal static class ClrToDuckDBConverter
         return TFrom.CreateSaturating(result) == value;
     }
 
-    private static DuckDBValue CreateCollectionValue(DuckDBLogicalType logicalType, ICollection collection, bool isList, DbType dbType)
+    private static DuckDBValue CreateCollectionValue(DuckDBLogicalType logicalType, ICollection collection, bool isList, DbType dbType, ParameterLabel parameter)
     {
         using var childType = isList ? NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType) :
                                        NativeMethods.LogicalType.DuckDBArrayTypeChildType(logicalType);
 
-        var values = BuildValues(childType, collection, dbType);
+        var values = BuildValues(childType, collection, dbType, parameter);
 
         var value = isList ? NativeMethods.Value.DuckDBCreateListValue(childType, values, collection.Count)
                            : NativeMethods.Value.DuckDBCreateArrayValue(childType, values, collection.Count);
@@ -220,7 +221,7 @@ internal static class ClrToDuckDBConverter
         return ThrowIfNotCreated(value, values, childType, isList ? "list" : "array");
     }
 
-    private static DuckDBValue CreateListFromClrType(ICollection collection, DbType dbType)
+    private static DuckDBValue CreateListFromClrType(ICollection collection, DbType dbType, ParameterLabel parameter)
     {
         var elementType = collection.GetType().GetInterface(typeof(IEnumerable<>).Name)?.GetGenericArguments()[0];
 
@@ -230,7 +231,7 @@ internal static class ClrToDuckDBConverter
         }
 
         using var childType = elementType.GetLogicalType();
-        var values = BuildValues(childType, collection, dbType);
+        var values = BuildValues(childType, collection, dbType, parameter);
 
         return ThrowIfNotCreated(NativeMethods.Value.DuckDBCreateListValue(childType, values, collection.Count), values, childType, "list");
     }
@@ -259,7 +260,7 @@ internal static class ClrToDuckDBConverter
                                   "An item may be out of range for that type.");
     }
 
-    private static DuckDBValue[] BuildValues(DuckDBLogicalType childType, ICollection collection, DbType dbType)
+    private static DuckDBValue[] BuildValues(DuckDBLogicalType childType, ICollection collection, DbType dbType, ParameterLabel parameter)
     {
         var childDuckDBType = NativeMethods.LogicalType.DuckDBGetTypeId(childType);
         var values = new DuckDBValue[collection.Count];
@@ -267,7 +268,7 @@ internal static class ClrToDuckDBConverter
         var index = 0;
         foreach (var item in collection)
         {
-            values[index++] = item.ToDuckDBValue(childType, childDuckDBType, dbType);
+            values[index++] = item.ToDuckDBValue(childType, childDuckDBType, dbType, parameter);
         }
 
         return values;

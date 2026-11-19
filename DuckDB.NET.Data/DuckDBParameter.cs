@@ -25,6 +25,9 @@ public class DuckDBParameter : DbParameter
         }
     }
 
+    // The DbType the caller assigned, or Object when the type follows the value: only an assigned one converts the value.
+    internal DbType AssignedDbType => inferDbType ? DbType.Object : dbType;
+
     [AllowNull]
     [DefaultValue("")]
     public override string ParameterName { get; set; }

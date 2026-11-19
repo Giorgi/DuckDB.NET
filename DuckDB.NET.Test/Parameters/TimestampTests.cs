@@ -238,13 +238,17 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         }
     }
 
-    // Other values with DbType.DateTime2 are still sent as before.
+    // An assigned DbType does not parse text: the value is refused, and without the DbType DuckDB casts the text.
     [Fact]
-    public void ExplicitDateTime2DbTypeWithATextValueIsStillSent()
+    public void ExplicitDateTime2DbTypeWithATextValueIsRefused()
     {
         Command.CommandText = "SELECT ?::TIMESTAMP;";
         Command.Parameters.Add(new DuckDBParameter("2026-10-18 13:45:30") { DbType = DbType.DateTime2 });
 
+        Command.Invoking(command => command.ExecuteScalar()).Should().Throw<InvalidCastException>()
+            .WithMessage("Cannot cast from String to DateTime for parameter $1 (DbType.DateTime2). Remove the DbType*");
+
+        Command.Parameters[0].ResetDbType();
         Command.ExecuteScalar().Should().Be(new DateTime(2026, 10, 18, 13, 45, 30));
     }
 

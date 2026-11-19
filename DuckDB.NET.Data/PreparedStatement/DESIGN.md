@@ -97,36 +97,53 @@ The loops index the typed collection instead of using `foreach` or LINQ, which a
 
 ## Converting a value: `ClrToDuckDBConverter`
 
-`ToDuckDBValue(value, logicalType, duckDBType, dbType)` turns a .NET value into a `DuckDBValue`. Its inputs:
+`ToDuckDBValue(value, logicalType, duckDBType, dbType, parameter)` turns a .NET value into a `DuckDBValue`. Its
+inputs:
 
 - **The target type**, the logical type and type id DuckDB reports for the parameter. When DuckDB cannot infer one
   (an *untyped* parameter: `SELECT $1`, `$1 + 1`, `price * $1`, `$1 = $2`), the type id is `Invalid`.
-- **The `DbType`** of the `DuckDBParameter`. A `DbType` that was assigned, or passed to a constructor, stays when
-  `Value` changes. Until then, and after `ResetDbType()`, it is the one `DuckDBTypeMap` gives for the current value's
-  CLR type (`Object` for an unknown type or null, so a new parameter has `Object`), as in Npgsql.
+- **The assigned `DbType`** (`DuckDBParameter.AssignedDbType`). A `DbType` that was assigned, or passed to a
+  constructor, stays when `Value` changes. Until then, and after `ResetDbType()`, the parameter reports the one
+  `DuckDBTypeMap` gives for the current value's CLR type (`Object` for an unknown type or null, so a new parameter has
+  `Object`), as in Npgsql, and the converter is given `Object`: an inferred `DbType` converts nothing.
+- **The parameter's label** (`ParameterLabel`: its name, or its position as `$1`), formatted only for the message of
+  a refused value.
 
 The decision order, first match wins:
 
 1. **Null** (`null` or `DBNull`): SQL NULL.
-2. **Integer targets** (TINYINT to HUGEINT, UTINYINT to UHUGEINT): an integer of any width, `Int128`, `UInt128`,
+2. **An assigned `DbType`** converts the value to its CLR type when nothing is lost, or refuses it with an
+   `InvalidCastException` naming both types, the parameter and the reason (`DbTypeConverter`). Every rule below then
+   sees the converted value, so the `DbType` decides the value and item 11's rules still fit it to the parameter's
+   type: Dapper's `DbType.Int64` on every `long` still sends an INTEGER for an INTEGER column. A collection passes the
+   `DbType` to each item. The families: integer `DbType`s take any integer, an enum, and a whole `float`, `double` or
+   `decimal` that fits; `VarNumeric` the same with no limit; `Single` and `Double` any number; `Decimal` and
+   `Currency` integers that fit and a `float` or `double` by the C# cast (0.1 is 0.1m, as the reader converts a
+   DOUBLE); the text `DbType`s a `string` or `char`; `Boolean`, `Guid` and `Binary` their own type; `Date` a
+   `DateOnly`, `DuckDBDateOnly` or a `DateTime`'s date; `Time` a `TimeOnly`, `DuckDBTimeOnly`, a `TimeSpan` under a
+   day or a `DateTime`'s time; `DateTime` and `DateTime2` a `DateTime`, `DuckDBTimestamp` or a `DateOnly` at
+   midnight; `DateTimeOffset` a `DateTimeOffset` or a `DateTime` (its clock time as UTC, as the TIMESTAMPTZ target
+   takes it). Everything else is refused, a string included (no parsing) and a number for a text `DbType`. Pinned by
+   `ExplicitDbTypeConversionTests`.
+3. **Integer targets** (TINYINT to HUGEINT, UTINYINT to UHUGEINT): an integer of any width, `Int128`, `UInt128`,
    `BigInteger` or an enum (as its number) is converted to the target's type when it fits exactly (`TryConvertTo`:
    `CreateSaturating` there and back gives the same value). Anything else, and a value that does not fit, goes as its
    own type (`ValueOfItsOwnType`: the creator of the `DbType` `DuckDBTypeMap` gives for the value, chosen by the value,
    not by the parameter's `DbType`), or as text when it has none. DuckDB then casts it: it rounds a fraction, parses a
    string, and refuses a value that does not fit.
-3. **Other targets with the matching CLR type**, in the `switch`:
+4. **Other targets with the matching CLR type**, in the `switch`:
    - BOOLEAN, FLOAT, DOUBLE, DECIMAL, BIGNUM, VARCHAR, UUID and BLOB take their own CLR type;
    - dates, times and timestamps take `DateTime`, `DateTimeOffset`, `DateOnly`, `TimeOnly`, `TimeSpan` and the
      `DuckDB*` structs, converted to the precision of the target (`TIMESTAMP_S`, `_MS`, `_NS`, `TIME_NS`, ...);
    - LIST and ARRAY targets take an `ICollection`, each item converted to the child type with the same rules;
-   - an untyped target with a `TimeSpan` gives an INTERVAL, unless the `DbType` is `Time`.
-4. **Any other `ICollection`** (not `byte[]`): a LIST whose item type comes from the collection's element type.
-5. **By `DbType`** (`ValueCreators`): the creator of the parameter's `DbType`, which casts the value to that
-   `DbType`'s CLR type. This is the path for untyped parameters, and for a value whose CLR type does not match the
-   target (a `double` for a DECIMAL parameter): DuckDB casts it at execution. A value of another CLR type than the
-   `DbType`'s throws an `InvalidCastException` here.
-6. **Anything else:** the value as text, formatted with the invariant culture (`IFormattable`) or `ToString()`, for
-   DuckDB to cast. Not the current culture: DuckDB cannot parse a decimal comma or the U+2212 minus sign.
+   - an untyped target with a `TimeSpan` gives an INTERVAL (`DbType.Time` has made it a `TimeOnly` already).
+5. **Any other `ICollection`** (not `byte[]`): a LIST whose item type comes from the collection's element type.
+6. **Anything else:** the value as its own type (`ValueCreators`, keyed by the `DbType` `DuckDBTypeMap` gives for the
+   value, so a creator only ever sees its own CLR type). This is the path for untyped parameters, and for a value
+   whose CLR type does not match the target (a `double` for a DECIMAL parameter): DuckDB casts it at execution. A
+   value with no creator (an enum, a `TimeSpan` for a typed target, a `Half`) goes as text, formatted with the
+   invariant culture (`IFormattable`) or `ToString()`. Not the current culture: DuckDB cannot parse a decimal comma or
+   the U+2212 minus sign.
 
 Why the converter produces the parameter's exact type where it can, although DuckDB would cast any value:
 
@@ -139,8 +156,9 @@ Why the converter produces the parameter's exact type where it can, although Duc
 - **`Convert.ChangeType` is not used:** it rounds a fraction, depends on the current culture for strings, and does
   not know `Int128` and `UInt128`.
 
-An enum is its number only for an integer target. Elsewhere its `DbType` is `Object`, which has no creator, so it goes
-as its name (text): what a VARCHAR or ENUM column wants, and a conversion error for a DOUBLE.
+An enum is its number only for an integer target or an integer `DbType`. Elsewhere its `DbType` is `Object`, which
+has no creator, so it goes as its name (text): what a VARCHAR or ENUM column wants, and a conversion error for a
+DOUBLE.
 
 Details that matter:
 

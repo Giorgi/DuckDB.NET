@@ -634,7 +634,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         }
     }
 
-    // Other values with DbType.Decimal are still sent as before.
+    // An integer with DbType.Decimal becomes a decimal.
     [Fact]
     public void ExplicitDecimalDbTypeWithAnIntegerValueIsStillSent()
     {
@@ -645,13 +645,18 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         Command.ExecuteScalar().Should().Be(5.0m);
     }
 
+    // An assigned DbType does not parse text. Without the DbType the text is sent whole, NUL characters included.
     [Fact]
-    public void ExplicitDecimalDbTypeWithATextValueKeepsItsNulCharacters()
+    public void ExplicitDecimalDbTypeWithATextValueIsRefused()
     {
         Command.CommandText = "SELECT length(?)";
         Command.Parameters.Clear();
         Command.Parameters.Add(new DuckDBParameter("a\0b") { DbType = DbType.Decimal });
 
+        Command.Invoking(command => command.ExecuteScalar()).Should().Throw<InvalidCastException>()
+            .WithMessage("Cannot cast from String to Decimal for parameter $1 (DbType.Decimal). Remove the DbType*");
+
+        Command.Parameters[0].ResetDbType();
         Command.ExecuteScalar().Should().Be(3L);
     }
 }

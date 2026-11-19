@@ -365,7 +365,7 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         }
     }
 
-    // A DbType without a creator sends the value as text, formatted without the current culture.
+    // A value with no DuckDB type of its own (a Half) goes as text, formatted without the current culture.
     [Theory]
     [InlineData("de-DE")]
     [InlineData("sv-SE")]
@@ -381,7 +381,7 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
             Command.CommandText = "INSERT INTO TextFallbackTests VALUES ($1);";
             Command.Parameters.Clear();
-            Command.Parameters.Add(new DuckDBParameter(-1.5d) { DbType = DbType.AnsiString });
+            Command.Parameters.Add(new DuckDBParameter((Half)(-1.5)));
             Command.ExecuteNonQuery();
 
             Command.CommandText = "SELECT v::VARCHAR FROM TextFallbackTests;";
@@ -389,7 +389,7 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
             Command.ExecuteScalar().Should().Be("-1.50");
 
             Command.CommandText = "SELECT $1;";
-            Command.Parameters.Add(new DuckDBParameter(-1.5m) { DbType = DbType.AnsiString });
+            Command.Parameters.Add(new DuckDBParameter((Half)(-1.5)));
             Command.ExecuteScalar().Should().Be("-1.5");
         }
         finally
