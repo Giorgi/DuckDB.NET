@@ -1,4 +1,5 @@
 using System.Globalization;
+using DuckDB.NET.Data.PreparedStatement;
 
 namespace DuckDB.NET.Test.Parameters;
 
@@ -455,5 +456,207 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         Command.Parameters.Clear();
         Command.CommandText = "SELECT list(value ORDER BY rowid)::VARCHAR FROM DecimalParameterRefused";
         Command.ExecuteScalar().Should().Be("[999, -999, 999]");
+    }
+
+    // The width and scale of the DECIMAL value the converter creates for a DECIMAL(width, scale) parameter.
+    private static (byte Width, byte Scale) SentDecimalType(decimal value, byte width, byte scale)
+    {
+        using var parameterType = NativeMethods.LogicalType.DuckDBCreateDecimalType(width, scale);
+        using var duckDBValue = ((object)value).ToDuckDBValue(parameterType, DuckDBType.Decimal, DbType.Decimal);
+
+        // The value owns its type: mark the handle invalid so that it is not destroyed a second time.
+        var valueType = NativeMethods.Value.DuckDBGetValueType(duckDBValue);
+        try
+        {
+            return (NativeMethods.LogicalType.DuckDBDecimalWidth(valueType), NativeMethods.LogicalType.DuckDBDecimalScale(valueType));
+        }
+        finally
+        {
+            valueType.SetHandleAsInvalid();
+        }
+    }
+
+    // A decimal that fits the parameter exactly goes with the parameter's width and scale, so that DuckDB does not bind
+    // the statement again for a value of another type. Any other goes with its own, and DuckDB rounds or refuses it.
+    [Theory]
+    [InlineData("2.5", 18, 4, 18, 4)]
+    [InlineData("-2.5", 18, 4, 18, 4)]
+    [InlineData("1234.5678", 18, 4, 18, 4)]
+    [InlineData("2.50", 18, 1, 18, 1)]          // the extra digit after the point is a zero
+    [InlineData("0", 4, 4, 4, 4)]
+    [InlineData("0.0001", 4, 4, 4, 4)]
+    [InlineData("12", 2, 0, 2, 0)]
+    [InlineData("79228162514264337593543950335", 38, 0, 38, 0)]      // decimal.MaxValue, 29 digits
+    [InlineData("79228162514264337593543950335", 38, 9, 38, 9)]      // 29 + 9 digits
+    [InlineData("0.0000000000000000000000000001", 38, 38, 38, 38)]  // the smallest decimal, scale 28
+    [InlineData("2.55", 18, 1, 3, 2)]           // DuckDB rounds it to the parameter's scale
+    [InlineData("123", 2, 0, 3, 0)]             // too many digits: DuckDB refuses it
+    [InlineData("79228162514264337593543950335", 38, 10, 29, 0)]     // 39 digits at scale 10
+    [InlineData("0.5", 1, 0, 2, 1)]
+    [InlineData("99", 2, 0, 2, 0)]              // the limits of the width
+    [InlineData("100", 2, 0, 3, 0)]
+    [InlineData("0.99", 2, 2, 2, 2)]
+    [InlineData("1", 2, 2, 1, 0)]
+    [InlineData("99.0", 2, 0, 2, 0)]            // extra zeros after the point, then the width: DuckDB does not check
+    [InlineData("123.0", 2, 0, 4, 1)]           // the width of a value it is given, so this check is the only one
+    [InlineData("100.0", 2, 0, 4, 1)]
+    [InlineData("0.00", 18, 1, 18, 1)]          // zero with extra zeros after the point
+    [InlineData("-79228162514264337593543950335", 38, 9, 38, 9)]     // decimal.MinValue
+    [InlineData("-79228162514264337593543950335", 38, 10, 29, 0)]
+    public void DecimalIsSentWithTheParametersWidthAndScaleWhenItFits(string text, byte width, byte scale, byte sentWidth, byte sentScale)
+    {
+        var value = decimal.Parse(text, CultureInfo.InvariantCulture);
+
+        SentDecimalType(value, width, scale).Should().Be((sentWidth, sentScale));
+    }
+
+    [Fact]
+    public void NegativeZeroIsSentWithTheParametersWidthAndScale()
+    {
+        var negativeZero = new decimal(0, 0, 0, true, 2);
+
+        SentDecimalType(negativeZero, 18, 1).Should().Be(((byte)18, (byte)1));
+        SentDecimalType(negativeZero, 18, 4).Should().Be(((byte)18, (byte)4));
+
+        Command.CommandText = "SELECT $1::VARCHAR FROM (SELECT 1) WHERE $1 = 0::DECIMAL(18,4)";
+        Command.Parameters.Add(new DuckDBParameter(negativeZero));
+        Command.ExecuteScalar().Should().Be("0.00");
+    }
+
+    // A value that is too wide must still be refused, by DuckDB, after the extra zeros after its point are removed.
+    [Fact]
+    public void DecimalTooWideAfterItsZerosIsRefused()
+    {
+        Command.CommandText = "CREATE OR REPLACE TABLE DecimalParameterTooWide (value DECIMAL(2,0));";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "INSERT INTO DecimalParameterTooWide VALUES ($1)";
+        foreach (var value in new[] { 123.0m, 100.0m, -100.00m })
+        {
+            Command.Parameters.Clear();
+            Command.Parameters.Add(new DuckDBParameter(value));
+            Command.Invoking(command => command.ExecuteNonQuery()).Should().Throw<DuckDBException>().WithMessage("*Conversion Error*", $"for {value}");
+        }
+
+        Command.Parameters.Clear();
+        Command.Parameters.Add(new DuckDBParameter(99.0m));
+        Command.ExecuteNonQuery();
+
+        Command.Parameters.Clear();
+        Command.CommandText = "SELECT list(value::VARCHAR ORDER BY rowid)::VARCHAR FROM DecimalParameterTooWide";
+        Command.ExecuteScalar().Should().Be("[99]");
+    }
+
+    // The stored and compared values are the same whichever width and scale the value goes with.
+    [Fact]
+    public void DecimalParameterKeepsItsValue()
+    {
+        Command.CommandText = "CREATE OR REPLACE TABLE DecimalParameterScale (value DECIMAL(18,4));";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "INSERT INTO DecimalParameterScale VALUES ($1)";
+        foreach (var value in new[] { 2.5m, -2.5m, 2.50000m, 0m, 12345678901234.5678m, 1.23456m })
+        {
+            Command.Parameters.Clear();
+            Command.Parameters.Add(new DuckDBParameter(value));
+            Command.ExecuteNonQuery();
+        }
+
+        Command.Parameters.Clear();
+        Command.CommandText = "SELECT list(value::VARCHAR ORDER BY rowid)::VARCHAR FROM DecimalParameterScale";
+        Command.ExecuteScalar().Should().Be("[2.5000, -2.5000, 2.5000, 0.0000, 12345678901234.5678, 1.2346]");
+
+        Command.CommandText = "SELECT count(*) FROM DecimalParameterScale WHERE value = $1";
+        foreach (var (value, count) in new[] { (2.5m, 2L), (2.50m, 2L), (1.2346m, 1L), (1.23456m, 0L) })
+        {
+            Command.Parameters.Clear();
+            Command.Parameters.Add(new DuckDBParameter(value));
+            Command.ExecuteScalar().Should().Be(count, $"for {value}");
+        }
+
+        Command.CommandText = "CREATE OR REPLACE TABLE DecimalListParameterScale (value DECIMAL(9,2)[]);";
+        Command.Parameters.Clear();
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "INSERT INTO DecimalListParameterScale VALUES ($1) RETURNING value::VARCHAR";
+        Command.Parameters.Add(new DuckDBParameter(new List<decimal> { 1.5m, -3m, 0.125m, -9999999.99m }));
+        Command.ExecuteScalar().Should().Be("[1.50, -3.00, 0.13, -9999999.99]");
+
+        Command.CommandText = "CREATE OR REPLACE TABLE DecimalArrayParameterScale (value DECIMAL(9,2)[3]);";
+        Command.Parameters.Clear();
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "INSERT INTO DecimalArrayParameterScale VALUES ($1) RETURNING value::VARCHAR";
+        Command.Parameters.Add(new DuckDBParameter(new[] { 1.5m, 2.50m, 0.125m }));
+        Command.ExecuteScalar().Should().Be("[1.50, 2.50, 0.13]");
+    }
+
+    // ADO.NET infers DbType.Decimal for a decimal value, and GetSchema("DataTypes") maps DECIMAL to System.Decimal.
+    [Fact]
+    public void DecimalValueInfersDbTypeDecimal()
+    {
+        new DuckDBParameter(1.5m).DbType.Should().Be(DbType.Decimal);
+    }
+
+    // DbType.Decimal had no converter, so a parameter that set it was sent as decimal.ToString() in the current
+    // culture: "1234,5" under fr-FR, stored as such in a VARCHAR column and refused by a DOUBLE one.
+    [Theory]
+    [InlineData(DbType.Decimal)]
+    [InlineData(DbType.Currency)]
+    public void ExplicitDecimalDbTypeIsSentAsADecimalInAnyCulture(DbType dbType)
+    {
+        var defaultCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
+        try
+        {
+            System.Threading.Thread.CurrentThread.CurrentCulture = CultureInfo.GetCultureInfo("fr-FR");
+
+            Command.Parameters.Clear();
+            Command.CommandText = "SELECT ?";
+            Command.Parameters.Add(new DuckDBParameter(1234.5m) { DbType = dbType });
+            Command.ExecuteScalar().Should().BeOfType<decimal>().Subject.Should().Be(1234.5m);
+
+            Command.CommandText = "CREATE OR REPLACE TABLE DecimalDbTypeTests (text VARCHAR, number DOUBLE)";
+            Command.Parameters.Clear();
+            Command.ExecuteNonQuery();
+
+            Command.CommandText = "INSERT INTO DecimalDbTypeTests VALUES (?, ?)";
+            Command.Parameters.Add(new DuckDBParameter(1234.5m) { DbType = dbType });
+            Command.Parameters.Add(new DuckDBParameter(1234.5m) { DbType = dbType });
+            Command.ExecuteNonQuery();
+
+            Command.Parameters.Clear();
+            Command.CommandText = "SELECT text || ' ' || number::VARCHAR FROM DecimalDbTypeTests";
+            Command.ExecuteScalar().Should().Be("1234.5 1234.5");
+        }
+        finally
+        {
+            System.Threading.Thread.CurrentThread.CurrentCulture = defaultCulture;
+        }
+    }
+
+    // An integer with DbType.Decimal becomes a decimal.
+    [Fact]
+    public void ExplicitDecimalDbTypeWithAnIntegerValueIsStillSent()
+    {
+        Command.CommandText = "SELECT ?::DECIMAL(4,1)";
+        Command.Parameters.Clear();
+        Command.Parameters.Add(new DuckDBParameter(5) { DbType = DbType.Decimal });
+
+        Command.ExecuteScalar().Should().Be(5.0m);
+    }
+
+    // An assigned DbType does not parse text. Without the DbType the text is sent whole, NUL characters included.
+    [Fact]
+    public void ExplicitDecimalDbTypeWithATextValueIsRefused()
+    {
+        Command.CommandText = "SELECT length(?)";
+        Command.Parameters.Clear();
+        Command.Parameters.Add(new DuckDBParameter("a\0b") { DbType = DbType.Decimal });
+
+        Command.Invoking(command => command.ExecuteScalar()).Should().Throw<InvalidCastException>()
+            .WithMessage("Cannot cast from String to Decimal for parameter $1 (DbType.Decimal). Remove the DbType*");
+
+        Command.Parameters[0].ResetDbType();
+        Command.ExecuteScalar().Should().Be(3L);
     }
 }

@@ -605,6 +605,13 @@ ENUM row, and `TemporalConversionTests.cs` and `Parameters/TimeTests.cs` the dat
   list, a map or a struct threw `ArgumentException`. Pinned by `EveryPathReadsAnEnumLikeTheColumn`.
 - **Not the same on purpose:** a list of `object` and a dictionary with `object` keys or values are refused with
   their own message, where `GetFieldValue<object>` on a column gives the value.
+- **A target that cannot hold a LIST or a MAP throws `InvalidCastException`** (2.0), as Npgsql's do: an interface or
+  an abstract class (`IEnumerable<int>`, `IList<int>`, `IDictionary`, `IReadOnlyDictionary<K, V>`), a type that is
+  not an `IList` (`HashSet<int>`) or not an `IDictionary` (`string`, `List<KeyValuePair<K, V>>`). `CreatePlan`
+  refuses it once per target type, before anything is created. Before 2.0 the reader called
+  `Activator.CreateInstance` first, so an interface, an abstract class or `string` threw `MissingMethodException`, a
+  type that is not an `IList` `ArgumentException`, and one that is not an `IDictionary` `InvalidOperationException`.
+  Pinned by `ReadListIntoATypeThatCannotHoldItIsRefused` and `ReadMapIntoATypeThatCannotHoldItIsRefused`.
 - **`object` means the column's own .NET type, for every reader** (2.0). `ReadValidValue<object>` and
   `GetValue(offset, typeof(object))` both read the value as `ClrType`, which is what `GetFieldValue<object>` and
   `GetValue(ordinal)` on a column give. The rule is written once, in `VectorDataReaderBase`: a line in

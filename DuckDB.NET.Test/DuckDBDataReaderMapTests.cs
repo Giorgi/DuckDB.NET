@@ -141,7 +141,28 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
         var reader = Command.ExecuteReader();
 
         reader.Read();
-        reader.Invoking(r => r.GetFieldValue<List<KeyValuePair<string, int>>>(0)).Should().Throw<InvalidOperationException>();
+        reader.Invoking(r => r.GetFieldValue<List<KeyValuePair<string, int>>>(0)).Should().ThrowExactly<InvalidCastException>()
+              .WithMessage("Cannot read Map column * in a non-dictionary type");
+    }
+
+    [Fact]
+    public void ReadMapIntoATypeThatCannotHoldItIsRefused()
+    {
+        Command.CommandText = "SELECT MAP {'a': 1}";
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        // Interfaces and abstract classes cannot be created, nor can a string; they threw MissingMethodException
+        // before 2.0.
+        reader.Invoking(r => r.GetFieldValue<IDictionary<string, int>>(0)).Should().ThrowExactly<InvalidCastException>()
+              .WithMessage("Cannot read Map column * as IDictionary*: it is an interface or an abstract class.");
+        reader.Invoking(r => r.GetFieldValue<IReadOnlyDictionary<string, int>>(0)).Should().ThrowExactly<InvalidCastException>();
+        reader.Invoking(r => r.GetFieldValue<System.Collections.IDictionary>(0)).Should().ThrowExactly<InvalidCastException>();
+        reader.Invoking(r => r.GetFieldValue<string>(0)).Should().ThrowExactly<InvalidCastException>()
+              .WithMessage("Cannot read Map column * in a non-dictionary type");
+
+        // A Hashtable can be created and is an IDictionary, so it still reads.
+        reader.GetFieldValue<System.Collections.Hashtable>(0)["a"].Should().Be(1);
     }
 
     [Fact]

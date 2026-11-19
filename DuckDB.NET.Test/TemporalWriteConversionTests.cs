@@ -303,7 +303,7 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
                 using var reader = Command.ExecuteReader();
             };
 
-            execute.Should().Throw<ArgumentOutOfRangeException>();
+            execute.Should().Throw<InvalidCastException>().WithMessage("*: the value is out of range");
         }
     }
 

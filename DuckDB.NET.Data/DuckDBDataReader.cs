@@ -275,11 +275,13 @@ public sealed class DuckDBDataReader : DbDataReader
         return GetFieldValue<double>(ordinal);
     }
 
+    [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties)]
     public override Type GetFieldType(int ordinal)
     {
         return vectorReaders[ordinal].ClrType;
     }
 
+    [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties)]
     public override Type GetProviderSpecificFieldType(int ordinal)
     {
         return vectorReaders[ordinal].ProviderSpecificClrType;

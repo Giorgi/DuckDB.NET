@@ -79,7 +79,8 @@ internal sealed partial class ListVectorDataReader : VectorDataReaderBase
     // Any type but a List<T> with a builder: created as itself, and filled by the builder if it has one.
     private IList GetOtherList(Type targetType, ulong listOffset, ulong length)
     {
-        var list = Activator.CreateInstance(targetType) as IList ?? throw NotAListException(targetType);
+        // CreatePlan refused a type that cannot be created or is not an IList.
+        var list = (IList)Activator.CreateInstance(targetType)!;
 
         if (plan.Builder != null)
         {
@@ -114,11 +115,6 @@ internal sealed partial class ListVectorDataReader : VectorDataReaderBase
         return result;
     }
 
-    // Returns the exception, for '?? throw': a [DoesNotReturn] helper called in an 'is not IList list' test would leave
-    // list unassigned for the compiler.
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private ArgumentException NotAListException(Type targetType) => new($"Cannot read column {ColumnName} as {targetType.Name}: it is not an IList.");
-
     // Used by FillBoxedList and by ValueListBuilder.
     [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -143,6 +139,17 @@ internal sealed partial class ListVectorDataReader : VectorDataReaderBase
         if (elementType == typeof(object))
         {
             throw new InvalidCastException($"Cannot read column {ColumnName} as a list of object. Use a list with a concrete element type, or GetValue().");
+        }
+
+        // Any target but a List<T> is created as itself, so it has to be a class that can be created and filled.
+        if (targetType.IsInterface || targetType.IsAbstract)
+        {
+            throw new InvalidCastException($"Cannot read column {ColumnName} as {targetType.Name}: it is an interface or an abstract class.");
+        }
+
+        if (!typeof(IList).IsAssignableFrom(targetType))
+        {
+            throw new InvalidCastException($"Cannot read column {ColumnName} as {targetType.Name}: it is not an IList.");
         }
 
         var allowNulls = elementType.AllowsNullValue(out _, out var underlyingType);

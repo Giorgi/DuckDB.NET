@@ -80,7 +80,7 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
     {
         var configCount = NativeMethods.Configuration.DuckDBConfigCount();
 
-        for (var index = 0; index < configCount; index++)
+        for (nuint index = 0; index < configCount; index++)
         {
             NativeMethods.Configuration.DuckDBGetConfigFlag(index, out var name, out _);
             ConfigurationOptions.Add(name);
@@ -658,6 +658,8 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
     /// property grids and other <see cref="TypeDescriptor"/> consumers can discover the full option set of the
     /// native library actually in use.
     /// </summary>
+    [RequiresUnreferencedCode("PropertyDescriptor's PropertyType cannot be statically discovered.")]
+    [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2112:ReflectionToRequiresUnreferencedCode", Justification = "As on DbConnectionStringBuilder: the base class's DynamicallyAccessedMembers keeps this method for TypeDescriptor, whose callers are marked RequiresUnreferencedCode themselves.")]
     protected override void GetProperties(Hashtable propertyDescriptors)
     {
         base.GetProperties(propertyDescriptors);
@@ -700,7 +702,7 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
         var descriptors = new List<PropertyDescriptor>(ConfigurationOptions.Count);
         var configCount = NativeMethods.Configuration.DuckDBConfigCount();
 
-        for (var index = 0; index < configCount; index++)
+        for (nuint index = 0; index < configCount; index++)
         {
             NativeMethods.Configuration.DuckDBGetConfigFlag(index, out var name, out var description);
 

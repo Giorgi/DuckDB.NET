@@ -77,9 +77,17 @@ jobs:
         'TMP=D:\tmp' >> $env:GITHUB_ENV
 
     - name: Setup .NET Core SDK
-      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
       with:
         global-json-file: global.json
+
+    # Saved to the cache only by runs of the repository's own branches, never by a pull request.
+    - name: Get the DuckDB native libraries
+      if: env.NightlyBuild != 'true'
+      uses: ./.github/actions/duckdb-natives
+      with:
+        token: ${{ github.token }}
+        save: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
 
     - name: Build
       run: dotnet build --configuration Release /p:BuildType=Full
@@ -145,6 +153,7 @@ jobs:
     - name: Upload coverage reports to Coveralls Parallel
       uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
       if: github.event_name != 'schedule'
+      continue-on-error: true
       with:
         github-token: ${{ secrets.github_token }}
         flag-name: run-${{ matrix.os }}
@@ -210,6 +219,7 @@ jobs:
     steps:
     - name: Coveralls Finished
       uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
+      continue-on-error: true
       with:
         github-token: ${{ secrets.github_token }}
         parallel-finished: true

@@ -216,6 +216,42 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         result.Should().Be(value);
     }
 
+    // DbType.DateTime2 had no converter, so the value was sent as DateTime.ToString() in the current culture:
+    // text a statement could misread or refuse, and a VARCHAR column stored as such.
+    [Fact]
+    public void ExplicitDateTime2DbTypeIsSentAsATimestampInAnyCulture()
+    {
+        var value = new DateTime(2026, 10, 18, 13, 45, 30, 123);
+        var defaultCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
+        try
+        {
+            System.Threading.Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+
+            Command.CommandText = "SELECT ?;";
+            Command.Parameters.Add(new DuckDBParameter(value) { DbType = DbType.DateTime2 });
+
+            Command.ExecuteScalar().Should().BeOfType<DateTime>().Subject.Should().Be(value);
+        }
+        finally
+        {
+            System.Threading.Thread.CurrentThread.CurrentCulture = defaultCulture;
+        }
+    }
+
+    // An assigned DbType does not parse text: the value is refused, and without the DbType DuckDB casts the text.
+    [Fact]
+    public void ExplicitDateTime2DbTypeWithATextValueIsRefused()
+    {
+        Command.CommandText = "SELECT ?::TIMESTAMP;";
+        Command.Parameters.Add(new DuckDBParameter("2026-10-18 13:45:30") { DbType = DbType.DateTime2 });
+
+        Command.Invoking(command => command.ExecuteScalar()).Should().Throw<InvalidCastException>()
+            .WithMessage("Cannot cast from String to DateTime for parameter $1 (DbType.DateTime2). Remove the DbType*");
+
+        Command.Parameters[0].ResetDbType();
+        Command.ExecuteScalar().Should().Be(new DateTime(2026, 10, 18, 13, 45, 30));
+    }
+
     public static TimeOnly Trim(TimeOnly date, long ticks) => new(date.Ticks - date.Ticks % ticks);
 
     public static DateTime Trim(DateTime date, long ticks) => new(date.Ticks - date.Ticks % ticks, date.Kind);

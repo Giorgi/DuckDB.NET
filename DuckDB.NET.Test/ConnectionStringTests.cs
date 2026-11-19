@@ -539,7 +539,7 @@ public class ConnectionStringTests
 
         // duckdb_get_config_flag reports the options of the native library in use; all of them should be reachable
         // apart from the handful that cannot be applied when the database is opened.
-        var configCount = NativeMethods.Configuration.DuckDBConfigCount();
+        var configCount = (int)NativeMethods.Configuration.DuckDBConfigCount();
 
         configCount.Should().BeGreaterThan(100);
         properties.Count.Should().BeGreaterThan(configCount - 20);
