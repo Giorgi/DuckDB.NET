@@ -136,7 +136,8 @@ internal static class ClrToDuckDBConverter
             (DuckDBType.TimeNs, DateTime value) => NativeMethods.Value.DuckDBCreateTimeNs(DuckDBTimeNs.FromTicks(value.Ticks % TimeSpan.TicksPerDay)),
             (DuckDBType.TimeNs, DuckDBTimeOnly value) => NativeMethods.Value.DuckDBCreateTimeNs(DuckDBTimeNs.FromTicks(value.Ticks)),
             (DuckDBType.TimeNs, TimeOnly value) => NativeMethods.Value.DuckDBCreateTimeNs(DuckDBTimeNs.FromTicks(value.Ticks)),
-            (DuckDBType.TimeNs, TimeSpan value) => NativeMethods.Value.DuckDBCreateTimeNs(DuckDBTimeNs.FromTicks(TimeOnly.FromTimeSpan(value).Ticks)),
+            // A TimeSpan is a time of day only from zero to a day; any other goes as text, which DuckDB refuses for a TIME_NS.
+            (DuckDBType.TimeNs, TimeSpan value) when value >= TimeSpan.Zero && value < TimeSpan.FromDays(1) =>NativeMethods.Value.DuckDBCreateTimeNs(DuckDBTimeNs.FromTicks(TimeOnly.FromTimeSpan(value).Ticks)),
             (DuckDBType.TimeTz, DateTimeOffset value) => NativeMethods.Value.DuckDBCreateTimeTz(value.ToTimeTzStruct()),
             (DuckDBType.Blob, byte[] value) => NativeMethods.Value.DuckDBCreateBlob(value, value.Length),
             (DuckDBType.List, ICollection value) => CreateCollectionValue(logicalType, value, true, dbType, parameter),
@@ -234,13 +235,15 @@ internal static class ClrToDuckDBConverter
         var elementType = collection.GetType().GetInterface(typeof(IEnumerable<>).Name)?.GetGenericArguments()[0];
 
         // With an assigned DbType the items are converted to its CLR type, so the list has that type's items. Not when
-        // the items are collections themselves, and not for Decimal and VarNumeric: their CLR types map to a fixed
-        // DECIMAL(38,18) and HUGEINT, which a converted value can exceed, where the element type keeps it.
+        // the items are collections themselves, and not for Decimal and VarNumeric when the element type is a concrete
+        // one: their CLR types map to a fixed DECIMAL(38,18) and HUGEINT, which a converted value can exceed, where the
+        // element type keeps it. With no element type, or object, there is nothing to keep.
         var itemsAreCollections = elementType is not null && elementType != typeof(string) && elementType != typeof(byte[]) &&
                                   typeof(IEnumerable).IsAssignableFrom(elementType);
+        var keepsElementType = elementType is not null && elementType != typeof(object) &&
+                               dbType is DbType.Decimal or DbType.Currency or DbType.VarNumeric;
 
-        if (!itemsAreCollections && dbType is not (DbType.Decimal or DbType.Currency or DbType.VarNumeric) &&
-            DuckDBTypeMap.GetClrType(dbType) is { } dbTypeClrType)
+        if (!itemsAreCollections && !keepsElementType && DuckDBTypeMap.GetClrType(dbType) is { } dbTypeClrType)
         {
             elementType = dbTypeClrType;
         }
@@ -286,9 +289,23 @@ internal static class ClrToDuckDBConverter
         var values = new DuckDBValue[collection.Count];
 
         var index = 0;
-        foreach (var item in collection)
+        try
         {
-            values[index++] = item.ToDuckDBValue(childType, childDuckDBType, dbType, parameter);
+            foreach (var item in collection)
+            {
+                values[index] = item.ToDuckDBValue(childType, childDuckDBType, dbType, parameter);
+                index++;
+            }
+        }
+        catch
+        {
+            // An item was refused: release the items created before it, which nothing owns yet.
+            for (var created = 0; created < index; created++)
+            {
+                values[created].Dispose();
+            }
+
+            throw;
         }
 
         return values;

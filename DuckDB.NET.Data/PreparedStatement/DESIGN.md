@@ -192,6 +192,17 @@ Details that matter:
   2.0.0; the cause in DuckDB was not looked into).
 - **An assigned `DbType.Object`** converts nothing, so the value goes as its own type: `2.5` is a DOUBLE where it
   used to be the text `'2.5'`.
+- **Changed from 1.x**, besides the list items and `DbType.Object` above (the release notes list them too):
+  - A `char` for an INTEGER parameter was its code (`'A'` was 65, through `Convert.ChangeType`); it is now the text
+    `'A'`, which DuckDB refuses, and `lpad('2', $1, '0')` with a `char` no longer binds.
+  - A fraction for an integer parameter is rounded by DuckDB, not by .NET: `2.5m` into an INTEGER is 3 (DuckDB's
+    DECIMAL cast rounds half away from zero) where it was 2 (`Convert.ChangeType` rounds half to even). A `double`
+    2.5 is still 2, because DuckDB's DOUBLE cast rounds half to even.
+  - An assigned `DbType` is kept and converts the value: `new DuckDBParameter(DbType.String, 5)` for an INTEGER
+    column worked and is now refused, and an untyped `List<TimeSpan>` with `DbType.Time` is a `TIME[]`, not an
+    `INTERVAL[]` (so a `TimeSpan` of a day or more in it is refused).
+  - A `decimal` infers `DbType.Decimal`, not `Currency`; a new parameter, and `ResetDbType()` without a value,
+    report `Object`, not `String`.
 - **Logical types** passed in are borrowed: the converter must not dispose them. Child types it fetches
   (`duckdb_list_type_child_type`) are its own and are disposed.
 

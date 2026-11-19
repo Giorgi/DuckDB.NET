@@ -1,3 +1,4 @@
+using System.Collections;
 using DuckDB.NET.Data.Extensions;
 
 namespace DuckDB.NET.Test.Parameters;
@@ -354,6 +355,57 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
         parameter.DbType = DbType.Int32;
         Command.Invoking(command => command.ExecuteScalar()).Should().Throw<InvalidCastException>()
             .WithMessage("Cannot cast from Double to Int32 for parameter $1 (DbType.Int32): the value has a non-zero fractional part");
+    }
+
+    // With no element type to keep (an ArrayList, or object items), Decimal and VarNumeric give the list their types.
+    [Theory]
+    [InlineData(DbType.Decimal, "DECIMAL(38,18)[]")]
+    [InlineData(DbType.VarNumeric, "HUGEINT[]")]
+    [InlineData(DbType.Int32, "INTEGER[]")]
+    public void AnUntypedListWithoutAnElementTypeTakesTheDbTypesType(DbType dbType, string type)
+    {
+        Command.CommandText = Untyped;
+        var parameter = new DuckDBParameter(dbType, new ArrayList { 1, 2 });
+        Command.Parameters.Add(parameter);
+
+        foreach (var value in new ICollection[] { new ArrayList { 1, 2 }, new List<object> { 1, 2 } })
+        {
+            parameter.Value = value;
+
+            using var reader = Command.ExecuteReader();
+            reader.Read().Should().BeTrue();
+            reader.GetString(0).Should().Be(type);
+        }
+    }
+
+    // A list item refused after others were created: the refusal comes through, and the created items are released.
+    [Fact]
+    public void AListItemRefusedPartWayThrough()
+    {
+        Command.CommandText = Untyped;
+        Command.Parameters.Add(new DuckDBParameter(DbType.Int32, new List<object> { 1, 2, "x" }));
+
+        Command.Invoking(command => command.ExecuteScalar()).Should().Throw<InvalidCastException>()
+            .WithMessage("Cannot cast from String to Int32 for parameter $1 (DbType.Int32)*");
+
+        Command.Parameters[0].Value = new List<object> { 1, 2, 3 };
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+        reader.GetString(1).Should().Be("[1, 2, 3]");
+    }
+
+    // A TimeSpan out of a day for a TIME_NS parameter, with no DbType, goes as text for DuckDB to refuse, as for TIME.
+    [Fact]
+    public void ATimeSpanOutOfADayForATimeNsColumn()
+    {
+        Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE ExplicitDbTypeTimeNs (t TIME_NS)");
+
+        Command.CommandText = "INSERT INTO ExplicitDbTypeTimeNs VALUES ($1)";
+        Command.Parameters.Add(new DuckDBParameter(TimeSpan.FromHours(25)));
+        Command.Invoking(command => command.ExecuteNonQuery()).Should().Throw<DuckDBException>();
+
+        Command.Parameters[0].Value = TimeSpan.FromHours(23);
+        Command.ExecuteNonQuery().Should().Be(1);
     }
 
     // A type nested in a generic class is generic but has no backtick in its name.

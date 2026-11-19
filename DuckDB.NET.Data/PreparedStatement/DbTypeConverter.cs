@@ -1,12 +1,13 @@
 namespace DuckDB.NET.Data.PreparedStatement;
 
 // Converts the value of a parameter to the CLR type of the DbType the caller assigned, before ClrToDuckDBConverter
-// fits it to the parameter's type. Within a family a value is converted only when nothing is lost: 2.0 with
-// DbType.Int32 is 2, 2.5 is refused, and so is a value of another family ("42" with DbType.Int32, 42 with
-// DbType.String). The two deliberate exceptions: a DateTime with DbType.Date or DbType.Time keeps only its date or its
-// time, and a double or float with DbType.Decimal goes through the C# cast (0.1 is 0.1m), as the reader converts a
-// DOUBLE read as decimal. DbType.Object converts nothing. A refused value throws an InvalidCastException that names
-// the parameter.
+// fits it to the parameter's type. An integer DbType converts a value only when nothing is lost: 2.0 with
+// DbType.Int32 is 2, 2.5 is refused. A value of another family is refused ("42" with DbType.Int32, 42 with
+// DbType.String). Where precision can be lost, the C# cast decides, as the reader does: DbType.Single and
+// DbType.Double take any number rounded to their precision, and DbType.Decimal a float or double rounded to 7 or 15
+// significant digits (0.1 is 0.1m); a value out of range is still refused. A DateTime with DbType.Date or DbType.Time
+// keeps only its date or its time. DbType.Object converts nothing. A refused value throws an InvalidCastException that
+// names the parameter.
 internal static class DbTypeConverter
 {
     // duckDBType is the parameter's type as DuckDB reports it (Invalid when it reports none): two pairs depend on it.
