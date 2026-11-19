@@ -231,8 +231,19 @@ internal static class ClrToDuckDBConverter
 
     private static DuckDBValue CreateListFromClrType(ICollection collection, DbType dbType, ParameterLabel parameter)
     {
-        // With an assigned DbType the items are converted to its CLR type, so the list has that type's items.
-        var elementType = DuckDBTypeMap.GetClrType(dbType) ?? collection.GetType().GetInterface(typeof(IEnumerable<>).Name)?.GetGenericArguments()[0];
+        var elementType = collection.GetType().GetInterface(typeof(IEnumerable<>).Name)?.GetGenericArguments()[0];
+
+        // With an assigned DbType the items are converted to its CLR type, so the list has that type's items. Not when
+        // the items are collections themselves, and not for Decimal and VarNumeric: their CLR types map to a fixed
+        // DECIMAL(38,18) and HUGEINT, which a converted value can exceed, where the element type keeps it.
+        var itemsAreCollections = elementType is not null && elementType != typeof(string) && elementType != typeof(byte[]) &&
+                                  typeof(IEnumerable).IsAssignableFrom(elementType);
+
+        if (!itemsAreCollections && dbType is not (DbType.Decimal or DbType.Currency or DbType.VarNumeric) &&
+            DuckDBTypeMap.GetClrType(dbType) is { } dbTypeClrType)
+        {
+            elementType = dbTypeClrType;
+        }
 
         if (elementType == null)
         {

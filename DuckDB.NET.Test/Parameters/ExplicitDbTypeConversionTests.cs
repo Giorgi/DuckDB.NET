@@ -303,8 +303,9 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
     [Theory]
     [InlineData(DbType.Int32, "INTEGER[]", "[1, 2]")]
     [InlineData(DbType.Int64, "BIGINT[]", "[1, 2]")]
-    [InlineData(DbType.Decimal, "DECIMAL(38,18)[]", "[1.000000000000000000, 2.000000000000000000]")]
     [InlineData(DbType.Double, "DOUBLE[]", "[1.0, 2.0]")]
+    [InlineData(DbType.Decimal, "BIGINT[]", "[1, 2]")]      // the element type stays (DECIMAL(38,18) could be too small)
+    [InlineData(DbType.VarNumeric, "BIGINT[]", "[1, 2]")]
     public void AnUntypedListHasItemsOfTheDbTypesType(DbType dbType, string type, string text)
     {
         Command.CommandText = Untyped;
@@ -314,6 +315,56 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
         reader.Read().Should().BeTrue();
         reader.GetString(0).Should().Be(type);
         reader.GetString(1).Should().Be(text);
+    }
+
+    // A nested list keeps its element type, and the DbType goes on to the items of the inner lists. A large value with
+    // Decimal or VarNumeric keeps the element type too, which holds it, where DECIMAL(38,18) or HUGEINT would not.
+    [Fact]
+    public void AnUntypedListKeepsItsElementTypeWhenTheDbTypesTypeWouldNotHoldIt()
+    {
+        Command.CommandText = Untyped;
+        var parameter = new DuckDBParameter(DbType.Int32, new List<List<long>> { new() { 1 }, new() { 2 } });
+        Command.Parameters.Add(parameter);
+
+        foreach (var (value, type, text) in new (object, string, string)[]
+                 {
+                     (new List<List<long>> { new() { 1 }, new() { 2 } }, "BIGINT[][]", "[[1], [2]]"),
+                     (new List<double> { 1e25 }, "DOUBLE[]", "[1e+25]"),
+                 })
+        {
+            parameter.DbType = value is List<double> ? DbType.Decimal : DbType.Int32;
+            parameter.Value = value;
+
+            using var reader = Command.ExecuteReader();
+            reader.Read().Should().BeTrue();
+            reader.GetString(0).Should().Be(type);
+            reader.GetString(1).Should().Be(text);
+        }
+
+        parameter.DbType = DbType.VarNumeric;
+        parameter.Value = new List<UInt128> { UInt128.MaxValue };
+        using (var reader = Command.ExecuteReader())
+        {
+            reader.Read().Should().BeTrue();
+            reader.GetString(0).Should().Be("UHUGEINT[]");
+            reader.GetString(1).Should().Be($"[{UInt128.MaxValue}]");
+        }
+
+        parameter.Value = new List<List<double>> { new() { 1.5 } };
+        parameter.DbType = DbType.Int32;
+        Command.Invoking(command => command.ExecuteScalar()).Should().Throw<InvalidCastException>()
+            .WithMessage("Cannot cast from Double to Int32 for parameter $1 (DbType.Int32): the value has a non-zero fractional part");
+    }
+
+    // A type nested in a generic class is generic but has no backtick in its name.
+    [Fact]
+    public void TheMessageNamesATypeNestedInAGenericClass()
+    {
+        Command.CommandText = "SELECT $1";
+        Command.Parameters.Add(new DuckDBParameter(DbType.Int32, new List<int>().GetEnumerator()));
+
+        Command.Invoking(command => command.ExecuteScalar()).Should().Throw<InvalidCastException>()
+            .WithMessage("Cannot cast from Enumerator to Int32 for parameter $1 (DbType.Int32)");
     }
 
     [Fact]

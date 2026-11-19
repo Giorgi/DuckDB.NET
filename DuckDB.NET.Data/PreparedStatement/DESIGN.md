@@ -118,7 +118,9 @@ The decision order, first match wins:
    parameter's type: Dapper's `DbType.Int64` on every `long` still sends an INTEGER for an INTEGER column. A
    collection passes the `DbType` to each item, and a list DuckDB reports no type for gets items of the `DbType`'s CLR
    type (`DuckDBTypeMap.GetClrType`): `DbType.Int32` with a `List<long>` is an `INTEGER[]`, as a single `long` with
-   it is an INTEGER. A `byte[]` for a LIST or ARRAY parameter is a list of its bytes; `DbType.Binary` then applies to
+   it is an INTEGER. Not for nested lists, whose items are lists, and not for `Decimal`, `Currency` and `VarNumeric`,
+   whose CLR types map to a fixed `DECIMAL(38,18)` and HUGEINT that a converted value can exceed: those lists keep
+   their element type. A `byte[]` for a LIST or ARRAY parameter is a list of its bytes; `DbType.Binary` then applies to
    none of them. The families: integer `DbType`s take any integer, an enum, and a whole `float`, `double` or
    `decimal` that fits; `VarNumeric` the same with no limit; `Single` and `Double` any number; `Decimal` and
    `Currency` integers that fit and a `float` or `double` by the C# cast (0.1 is 0.1m, as the reader converts a
@@ -181,8 +183,9 @@ Details that matter:
 - **Lists and arrays:** DuckDB returns no value when an item cannot be converted to the item type, and
   `duckdb_bind_value` would crash on it. `ThrowIfNotCreated` releases the items and throws a `DuckDBException`.
 - **List items** go by the same rules as a single value, so an item with no matching arm goes as its own type, which
-  `duckdb_create_list_value` casts to the item type. Before 2.0 such an item went as text in the current culture:
-  a `DateTime` in a `VARCHAR[]` is now `2026-11-19 13:45:30` instead of `11/19/2026 13:45:30`, a `float` in a
+  `duckdb_create_list_value` casts to the item type. In 1.x such an item went as its `ToString()` text, in the
+  current culture: a `DateTime` in a `VARCHAR[]` is now `2026-11-19 13:45:30` instead of `11/19/2026 13:45:30` (under
+  en-US), a `float` in a
   `DOUBLE[]` is its exact value (`0.10000000149011612`) as it is for a DOUBLE column, and a `List<int>` for a
   `BOOLEAN[]` works where it threw. A `DateTimeOffset` item for a `TIMESTAMP[]` or `VARCHAR[]` comes out in UTC,
   where a single `DateTimeOffset` for a TIMESTAMP or VARCHAR parameter is cast in the session's time zone (seen on

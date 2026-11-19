@@ -192,16 +192,16 @@ internal static class DbTypeConverter
         return new InvalidCastException($"Cannot cast from {Name(item.GetType())} to {type.Name} for parameter {target.Parameter} (DbType.{target.DbType}){detail}");
     }
 
-    // A generic type as C# writes it, HashSet<Int64> rather than HashSet`1.
+    // A generic type as C# writes it, HashSet<Int64> rather than HashSet`1. A type nested in a generic class
+    // (List<int>.Enumerator) is generic without a backtick in its name; it keeps its name.
     private static string Name(Type type)
     {
-        if (!type.IsGenericType)
-        {
-            return type.Name;
-        }
-
         var name = type.Name;
-        return $"{name[..name.IndexOf('`')]}<{string.Join(", ", Array.ConvertAll(type.GetGenericArguments(), Name))}>";
+        var backtick = name.IndexOf('`');
+
+        return type.IsGenericType && backtick > 0
+            ? $"{name[..backtick]}<{string.Join(", ", Array.ConvertAll(type.GetGenericArguments(), Name))}>"
+            : name;
     }
 }
 
