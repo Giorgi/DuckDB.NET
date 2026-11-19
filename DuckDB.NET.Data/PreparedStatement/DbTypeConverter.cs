@@ -63,6 +63,9 @@ internal static class DbTypeConverter
             Int128 value => Convert<Int128, T>(value, shown, target),
             UInt128 value => Convert<UInt128, T>(value, shown, target),
             BigInteger value => Convert<BigInteger, T>(value, shown, target),
+            nint value => Convert<nint, T>(value, shown, target),
+            nuint value => Convert<nuint, T>(value, shown, target),
+            Half value => Convert<Half, T>(value, shown, target),
             float value => Convert<float, T>(value, shown, target),
             double value => Convert<double, T>(value, shown, target),
             decimal value => Convert<decimal, T>(value, shown, target),
@@ -84,15 +87,20 @@ internal static class DbTypeConverter
         }
 
         // The C# cast with an overflow check: an integer narrowed, a whole double to BigInteger exactly, a float or
-        // double to decimal rounded to the digits the caller wrote. It throws OverflowException out of range and for NaN.
+        // double to decimal rounded to 15 significant digits (7 for a float). It throws OverflowException out of range
+        // and for NaN.
+        T result;
         try
         {
-            return T.CreateChecked(value);
+            result = T.CreateChecked(value);
         }
         catch (OverflowException)
         {
             throw Refuse(item, target, typeof(T), Reason.OutOfRange);
         }
+
+        // Nor is a value too small for a decimal (1e-30) sent as zero.
+        return T.IsZero(result) && !TFrom.IsZero(value) ? throw Refuse(item, target, typeof(T), Reason.OutOfRange) : result;
     }
 
     // Folded by the JIT: every numeric target but float, double and decimal holds only whole numbers.
@@ -181,7 +189,19 @@ internal static class DbTypeConverter
             _ => ""
         };
 
-        return new InvalidCastException($"Cannot cast from {item.GetType().Name} to {type.Name} for parameter {target.Parameter} (DbType.{target.DbType}){detail}");
+        return new InvalidCastException($"Cannot cast from {Name(item.GetType())} to {type.Name} for parameter {target.Parameter} (DbType.{target.DbType}){detail}");
+    }
+
+    // A generic type as C# writes it, HashSet<Int64> rather than HashSet`1.
+    private static string Name(Type type)
+    {
+        if (!type.IsGenericType)
+        {
+            return type.Name;
+        }
+
+        var name = type.Name;
+        return $"{name[..name.IndexOf('`')]}<{string.Join(", ", Array.ConvertAll(type.GetGenericArguments(), Name))}>";
     }
 }
 

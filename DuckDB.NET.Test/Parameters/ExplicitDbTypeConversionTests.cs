@@ -59,6 +59,16 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
         { DbType.DateTime, new DateOnly(2026, 11, 19), "TIMESTAMP", "2026-11-19 00:00:00" },
         { DbType.DateTime2, new DateTime(2026, 11, 19, 13, 45, 30), "TIMESTAMP", "2026-11-19 13:45:30" },
         { DbType.DateTimeOffset, new DateTime(2026, 11, 19, 13, 45, 30), "TIMESTAMP WITH TIME ZONE", null },
+        { DbType.Int64, -9.223372036854775808e18, "BIGINT", "-9223372036854775808" },     // -2^63, the smallest long
+        { DbType.UInt64, 18446744073709549568.0, "UBIGINT", "18446744073709549568" },     // 2^64 - 2048, the largest double below 2^64
+        { DbType.SByte, -128f, "TINYINT", "-128" },
+        { DbType.Int32, (nint)5, "INTEGER", "5" },
+        { DbType.UInt16, (nuint)5, "USMALLINT", "5" },
+        { DbType.Double, (Half)1.5, "DOUBLE", "1.5" },
+        { DbType.Int32, (Half)2, "INTEGER", "2" },
+        { DbType.Date, new DuckDBDateOnly(2026, 11, 19), "DATE", "2026-11-19" },
+        { DbType.Time, new DuckDBTimeOnly(13, 45, 30), "TIME", "13:45:30" },
+        { DbType.DateTime, new DuckDBTimestamp(new DuckDBDateOnly(2026, 11, 19), new DuckDBTimeOnly(13, 45, 30)), "TIMESTAMP", "2026-11-19 13:45:30" },
         { DbType.Object, 5, "INTEGER", "5" },
         { DbType.Object, DayOfWeek.Tuesday, "VARCHAR", "Tuesday" },
     };
@@ -94,6 +104,14 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
         { DbType.Int32, double.PositiveInfinity, "Double to Int32 for parameter $1 (DbType.Int32): the value is out of range" },
         { DbType.VarNumeric, double.NaN, "Double to BigInteger for parameter $1 (DbType.VarNumeric): the value is out of range" },
         { DbType.Double, DayOfWeek.Tuesday, "DayOfWeek to Double for parameter $1 (DbType.Double)" },
+        { DbType.Int64, 9.223372036854775808e18, "Double to Int64 for parameter $1 (DbType.Int64): the value is out of range" },    // 2^63
+        { DbType.UInt64, 18446744073709551616.0, "Double to UInt64 for parameter $1 (DbType.UInt64): the value is out of range" },  // 2^64
+        { DbType.SByte, 128f, "Single to SByte for parameter $1 (DbType.SByte): the value is out of range" },
+        { DbType.Decimal, 1e-30, "Double to Decimal for parameter $1 (DbType.Decimal): the value is out of range" },
+        { DbType.Decimal, -1e-30f, "Single to Decimal for parameter $1 (DbType.Decimal): the value is out of range" },
+        { DbType.Int32, (Half)2.5, "Half to Int32 for parameter $1 (DbType.Int32): the value has a non-zero fractional part" },
+        { DbType.Int32, new HashSet<long> { 1 }, "HashSet<Int64> to Int32 for parameter $1 (DbType.Int32)" },
+        { DbType.DateTime, new DuckDBDateOnly(2026, 11, 19), "DuckDBDateOnly to DateTime for parameter $1 (DbType.DateTime)" },
         { DbType.UInt64, 2e19, "Double to UInt64 for parameter $1 (DbType.UInt64): the value is out of range" },
         { DbType.Int32, "42", "String to Int32 for parameter $1 (DbType.Int32). Remove the DbType to let DuckDB convert the text, or parse the value first" },
         { DbType.Int32, true, "Boolean to Int32 for parameter $1 (DbType.Int32)" },

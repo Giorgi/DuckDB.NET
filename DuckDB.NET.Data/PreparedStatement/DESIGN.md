@@ -180,6 +180,15 @@ Details that matter:
 - **Strings** are encoded to UTF-8 here and passed with their length, so a NUL character is kept.
 - **Lists and arrays:** DuckDB returns no value when an item cannot be converted to the item type, and
   `duckdb_bind_value` would crash on it. `ThrowIfNotCreated` releases the items and throws a `DuckDBException`.
+- **List items** go by the same rules as a single value, so an item with no matching arm goes as its own type, which
+  `duckdb_create_list_value` casts to the item type. Before 2.0 such an item went as text in the current culture:
+  a `DateTime` in a `VARCHAR[]` is now `2026-11-19 13:45:30` instead of `11/19/2026 13:45:30`, a `float` in a
+  `DOUBLE[]` is its exact value (`0.10000000149011612`) as it is for a DOUBLE column, and a `List<int>` for a
+  `BOOLEAN[]` works where it threw. A `DateTimeOffset` item for a `TIMESTAMP[]` or `VARCHAR[]` comes out in UTC,
+  where a single `DateTimeOffset` for a TIMESTAMP or VARCHAR parameter is cast in the session's time zone (seen on
+  2.0.0; the cause in DuckDB was not looked into).
+- **An assigned `DbType.Object`** converts nothing, so the value goes as its own type: `2.5` is a DOUBLE where it
+  used to be the text `'2.5'`.
 - **Logical types** passed in are borrowed: the converter must not dispose them. Child types it fetches
   (`duckdb_list_type_child_type`) are its own and are disposed.
 
