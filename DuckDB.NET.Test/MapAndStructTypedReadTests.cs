@@ -234,7 +234,7 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         reader.GetFieldValue<Dictionary<int?, string>>(0).Should().Equal(new Dictionary<int?, string> { [1] = "a", [2] = "b", [3] = null });
 
         reader.Invoking(r => r.GetFieldValue<Dictionary<int, object>>(0)).Should().Throw<InvalidCastException>();
-        reader.Invoking(r => r.GetFieldValue<List<int>>(0)).Should().Throw<InvalidOperationException>();
+        reader.Invoking(r => r.GetFieldValue<List<int>>(0)).Should().ThrowExactly<InvalidCastException>();
     }
 
     [Fact]

@@ -67,7 +67,8 @@ internal sealed partial class MapVectorDataReader : VectorDataReaderBase
     // and value read as an object.
     private IDictionary GetBoxedDictionary(Type targetType, ulong listOffset, ulong length)
     {
-        var instance = Activator.CreateInstance(targetType) as IDictionary ?? throw NotADictionaryException();
+        // CreatePlan refused a type that cannot be created or is not an IDictionary.
+        var instance = (IDictionary)Activator.CreateInstance(targetType)!;
 
         for (ulong i = 0; i < length; i++)
         {
@@ -94,10 +95,6 @@ internal sealed partial class MapVectorDataReader : VectorDataReaderBase
         return instance;
     }
 
-    // Returns the exception, for '?? throw', as the list reader's NotAListException does.
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private InvalidOperationException NotADictionaryException() => new($"Cannot read Map column {ColumnName} in a non-dictionary type");
-
     // Used by the IDictionary path and by the builders. A child reader carries the name of the map column.
     [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -113,6 +110,17 @@ internal sealed partial class MapVectorDataReader : VectorDataReaderBase
     [MethodImpl(MethodImplOptions.NoInlining)]
     private MapPlan CreatePlan(Type targetType)
     {
+        // Any target is created as itself, so it has to be a class that can be created and filled.
+        if (targetType.IsInterface || targetType.IsAbstract)
+        {
+            throw new InvalidCastException($"Cannot read Map column {ColumnName} as {targetType.Name}: it is an interface or an abstract class.");
+        }
+
+        if (!typeof(IDictionary).IsAssignableFrom(targetType))
+        {
+            throw new InvalidCastException($"Cannot read Map column {ColumnName} in a non-dictionary type");
+        }
+
         // The key and value types are those of the Dictionary<TKey, TValue> the target is or derives from, so a class
         // that is not generic itself, or whose type arguments are not the key and value, is read by its base. Another
         // type (a SortedDictionary, a Hashtable) gives its own type arguments, or none.
