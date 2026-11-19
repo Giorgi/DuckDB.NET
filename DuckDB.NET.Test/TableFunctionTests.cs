@@ -533,6 +533,13 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
         Connection.RegisterTableFunction("plan_typed", () => rows, row => new { Value = row });
         Connection.RegisterTableFunction("plan_typed_list", () => rows.ToList(), row => new { Value = row });
+        Connection.RegisterTableFunction("plan_typed_int_set", () => rows.ToHashSet(), row => new { Value = row });
+        Connection.RegisterTableFunction("plan_typed_select", () => rows.ToList().Select(r => r + 1), row => new { Value = row });
+        Connection.RegisterTableFunction("plan_typed_with_parameter", (int count) => rows.Take(count).ToHashSet(), row => new { Value = row });
+        Connection.RegisterTableFunction("plan_typed_with_two_parameters", (int count, int skip) => rows.Skip(skip).Take(count).ToHashSet(), row => new { Value = row });
+        Connection.RegisterTableFunction("plan_typed_with_three_parameters", (int count, int skip, int add) => rows.Skip(skip).Take(count).Select(r => r + add).ToHashSet(), row => new { Value = row });
+        Connection.RegisterTableFunction("plan_typed_with_four_parameters", (int count, int skip, int add, int multiply) => rows.Skip(skip).Take(count).Select(r => (r + add) * multiply).ToHashSet(), row => new { Value = row });
+        Connection.RegisterTableFunction("plan_typed_iterator", () => rows.Where(r => r >= 0), row => new { Value = row });
 
         EstimatedCardinality("plan_array").Should().Be("1234");
         EstimatedCardinality("plan_list").Should().Be("1234");
@@ -540,6 +547,13 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         EstimatedCardinality("plan_iterator").Should().NotBe("1234");
         EstimatedCardinality("plan_typed").Should().Be("1234");
         EstimatedCardinality("plan_typed_list").Should().Be("1234");
+        EstimatedCardinality("plan_typed_int_set").Should().Be("1234");
+        EstimatedCardinality("plan_typed_select").Should().Be("1234");
+        EstimatedCardinality("plan_typed_with_parameter", "1000").Should().Be("1000");
+        EstimatedCardinality("plan_typed_with_two_parameters", "900, 10").Should().Be("900");
+        EstimatedCardinality("plan_typed_with_three_parameters", "800, 10, 1").Should().Be("800");
+        EstimatedCardinality("plan_typed_with_four_parameters", "700, 10, 1, 2").Should().Be("700");
+        EstimatedCardinality("plan_typed_iterator").Should().NotBe("1234");
         EstimatedCardinality("plan_array_with_hint").Should().Be("77");
 
         Connection.Query<int>("SELECT * FROM plan_array()").Should().Equal(rows);
@@ -550,6 +564,7 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         PlanOf("SELECT * FROM plan_array() LIMIT 2000").Should().NotContain("Limit");
         PlanOf("SELECT * FROM plan_typed() LIMIT 2000").Should().NotContain("Limit");
         PlanOf("SELECT * FROM plan_list() LIMIT 2000").Should().Contain("Limit");
+        PlanOf("SELECT * FROM plan_typed_int_set() LIMIT 2000").Should().Contain("Limit");
         Connection.Query<int>("SELECT * FROM plan_array() LIMIT 2000").Should().Equal(rows);
 
         // A sum that needs more than 64 bits: DuckDB adds without a check for overflow when the most rows it was
@@ -560,9 +575,9 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         EstimatedCardinality("plan_more_rows_than_counted").Should().Be("2");
         Connection.QuerySingle<string>("SELECT sum(4000000000000000000)::VARCHAR FROM plan_more_rows_than_counted()").Should().Be("12000000000000000000");
 
-        string EstimatedCardinality(string function)
+        string EstimatedCardinality(string function, string arguments = "")
         {
-            var plan = Connection.Query<(string, string)>($"EXPLAIN (FORMAT JSON) SELECT * FROM {function}();").First();
+            var plan = Connection.Query<(string, string)>($"EXPLAIN (FORMAT JSON) SELECT * FROM {function}({arguments});").First();
 
             return JsonDocument.Parse(plan.Item2).RootElement[0].GetProperty("extra_info").GetProperty("Estimated Cardinality").GetString();
         }

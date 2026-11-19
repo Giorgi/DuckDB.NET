@@ -2,6 +2,7 @@ using DuckDB.NET.Data.Connection;
 using DuckDB.NET.Data.DataChunk.Writer;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -16,6 +17,20 @@ public static class DuckDBConnectionTableFunctionExtensions
 
     private static bool IsProjectionParameter(Type type) => type == typeof(IReadOnlyList<ProjectedColumn>);
 
+    // The count of a typed function's data when it is known without enumerating it: any ICollection<T>,
+    // including a HashSet<int> that the binder cannot count through IEnumerable, and LINQ results whose count is
+    // cheap. The count is an estimate, as a collection can be longer when it is read. An array gets no hint here:
+    // the binder passes its length as exact.
+    private static CardinalityHint? GetCardinalityHint<TData>(IEnumerable<TData> data)
+    {
+        if (data is not TData[] && data.TryGetNonEnumeratedCount(out var count))
+        {
+            return new CardinalityHint((ulong)count);
+        }
+
+        return null;
+    }
+
     extension(DuckDBConnection connection)
     {
         public void RegisterTableFunction<TData, TProjection>(
@@ -25,7 +40,11 @@ public static class DuckDBConnectionTableFunctionExtensions
         {
             var (columns, createScan) = ParseProjection(projection);
             connection.RegisterTableFunctionInternal(name,
-                (_, _) => new TableFunction(columns, dataFunc()),
+                (_, _) =>
+                {
+                    var data = dataFunc();
+                    return new TableFunction(columns, data, GetCardinalityHint(data));
+                },
                 createScan, [], []);
         }
 
@@ -53,7 +72,8 @@ public static class DuckDBConnectionTableFunctionExtensions
         //      (positional, named) => {
         //          int count      = read1(Resolve(p[0], positional, named));
         //          string? prefix = read2(Resolve(p[1], positional, named));
-        //          return new TableFunction(columns, dataFunc(count, prefix));
+        //          var data       = dataFunc(count, prefix);
+        //          return new TableFunction(columns, data, GetCardinalityHint(data));
         //      }
         //
         // 5. RegisterInternal registers with DuckDB:
@@ -85,8 +105,12 @@ public static class DuckDBConnectionTableFunctionExtensions
             var read1 = CompileValueReader<T1>(parameters[0], name);
 
             RegisterInternal(connection, name, parameters,
-                (positional, named) => new TableFunction(columns, dataFunc(
-                    read1(Resolve(parameters[0], positional, named)))),
+                (positional, named) =>
+                {
+                    var data = dataFunc(
+                        read1(Resolve(parameters[0], positional, named)));
+                    return new TableFunction(columns, data, GetCardinalityHint(data));
+                },
                 createScan);
         }
 
@@ -116,9 +140,13 @@ public static class DuckDBConnectionTableFunctionExtensions
             var readB = CompileValueReader<T2>(parameters[1], name);
 
             RegisterInternal(connection, name, parameters,
-                (positional, named) => new TableFunction(columns, dataFunc(
-                    readA(Resolve(parameters[0], positional, named)),
-                    readB(Resolve(parameters[1], positional, named)))),
+                (positional, named) =>
+                {
+                    var data = dataFunc(
+                        readA(Resolve(parameters[0], positional, named)),
+                        readB(Resolve(parameters[1], positional, named)));
+                    return new TableFunction(columns, data, GetCardinalityHint(data));
+                },
                 createScan);
         }
 
@@ -151,10 +179,14 @@ public static class DuckDBConnectionTableFunctionExtensions
             var readC = CompileValueReader<T3>(parameters[2], name);
 
             RegisterInternal(connection, name, parameters,
-                (positional, named) => new TableFunction(columns, dataFunc(
-                    readA(Resolve(parameters[0], positional, named)),
-                    readB(Resolve(parameters[1], positional, named)),
-                    readC(Resolve(parameters[2], positional, named)))),
+                (positional, named) =>
+                {
+                    var data = dataFunc(
+                        readA(Resolve(parameters[0], positional, named)),
+                        readB(Resolve(parameters[1], positional, named)),
+                        readC(Resolve(parameters[2], positional, named)));
+                    return new TableFunction(columns, data, GetCardinalityHint(data));
+                },
                 createScan);
         }
 
@@ -190,11 +222,15 @@ public static class DuckDBConnectionTableFunctionExtensions
             var readD = CompileValueReader<T4>(parameters[3], name);
 
             RegisterInternal(connection, name, parameters,
-                (positional, named) => new TableFunction(columns, dataFunc(
-                    readA(Resolve(parameters[0], positional, named)),
-                    readB(Resolve(parameters[1], positional, named)),
-                    readC(Resolve(parameters[2], positional, named)),
-                    readD(Resolve(parameters[3], positional, named)))),
+                (positional, named) =>
+                {
+                    var data = dataFunc(
+                        readA(Resolve(parameters[0], positional, named)),
+                        readB(Resolve(parameters[1], positional, named)),
+                        readC(Resolve(parameters[2], positional, named)),
+                        readD(Resolve(parameters[3], positional, named)));
+                    return new TableFunction(columns, data, GetCardinalityHint(data));
+                },
                 createScan);
         }
     }

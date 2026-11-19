@@ -438,8 +438,11 @@ between two runs.
   (`HashSet<string>`), the count is passed on. The length of an array cannot change before the scan reads it,
   so it is exact (`is_exact` true), and DuckDB also has it as the most rows there are. Any other collection's
   count is taken at bind and can be too small by the time the scan reads it, so it is an estimate only
-  (`is_exact` false), which DuckDB uses for planning only. A set of a value type such as `HashSet<int>` is
-  neither and gets no number; an iterator gets none.
+  (`is_exact` false), which DuckDB uses for planning only. The binder sees the data as `IEnumerable`, so there
+  a set of a value type such as `HashSet<int>` is neither and gets no number. The typed registrations know the
+  type of the rows and ask `TryGetNonEnumeratedCount` first, which also counts any `ICollection<T>` and LINQ
+  results whose count is cheap (a `Select` over a list), as an estimate too; an array is left to the binder, so
+  its length stays exact. An iterator gets no number.
 - **`is_exact` true makes the number a maximum as well,** and DuckDB relies on it: it adds integers without a
   check for overflow when that many rows cannot overflow, and it removes a `LIMIT` larger than the maximum (the
   test checks the plan of an array and of a `List`). A function that returns more rows than it said then gets a
