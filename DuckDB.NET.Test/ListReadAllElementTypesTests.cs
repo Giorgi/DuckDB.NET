@@ -60,6 +60,7 @@ public class ListReadAllElementTypesTests(DuckDBDatabaseFixture db) : DuckDBTest
 
     [Fact] public void Strings() => ReadsReferenceLists<string>("VARCHAR", "'s' || {0}", value => value);
     [Fact] public void Blobs() => ReadsReferenceLists<Stream>("BLOB", "('b' || {0})::BLOB", ReadAll);
+    [Fact] public void BlobsAsByteArrays() => ReadsReferenceLists<byte[]>("BLOB", "('b' || {0})::BLOB", Convert.ToBase64String);
     [Fact] public void BitStrings() => ReadsReferenceLists<BitArray>("BIT", "('1' || ({0} % 2)::VARCHAR || '01')::BIT", BitsToString);
     [Fact] public void BitStringsAsString() => ReadsReferenceLists<string>("BIT", "('1' || ({0} % 2)::VARCHAR || '01')::BIT", value => value);
 

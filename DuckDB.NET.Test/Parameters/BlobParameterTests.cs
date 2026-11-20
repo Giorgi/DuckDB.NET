@@ -206,6 +206,47 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         reader.GetValue(0).Should().BeOfType<byte[]>().Which.Should().Equal(value);
     }
 
+    [Fact]
+    public void GetValueOfABlobListIsAListOfByteArrays()
+    {
+        Command.CommandText = "SELECT ['\\x01'::BLOB, NULL, '\\x02\\x03'::BLOB], ['\\x04'::BLOB, '\\x05'::BLOB]::BLOB[2];";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        reader.GetValue(0).Should().BeOfType<List<byte[]>>()
+              .Which.Should().BeEquivalentTo(new[] { new byte[] { 1 }, null, new byte[] { 2, 3 } }, options => options.WithStrictOrdering());
+        reader.GetValue(1).Should().BeOfType<List<byte[]>>()
+              .Which.Should().BeEquivalentTo(new[] { new byte[] { 4 }, new byte[] { 5 } }, options => options.WithStrictOrdering());
+    }
+
+    [Fact]
+    public void SchemaTableAndDataTableHaveByteArrayForABlobColumn()
+    {
+        Command.CommandText = "SELECT b FROM (VALUES ('\\x01\\x02'::BLOB, 1), (NULL, 2)) t(b, i) ORDER BY i;";
+
+        using (var reader = Command.ExecuteReader())
+        {
+            reader.GetSchemaTable().Rows[0][System.Data.Common.SchemaTableColumn.DataType].Should().Be(typeof(byte[]));
+        }
+
+        using (var reader = Command.ExecuteReader())
+        {
+            var table = new DataTable();
+            table.Load(reader);
+
+            table.Columns["b"].DataType.Should().Be(typeof(byte[]));
+            table.Rows[0]["b"].Should().BeOfType<byte[]>().Which.Should().Equal(1, 2);
+            table.Rows[1]["b"].Should().Be(DBNull.Value);
+        }
+    }
+
+    [Fact]
+    public void DapperReadsABlobAsByteArray()
+    {
+        Connection.Query<byte[]>("SELECT '\\x01\\x02'::BLOB").Single().Should().Equal(1, 2);
+        Connection.Query<BlobStruct>("SELECT '\\x03\\x04'::BLOB AS Value").Single().Value.Should().Equal(3, 4);
+    }
+
     private sealed class BlobStruct
     {
         public byte[] Value { get; set; } = [];

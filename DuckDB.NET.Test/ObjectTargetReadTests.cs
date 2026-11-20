@@ -15,7 +15,7 @@ public class ObjectTargetReadTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [
         "42::TINYINT", "42::INTEGER", "42::UBIGINT", "1.5::DOUBLE", "42::HUGEINT", "42::UHUGEINT", "42::VARINT",
         "1.25::DECIMAL(9,2)", "1.25::DECIMAL(38,4)", "'b'::ENUM('a', 'b')", "true", "'x'::VARCHAR", "'101'::BIT",
-        "'\\x01\\x02'::BLOB", "'00000000-0000-0000-0000-000000000001'::UUID",
+        "'\\x01\\x02'::BLOB", "['\\x01\\x02'::BLOB, NULL]", "'00000000-0000-0000-0000-000000000001'::UUID",
         "DATE '2024-01-02'", "TIMESTAMP '2024-01-02 03:04:05.123456'", "TIMESTAMP_S '2024-01-02 03:04:05'",
         "TIMESTAMP_MS '2024-01-02 03:04:05.123'", "TIMESTAMP_NS '2024-01-02 03:04:05.123456789'",
         "TIMESTAMPTZ '2024-01-02 03:04:05+00'", "TIME '03:04:05'", "TIMETZ '03:04:05+01'", "INTERVAL 1 DAY",
