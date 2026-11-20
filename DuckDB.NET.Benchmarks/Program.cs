@@ -23,6 +23,10 @@ var config = DefaultConfig.Instance
     .AddJob(aa ? baseline.WithId($"{baselineVersion}-again") : Job.Default.WithId("Local"))
     .HideColumns(Column.Arguments); // it only repeats what the Job column says
 
-BenchmarkSwitcher
-    .FromTypes([typeof(CompositeReaderBenchmark), typeof(NumericAppenderBenchmark), typeof(HugeIntAppenderBenchmark), typeof(DateAppenderBenchmark), typeof(FunctionBenchmark), typeof(ListAppenderBenchmark), typeof(DecimalAppenderBenchmark), typeof(DecimalParameterBenchmark), typeof(StringAppenderBenchmark), typeof(RowCostBenchmark), typeof(TableFunctionRowBenchmark), typeof(EnumAppenderBenchmark), typeof(MappedAppenderBenchmark), typeof(DataReaderBenchmark), typeof(DateTimeReaderBenchmark), typeof(MixedNumericReaderBenchmark), typeof(StringReaderBenchmark), typeof(TypedReaderBenchmark), typeof(WideTableReaderBenchmark), typeof(CommandBenchmark), typeof(RowMaterializationBenchmark)])
-    .Run(args, config);
+Type[] benchmarks = [typeof(CompositeReaderBenchmark), typeof(NumericAppenderBenchmark), typeof(HugeIntAppenderBenchmark), typeof(DateAppenderBenchmark), typeof(FunctionBenchmark), typeof(ListAppenderBenchmark), typeof(DecimalAppenderBenchmark), typeof(DecimalParameterBenchmark), typeof(StringAppenderBenchmark), typeof(RowCostBenchmark), typeof(TableFunctionRowBenchmark), typeof(EnumAppenderBenchmark), typeof(MappedAppenderBenchmark), typeof(DataReaderBenchmark), typeof(DateTimeReaderBenchmark), typeof(MixedNumericReaderBenchmark), typeof(StringReaderBenchmark), typeof(TypedReaderBenchmark), typeof(WideTableReaderBenchmark), typeof(CommandBenchmark), typeof(RowMaterializationBenchmark)];
+
+#if ARROW_APPENDER
+benchmarks = [.. benchmarks, typeof(ArrowAppenderBenchmark)];
+#endif
+
+BenchmarkSwitcher.FromTypes(benchmarks).Run(args, config);
