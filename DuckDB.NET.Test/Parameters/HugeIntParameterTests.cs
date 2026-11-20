@@ -171,9 +171,12 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
         Command.CommandText = "INSERT INTO UHugeIntParameterRangeTests VALUES ($1);";
 
-        // The value goes as a HUGEINT, and DuckDB refuses to cast it to UHUGEINT. 2^128 is not checked: it goes as a
-        // BIGNUM, which DuckDB 2.0.0 casts to its low bits instead of refusing it (duckdb/duckdb#26242).
+        // -1 goes as a HUGEINT and 2^128 as a BIGNUM, and DuckDB refuses to cast either to UHUGEINT.
         Command.Parameters.Add(new DuckDBParameter(BigInteger.MinusOne));
+        Command.Invoking(command => command.ExecuteNonQuery()).Should().Throw<DuckDBException>();
+
+        Command.Parameters.Clear();
+        Command.Parameters.Add(new DuckDBParameter(BigInteger.Pow(2, 128)));
         Command.Invoking(command => command.ExecuteNonQuery()).Should().Throw<DuckDBException>();
     }
 

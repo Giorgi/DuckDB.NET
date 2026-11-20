@@ -210,13 +210,40 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         Insert(columnType, min).Should().Be(minimum);
         Insert(columnType, max).Should().Be(maximum);
         InsertFails(columnType, min - 1);
+        InsertFails(columnType, max + 1);
+    }
 
-        // Beyond 128 bits the value goes as a BIGNUM, and DuckDB 2.0.0 casts that to its low bits instead of refusing
-        // it (duckdb/duckdb#26242), so 2^128 is not checked.
-        if (max + 1 < BigInteger.Pow(2, 128))
+    // Beyond 128 bits a BigInteger goes as a BIGNUM. DuckDB 2.0.0 cast a BIGNUM to an integer type by its low bits, so
+    // 2^128 + 1 was stored as 1; DuckDB 2.0.1 refuses it.
+    [Fact]
+    public void ValuesBeyond128BitsAreRefused()
+    {
+        var two128 = BigInteger.Pow(2, 128);
+
+        foreach (var columnType in new[] { "INTEGER", "BIGINT", "HUGEINT", "UHUGEINT" })
         {
-            InsertFails(columnType, max + 1);
+            InsertFails(columnType, two128);
+            InsertFails(columnType, two128 + 5);
+            InsertFails(columnType, -(two128 + 5));
         }
+
+        Where("INTEGER", two128 + 1).Should().Be("none");
+
+        Command.CommandText = "CREATE OR REPLACE TABLE IntegerTargetListTests (v INTEGER[]);";
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "INSERT INTO IntegerTargetListTests VALUES ($1);";
+        Command.Parameters.Clear();
+        Command.Parameters.Add(new DuckDBParameter(new List<BigInteger> { 1, two128 + 5 }));
+        Command.Invoking(command => command.ExecuteNonQuery()).Should().Throw<DuckDBException>().WithMessage("*could not convert every item to Integer*");
+
+        Command.CommandText = "CREATE OR REPLACE TABLE IntegerTargetTests (v INTEGER);";
+        Command.Parameters.Clear();
+        Command.ExecuteNonQuery();
+
+        Command.CommandText = "INSERT INTO IntegerTargetTests VALUES ($1);";
+        Command.Parameters.Add(new DuckDBParameter { DbType = DbType.VarNumeric, Value = 1e40 });
+        Command.Invoking(command => command.ExecuteNonQuery()).Should().Throw<DuckDBException>().WithMessage("*BIGNUM*out of range*");
     }
 
     [Fact]
