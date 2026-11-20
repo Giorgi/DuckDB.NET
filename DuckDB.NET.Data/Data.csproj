@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Description>DuckDB ADO.NET Provider for C#.</Description>
     <PackageReleaseNotes>
-- Updated to DuckDB v2.0.0
+- Updated to DuckDB v2.0.1
 
 Breaking changes:
 - DuckDB.NET.Data 2.0 needs DuckDB.NET.Bindings 2.0: upgrade both packages together
