@@ -17,6 +17,7 @@ New features:
 - DuckDBHugeInt and DuckDBUHugeInt can be created from an Int128 and a UInt128
 - DuckDBType has the DuckDB 1.5 types STRING_LITERAL, INTEGER_LITERAL, TIME_NS, GEOMETRY and VARIANT
 - Bindings for duckdb_prepared_statement_type, duckdb_clear_bindings and duckdb_create_varchar_length
+- Bindings for duckdb_schema_from_arrow, duckdb_data_chunk_from_arrow and duckdb_destroy_arrow_converted_schema, with the DuckDBArrowConvertedSchema handle
 
 Fixes:
 - Some native function declarations were corrected to match duckdb.h

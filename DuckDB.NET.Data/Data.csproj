@@ -49,6 +49,7 @@ New features:
 - GetSchema("DataTypes") and the ADO.NET metadata collections describe DuckDB's types (#364)
 - GetValues copies only as many values as the array holds (#376), and Close() can be called more than once (#373)
 - A table function over a collection tells DuckDB how many rows it has, for the query plan: the length of an array as exact, the count of a List&lt;T&gt; and other collections as an estimate
+- DuckDBArrowAppender appends Apache Arrow record batches and streams to a table: connection.CreateArrowAppender(table), then AppendBatch, AppendStream or AppendStreamAsync. Columns are matched by position, DuckDB casts each Arrow column to the column type, and each batch goes to DuckDB as one chunk
 - Parameters: an integer or decimal parameter is sent with the parameter's exact type when the value fits, so DuckDB does not bind the statement again on every execution. DbType.Decimal and DbType.DateTime2 are sent as DECIMAL and TIMESTAMP in any culture (#382, by Alaric Dailey). DbType.Int32 with an Int128 that fits works, and a List&lt;Int128&gt; for a BOOLEAN[] column is cast by DuckDB
 
 Thanks to Alaric Dailey (@alaricd) for his pull requests that brought DuckDB.NET's ADO.NET behaviour in line with the documented contracts, and to Michał Rusinek (@Mr444-dev) for TIME_NS support.
