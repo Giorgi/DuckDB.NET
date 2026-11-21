@@ -1,7 +1,7 @@
 using DuckDB.NET.Data.DataChunk.Writer;
 using System.Runtime.InteropServices;
 
-namespace DuckDB.NET.Data.Connection;
+namespace DuckDB.NET.Data.Functions;
 
 // One scan of a table function: the rows of its data and the code that writes a row. The callback that DuckDB
 // calls is static and cannot be generic, so it sees this class and calls Fill once for every chunk. The type of
