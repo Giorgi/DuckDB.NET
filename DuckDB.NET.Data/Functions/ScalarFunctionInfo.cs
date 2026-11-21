@@ -1,7 +1,7 @@
 ﻿using DuckDB.NET.Data.DataChunk.Reader;
 using DuckDB.NET.Data.DataChunk.Writer;
 
-namespace DuckDB.NET.Data.Connection;
+namespace DuckDB.NET.Data.Functions;
 
 class ScalarFunctionInfo(DuckDBLogicalType returnType, Action<VectorDataReaderBase[], VectorDataWriterBase, ulong> action) : IDisposable
 {
