@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace DuckDB.NET.Data.DataChunk.Writer;
 
@@ -75,6 +76,8 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
             Int128 val => AppendNumeric(val, rowIndex),
             UInt128 val => AppendNumeric(val, rowIndex),
 
+            // Before ICollection, which a byte[] also is: a BLOB column is written from the bytes, not item by item.
+            byte[] val => AppendBytes(val, rowIndex),
             ICollection val => AppendCollection(val, rowIndex),
             _ => ThrowException<T>()
         };
@@ -150,6 +153,15 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
     internal virtual bool AppendGuid(Guid value, ulong rowIndex) => ThrowException<Guid>();
 
     internal virtual bool AppendBlob(byte* value, int length, ulong rowIndex) => ThrowException<byte[]>();
+
+    private bool AppendBytes(byte[] value, ulong rowIndex)
+    {
+        // Not `fixed (byte* pointer = value)`: that gives a null pointer for an empty array, and an empty BLOB is a value.
+        fixed (byte* pointer = &MemoryMarshal.GetArrayDataReference(value))
+        {
+            return AppendBlob(pointer, value.Length, rowIndex);
+        }
+    }
 
     internal virtual bool AppendString(string value, ulong rowIndex) => ThrowException<string>();
 
