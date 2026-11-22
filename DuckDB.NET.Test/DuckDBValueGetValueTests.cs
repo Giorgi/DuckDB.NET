@@ -42,4 +42,40 @@ public class DuckDBValueGetValueTests
         using var text = NativeMethods.Value.DuckDBCreateVarchar("duck");
         text.Invoking(v => v.GetValue<int>()).Should().Throw<InvalidCastException>();
     }
+
+    // Every timestamp type reads as a DateTime, and as the instant at UTC when it is read as DateTimeOffset, as the
+    // column reader gives it. Each getter takes the value in the unit of its type.
+    [Fact]
+    public void ATimestampReadsAsDateTimeAndAsDateTimeOffsetAtUtc()
+    {
+        var expected = new DateTime(2024, 2, 29, 13, 45, 30);
+        var micros = (expected - DateTime.UnixEpoch).Ticks / 10;
+
+        using var timestamp = NativeMethods.Value.DuckDBCreateTimestamp(new DuckDBTimestampStruct { Micros = micros + 123456 });
+        using var timestampTz = NativeMethods.Value.DuckDBCreateTimestampTz(new DuckDBTimestampStruct { Micros = micros + 123456 });
+        using var timestampS = NativeMethods.Value.DuckDBCreateTimestampS(new DuckDBTimestampStruct { Micros = micros / 1_000_000 });
+        using var timestampMs = NativeMethods.Value.DuckDBCreateTimestampMs(new DuckDBTimestampStruct { Micros = micros / 1000 + 123 });
+        using var timestampNs = NativeMethods.Value.DuckDBCreateTimestampNs(new DuckDBTimestampStruct { Micros = micros * 1000 + 123_456_700 });
+
+        var cases = new (DuckDBValue Value, DateTime Expected)[]
+        {
+            (timestamp, expected.AddTicks(1_234_560)),
+            (timestampTz, expected.AddTicks(1_234_560)),
+            (timestampS, expected),
+            (timestampMs, expected.AddTicks(1_230_000)),
+            (timestampNs, expected.AddTicks(1_234_567)),
+        };
+
+        foreach (var (value, dateTime) in cases)
+        {
+            value.GetValue<DateTime>().Should().Be(dateTime);
+
+            var dateTimeOffset = value.GetValue<DateTimeOffset>();
+            dateTimeOffset.Offset.Should().Be(TimeSpan.Zero);
+            dateTimeOffset.UtcTicks.Should().Be(dateTime.Ticks);
+
+            value.GetValue<DateTimeOffset?>().Should().Be(dateTimeOffset);
+            value.GetValue<object>().Should().Be(dateTime);
+        }
+    }
 }

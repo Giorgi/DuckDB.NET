@@ -1047,4 +1047,23 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         ids.Should().BeEquivalentTo([1, 2, 3], o => o.WithStrictOrdering());
         callCount.Should().Be(3);
     }
+
+    [Fact]
+    public void RegisterTableFunctionReadsATimestampTzParameterAsDateTimeOffset()
+    {
+        Connection.RegisterTableFunction("instant_low_level", parameters =>
+        {
+            var at = parameters[0].GetValue<DateTimeOffset>();
+            return new TableFunction([new ColumnInfo("utc", typeof(DateTime)), new ColumnInfo("offset_minutes", typeof(int))], new[] { at });
+        }, (item, writers, rowIndex) =>
+        {
+            var at = (DateTimeOffset)item;
+            writers[0].WriteValue(at.UtcDateTime, rowIndex);
+            writers[1].WriteValue((int)at.Offset.TotalMinutes, rowIndex);
+        }, DuckDBType.TimestampTz);
+
+        var row = Connection.QuerySingle<(DateTime, int)>("SELECT * FROM instant_low_level(TIMESTAMPTZ '2024-02-29 13:45:30+02')");
+
+        row.Should().Be((new DateTime(2024, 2, 29, 11, 45, 30), 0));
+    }
 }
