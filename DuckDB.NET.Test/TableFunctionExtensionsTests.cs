@@ -775,4 +775,41 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
         nameReads.Should().Be(0);
         salaryReads.Should().Be(0);
     }
+
+    // A timestamp argument read as DateTimeOffset is the instant at UTC, as the column reader gives it, whatever the
+    // offset the literal was written with. The parameter is TIMESTAMPTZ, so DuckDB casts a TIMESTAMP, TIMESTAMP_S or
+    // TIMESTAMP_MS argument to it; it does not cast TIMESTAMP_NS. DuckDBValueGetValueTests reads every timestamp type.
+    [Theory]
+    [InlineData("TIMESTAMPTZ '2024-02-29 13:45:30.123456+02'", "2024-02-29T11:45:30.1234560")]
+    [InlineData("TIMESTAMP '2024-02-29 13:45:30.123456'", "2024-02-29T13:45:30.1234560")]
+    [InlineData("TIMESTAMP_S '2024-02-29 13:45:30'", "2024-02-29T13:45:30.0000000")]
+    [InlineData("TIMESTAMP_MS '2024-02-29 13:45:30.123'", "2024-02-29T13:45:30.1230000")]
+    public void RegisterTableFunctionSimplifiedReadsATimestampAsDateTimeOffset(string argument, string expectedUtc)
+    {
+        var expected = DateTime.Parse(expectedUtc, System.Globalization.CultureInfo.InvariantCulture);
+
+        // Every case registers its own function, because the cases share the connection.
+        var name = $"ext_instant_{argument.Split(' ')[0].ToLowerInvariant()}";
+        Connection.RegisterTableFunction(name,
+            (DateTimeOffset at) => new[] { at },
+            at => new { UtcTicks = at.UtcTicks, OffsetMinutes = (int)at.Offset.TotalMinutes });
+
+        // Ticks, because a DateTime result column keeps only microseconds.
+        var row = Connection.QuerySingle<(long, int)>($"SELECT * FROM {name}({argument})");
+
+        row.Should().Be((expected.Ticks, 0));
+    }
+
+    [Fact]
+    public void RegisterTableFunctionSimplifiedReadsANullableDateTimeOffset()
+    {
+        Connection.RegisterTableFunction("ext_instant_nullable",
+            (DateTimeOffset? at) => new[] { at },
+            at => new { IsNull = at == null, Utc = at.HasValue ? at.Value.UtcDateTime : DateTime.MinValue });
+
+        Connection.QuerySingle<(bool, DateTime)>("SELECT * FROM ext_instant_nullable(NULL::TIMESTAMPTZ)")
+            .Should().Be((true, DateTime.MinValue));
+        Connection.QuerySingle<(bool, DateTime)>("SELECT * FROM ext_instant_nullable(TIMESTAMPTZ '2024-02-29 13:45:30+02')")
+            .Should().Be((false, new DateTime(2024, 2, 29, 11, 45, 30)));
+    }
 }

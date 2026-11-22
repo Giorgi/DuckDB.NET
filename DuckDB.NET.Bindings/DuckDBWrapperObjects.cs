@@ -188,11 +188,11 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
             DuckDBType.TimeNs => Cast(new TimeOnly(NativeMethods.Value.DuckDBGetTimeNs(this).Ticks)),
             DuckDBType.TimeTz => Cast(GetTimeTzValue()),
             DuckDBType.Interval => Cast((TimeSpan)NativeMethods.Value.DuckDBGetInterval(this)),
-            DuckDBType.Timestamp => Cast(GetTimestampValue(NativeMethods.Value.DuckDBGetTimestamp(this),DuckDBType.Timestamp)),
-            DuckDBType.TimestampS => Cast(GetTimestampValue(NativeMethods.Value.DuckDBGetTimestampS(this), DuckDBType.TimestampS)),
-            DuckDBType.TimestampMs => Cast(GetTimestampValue(NativeMethods.Value.DuckDBGetTimestampMs(this), DuckDBType.TimestampMs)),
-            DuckDBType.TimestampNs => Cast(GetTimestampValue(NativeMethods.Value.DuckDBGetTimestampNs(this), DuckDBType.TimestampNs)),
-            DuckDBType.TimestampTz => Cast(GetTimestampValue(NativeMethods.Value.DuckDBGetTimestamp(this), DuckDBType.TimestampTz)),
+            DuckDBType.Timestamp => CastTimestamp(GetTimestampValue(NativeMethods.Value.DuckDBGetTimestamp(this), DuckDBType.Timestamp)),
+            DuckDBType.TimestampS => CastTimestamp(GetTimestampValue(NativeMethods.Value.DuckDBGetTimestampS(this), DuckDBType.TimestampS)),
+            DuckDBType.TimestampMs => CastTimestamp(GetTimestampValue(NativeMethods.Value.DuckDBGetTimestampMs(this), DuckDBType.TimestampMs)),
+            DuckDBType.TimestampNs => CastTimestamp(GetTimestampValue(NativeMethods.Value.DuckDBGetTimestampNs(this), DuckDBType.TimestampNs)),
+            DuckDBType.TimestampTz => CastTimestamp(GetTimestampValue(NativeMethods.Value.DuckDBGetTimestamp(this), DuckDBType.TimestampTz)),
             _ => throw new NotImplementedException($"Cannot read value of type {typeof(T).FullName}")
         };
 
@@ -202,6 +202,13 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
         static T Cast<TSource>(TSource value) => typeof(T) == typeof(TSource)
             ? Unsafe.As<TSource, T>(ref value)
             : value is T result ? result : throw CannotCast(typeof(TSource), typeof(T));
+
+        // A timestamp is a DateTime, or the instant at UTC when it is read as DateTimeOffset, as the column reader
+        // gives it. GetTimestampValue builds a DateTime of kind Unspecified, which an offset of zero accepts.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static T CastTimestamp(DateTime value) => typeof(T) == typeof(DateTimeOffset) || typeof(T) == typeof(DateTimeOffset?)
+            ? Cast(new DateTimeOffset(value, TimeSpan.Zero))
+            : Cast(value);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
