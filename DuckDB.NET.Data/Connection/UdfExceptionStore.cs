@@ -6,7 +6,8 @@ internal static class UdfExceptionStore
 {
     private static readonly ConcurrentDictionary<ulong, Exception> Exceptions = new();
 
-    internal static void Store(ulong connectionId, Exception exception) => Exceptions[connectionId] = exception;
+    // Nothing stores here any more: on C API V2 the callbacks of C# functions leave their exception with the connection
+    // (DuckDBV2Connection.CallbackException). The V1 Arrow stream still reads it until stage 7 of docs/V2-MIGRATION.md.
 
     internal static Exception? Retrieve(DuckDBNativeConnection nativeConnection)
     {
@@ -18,15 +19,6 @@ internal static class UdfExceptionStore
     private static ulong GetConnectionId(DuckDBNativeConnection nativeConnection)
     {
         NativeMethods.Startup.DuckDBConnectionGetClientContext(nativeConnection, out var context);
-        using (context)
-        {
-            return context.ConnectionId;
-        }
-    }
-
-    internal static ulong GetTableFunctionBindConnectionId(IntPtr bindInfo)
-    {
-        NativeMethods.TableFunction.DuckDBTableFunctionGetClientContext(bindInfo, out var context);
         using (context)
         {
             return context.ConnectionId;

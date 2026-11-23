@@ -234,6 +234,7 @@ public class HugeIntWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestB
 
     // 3,000 rows, so the values go into two chunks.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ATableFunctionReturnsInt128AndUInt128Columns()
     {
         Connection.RegisterTableFunction("int128_table",
@@ -256,6 +257,7 @@ public class HugeIntWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestB
     // A parameter of a table function is a DuckDB value, read by DuckDBValue.GetValue<T>, which makes an Int128, a
     // UInt128 or a BigInteger as asked.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ATableFunctionTakesInt128AndUInt128Parameters()
     {
         Connection.RegisterTableFunction("int128_parameters", (Int128 signed, UInt128 unsigned) => new[] { new WideParameters(signed, unsigned) },

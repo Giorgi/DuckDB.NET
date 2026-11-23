@@ -50,7 +50,9 @@ public unsafe class V2NamedParameterProbeTests
         Report(connection, "SELECT parameters, parameter_types FROM duckdb_functions() WHERE function_name = 'f_date'");
 
         // Reflection: a lambda with defaults, as a Func and as its natural delegate type.
+#pragma warning disable CS9099 // The warning is one of the findings.
         Func<int, string, int, string> asFunc = (int count, string prefix = "Mr.", int limit = 100) => prefix;
+#pragma warning restore CS9099
         var natural = (int count, string prefix = "Mr.", DateTime when = default, Guid id = default, string none = null) => prefix;
         foreach (var (label, method) in new[] { ("Func", asFunc.Method), ("natural", natural.Method) })
         {

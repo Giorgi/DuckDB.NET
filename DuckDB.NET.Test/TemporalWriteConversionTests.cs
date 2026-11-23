@@ -120,6 +120,7 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // The output of a table function reaches the same writers: a time written into a DATE column is refused there too.
     // The message is checked, not the inner exception, which UdfExceptionStore can mix up between parallel tests.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ATimeIsRefusedInADateColumnOfATableFunction()
     {
         var name = $"time_into_date_{Guid.NewGuid():N}";

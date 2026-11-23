@@ -43,6 +43,7 @@ public class BlobFunctionWriteTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ATableFunctionWritesAByteArrayColumn()
     {
         Connection.RegisterTableFunction("blob_rows",

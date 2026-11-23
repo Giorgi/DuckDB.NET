@@ -168,6 +168,7 @@ public class DecimalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestB
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ATableFunctionValueWithMoreDigitsThanItsTypeIsRefused()
     {
         Connection.RegisterTableFunction("decimal_write_table",

@@ -279,10 +279,6 @@ partial class DuckDBConnection
         }
     }
 
-    // The extra info of a V1 table function; stage 6 moves them to V2.
-    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static void DestroyExtraInfo(IntPtr pointer) => pointer.FreeHandle();
-
     // The function's info, disposed with it.
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static unsafe void DestroyHandle(void* pointer) => ((IntPtr)pointer).FreeHandle();

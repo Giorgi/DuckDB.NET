@@ -16,6 +16,10 @@ internal static unsafe class DuckDBV2Types
         return new DuckDBV2LogicalType(type);
     }
 
+    /// <summary>The logical type of a V1 type id, for the API that takes <see cref="DuckDBType"/>.</summary>
+    public static DuckDBV2LogicalType FromDuckDBType(IntPtr factory, DuckDBType type) =>
+        Ids.TryGetValue(type, out var id) ? FromId(factory, id) : throw new InvalidOperationException($"Cannot map {type} to a logical type.");
+
     public static DuckDBV2LogicalType FromText(IntPtr factory, string text)
     {
         using var buffer = DuckDBV2Utf8.FromManaged(text);

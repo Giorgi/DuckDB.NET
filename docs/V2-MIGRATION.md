@@ -267,17 +267,25 @@ keeps the base reader, as with V1.
      on another of the same database, a swallowed error, and every execution of a prepared statement.
    - 3990 test cases are marked V2-ready. The scalar function tests left out need the appender or materialized
      results.
-6. Table functions. Named parameters follow "Named parameters and defaults" below. The rest maps one to one:
+6. Table functions (done). Named parameters follow "Named parameters and defaults" below. The rest maps one to one:
    - **Scan:** V2 scans on one thread and keeps insertion order by default, as V1 does; the data enumerator is not
      thread-safe, so both stay. It is still created per scan init (the global init callback), not per bind, for
      recursive CTEs.
    - **Output and pushdown:** the output chunk comes from `exec_get_output_chunk`, its row count from
-     `vector_set_size` on its first vector. Projection pushdown and cardinality have direct calls. A query that
-     reads no column (`count(*)`) with projection pushdown needs a test: the chunk may have no vector to size.
+     `vector_set_size` on its first vector. Projection pushdown and cardinality have direct calls. `count(*)` still
+     gets one column from DuckDB (`AQueryThatReadsNoColumnCountsTheRows`); with none there is no vector to size, and
+     the code skips it.
    - **Exceptions:** through the bind data, as for scalar functions; the bind callback is ours, so the connection
      goes next to the function's data.
-   - **Parameter values:** V2 hands values (`function_bind_get_arg_value`), so `IDuckDBValueReader` needs a V2
-     implementation with the conversions of `DuckDBValue.GetValue<T>`.
+   - **Parameter values:** V2 hands values (`function_bind_get_arg_value`), read by `DuckDBV2ValueReader`, which has
+     the conversions of `DuckDBValue.GetValue<T>` case for case. A LIST parameter cannot be read, as with V1.
+   - **Named parameters** are registered `NAMED_ONLY`, with the default from `[Named(Default = ...)]`, cast at
+     registration; positional ones `POSITIONAL_ONLY`. Changed tests: `RegisterTableFunctionNamedParameter` and
+     `...MultipleNamedParameters` declare `Default = null`; `...NonNullableThrows` expects DuckDB's "Required parameter
+     "limit" is missing". New: `ANullableNamedParameterWithoutADefaultIsRequired`, `NamedParametersTakeTheirDefaults`,
+     `ADefaultThatIsNotOfTheParameterTypeIsRefusedAtRegistration`, `ACSharpDefaultOnANamedParameterIsRefused`.
+   - `UdfExceptionStore` is no longer written to; the V1 Arrow stream still reads it until stage 7. 4081 test cases
+     are marked V2-ready.
 7. Arrow: results through `statement_execute_arrow`. `DuckDBArrowAppender` has no direct path in V2.
 8. Cleanup: the connection string builder enumerates the options through V2, Data stops using V1, the fate of the V1
    declarations in Bindings is decided, and CI runs the whole test suite again.

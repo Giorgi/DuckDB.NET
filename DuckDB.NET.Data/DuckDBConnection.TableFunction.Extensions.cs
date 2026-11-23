@@ -10,7 +10,7 @@ namespace DuckDB.NET.Data;
 
 public static class DuckDBConnectionTableFunctionExtensions
 {
-    private record TableFunctionParameter(string? NamedAs, int? PositionalIndex, Type Type, bool IsProjection = false)
+    private record TableFunctionParameter(string? NamedAs, int? PositionalIndex, Type Type, bool IsProjection = false, bool HasDefault = false, object? Default = null)
     {
         public bool IsNamed => NamedAs is not null;
     }
@@ -352,7 +352,7 @@ public static class DuckDBConnectionTableFunctionExtensions
                                          Func<IReadOnlyList<IDuckDBValueReader>, IReadOnlyDictionary<string, IDuckDBValueReader>, TableFunction> bind,
                                          TableFunctionScanFactory createScan)
     {
-        var positionalTypes = new List<DuckDBLogicalType>();
+        var positionalTypes = new List<Type>();
         var namedDefinitions = new List<NamedParameterDefinition>();
 
         foreach (var param in parameters)
@@ -360,12 +360,12 @@ public static class DuckDBConnectionTableFunctionExtensions
             if (param.IsProjection)
                 continue;
             if (param.IsNamed)
-                namedDefinitions.Add(new(param.NamedAs!, param.Type));
+                namedDefinitions.Add(new(param.NamedAs!, param.Type, param.HasDefault, param.Default));
             else
-                positionalTypes.Add(param.Type.GetLogicalType());
+                positionalTypes.Add(param.Type);
         }
 
-        connection.RegisterTableFunctionInternal(name, bind, createScan, positionalTypes.ToArray(), namedDefinitions.ToArray());
+        connection.RegisterTableFunctionInternal(name, bind, createScan, DuckDBConnection.ForClrTypes(positionalTypes), namedDefinitions.ToArray());
     }
 
     private static TableFunctionParameter[] AnalyzeParameters(ParameterInfo[] methodParams)
@@ -391,8 +391,17 @@ public static class DuckDBConnectionTableFunctionExtensions
             }
 
             var attr = methodParams[parameterIndex].GetCustomAttribute<NamedAttribute>();
+
+            // A C# default on the lambda is warning CS9099 and would be ignored, so it is refused: the default of a
+            // named parameter is NamedAttribute.Default (docs/V2-MIGRATION.md, "Named parameters and defaults").
+            if (attr is not null && methodParams[parameterIndex].HasDefaultValue)
+            {
+                throw new InvalidOperationException(
+                    $"Named parameter '{attr.Name ?? methodParams[parameterIndex].Name}' has a C# default value. Give the default as [Named(Default = ...)] instead.");
+            }
+
             result[parameterIndex] = attr is not null
-                ? new(attr.Name ?? methodParams[parameterIndex].Name!, null, methodParams[parameterIndex].ParameterType)
+                ? new(attr.Name ?? methodParams[parameterIndex].Name!, null, methodParams[parameterIndex].ParameterType, HasDefault: attr.HasDefault, Default: attr.Default)
                 : new(null, nextPositional++, methodParams[parameterIndex].ParameterType);
         }
 

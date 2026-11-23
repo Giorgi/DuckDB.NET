@@ -1,3 +1,4 @@
+using System.Globalization;
 #nullable enable
 
 namespace DuckDB.NET.Test;
@@ -16,6 +17,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
         Enumerable.Range(1, count).Select(i => new Employee(i, $"Employee{i}", 50000 + i * 100));
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedZeroParams()
     {
         var employees = new[]
@@ -34,6 +36,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedOneParam()
     {
         Connection.RegisterTableFunction("ext_one",
@@ -46,6 +49,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedTwoParams()
     {
         Connection.RegisterTableFunction("ext_two",
@@ -60,6 +64,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedComputedColumns()
     {
         Connection.RegisterTableFunction("ext_computed",
@@ -72,6 +77,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedMemberInit()
     {
         Connection.RegisterTableFunction("ext_init",
@@ -84,6 +90,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedLargeResultSet()
     {
         Connection.RegisterTableFunction("ext_large",
@@ -98,6 +105,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedAsyncEnumerable()
     {
         Connection.RegisterTableFunction("ext_async",
@@ -122,6 +130,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedThreeParams()
     {
         Connection.RegisterTableFunction("ext_three",
@@ -134,6 +143,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedFourParams()
     {
         Connection.RegisterTableFunction("ext_four",
@@ -147,6 +157,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedNullableProjectionColumn()
     {
         var employees = new[]
@@ -166,6 +177,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedNullIntParameter()
     {
         Connection.RegisterTableFunction("ext_null_int",
@@ -177,6 +189,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedNullStringParameter()
     {
         Connection.RegisterTableFunction("ext_null_string",
@@ -188,6 +201,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedNullableIntParameter()
     {
         Connection.RegisterTableFunction("ext_null_nullable",
@@ -202,9 +216,10 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionNamedParameter()
     {
-        Connection.RegisterTableFunction("ext_named", (int count, [Named] string? prefix) =>
+        Connection.RegisterTableFunction("ext_named", (int count, [Named(Default = null)] string? prefix) =>
                 GetEmployees(count).Select(e => e with { Name = (prefix ?? "") + e.Name }),
             e => new { e.Id, e.Name });
 
@@ -220,10 +235,11 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionMultipleNamedParameters()
     {
         Connection.RegisterTableFunction("ext_multi_named",
-            (int count, [Named] string? prefix, [Named] double? multiplier) =>
+            (int count, [Named(Default = null)] string? prefix, [Named(Default = null)] double? multiplier) =>
                 GetEmployees(count).Select(e => e with
                 {
                     Name = (prefix ?? "") + e.Name,
@@ -242,6 +258,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionNamedParameterCustomName()
     {
         Connection.RegisterTableFunction("ext_custom_name", (int count, [Named("max_rows")] int? limit) => GetEmployees(limit ?? count), e => new { e.Id, e.Name });
@@ -251,18 +268,96 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionNamedParameterNonNullableThrows()
     {
         Connection.RegisterTableFunction("ext_named_nonnull",
             (int count, [Named] int limit) => GetEmployees(count).Take(limit),
             e => new { e.Id, e.Name });
 
+        // A named parameter without a default is required: DuckDB refuses the call before the function runs.
         Connection.Invoking(c => c.Query<(int, string)>("SELECT * FROM ext_named_nonnull(5);"))
+            .Should().Throw<DuckDBException>()
+            .WithMessage("*Required parameter \"limit\" is missing*");
+
+        Connection.Invoking(c => c.Query<(int, string)>("SELECT * FROM ext_named_nonnull(5, \"limit\" = NULL);"))
             .Should().Throw<DuckDBException>()
             .WithMessage("*named parameter 'limit' is NULL*non-nullable*");
     }
 
+    // Nullable or not, a named parameter without a default is required: a forgotten argument is an error, not NULL.
     [Fact]
+    [Trait("V2", "Ready")]
+    public void ANullableNamedParameterWithoutADefaultIsRequired()
+    {
+        Connection.RegisterTableFunction("ext_named_required", (int count, [Named] string? prefix) =>
+                GetEmployees(count).Select(e => e with { Name = (prefix ?? "none: ") + e.Name }),
+            e => new { e.Id, e.Name });
+
+        Connection.Invoking(c => c.Query<(int, string)>("SELECT * FROM ext_named_required(1);"))
+            .Should().Throw<DuckDBException>()
+            .WithMessage("*Required parameter \"prefix\" is missing*");
+
+        Connection.Query<(int, string)>("SELECT * FROM ext_named_required(1, prefix = NULL);").Should().Equal((1, "none: Employee1"));
+    }
+
+    [Fact]
+    [Trait("V2", "Ready")]
+    public void NamedParametersTakeTheirDefaults()
+    {
+        Connection.RegisterTableFunction("ext_defaults",
+            ([Named(Default = 2)] int count, [Named(Default = "Mr. ")] string prefix, [Named(Default = "2024-01-31")] DateOnly from, [Named(Default = "12.5")] decimal rate) =>
+                GetEmployees(count).Select(e => e with { Name = $"{prefix}{e.Name} {from:yyyy-MM-dd} {rate == 12.5m}" }),
+            e => new { e.Id, e.Name });
+
+        Connection.Query<(int, string)>("SELECT * FROM ext_defaults();").Should().Equal(
+            (1, "Mr. Employee1 2024-01-31 True"), (2, "Mr. Employee2 2024-01-31 True"));
+
+        Connection.Query<(int, string)>("SELECT * FROM ext_defaults(count = 1, prefix = 'Dr. ');").Should().Equal(
+            (1, "Dr. Employee1 2024-01-31 True"));
+
+        Connection.RegisterTableFunction("ext_defaults_text",
+            (int count, [Named(Default = "00000000-0000-0000-0000-000000000001")] Guid id, [Named(Default = "12:30:00")] TimeOnly starts) =>
+                GetEmployees(count).Select(e => e with { Name = $"{id} {starts:HH:mm}" }),
+            e => new { e.Id, e.Name });
+
+        Connection.Query<(int, string)>("SELECT * FROM ext_defaults_text(1);").Should().Equal((1, "00000000-0000-0000-0000-000000000001 12:30"));
+        Connection.Query<(int, string)>("SELECT * FROM ext_defaults_text(1, starts = TIME '08:05:00');").Should().Equal((1, "00000000-0000-0000-0000-000000000001 08:05"));
+    }
+
+    // count(*) reads no column. With projection pushdown the output chunk may then have no vector to set the size of.
+    [Fact]
+    [Trait("V2", "Ready")]
+    public void AQueryThatReadsNoColumnCountsTheRows()
+    {
+        Connection.RegisterTableFunction("ext_count_only", (int count) => GetEmployees(count), e => new { e.Id, e.Name });
+
+        Connection.QuerySingle<long>("SELECT count(*) FROM ext_count_only(5000)").Should().Be(5000);
+        Connection.QuerySingle<long>("SELECT count(*) FROM ext_count_only(0)").Should().Be(0);
+    }
+
+    [Fact]
+    [Trait("V2", "Ready")]
+    public void ADefaultThatIsNotOfTheParameterTypeIsRefusedAtRegistration()
+    {
+        Connection.Invoking(c => c.RegisterTableFunction("ext_bad_default", ([Named(Default = "not a date")] DateOnly from) => GetEmployees(1), e => new { e.Id }))
+            .Should().Throw<InvalidOperationException>()
+            .WithMessage("*'not a date'*'from'*ext_bad_default*");
+    }
+
+    [Fact]
+    [Trait("V2", "Ready")]
+    public void ACSharpDefaultOnANamedParameterIsRefused()
+    {
+#pragma warning disable CS9099 // The default value is what the test is about.
+        Connection.Invoking(c => c.RegisterTableFunction("ext_csharp_default", (int count, [Named] int limit = 3) => GetEmployees(count).Take(limit), e => new { e.Id }))
+#pragma warning restore CS9099
+            .Should().Throw<InvalidOperationException>()
+            .WithMessage("*'limit'*[Named(Default = ...)]*");
+    }
+
+    [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionProjection_ZeroSqlParams()
     {
         IReadOnlyList<ProjectedColumn> captured = [];
@@ -285,6 +380,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionProjection_OneSqlParam()
     {
         IReadOnlyList<ProjectedColumn> captured = [];
@@ -305,6 +401,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionProjection_MixedPositionalAndNamed()
     {
         IReadOnlyList<ProjectedColumn> captured = [];
@@ -324,6 +421,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionProjection_SourceSideNarrowing()
     {
         // Factory records which columns it fetched, simulating a narrow remote read.
@@ -367,6 +465,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedRecursiveCte()
     {
         // Regression test for https://github.com/Giorgi/DuckDB.NET/issues/348
@@ -389,6 +488,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionProjection_FactoryThrows_InnerExceptionPreserved()
     {
         var originalException = new NotSupportedException("custom factory error");
@@ -447,6 +547,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     // The projection is compiled into a method that writes a row, for the columns that the query reads. The value
     // of a column that the query does not read is not asked for.
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedReadsEachColumnOnceForARow()
     {
         const int rowCount = 5000;
@@ -505,6 +606,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     // type on the way, class or struct. More rows than two chunks hold, so that a scan that loses its place between
     // chunks shows. Each function is also scanned twice in one query: both scans have to start at the first row.
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedReadsEverySourceTheSameWay()
     {
         const int rowCount = 5000;
@@ -576,6 +678,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     // function is read, and the rows of the chunks that follow would shift. The scan compares the length of the
     // list for every chunk and refuses one that changed, as the enumerator of the list did.
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedRefusesAListThatChangesLength()
     {
         Connection.RegisterTableFunction("list_grows", () => changingRows, row => new { Value = AddARowAt(row, 100) });
@@ -622,6 +725,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     // class derived from it, in an array of the derived class, values that implement an interface, or nullable
     // values.
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedReadsRowsOfADerivedOrNullableType()
     {
         Dog[] dogs = [new Dog { Name = "Rex" }, new Dog { Name = "Bella" }];
@@ -649,6 +753,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     [InlineData(2048)]
     [InlineData(2049)]
     [InlineData(4096)]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedReadsEveryRowAtTheEdgeOfAChunk(int rowCount)
     {
         var rows = Enumerable.Range(0, rowCount).ToArray();
@@ -666,6 +771,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     // A recursive query starts the scan of the function again for every round, without binding it again. An
     // array and a List are read by a position that the scan keeps, so each scan has to start at the first row.
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedRecursiveCteOverAnArrayAndAList()
     {
         var employees = GetEmployees(5).ToArray();
@@ -731,6 +837,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     // The enumerator of the rows belongs to a scan and is disposed with it: when the scan has read every row,
     // when the query needs no more rows, and when the source or the projection throws.
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedDisposesTheEnumeratorOfEveryScan()
     {
         var rows = new TrackedRows(5000);
@@ -762,6 +869,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     // A query that reads no column of the function, such as count(*). DuckDB asks for the first column then, so
     // the expression of the first column is the one that is evaluated, and the others are not.
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedEvaluatesTheFirstColumnForAQueryThatReadsNone()
     {
         const int rowCount = 5000;
@@ -787,6 +895,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     [InlineData("TIMESTAMP '2024-02-29 13:45:30.123456'", "2024-02-29T13:45:30.1234560")]
     [InlineData("TIMESTAMP_S '2024-02-29 13:45:30'", "2024-02-29T13:45:30.0000000")]
     [InlineData("TIMESTAMP_MS '2024-02-29 13:45:30.123'", "2024-02-29T13:45:30.1230000")]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedReadsATimestampAsDateTimeOffset(string argument, string expectedUtc)
     {
         var expected = DateTime.Parse(expectedUtc, System.Globalization.CultureInfo.InvariantCulture);
@@ -808,6 +917,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedReadsANullableDateTimeOffset()
     {
         Connection.RegisterTableFunction("ext_instant_nullable",

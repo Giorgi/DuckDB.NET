@@ -119,8 +119,9 @@ dotnet run -c Release -f net10.0 --project DuckDB.NET.Benchmarks -- --filter "*N
   `OperationCanceledException`. An exception thrown by a C# UDF is attached as `InnerException` through
   `UdfExceptionStore`, which is keyed by connection ID. Connection IDs repeat across databases, so parallel tests on
   different databases can see each other's stored exception. This is a known flaky test source. On `nightly-vnext`
-  scalar functions use the function's bind data instead (`DuckDBV2CallbackScope`, `docs/V2-MIGRATION.md` stage 5);
-  table functions still use the store until stage 6.
+  scalar and table functions use the function's bind data instead (`DuckDBV2CallbackScope`, `docs/V2-MIGRATION.md`
+  stages 5 and 6). A named parameter of a table function is required unless `[Named(Default = ...)]` gives it a
+  default ("Named parameters and defaults" in the same file).
 - **`DuckDBDataReader`:** reads one chunk at a time and creates readers through `VectorDataReaderFactory`, one per
   column. Composite readers (struct, list, map) hold child readers. After the first chunk, readers are
   reused through `VectorDataReaderBase.Reset(IntPtr vector)`. A new `VectorDataReaderBase` subclass must be
