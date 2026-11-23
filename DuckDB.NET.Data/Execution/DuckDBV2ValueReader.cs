@@ -157,7 +157,7 @@ internal sealed unsafe class DuckDBV2ValueReader : IDuckDBValueReader, IDisposab
         DuckDBDateOnly.FromDuckDBDate(new DuckDBDate { Days = Get<int>(pointer, &NativeMethodsV2.duckdb_v2_value_get_date) });
 
     private static DuckDBTimeOnly GetTime(_duckdb_v2_value* pointer) =>
-        NativeMethods.DateTimeHelpers.DuckDBFromTime(new DuckDBTime { Micros = Get<long>(pointer, &NativeMethodsV2.duckdb_v2_value_get_time) });
+        DuckDBTimeConversions.FromTime(Get<long>(pointer, &NativeMethodsV2.duckdb_v2_value_get_time));
 
     private static DuckDBTimeNs GetTimeNs(_duckdb_v2_value* pointer) =>
         new() { Nanos = Get<long>(pointer, &NativeMethodsV2.duckdb_v2_value_get_time_ns) };
@@ -166,7 +166,7 @@ internal sealed unsafe class DuckDBV2ValueReader : IDuckDBValueReader, IDisposab
     // positive offset would be an instant before year 1.
     private static DateTimeOffset GetTimeTz(_duckdb_v2_value* pointer)
     {
-        var timeTz = NativeMethods.DateTimeHelpers.DuckDBFromTimeTz(new DuckDBTimeTzStruct { Bits = Get<ulong>(pointer, &NativeMethodsV2.duckdb_v2_value_get_time_tz) });
+        var timeTz = DuckDBTimeConversions.FromTimeTz(Get<ulong>(pointer, &NativeMethodsV2.duckdb_v2_value_get_time_tz));
         return new DateTimeOffset(timeTz.Time.ToDateTime().AddDays(1), TimeSpan.FromSeconds(timeTz.Offset));
     }
 

@@ -490,7 +490,9 @@ partial class DuckDBConnection
                 throw new InvalidOperationException("User defined table function failed. No data source available");
             }
 
-            var size = scan.Fill(tableFunctionInitData.Writers, DuckDBGlobalData.VectorSize);
+            ulong capacity;
+            Check(NativeMethodsV2.duckdb_v2_data_chunk_get_capacity(chunk, &capacity, null));
+            var size = scan.Fill(tableFunctionInitData.Writers, capacity);
 
             // The size of the batch is set on its first vector; DuckDB takes it for the whole chunk. A scan whose query
             // reads no column has no vector.

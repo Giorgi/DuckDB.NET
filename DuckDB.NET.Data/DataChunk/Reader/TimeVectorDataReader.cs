@@ -83,6 +83,6 @@ internal sealed class TimeVectorDataReader<TStorage> : VectorDataReaderBase wher
             return Unsafe.As<TStorage, DuckDBTimeNs>(ref value).ToDuckDBTimeOnly();
         }
 
-        return NativeMethods.DateTimeHelpers.DuckDBFromTime(Unsafe.As<TStorage, DuckDBTime>(ref value));
+        return DuckDBTimeConversions.FromTime(Unsafe.As<TStorage, DuckDBTime>(ref value).Micros);
     }
 }

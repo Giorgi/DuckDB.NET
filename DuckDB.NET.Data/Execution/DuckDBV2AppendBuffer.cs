@@ -95,6 +95,19 @@ internal sealed unsafe class DuckDBV2AppendBuffer : IDisposable
 
     public int ColumnCount => ColumnTypes.Length;
 
+    /// <summary>How many rows the chunk holds.</summary>
+    public ulong Capacity
+    {
+        get
+        {
+            using var lease = chunk.Acquire();
+            _duckdb_v2_error_info* error = null;
+            ulong capacity;
+            NativeMethodsV2.duckdb_v2_data_chunk_get_capacity(lease.Pointer, &capacity, &error).ThrowIfFailed(ref error);
+            return capacity;
+        }
+    }
+
     /// <summary>Column <paramref name="index"/> of the chunk the writers fill. It changes after each chunk is buffered.</summary>
     public _duckdb_v2_vector* GetVector(int index) => DataChunk.Reader.DuckDBV2Vectors.GetVector(chunk, index);
 

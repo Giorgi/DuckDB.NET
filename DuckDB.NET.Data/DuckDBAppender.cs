@@ -28,7 +28,8 @@ public class DuckDBAppender : IDisposable
     private DuckDBAppenderRow? currentRow;
 
     // Per row of the chunk, which columns it leaves to their defaults (DuckDBV2AppendBuffer.GetPattern); 0 for none.
-    private readonly int[] rowPatterns = new int[DuckDBGlobalData.VectorSize];
+    private readonly int[] rowPatterns;
+    private readonly ulong chunkCapacity;
     private readonly bool[] defaultedColumns;
     private bool rowHasDefaults;
 
@@ -38,6 +39,8 @@ public class DuckDBAppender : IDisposable
         this.qualifiedTableName = qualifiedTableName;
 
         vectorWriters = new VectorDataWriterBase[buffer.ColumnCount];
+        chunkCapacity = buffer.Capacity;
+        rowPatterns = new int[chunkCapacity];
         defaultedColumns = new bool[buffer.ColumnCount];
         columnTypes = Array.ConvertAll(buffer.ColumnTypes, type =>
         {
@@ -174,7 +177,7 @@ public class DuckDBAppender : IDisposable
 
     private ulong PrepareRow()
     {
-        if (rowCount % DuckDBGlobalData.VectorSize == 0)
+        if (rowCount % chunkCapacity == 0)
         {
             AppendDataChunk();
 

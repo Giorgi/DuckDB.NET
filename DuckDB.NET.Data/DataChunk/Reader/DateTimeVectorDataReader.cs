@@ -198,7 +198,7 @@ internal sealed class DateTimeVectorDataReader : VectorDataReaderBase
     {
         var data = GetFieldData<DuckDBTimeTzStruct>(offset);
 
-        return NativeMethods.DateTimeHelpers.DuckDBFromTimeTz(data);
+        return DuckDBTimeConversions.FromTimeTz(data.Bits);
     }
 
     private object GetDate(ulong offset, Type targetType)
