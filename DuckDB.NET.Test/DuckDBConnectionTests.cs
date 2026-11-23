@@ -113,6 +113,7 @@ public class DuckDBConnectionTests
     [Fact]
     [Trait("Category", "Long Running")]
     [Trait("Stress", "Connection")]
+    [Trait("V2", "Ready")]
     public async Task MultiThreadedStress()
     {
         //with 1 task per file, should be good mix of reusing connections
