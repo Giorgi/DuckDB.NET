@@ -345,6 +345,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionProjection_MisplacedRejected()
     {
         var act = () => Connection.RegisterTableFunction("ext_proj_misplaced",
@@ -355,6 +356,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionProjection_NamedOnProjectionRejected()
     {
         var act = () => Connection.RegisterTableFunction("ext_proj_named",
@@ -404,6 +406,7 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     record EmployeeName(int Id, string Name);
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterTableFunctionSimplifiedConstructorCallRejected()
     {
         var employees = GetEmployees(3);

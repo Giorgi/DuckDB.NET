@@ -12,6 +12,7 @@ public class DuckDBHugeIntTests
     // rest of the process. So the test loads a second copy of the assembly and reads the limits from that copy,
     // under a culture that does not write the negative sign as "-".
     [Fact]
+    [Trait("V2", "Ready")]
     public void LimitsDoNotDependOnTheCurrentCulture()
     {
         var culture = (CultureInfo)CultureInfo.InvariantCulture.Clone();
@@ -55,6 +56,7 @@ public class DuckDBHugeIntTests
     [InlineData("-18446744073709551617")]
     [InlineData("170141183460469231731687303715884105727")]     // the largest HUGEINT
     [InlineData("-170141183460469231731687303715884105728")]    // the smallest HUGEINT
+    [Trait("V2", "Ready")]
     public void HugeIntToBigIntegerGivesBackTheValue(string text)
     {
         var value = BigInteger.Parse(text, CultureInfo.InvariantCulture);
@@ -88,6 +90,7 @@ public class DuckDBHugeIntTests
     [InlineData("18446744073709551616")]
     [InlineData("170141183460469231731687303715884105728")]     // above the largest HUGEINT: the top bit is set
     [InlineData("340282366920938463463374607431768211455")]     // the largest UHUGEINT
+    [Trait("V2", "Ready")]
     public void UHugeIntToBigIntegerGivesBackTheValue(string text)
     {
         var value = BigInteger.Parse(text, CultureInfo.InvariantCulture);
@@ -114,6 +117,7 @@ public class DuckDBHugeIntTests
     [InlineData("-170141183460469231731687303715884105729")]    // the smallest HUGEINT - 1
     [InlineData("340282366920938463463374607431768211456")]     // 2^128: one bit more than an Int128 has
     [InlineData("-340282366920938463463374607431768211456")]
+    [Trait("V2", "Ready")]
     public void HugeIntRejectsAValueOutOfRange(string text)
     {
         var value = BigInteger.Parse(text, CultureInfo.InvariantCulture);
@@ -127,6 +131,7 @@ public class DuckDBHugeIntTests
     [InlineData("-1")]
     [InlineData("-170141183460469231731687303715884105728")]    // fits an Int128, and is still not a UHUGEINT
     [InlineData("340282366920938463463374607431768211456")]     // the largest UHUGEINT + 1
+    [Trait("V2", "Ready")]
     public void UHugeIntRejectsAValueOutOfRange(string text)
     {
         var value = BigInteger.Parse(text, CultureInfo.InvariantCulture);

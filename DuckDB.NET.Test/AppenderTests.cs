@@ -3,6 +3,7 @@ namespace DuckDB.NET.Test;
 public class DuckDBAppenderTests
 {
     [Fact]
+    [Trait("V2", "Ready")]
     public void AppenderTests()
     {
         var result = NativeMethods.Startup.DuckDBOpen((string)null, out var database);

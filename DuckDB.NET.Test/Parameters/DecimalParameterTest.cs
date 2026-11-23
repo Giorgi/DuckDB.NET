@@ -21,7 +21,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
             var scalar = Command.ExecuteScalar();
             scalar.Should().Be(value);
 
-            var reader = Command.ExecuteReader();
+            using var reader = Command.ExecuteReader();
             reader.Read();
             var receivedValue = reader.GetDecimal(0);
             receivedValue.Should().Be(value);
@@ -38,7 +38,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
             var scalar = Command.ExecuteScalar();
             scalar.Should().Be(value);
 
-            var reader = Command.ExecuteReader();
+            using var reader = Command.ExecuteReader();
             reader.Read();
             var receivedValue = reader.GetDecimal(0);
             receivedValue.Should().Be(value);
@@ -88,7 +88,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
                 var scalar = Command.ExecuteScalar();
                 scalar.Should().Be(value);
 
-                var reader = Command.ExecuteReader();
+                using var reader = Command.ExecuteReader();
                 reader.Read();
 
                 var receivedValue = reader.GetDecimal(0);
@@ -130,7 +130,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
                 var scalar = Command.ExecuteScalar();
                 scalar.Should().Be(value);
 
-                var reader = Command.ExecuteReader();
+                using var reader = Command.ExecuteReader();
                 reader.Read();
 
                 var receivedValue = reader.GetDecimal(0);
@@ -503,6 +503,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [InlineData("0.00", 18, 1, 18, 1)]          // zero with extra zeros after the point
     [InlineData("-79228162514264337593543950335", 38, 9, 38, 9)]     // decimal.MinValue
     [InlineData("-79228162514264337593543950335", 38, 10, 29, 0)]
+    [Trait("V2", "Ready")]
     public void DecimalIsSentWithTheParametersWidthAndScaleWhenItFits(string text, byte width, byte scale, byte sentWidth, byte sentScale)
     {
         var value = decimal.Parse(text, CultureInfo.InvariantCulture);
@@ -593,6 +594,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
     // ADO.NET infers DbType.Decimal for a decimal value, and GetSchema("DataTypes") maps DECIMAL to System.Decimal.
     [Fact]
+    [Trait("V2", "Ready")]
     public void DecimalValueInfersDbTypeDecimal()
     {
         new DuckDBParameter(1.5m).DbType.Should().Be(DbType.Decimal);

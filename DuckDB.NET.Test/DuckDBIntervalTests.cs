@@ -15,6 +15,7 @@ public class DuckDBIntervalTests
     [InlineData(13, 24 * 3600e6, "14.00:00:00")]
     [InlineData(0, 24 * 3600e6 + 15 * 3600e6 + 60e6, "1.15:01:00")]
     [InlineData(13, 24 * 3600e6 + 60e6, "14.00:01:00")]
+    [Trait("V2", "Ready")]
     public void ToTimeSpan_ValidValue_ExpectedResult(int days, ulong micros, string ts)
     {
         var interval = new DuckDBInterval(0, days, micros);
@@ -24,6 +25,7 @@ public class DuckDBIntervalTests
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ToTimeSpan_MonthInterval_Exception()
     {
         var interval = new DuckDBInterval(1, 0, 0);
@@ -32,6 +34,7 @@ public class DuckDBIntervalTests
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ToTimeSpan_TooBigMicros_Exception()
     {
         var interval = new DuckDBInterval(0, 0, ((ulong)long.MaxValue) + 1);
@@ -40,6 +43,7 @@ public class DuckDBIntervalTests
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ToTimeSpan_TooBigDays_Exception()
     {
         var interval = new DuckDBInterval(0, int.MaxValue, (ulong)24 * 60 * 60 * 1000 * 1000);
@@ -55,6 +59,7 @@ public class DuckDBIntervalTests
     [InlineData(1, -3_600_000_000L, "23:00:00")]
     [InlineData(-2, 0L, "-2.00:00:00")]
     [InlineData(-1, 25 * 3_600_000_000L, "01:00:00")]
+    [Trait("V2", "Ready")]
     public void ToTimeSpan_NegativeValue_ExpectedResult(int days, long micros, string ts)
     {
         var interval = new DuckDBInterval(0, days, unchecked((ulong)micros));
@@ -64,6 +69,7 @@ public class DuckDBIntervalTests
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ToTimeSpan_NegativeMonthInterval_Exception()
     {
         var interval = new DuckDBInterval(-1, 0, 0);
@@ -72,6 +78,7 @@ public class DuckDBIntervalTests
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ToTimeSpan_TooSmall_Exception()
     {
         var interval = new DuckDBInterval(0, int.MinValue, unchecked((ulong)long.MinValue));
@@ -83,6 +90,7 @@ public class DuckDBIntervalTests
     [InlineData("-01:30:00", 0, -5_400_000_000L)]
     [InlineData("-1.01:00:00", -1, -3_600_000_000L)]
     [InlineData("-00:00:00.0000017", 0, -1L)]
+    [Trait("V2", "Ready")]
     public void ToDuckDBInterval_NegativeValue_ExpectedResult(string ts, int days, long micros)
     {
         DuckDBInterval interval = TimeSpan.Parse(ts);
@@ -92,6 +100,7 @@ public class DuckDBIntervalTests
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ToDuckDBInterval_ValidValue_ExpectedResult()
     {
         DuckDBInterval ts = new TimeSpan(5, 17, 12, 45);
@@ -101,6 +110,7 @@ public class DuckDBIntervalTests
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void IntervalsAreEqualWhenTheirThreePartsAre()
     {
         var interval = new DuckDBInterval(1, 2, 3);

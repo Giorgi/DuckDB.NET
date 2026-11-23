@@ -7,6 +7,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
 {
     // https://learn.microsoft.com/dotnet/api/system.data.common.dbparameter.direction: "The default is Input."
     [Fact]
+    [Trait("V2", "Ready")]
     public void ParameterDirectionDefaultsToInput()
     {
         new DuckDBParameter().Direction.Should().Be(ParameterDirection.Input);
@@ -83,7 +84,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
         Command.CommandText = "select * from ParameterConstructorTests";
         Command.Parameters.Clear();
 
-        var dataReader = Command.ExecuteReader();
+        using var dataReader = Command.ExecuteReader();
         dataReader.Read();
 
         dataReader.GetInt32(0).Should().Be(2);
@@ -94,6 +95,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void DuckDBParameterCollectionTests()
     {
         var parameters = new DuckDBParameterCollection();
@@ -121,6 +123,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
 
     // Generic data code holds the collection as DbParameterCollection, which routes to the object-typed members.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ParameterCollectionWorksThroughTheBaseType()
     {
         DbParameterCollection parameters = new DuckDBParameterCollection();
@@ -160,6 +163,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void MissingParameterNameIsReportedTheSameWayOnEveryPath()
     {
         var typedParameters = new DuckDBParameterCollection { new DuckDBParameter("present", 1) };

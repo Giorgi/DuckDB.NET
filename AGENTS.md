@@ -111,8 +111,9 @@ dotnet run -c Release -f net10.0 --project DuckDB.NET.Benchmarks -- --filter "*N
   path, the statement store or a parameter conversion, read `DESIGN.md` in `PreparedStatement`:** it describes both
   paths, the conversion order, what DuckDB 2.0 does with a prepared statement, and the rules that must hold
   (iterators, rent/return, clearing bindings, destroying statements before the database goes).
-- **Result modes:** `UseStreamingMode` **defaults to `false`**, so results are materialized. `true` uses
-  `duckdb_execute_prepared_streaming` and `duckdb_stream_fetch_chunk`.
+- **Result modes:** on `nightly-vnext` (the V2 migration) results only stream: `UseStreamingMode` defaults to
+  `true`, `false` throws `NotSupportedException`, and a connection has one open reader at a time. See
+  `docs/V2-MIGRATION.md`, stage 2.
 - **Errors:** every native result error goes through `DuckDBResultExtensions.ThrowOnError`. An interrupt becomes
   `OperationCanceledException`. An exception thrown by a C# UDF is attached as `InnerException` through
   `UdfExceptionStore`, which is keyed by connection ID. Connection IDs repeat across databases, so parallel tests on

@@ -11,6 +11,13 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
         reader.Read();
     }
 
+    // A streaming result keeps the connection busy until its reader is closed.
+    public override void Dispose()
+    {
+        reader?.Dispose();
+        base.Dispose();
+    }
+
     private void VerifyDataStruct<T>(string columnName, int columnIndex, IReadOnlyList<T> data, Type providerSpecificType = null, bool readProviderSpecificValue = false) where T : struct
     {
         reader.GetOrdinal(columnName).Should().Be(columnIndex);

@@ -508,7 +508,7 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
         }
 
         Command.CommandText = $"SELECT * FROM {table} order by 1";
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
 
         var index = 0;
         while (reader.Read())

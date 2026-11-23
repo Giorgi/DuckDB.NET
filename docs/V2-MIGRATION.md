@@ -97,23 +97,55 @@ No behaviour change.
 
 ## Stage 2: queries without parameters
 
-- `DuckDBCommand` runs `parse_sql`, iterates the statements and calls `statement_execute`; the V1 `DuckDBResult`
-  struct is replaced by a result handle. `ExecuteNonQuery` reads the changed rows with `result_drain`. With several
-  statements, `NextResult` executes the next one only after the current one is finished.
-- The one open result per connection rule needs a policy: starting a command while a reader is open fails with
-  `RESOURCE_IN_USE`. The proposal is to throw a clear `InvalidOperationException`, as SqlClient does without MARS, and
-  document it. The alternative is to drain the open reader into managed memory.
-- `DuckDBDataReader` uses `result_fetch_chunk` and the result schema for the column names and types. Errors can now
-  arrive while fetching, not only when the statement is executed.
-- The vector readers get `view.data` and `view.validity`. A vector that is not FLAT is flattened with `vector_flatten`
-  for now; reading through the selection vector can come later if the benchmarks justify it. Decimal width and scale,
-  enum dictionaries and child types come from `logical_type_get_param`. The V2 type ids map to `DuckDBType`.
-- Order: bool, integers, floats, varchar and blob; date, time and timestamp; decimal, hugeint, uuid and interval; enum;
-  list, array, struct, map and union (whose tag is child 0).
-- `connection_interrupt` for cancellation and `connection_progress_get` for the query progress.
-- Tests: `QueryScalarTests`, `ExecuteNonQueryTests`, `DuckDBDataReaderTests`, `TransactionTests`, `SchemaTests`, then
-  the reader and type tests in the order above, `DuckDBDataReaderTestAllTypes` last. The reader benchmarks run once
-  before the stage is done: `DataChunk/Reader/DESIGN.md` has the performance constraints.
+Done in steps: first the execution path and the primitive types (step 1, done), then dates, times, decimals,
+hugeint, uuid, interval and enum (step 2), then list, array, struct, map and union (step 3).
+
+### Decisions
+
+- **Results only stream, as V2's do.** `UseStreamingMode` defaults to true. `UseStreamingMode = false`
+  (materialized results, V1's default) throws `NotSupportedException` for now; it is not implemented on this branch.
+- **One open reader per connection.** V2 refuses another statement while a result is open
+  (`RESOURCE_IN_USE`). DuckDB.NET reports that as `InvalidOperationException` ("The connection has an open data
+  reader..."), as SqlClient does without MARS, with DuckDB's error as the inner exception. With V1's materialized
+  results, a forgotten reader did no harm; now it keeps the connection busy until it is closed or collected.
+
+### Step 1: the execution path and the primitive types (done)
+
+- `Execution/DuckDBV2Statements.cs` parses the text (`parse_sql`), takes one statement at a time
+  (`statement_iterator_next`, which also reports syntax errors) and runs it (`statement_execute`). The next statement
+  runs only when the reader moves to it, after the previous result is done.
+- `Execution/DuckDBV2StatementResult.cs` wraps a result. V2 runs a statement while its result is read, and an
+  undrained result applies nothing, so:
+  - a statement that returns no rows (DDL, an INSERT without RETURNING) is always drained, also through
+    `ExecuteReader`;
+  - a result left before its end (`NextResult`, `Close`, `ExecuteScalar`) is aborted when it is a SELECT, and run to
+    its end otherwise (an INSERT ... RETURNING), so what it writes is applied as with V1;
+  - `ExecuteNonQuery` runs every statement to its end. `RecordsAffected` counts a result's rows when the reader
+    leaves it;
+  - a statement that DuckDB expands into several (a dynamic PIVOT) reports its shape only after its first chunk
+    (`INPUT_METADATA_DEFERRED`): the first chunk is fetched early and kept for the reader.
+- `DuckDBDataReader` reads `result_fetch_chunk`. Its column readers are made from the result's schema before any
+  chunk, so an empty result has its columns, and each chunk points them at its vectors (`Reset(_duckdb_v2_vector*)`).
+  A vector that is not flat is flattened first (`vector_flatten`). The readers stay after the last result and after
+  `Close()`, as with V1, because `DataTable.Load` asks for the schema then. An error in a later chunk is reported by
+  `Read()`.
+- `VectorDataReaderFactory.CreateReader(_duckdb_v2_logical_type*, ...)` maps V2's type ids to `DuckDBType`
+  (`Execution/DuckDBV2TypeMap.cs`) and makes the readers of BOOLEAN, the integer types, FLOAT, DOUBLE, VARCHAR, BLOB,
+  BIT and NULL. Any other type throws `NotSupportedException` until its step.
+- `Cancel()` uses `connection_interrupt`; an interrupted query throws `OperationCanceledException` as before.
+- Not migrated yet, and throwing `NotSupportedException` with a pointer here: commands with parameters and
+  `Prepare()` (stage 3), `ExecuteArrowStream` and `ExecuteArrowBatchesAsync` (stage 7).
+- Tests that left a reader open were fixed to dispose it (47 `using` added, a few explicit `Dispose()` calls, and a
+  `Dispose` override in `DuckDBDataReaderTestAllTypes`). `V2QueryTests` covers the decisions above.
+- Speed: reading 20 million rows of INTEGER, BIGINT, DOUBLE and VARCHAR took 527 to 655 ms with V1 and 564 to 687 ms
+  with V2, the same nightly library, timed with a stopwatch rather than BenchmarkDotNet.
+
+### Step 2 and step 3
+
+- Decimal width and scale, enum dictionaries and child types come from `logical_type_get_param`. Union's tag is
+  child 0.
+- Tests: the reader and type tests, `DuckDBDataReaderTestAllTypes` last. The reader benchmarks run before the stage
+  is done: `DataChunk/Reader/DESIGN.md` has the performance constraints.
 
 ## Stage 3: parameters and prepared statements
 

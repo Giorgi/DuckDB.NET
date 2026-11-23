@@ -103,6 +103,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     #region Native IsFinite Tests
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void duckdb_date_is_finite()
     {
         var positiveInfinity = DuckDBDate.PositiveInfinity;
@@ -116,6 +117,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void duckdb_timestamp_is_finite()
     {
         var positiveInfinity = DuckDBTimestampStruct.PositiveInfinity;
@@ -129,6 +131,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void duckdb_timestamp_s_is_finite()
     {
         var positiveInfinity = DuckDBTimestampStruct.PositiveInfinity;
@@ -142,6 +145,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void duckdb_timestamp_ms_is_finite()
     {
         var positiveInfinity = DuckDBTimestampStruct.PositiveInfinity;
@@ -155,6 +159,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void duckdb_timestamp_ns_is_finite()
     {
         var positiveInfinity = DuckDBTimestampStruct.PositiveInfinity;
@@ -360,6 +365,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     #region Equality
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void DuckDBDateOnlyEquality()
     {
         var date = new DuckDBDateOnly(2024, 1, 15);
@@ -376,6 +382,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void DuckDBTimeOnlyEquality()
     {
         var time = new DuckDBTimeOnly(12, 30, 45, 123456);
@@ -392,6 +399,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void DuckDBTimestampEquality()
     {
         var timestamp = new DuckDBTimestamp(new DuckDBDateOnly(2024, 1, 15), new DuckDBTimeOnly(12, 30, 45));

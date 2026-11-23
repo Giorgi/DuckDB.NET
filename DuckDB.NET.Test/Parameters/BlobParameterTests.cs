@@ -3,6 +3,7 @@ namespace DuckDB.NET.Test.Parameters;
 public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
+    [Trait("V2", "Ready")]
     public void SimpleTest()
     {
         Command.CommandText = "SELECT 'ABCD'::BLOB;";
@@ -24,6 +25,7 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         }
 
         reader.GetValue(0).Should().BeOfType<byte[]>().Which.Should().Equal("ABCD"u8.ToArray());
+        reader.Dispose();
 
         Command.CommandText = "SELECT 'AB\\x0aCD'::BLOB";
         Command.ExecuteNonQuery();
@@ -45,9 +47,11 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         }
 
         reader.GetFieldType(0).Should().Be(typeof(byte[]));
+        reader.Dispose();
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void GetFieldValueByteArrayReadsBlob()
     {
         Command.CommandText = "SELECT '\\x01\\x02\\x03\\x04'::BLOB;";
@@ -64,6 +68,7 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     // A BLOB used to come back from GetValue as a stream over the chunk's memory, which ExecuteScalar returned after
     // closing its reader: once later results reused that memory, the stream read their bytes.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ExecuteScalarBlobKeepsItsBytesAfterTheReaderIsClosed()
     {
         Command.CommandText = "SELECT repeat('x', 5000)::BLOB";
@@ -81,6 +86,7 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void GetFieldValueByteArrayReadsEmptyBlob()
     {
         Command.CommandText = "SELECT ''::BLOB;";
@@ -125,13 +131,14 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void SeekTest()
     {
         var blobValue = "ABCDEFGHIJKLMNOPQR";
         Command.CommandText = $"SELECT '{blobValue}'::BLOB;";
         Command.ExecuteNonQuery();
 
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
         reader.Read();
 
         using var stream = reader.GetStream(0);
@@ -176,7 +183,7 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         var command = Connection.CreateCommand();
         command.CommandText = "SELECT * from BlobTests;";
 
-        var reader = command.ExecuteReader();
+        using var reader = command.ExecuteReader();
         reader.Read();
 
         using (var stream = reader.GetStream(1))
@@ -220,6 +227,7 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void SchemaTableAndDataTableHaveByteArrayForABlobColumn()
     {
         Command.CommandText = "SELECT b FROM (VALUES ('\\x01\\x02'::BLOB, 1), (NULL, 2)) t(b, i) ORDER BY i;";
@@ -241,6 +249,7 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void DapperReadsABlobAsByteArray()
     {
         Connection.Query<byte[]>("SELECT '\\x01\\x02'::BLOB").Single().Should().Equal(1, 2);

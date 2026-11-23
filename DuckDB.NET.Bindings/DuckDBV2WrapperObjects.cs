@@ -71,3 +71,21 @@ internal sealed unsafe class DuckDBV2Result(_duckdb_v2_result* pointer) : DuckDB
 {
     protected override DUCKDB_V2_ERROR Destroy(_duckdb_v2_result** pointer) => NativeMethodsV2.duckdb_v2_result_destroy(pointer);
 }
+
+/// <summary>A data chunk fetched from a result. It stays valid after its result is destroyed; its vectors are borrowed from it.</summary>
+internal sealed unsafe class DuckDBV2DataChunk(_duckdb_v2_data_chunk* pointer) : DuckDBV2SafeHandle<_duckdb_v2_data_chunk>(pointer)
+{
+    protected override DUCKDB_V2_ERROR Destroy(_duckdb_v2_data_chunk** pointer) => NativeMethodsV2.duckdb_v2_data_chunk_destroy(pointer);
+}
+
+/// <summary>The statements parsed from a command's text, handed out one at a time.</summary>
+internal sealed unsafe class DuckDBV2StatementIterator(_duckdb_v2_statement_iterator* pointer) : DuckDBV2SafeHandle<_duckdb_v2_statement_iterator>(pointer)
+{
+    protected override DUCKDB_V2_ERROR Destroy(_duckdb_v2_statement_iterator** pointer) => NativeMethodsV2.duckdb_v2_statement_iterator_destroy(pointer);
+}
+
+/// <summary>One parsed statement. Executing it executes a copy, so it can be destroyed right after.</summary>
+internal sealed unsafe class DuckDBV2SqlStatement(_duckdb_v2_sql_statement* pointer) : DuckDBV2SafeHandle<_duckdb_v2_sql_statement>(pointer)
+{
+    protected override DUCKDB_V2_ERROR Destroy(_duckdb_v2_sql_statement** pointer) => NativeMethodsV2.duckdb_v2_sql_statement_destroy(pointer);
+}

@@ -23,12 +23,14 @@ public class DecimalPartsTests
     // The largest scale, 28.
     [InlineData("0.0000000000000000000000000001")]
     [InlineData("-7.9228162514264337593543950335")]
+    [Trait("V2", "Ready")]
     public void GetPartsMatchesGetBits(string digits)
     {
         AssertMatchesGetBits(decimal.Parse(digits, CultureInfo.InvariantCulture));
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void GetPartsMatchesGetBitsForComputedValues()
     {
         // Results of arithmetic, which have scales and bit patterns that a literal does not, and a negative zero.

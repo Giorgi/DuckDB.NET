@@ -12,6 +12,7 @@ namespace DuckDB.NET.Test;
 public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
+    [Trait("V2", "Ready")]
     public void EveryDateIsStoredAsDuckDBStoresIt()
     {
         var lastTickOfTheDay = new TimeOnly(TimeSpan.TicksPerDay - 1);
@@ -32,6 +33,7 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void TimestampsAreStoredAsDuckDBStoresThem()
     {
         TimeSpan[] offsets = [TimeSpan.Zero, TimeSpan.FromHours(14), TimeSpan.FromHours(-14), TimeSpan.FromMinutes(330), TimeSpan.FromMinutes(-1)];
@@ -57,6 +59,7 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void TimesAreStoredAsDuckDBStoresThem()
     {
         var random = new Random(20261012);

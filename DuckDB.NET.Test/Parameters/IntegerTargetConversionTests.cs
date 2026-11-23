@@ -112,6 +112,7 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // An integer value or an enum that fits is converted in .NET, so DuckDB gets the parameter's own type.
     [Theory]
     [MemberData(nameof(IntegerTargets))]
+    [Trait("V2", "Ready")]
     public void ValueThatFitsIsSentAsTheTypeOfTheParameter(Type parameterType, DuckDBType parameterDuckDBType)
     {
         foreach (var value in IntegerValues)
@@ -124,6 +125,7 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
     // Anything else goes as its own type.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ValueThatDoesNotFitIsSentAsItsOwnType()
     {
         SentType(300, typeof(sbyte), DuckDBType.TinyInt).Should().Be(DuckDBType.Integer);
@@ -135,6 +137,7 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // The limits of every integer type, one beyond them and the powers of two at the type boundaries, against every
     // integer parameter type: sent as the parameter's type exactly when the value is in its range.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ValueIsSentAsTheTypeOfTheParameterExactlyWhenItFits()
     {
         var values = new List<object>();

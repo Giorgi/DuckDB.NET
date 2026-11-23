@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using DuckDB.NET.Native.V2;
 using System.IO;
 using System.Runtime.CompilerServices;
 
@@ -263,6 +264,17 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
     {
         DataPointer = NativeMethods.Vectors.DuckDBVectorGetData(vector);
         validityMaskPointer = NativeMethods.Vectors.DuckDBVectorGetValidity(vector);
+    }
+
+    /// <summary>
+    /// Points the reader at a V2 vector of a new chunk. A V2 vector need not be flat (V1 flattened every result
+    /// vector): a constant or dictionary vector is flattened first, so the reader indexes the data by row as before.
+    /// </summary>
+    internal virtual unsafe void Reset(_duckdb_v2_vector* vector)
+    {
+        var view = DuckDBV2Vectors.ReadFlat(vector);
+        DataPointer = view.data;
+        validityMaskPointer = view.validity;
     }
 
     public virtual void Dispose()

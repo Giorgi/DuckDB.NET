@@ -221,4 +221,8 @@ public partial class DuckDBConnection : DbConnection
         EnsureConnectionOpen();
         return DuckDBV2Startup.QueryProgress(V2Connection);
     }
+
+    // Interrupts the query running on the connection; safe from any thread. Throws when the connection is closed, as
+    // the V1 NativeConnection did.
+    internal void Interrupt() => DuckDBV2Startup.Interrupt(V2Connection);
 }

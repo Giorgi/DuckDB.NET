@@ -193,6 +193,7 @@ public class StringWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     [InlineData("\U0001F600\U0001F600\U0001F600", true)]
     [InlineData("ab\0", true)]
     [InlineData("\0", true)]
+    [Trait("V2", "Ready")]
     public unsafe void TryCreateInlinedKeepsAShortStringInsideTheValue(string value, bool inlined)
     {
         // Filled with non-zero bytes first, so that bytes the method leaves alone show: a fresh local is zero anyway.

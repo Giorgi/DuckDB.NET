@@ -75,6 +75,14 @@ internal static unsafe class DuckDBV2Startup
         return new DuckDBQueryProgress(percentage, rowsProcessed, totalRowsToProcess);
     }
 
+    public static void Interrupt(DuckDBV2Connection connection)
+    {
+        using var lease = connection.Acquire();
+
+        _duckdb_v2_error_info* error = null;
+        NativeMethodsV2.duckdb_v2_connection_interrupt(lease.Pointer, &error).ThrowIfFailed(ref error);
+    }
+
     public static string LibraryVersion()
     {
         _duckdb_v2_error_info* error = null;

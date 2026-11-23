@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Text;
+using DuckDB.NET.Native.V2;
 
 namespace DuckDB.NET.Data.DataChunk.Reader;
 
@@ -110,6 +111,12 @@ internal sealed class StringVectorDataReader : VectorDataReaderBase
     private ulong charsRow;
 
     internal override void Reset(IntPtr vector)
+    {
+        charsValue = null;
+        base.Reset(vector);
+    }
+
+    internal override unsafe void Reset(_duckdb_v2_vector* vector)
     {
         charsValue = null;
         base.Reset(vector);

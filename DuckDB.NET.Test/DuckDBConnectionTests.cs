@@ -219,6 +219,7 @@ public class DuckDBConnectionTests
 
     [Fact]
     [Trait("Category", "Baseline")]
+    [Trait("V2", "Ready")]
     public async Task SingleThreadedOpenAndCloseOfSameFile()
     {
         using var db1 = DisposableFile.GenerateInTemp("db", 1);
@@ -259,6 +260,7 @@ public class DuckDBConnectionTests
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void QueryAgainstClosedConnection()
     {
         var connection = new DuckDBConnection("DataSource=:memory:");
@@ -290,6 +292,7 @@ public class DuckDBConnectionTests
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void MultipleInMemoryConnectionsSeparateDatabases()
     {
         var tableCount = 0;
@@ -335,6 +338,7 @@ public class DuckDBConnectionTests
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void MultipleInMemoryConnectionsSharedDatabases()
     {
         var tableCount = 0;
@@ -418,6 +422,7 @@ public class DuckDBConnectionTests
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void DuplicateInMemoryConnection()
     {
         var tableCount = 0;
@@ -469,6 +474,7 @@ public class DuckDBConnectionTests
     [InlineData("Threads", 100)]
     [InlineData("Threads", 0)]
     [InlineData("threads", -100)]
+    [Trait("V2", "Ready")]
     public void ConnectionStringSetThreadsOption(string optionName, int threads)
     {
         using var connection = new DuckDBConnection($"DataSource=:memory:;{optionName}={threads}");
@@ -490,6 +496,7 @@ public class DuckDBConnectionTests
     [InlineData("automatic")]
     [InlineData("AUTOMATIC")]
     [InlineData("READ_WRITE")]
+    [Trait("V2", "Ready")]
     public void ConnectionStringSetAccessModeOption(string accessMode)
     {
         using var connection = new DuckDBConnection($"DataSource=:memory:;access_mode={accessMode}");
@@ -506,6 +513,7 @@ public class DuckDBConnectionTests
     [InlineData("automatic", 2)]
     [InlineData("AUTOMATIC", 8)]
     [InlineData("READ_WRITE", 100)]
+    [Trait("V2", "Ready")]
     public void ConnectionStringSetThreadsAndAccessModeOption(string accessMode, int threads)
     {
         using var connection = new DuckDBConnection($"DataSource=:memory:;Access_Mode={accessMode};Threads={threads}");
@@ -567,6 +575,7 @@ public class DuckDBConnectionTests
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ConnectionSetsDuckDBApiConfigOption()
     {
         using (var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString))

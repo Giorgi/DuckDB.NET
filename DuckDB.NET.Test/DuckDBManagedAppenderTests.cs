@@ -445,7 +445,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         result.Select(tuple => tuple.Item8).Should().BeEquivalentTo(dates.Select(TimeOnly.FromDateTime));
 
         Command.CommandText = "Select i from managedAppenderTemporal";
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
 
         int index = -1;
         while (reader.Read())
@@ -521,6 +521,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     // An implicit conversion from DuckDBDateOnly to DateOnly, or from DuckDBTimeOnly to TimeOnly, would make
     // AppendValue(DateOnly?) and AppendValue(DuckDBDateOnly?) ambiguous for a non-nullable argument, and it can throw.
     [Fact]
+    [Trait("V2", "Ready")]
     public void DuckDBDateAndTimeConvertOnlyExplicitlyToDateOnlyAndTimeOnly()
     {
         static IEnumerable<string> Operators(Type from, Type to) =>
@@ -533,6 +534,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     // The stored values cannot show which overload a call reached: a DateOnly sent to AppendValue(DuckDBDateOnly?)
     // stores the same date, only through the slower conversion. A recording row shows the overload itself.
     [Fact]
+    [Trait("V2", "Ready")]
     public void DateAndTimeValuesReachTheOverloadOfTheirOwnType()
     {
         var row = DispatchProxy.Create<IDuckDBAppenderRow, RecordingAppenderRow>();
@@ -899,7 +901,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         }
 
         Command.CommandText = "Select * from tbl";
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
         reader.Read();
 
         reader.GetInt32(0).Should().Be(2);

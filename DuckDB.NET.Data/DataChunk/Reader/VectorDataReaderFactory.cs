@@ -1,7 +1,53 @@
-﻿namespace DuckDB.NET.Data.DataChunk.Reader;
+﻿using DuckDB.NET.Data.Execution;
+using DuckDB.NET.Native.V2;
+
+namespace DuckDB.NET.Data.DataChunk.Reader;
 
 internal static class VectorDataReaderFactory
 {
+    /// <summary>
+    /// A reader for a column of a V2 result, from the column's logical type. It points at no data until
+    /// <see cref="VectorDataReaderBase.Reset(_duckdb_v2_vector*)"/> gives it a chunk's vector, so a result with no rows
+    /// still has its columns.
+    /// </summary>
+    /// <remarks>
+    /// The migration to V2 (docs/V2-MIGRATION.md) moves the readers over in steps; a column type whose reader has
+    /// not moved yet is refused here.
+    /// </remarks>
+    public static unsafe VectorDataReaderBase CreateReader(_duckdb_v2_logical_type* logicalType, string columnName)
+    {
+        _duckdb_v2_error_info* error = null;
+        DUCKDB_V2_LOGICAL_TYPE_ID typeId;
+        NativeMethodsV2.duckdb_v2_logical_type_get_id(logicalType, &typeId, &error).ThrowIfFailed(ref error);
+
+        var columnType = typeId.ToDuckDBType();
+
+        return columnType switch
+        {
+            DuckDBType.Boolean => new BooleanVectorDataReader(null, null, columnType, columnName),
+
+            DuckDBType.Blob => new StringVectorDataReader(null, null, columnType, columnName),
+            DuckDBType.Varchar => new StringVectorDataReader(null, null, columnType, columnName),
+            DuckDBType.Bit => new StringVectorDataReader(null, null, columnType, columnName),
+
+            DuckDBType.TinyInt => new NumericVectorDataReader<sbyte>(null, null, columnType, columnName),
+            DuckDBType.SmallInt => new NumericVectorDataReader<short>(null, null, columnType, columnName),
+            DuckDBType.Integer => new NumericVectorDataReader<int>(null, null, columnType, columnName),
+            DuckDBType.BigInt => new NumericVectorDataReader<long>(null, null, columnType, columnName),
+            DuckDBType.UnsignedTinyInt => new NumericVectorDataReader<byte>(null, null, columnType, columnName),
+            DuckDBType.UnsignedSmallInt => new NumericVectorDataReader<ushort>(null, null, columnType, columnName),
+            DuckDBType.UnsignedInteger => new NumericVectorDataReader<uint>(null, null, columnType, columnName),
+            DuckDBType.UnsignedBigInt => new NumericVectorDataReader<ulong>(null, null, columnType, columnName),
+            DuckDBType.Float => new NumericVectorDataReader<float>(null, null, columnType, columnName),
+            DuckDBType.Double => new NumericVectorDataReader<double>(null, null, columnType, columnName),
+
+            // A column that is NULL in every row (SELECT NULL) has no values to read.
+            DuckDBType.SqlNull => new VectorDataReaderBase(null, null, columnType, columnName),
+
+            _ => throw new NotSupportedException($"Reading {typeId} columns ('{columnName}') has not been migrated to DuckDB's C API V2 yet (docs/V2-MIGRATION.md).")
+        };
+    }
+
     public static unsafe VectorDataReaderBase CreateReader(IntPtr vector, DuckDBLogicalType logicalColumnType, string columnName = "")
     {
         var columnType = NativeMethods.LogicalType.DuckDBGetTypeId(logicalColumnType);

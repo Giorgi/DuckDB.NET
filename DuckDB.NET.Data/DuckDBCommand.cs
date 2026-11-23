@@ -5,6 +5,7 @@ using System.Threading;
 using Apache.Arrow;
 using Apache.Arrow.Ipc;
 using DuckDB.NET.Data.Arrow;
+using DuckDB.NET.Data.Execution;
 using DuckDB.NET.Data.PreparedStatement;
 
 namespace DuckDB.NET.Data;
@@ -32,13 +33,15 @@ public class DuckDBCommand : DbCommand
     public override UpdateRowSource UpdatedRowSource { get; set; }
 
     /// <summary>
-    /// A flag to determine whether to use streaming mode or not when executing a query. Defaults to false.
-    /// In streaming mode DuckDB will use less RAM but query execution might be slower. Applies only to queries that return a result-set.
+    /// Whether results stream, which is what DuckDB's C API V2 does. Defaults to true.
     /// </summary>
     /// <remarks>
-    /// Streaming mode uses `duckdb_execute_prepared_streaming` and `duckdb_stream_fetch_chunk`, non-streaming (materialized) mode uses `duckdb_execute_prepared` and `duckdb_result_get_chunk`.
+    /// A streaming result is produced while it is read: the statement runs as the reader advances, and an error can
+    /// be reported by <see cref="DbDataReader.Read"/>. A connection has one open result at a time, so another command
+    /// on the connection fails until the reader is read to its end or closed. Materialized results (false) are not
+    /// supported on this branch yet (docs/V2-MIGRATION.md).
     /// </remarks>
-    public bool UseStreamingMode { get; set; } = false;
+    public bool UseStreamingMode { get; set; } = true;
 
     [AllowNull]
     [DefaultValue("")]
@@ -86,7 +89,7 @@ public class DuckDBCommand : DbCommand
         Connection = connection;
     }
 
-    public override void Cancel() => connection?.NativeConnection.Interrupt();
+    public override void Cancel() => connection?.Interrupt();
 
     public override int ExecuteNonQuery()
     {
@@ -98,15 +101,18 @@ public class DuckDBCommand : DbCommand
         // rows affected by the command. For all other types of statements, the return value is -1."
         var count = -1;
 
-        foreach (var (result, statementType) in results)
+        // Each statement runs to its end: V2 runs a statement while its result is read.
+        foreach (var result in results)
         {
-            var current = result;
-            if (CountsRows(statementType))
+            using (result)
             {
-                count = Math.Max(count, 0) + (int)GetRowsAffected(ref current);
-            }
+                var rows = result.Finish();
 
-            result.Close();
+                if (CountsRows(result.StatementType))
+                {
+                    count = Math.Max(count, 0) + (int)rows;
+                }
+            }
         }
 
         return count;
@@ -115,11 +121,6 @@ public class DuckDBCommand : DbCommand
     /// <summary>The statements whose affected-row count ADO.NET reports; every other statement reports -1.</summary>
     internal static bool CountsRows(DuckDBStatementType statementType) =>
         statementType is DuckDBStatementType.Insert or DuckDBStatementType.Update or DuckDBStatementType.Delete or DuckDBStatementType.Copy or DuckDBStatementType.MergeInto;
-
-    internal static long GetRowsAffected(ref DuckDBResult result) =>
-        NativeMethods.Query.DuckDBResultReturnType(result) == DuckDBResultType.QueryResult
-            ? NativeMethods.Query.DuckDBRowCount(ref result)
-            : NativeMethods.Query.DuckDBRowsChanged(ref result);
 
     public override object? ExecuteScalar()
     {
@@ -162,21 +163,7 @@ public class DuckDBCommand : DbCommand
     {
         EnsureConnectionOpen();
 
-        var results = ExecuteStatements();
-
-        foreach (var (result, _) in results)
-        {
-            var current = result;
-
-            if (NativeMethods.Query.DuckDBResultReturnType(current) == DuckDBResultType.QueryResult)
-            {
-                return new DuckDBArrowArrayStream(current, connection!.NativeConnection);
-            }
-
-            current.Close();
-        }
-
-        throw new InvalidOperationException("The command did not return a result set.");
+        throw new NotSupportedException("Arrow streams have not been migrated to DuckDB's C API V2 yet (docs/V2-MIGRATION.md, stage 7).");
     }
 
     /// <summary>
@@ -246,13 +233,21 @@ public class DuckDBCommand : DbCommand
         preparedEntry = null;
     }
 
-    private IEnumerable<StatementResult> ExecuteStatements()
+    private IEnumerable<DuckDBV2StatementResult> ExecuteStatements()
     {
-        var nativeConnection = connection!.NativeConnection;
+        if (!UseStreamingMode)
+        {
+            throw new NotSupportedException("Materialized results (UseStreamingMode = false) are not supported yet: results stream " +
+                                            "with DuckDB's C API V2 (docs/V2-MIGRATION.md).");
+        }
 
-        return prepared
-            ? ExecutePrepared(nativeConnection, parameters, UseStreamingMode)
-            : PreparedStatement.PreparedStatement.PrepareMultiple(nativeConnection, CommandText, parameters, UseStreamingMode);
+        if (prepared || parameters.Count > 0)
+        {
+            throw new NotSupportedException("Parameters and prepared commands have not been migrated to DuckDB's C API V2 yet " +
+                                            "(docs/V2-MIGRATION.md, stage 3).");
+        }
+
+        return DuckDBV2Statements.Execute(connection!.V2Connection, CommandText);
     }
 
     // An iterator, like PrepareMultiple, so that an error (also from preparing again) is raised where the reader

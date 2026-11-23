@@ -470,6 +470,7 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void TimeNsDuckDBValueIsReadWithTimeOnlyPrecision()
     {
         using var value = NativeMethods.Value.DuckDBCreateTimeNs(new DuckDBTimeNs { Nanos = 45_296_123_456_789 });

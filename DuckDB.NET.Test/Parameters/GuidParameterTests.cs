@@ -14,7 +14,7 @@ public class GuidParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             var scalar = Command.ExecuteScalar();
             scalar.Should().Be(guid);
 
-            var reader = Command.ExecuteReader();
+            using var reader = Command.ExecuteReader();
             reader.Read();
 
             reader.GetFieldType(0).Should().Be(typeof(Guid));
@@ -30,7 +30,7 @@ public class GuidParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Command.CommandText = "SELECT ?::uuid;";
         Command.Parameters.Add(new DuckDBParameter(DbType.Guid, null));
 
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
         reader.Read();
 
         var receivedValue = reader.GetFieldValue<Guid?>(0);
@@ -52,7 +52,7 @@ public class GuidParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Command.ExecuteNonQuery();
 
         Command.CommandText = "SELECT * FROM uuid_test;";
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
         reader.Read();
 
         var guid = reader.GetFieldValue<Guid>(0);
@@ -75,7 +75,7 @@ public class GuidParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             var scalar = Command.ExecuteScalar();
             scalar.Should().Be(guid);
 
-            var reader = Command.ExecuteReader();
+            using var reader = Command.ExecuteReader();
             reader.Read();
             var receivedValue = reader.GetGuid(0);
             receivedValue.Should().Be(guid);

@@ -122,6 +122,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void SmallestAndLargestValueOfEachIntegerType()
     {
         Command.CommandText = """
@@ -180,6 +181,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void OverflowingIntegerReadNamesBothTypesAndTheColumn()
     {
         Command.CommandText = "SELECT 300::SMALLINT AS small, 5000000000::BIGINT AS big, (-1)::INTEGER AS negative";
@@ -218,6 +220,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
     [Theory]
     [MemberData(nameof(InexactCases))]
+    [Trait("V2", "Ready")]
     public void IntegerReadAsFloatDoubleOrDecimalRoundsLikeTheCSharpCast(string column, string literal, float asFloat, double asDouble, decimal asDecimal)
     {
         Command.CommandText = $"SELECT {literal}::{column} AS c";
@@ -238,6 +241,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void FloatingPointColumnsKeepTheirFraction()
     {
         Command.CommandText = "SELECT 1.5::FLOAT, 1.5::DOUBLE, 2.5::DOUBLE";
@@ -358,6 +362,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     [Theory]
     [InlineData("FLOAT", "Single")]
     [InlineData("DOUBLE", "Double")]
+    [Trait("V2", "Ready")]
     public void FloatingPointColumnReadAsInteger(string column, string clrName)
     {
         Command.CommandText = $"""
@@ -424,6 +429,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // Each target type has its own range, so a read as one integer type must not go through another. A whole value
     // reads up to the limit of the type and is refused one past it; a fraction is refused before the range is checked.
     [Fact]
+    [Trait("V2", "Ready")]
     public void DoubleReadAsIntegerIsCheckedAgainstTheRangeOfTheRequestedType()
     {
         Command.CommandText = """
@@ -499,6 +505,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     [Theory]
     [InlineData("FLOAT", "Single")]
     [InlineData("DOUBLE", "Double")]
+    [Trait("V2", "Ready")]
     public void FloatingPointColumnReadAsDecimal(string column, string clrName)
     {
         Command.CommandText = $"""
@@ -824,6 +831,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // As a HUGEINT is refused as float and double, FLOAT and DOUBLE are refused as Int128 and UInt128, whatever the
     // value, also a whole one.
     [Fact]
+    [Trait("V2", "Ready")]
     public void FloatAndDoubleAreNotReadAsInt128OrUInt128()
     {
         Command.CommandText = "SELECT 42::DOUBLE AS d, 42::FLOAT AS f";

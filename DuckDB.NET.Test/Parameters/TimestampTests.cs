@@ -157,6 +157,8 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         dateTimeOffset.Microsecond.Should().Be(expectedValue.Microsecond);
         dateTimeOffset.Nanosecond.Should().Be(expectedValue.Nanosecond);
 
+        reader.Dispose();
+
         if (duckDBType == DuckDBType.TimestampTz)
         {
             Command.CommandText = "Truncate table TimestampTestTable";
@@ -184,6 +186,7 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             dateTimeOffset.Millisecond.Should().Be(expectedValue.Millisecond);
             dateTimeOffset.Microsecond.Should().Be(expectedValue.Microsecond);
             dateTimeOffset.Nanosecond.Should().Be(expectedValue.Nanosecond);
+            reader.Dispose();
         }
     }
 

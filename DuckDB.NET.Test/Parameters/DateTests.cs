@@ -59,7 +59,7 @@ public class DateTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Command.Parameters.Clear();
         Command.CommandText = "SELECT * FROM DateOnlyTestTable LIMIT 1;";
 
-        var reader = Command.ExecuteReader();
+        using var reader = Command.ExecuteReader();
         reader.Read();
 
         reader.GetFieldType(1).Should().Be(typeof(DateOnly));
