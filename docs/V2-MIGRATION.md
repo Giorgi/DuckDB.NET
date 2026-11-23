@@ -234,9 +234,22 @@ keeps the base reader, as with V1.
 
 ## Later stages
 
-5. Scalar functions: `connection_register_scalar_function`, errors through the callback's `err` slot.
-   `UdfExceptionStore` needs a new key, because V2 has no connection id. Overloads are probably registrations under the
-   same name, which needs a test.
+5. Scalar functions: `connection_register_scalar_function`, errors through the callback's `err` slot. Overloads are
+   probably registrations under the same name (`ALTER_ON_CONFLICT` in DuckDB's source), which needs a test.
+   - **The exception of a C# UDF** reaches the command without passing through the error text. V2 has no
+     connection id, and a callback cannot see its connection, so `UdfExceptionStore` cannot keep its key. Instead the
+     connection puts itself in a `[ThreadStatic]` before each native call that can bind; the function's bind
+     callback hands the connection's exception slot to the exec callbacks as bind data (`bind_set_bind_data`,
+     `exec_get_bind_data`); the exec callback stores the exception there and sets only DuckDB's error code and text,
+     and the command attaches it as `InnerException`. That also ends the flaky failures from connection ids that
+     repeat across databases.
+   - **Checked first** (`V2ScalarBindProbeTests`, 5 runs): bind runs on the calling thread for an unprepared query,
+     at `Prepare()` (twice) and again at every execution of a prepared statement with parameters, and after the
+     table under a prepared statement is replaced. Exec runs on up to four threads, sometimes not on the caller's, and
+     always sees the bind data of the current execution. An error the exec callback sets reaches the command as
+     "Invalid Input Error: <text>". The bind data is destroyed.
+   - **To keep in mind:** an error DuckDB never reports (a cancelled statement, or one an expression swallows) can
+     leave an exception in the slot, so the slot is cleared before each execution.
 6. Table functions.
 7. Arrow: results through `statement_execute_arrow`. `DuckDBArrowAppender` has no direct path in V2.
 8. Cleanup: the connection string builder enumerates the options through V2, Data stops using V1, the fate of the V1
