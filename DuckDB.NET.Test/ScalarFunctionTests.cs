@@ -116,6 +116,7 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterScalarFunctionCallbackThrowsInLaterStreamingChunk()
     {
         using var connection = OpenConnectionForLateStreamingErrors();
@@ -144,7 +145,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         }
 
         // The stored callback exception was consumed, so it must not leak into the next error on this connection.
-        command.UseStreamingMode = false;
         command.CommandText = "SELECT CAST('not a number' AS INTEGER)";
 
         command.Invoking(c => c.ExecuteScalar())

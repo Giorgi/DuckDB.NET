@@ -163,13 +163,22 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         }
     }
 
+    // The streaming cases, which V2 runs. The materialized ones are in
+    // FailedExecuteReaderClosesConnectionOnlyWithCloseConnection, for when materialized results come back.
+    [Theory]
+    [InlineData("SELEC 1", CommandBehavior.CloseConnection, ConnectionState.Closed)]
+    [InlineData("SELEC 1", CommandBehavior.Default, ConnectionState.Open)]
+    [InlineData("SELECT CAST('not a number' AS INTEGER)", CommandBehavior.CloseConnection, ConnectionState.Closed)]
+    [InlineData("SELECT CAST('not a number' AS INTEGER)", CommandBehavior.Default, ConnectionState.Open)]
+    [Trait("V2", "Ready")]
+    public void FailedStreamingExecuteReaderClosesConnectionOnlyWithCloseConnection(string sql, CommandBehavior behavior, ConnectionState expectedState)
+        => FailedExecuteReaderClosesConnectionOnlyWithCloseConnection(sql, behavior, expectedState, useStreamingMode: true);
+
     [Theory]
     [InlineData("SELEC 1", CommandBehavior.CloseConnection, ConnectionState.Closed, false)]
     [InlineData("SELEC 1", CommandBehavior.Default, ConnectionState.Open, false)]
     [InlineData("SELECT CAST('not a number' AS INTEGER)", CommandBehavior.CloseConnection, ConnectionState.Closed, false)]
     [InlineData("SELECT CAST('not a number' AS INTEGER)", CommandBehavior.Default, ConnectionState.Open, false)]
-    [InlineData("SELECT CAST('not a number' AS INTEGER)", CommandBehavior.CloseConnection, ConnectionState.Closed, true)]
-    [InlineData("SELECT CAST('not a number' AS INTEGER)", CommandBehavior.Default, ConnectionState.Open, true)]
     public void FailedExecuteReaderClosesConnectionOnlyWithCloseConnection(string sql, CommandBehavior behavior, ConnectionState expectedState, bool useStreamingMode)
     {
         // Matches Npgsql: the caller handed the connection to a reader it never received.
@@ -655,9 +664,14 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         schemaTable.Rows[0]["NumericPrecision"].Should().Be(10);
     }
 
+    // The streaming case, which V2 runs; the materialized one stays below for when materialized results come back.
+    [Fact]
+    [Trait("V2", "Ready")]
+    public Task CancellingLongRunningStreamingQueryThrowsOperationCancelledException()
+        => CancellingLongRunningQueryThrowsOperationCancelledException(useStreamingMode: true);
+
     [Theory]
     [InlineData(false)]
-    [InlineData(true)]
     public async Task CancellingLongRunningQueryThrowsOperationCancelledException(bool useStreamingMode)
     {
         Command.CommandText = @"create table cnt as WITH RECURSIVE
@@ -674,9 +688,14 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         await Command.Invoking(async c => await c.ExecuteReaderAsync(source.Token)).Should().ThrowAsync<OperationCanceledException>();
     }
 
+    // The streaming case, which V2 runs; the materialized one stays below for when materialized results come back.
+    [Fact]
+    [Trait("V2", "Ready")]
+    public void CancellingLongRunningSyncStreamingQueryByTokenRegistrationThrowsOperationCanceledException()
+        => CancellingLongRunningSyncQueryByTokenRegistrationThrowsOperationCanceledException(useStreamingMode: true);
+
     [Theory]
     [InlineData(false)]
-    [InlineData(true)]
     public void CancellingLongRunningSyncQueryByTokenRegistrationThrowsOperationCanceledException(bool useStreamingMode)
     {
         Command.CommandText = @"create table cnt as WITH RECURSIVE
