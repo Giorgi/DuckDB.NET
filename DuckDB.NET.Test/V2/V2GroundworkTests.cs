@@ -5,6 +5,7 @@ namespace DuckDB.NET.Test.V2;
 
 // Stage 0 of docs/V2-MIGRATION.md: the generated bindings, the error codes, the error helper, the UTF-8 strings and
 // the SafeHandles.
+[Trait("V2", "Ready")]
 public unsafe class V2GroundworkTests
 {
     [Fact]

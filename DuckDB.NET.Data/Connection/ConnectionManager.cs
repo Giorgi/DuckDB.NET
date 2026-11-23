@@ -51,39 +51,13 @@ internal class ConnectionManager
             {
                 var path = connectionString.InMemory ? null : filename;
 
-                NativeMethods.Configuration.DuckDBCreateConfig(out var config);
-                using (config)
-                {
-                    foreach (var (option, value) in connectionString.Configuration)
-                    {
-                        var state = NativeMethods.Configuration.DuckDBSetConfig(config, option, value);
-
-                        if (!state.IsSuccess())
-                        {
-                            throw new DuckDBException($"Error setting '{option}' to '{value}'");
-                        }
-                    }
-
-                    var resultOpen = NativeMethods.Startup.DuckDBOpen(path, out var db, config, out var error);
-
-                    if (!resultOpen.IsSuccess())
-                    {
-                        throw new DuckDBException($"DuckDBOpen failed: {error}");
-                    }
-                    fileRef.Database = db;
-                }
+                // The configuration goes in as the instance's startup options, all in one call: a rejected option
+                // fails the open with DuckDB's message, which names the option.
+                fileRef.Database = DuckDBV2Startup.OpenInstance(path, connectionString.Configuration);
             }
 
-            var resultConnect = NativeMethods.Startup.DuckDBConnect(fileRef.Database, out var nativeConnection);
-
-            if (resultConnect.IsSuccess())
-            {
-                fileRef.Increment();
-            }
-            else
-            {
-                throw new DuckDBException("DuckDBConnect failed");
-            }
+            var nativeConnection = DuckDBV2Startup.Connect(fileRef.Database);
+            fileRef.Increment();
 
             return new ConnectionReference(fileRef, nativeConnection);
         }
@@ -135,15 +109,9 @@ internal class ConnectionManager
 
         lock (fileRef)
         {
-            var resultConnect = NativeMethods.Startup.DuckDBConnect(fileRef.Database, out var duplicatedNativeConnection);
-            if (resultConnect.IsSuccess())
-            {
-                fileRef.Increment();
-            }
-            else
-            {
-                throw new DuckDBException("DuckDBConnect failed");
-            }
+            var duplicatedNativeConnection = DuckDBV2Startup.Connect(fileRef.Database);
+            fileRef.Increment();
+
             return new ConnectionReference(fileRef, duplicatedNativeConnection);
         }
     }

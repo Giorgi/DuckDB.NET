@@ -3,11 +3,11 @@
 namespace DuckDB.NET.Data.Connection;
 
 /// <summary>
-/// Holds the connection count and DuckDBDatabase structure for a FileName
+/// Holds the connection count and the V2 instance for a FileName
 /// </summary>
 internal class FileReference(string filename)
 {
-    public DuckDBDatabase? Database { get; internal set; }
+    public DuckDBV2Instance? Database { get; internal set; }
 
     public string FileName { get; } = filename;
 

@@ -43,8 +43,12 @@ that take none of those handles keep working next to V2, for example `duckdb_con
   `IntPtr`.
 - The V1 declarations stay: they are public API of the Bindings package. Whether to remove them is decided at the
   end. A public V2 API in Bindings, if wanted, is written once V2 is stable.
-- Each stage names the tests that must pass before the next one starts. From stage 1 on, CI on `nightly-vnext` runs
-  only the test classes the finished stages have enabled, so the run stays green while the rest of Data is broken.
+- Each stage names the tests that must pass before the next one starts. A test that passes on V2 gets
+  `[Trait("V2", "Ready")]`, and CI on `nightly-vnext` runs only those (`--filter V2=Ready`), so the run stays green
+  while the rest of Data is broken. Locally: `dotnet test DuckDB.NET.Test/Test.csproj --filter V2=Ready`. When the
+  migration is done, the traits and the filter go.
+- Code that is not migrated yet still compiles against V1, and fails when it runs: `DuckDBConnection.NativeConnection`,
+  the V1 handle every unmigrated path goes through, throws `NotSupportedException`.
 
 ## Stage 0: groundwork
 
@@ -61,22 +65,35 @@ No behaviour change.
 - SafeHandles for the environment, instance, connection and result, following V2's "destroy takes `T*` and sets it to
   null" convention.
 
-## Stage 1: open and close
+## Stage 1: open and close (done)
 
-- One environment for the process, created on first use and never destroyed: `environment_destroy` refuses while an
-  instance is alive anyway.
+- One environment for the process (`Connection/DuckDBV2Startup.cs`), created on first use and never destroyed:
+  `environment_destroy` refuses while an instance is alive anyway.
 - `ConnectionManager` keeps its cache and reference counting, because it also covers `:memory:?cache=shared`, which
-  `instance_open_shared` never shares. `duckdb_create_config`, `duckdb_set_config` and `duckdb_open_ext` become
-  `instance_create_with_options` (option names and values, `duckdb_api` among them) followed by
-  `instance_attach(path or ":memory:", make_default: true)`. `duckdb_connect` becomes `connection_create`, for both
-  `GetConnectionReference` and `DuplicateConnectionReference`.
-- `ServerVersion` uses `library_version`.
-- To check in this stage: whether `access_mode=READ_ONLY` still works as a startup option or has to become an attach
-  option; that a bad option is reported for the whole create call, so V1's "Error setting 'x' to 'y'" message changes;
-  whether settings such as `lock_configuration` are accepted before the attach.
-- Tests: `OpenTests`, the open, close, state, clone and file parts of `DuckDBConnectionTests`,
-  `DuckDBClientFactoryTests`, and the parsing tests in `ConnectionStringTests`. The tests that check a setting by
-  running SQL move to stage 2.
+  `instance_open_shared` never shares. `duckdb_create_config`, `duckdb_set_config` and `duckdb_open_ext` became
+  `instance_create_with_options` (the connection string's options, `duckdb_api` among them) followed by
+  `instance_attach(path or ":memory:", make_default: true)`. `duckdb_connect` became `connection_create`, for both
+  `GetConnectionReference` and `DuplicateConnectionReference`. `FileReference` holds a `DuckDBV2Instance` and
+  `ConnectionReference` a `DuckDBV2Connection`.
+- `ServerVersion` uses `library_version`, and `GetQueryProgress` uses `connection_progress_get`.
+- `DuckDBConnection.NativeConnection` (public, a V1 handle) throws `NotSupportedException` on an open connection:
+  a V2 connection has no V1 handle. Whether it goes, or what replaces it, is decided in stage 8.
+- Found on the nightly library (`V2OpenTests`):
+  - `access_mode=READ_ONLY` still works as a startup option; a read-only open of a missing file fails and does not
+    create it.
+  - `lock_configuration=true` is accepted at open, with other options.
+  - A refused value fails the whole create call, and DuckDB's message does not always name the option (`threads=-1`
+    gives "Must have at least 1 thread!"). V1 named the option but dropped DuckDB's reason. On failure DuckDB.NET now
+    tries each option on its own and reports both: "Error setting 'threads' to '-1': Syntax Error: Must have at least
+    1 thread!".
+  - Opening and closing is as fast as with V1: `ConnectionSpeed` ran at 108 to 134 operations a second on V2 against
+    108 to 113 on V1, with the same nightly library.
+- Not checked yet, because it needs SQL: the default database's name for a file (V1 named it after the file), and
+  MotherDuck (`md:`) data sources, which go through `instance_attach` now.
+- Tests: `V2OpenTests`, `V2GroundworkTests`, `OpenTests`, the open, close, state and duplicate parts of
+  `DuckDBConnectionTests` (`ConnectionSpeed` among them), `DuckDBClientFactoryTests` without `UseFactory`, and the
+  parsing and open tests in `ConnectionStringTests`. The tests that check a setting by running SQL, and those that
+  build the option descriptors from `duckdb_settings()`, move to stage 2.
 
 ## Stage 2: queries without parameters
 

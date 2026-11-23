@@ -320,6 +320,13 @@ internal unsafe struct DuckDBStringPointer
 [StructLayout(LayoutKind.Sequential)]
 public struct DuckDBQueryProgress
 {
+    internal DuckDBQueryProgress(double percentage, ulong rowsProcessed, ulong totalRowsToProcess)
+    {
+        Percentage = percentage;
+        RowsProcessed = rowsProcessed;
+        TotalRowsToProcess = totalRowsToProcess;
+    }
+
     public double Percentage { get; }
     public ulong RowsProcessed { get; }
     public ulong TotalRowsToProcess { get; }

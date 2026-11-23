@@ -67,10 +67,25 @@ public partial class DuckDBConnection : DbConnection
     /// <summary>
     /// Returns the native connection object that can be used to call DuckDB C API functions.
     /// </summary>
-    public DuckDBNativeConnection NativeConnection => connectionReference?.NativeConnection
-                                                      ?? throw new InvalidOperationException("The DuckDBConnection must be open to access the native connection.");
+    /// <remarks>
+    /// Not available on this branch: the connection is opened through DuckDB's C API V2, whose handles cannot be used
+    /// with the V1 functions in <see cref="NativeMethods"/>. What replaces it is decided at the end of the migration
+    /// (docs/V2-MIGRATION.md).
+    /// </remarks>
+    public DuckDBNativeConnection NativeConnection
+    {
+        get
+        {
+            _ = V2Connection;
+            throw new NotSupportedException("The V1 native connection is not available: this build of DuckDB.NET opens connections " +
+                                            "through DuckDB's C API V2, and this operation has not been migrated yet (docs/V2-MIGRATION.md).");
+        }
+    }
 
-    public override string ServerVersion => NativeMethods.Startup.DuckDBLibraryVersion();
+    internal DuckDBV2Connection V2Connection => connectionReference?.NativeConnection
+                                                ?? throw new InvalidOperationException("The DuckDBConnection must be open to access the native connection.");
+
+    public override string ServerVersion => DuckDBV2Startup.LibraryVersion();
 
     public override ConnectionState State => connectionState;
 
@@ -204,6 +219,6 @@ public partial class DuckDBConnection : DbConnection
     public DuckDBQueryProgress GetQueryProgress()
     {
         EnsureConnectionOpen();
-        return NativeMethods.Startup.DuckDBQueryProgress(NativeConnection);
+        return DuckDBV2Startup.QueryProgress(V2Connection);
     }
 }
