@@ -24,7 +24,6 @@ internal sealed partial class MapVectorDataReader
     // - elsewhere the dictionary is filled through IDictionary.
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(MapBuilder<,>))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(NullableValueMapBuilder<,>))]
-    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "The MakeGenericType calls run only where RuntimeFeature.IsDynamicCodeSupported is true, tested in this method; the .NET 8 analyzer does not recognise that guard.")]
     private static MapBuilder? CreateBuilder(Type targetType, Type? dictionaryType)
     {
         if (dictionaryType == null)

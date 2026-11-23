@@ -37,9 +37,7 @@ internal sealed partial class StructVectorDataReader
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(NullableClassPropertySetter<,>))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(StructPropertySetter<,>))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(NullableStructPropertySetter<,>))]
-    [UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "As IL2076, reported by the .NET 8 analyzer.")]
     [UnconditionalSuppressMessage("Trimming", "IL2076", Justification = "The new() constraint that 'where T : struct' implies is met by every value type, and the setters' constructors are kept by the DynamicDependency attributes. The MakeGenericType calls run only where dynamic code is supported.")]
-    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "The MakeGenericType calls run only where RuntimeFeature.IsDynamicCodeSupported is true, tested in this method; the .NET 8 analyzer does not recognise that guard.")]
     private static PropertySetter[]? CreateTypedSetters(Type type)
     {
         if (!RuntimeFeature.IsDynamicCodeSupported)
