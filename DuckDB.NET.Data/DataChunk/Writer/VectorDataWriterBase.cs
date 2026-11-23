@@ -1,22 +1,27 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using DuckDB.NET.Data.DataChunk.Reader;
+using DuckDB.NET.Native.V2;
 
 namespace DuckDB.NET.Data.DataChunk.Writer;
 
+// vector is a V2 vector (_duckdb_v2_vector*), borrowed from its chunk.
 internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, DuckDBType columnType) : IDuckDBDataWriter, IDisposable
 {
     private ulong* validity;
 
     internal IntPtr Vector => vector;
+
+    private protected void* VectorData => vectorData;
     internal DuckDBType ColumnType => columnType;
 
     public virtual void WriteNull(ulong rowIndex)
     {
         if (validity == default)
         {
-            NativeMethods.Vectors.DuckDBVectorEnsureValidityWritable(Vector);
-            validity = NativeMethods.Vectors.DuckDBVectorGetValidity(Vector);
+            // V2 allocates the mask on first use, all rows valid.
+            validity = DuckDBV2Vectors.GetMutableValidity((_duckdb_v2_vector*)Vector);
         }
 
         ValidityMask.SetInvalid(validity, rowIndex);
@@ -227,9 +232,14 @@ internal unsafe class VectorDataWriterBase(IntPtr vector, void* vectorData, Duck
     internal virtual void InitializeWriter()
     {
         // Fetched again rather than cleared: when a list grows, DuckDB keeps the NULLs already marked in
-        // its items, and a retried row must still be able to mark them valid. Null when nothing is NULL.
-        validity = NativeMethods.Vectors.DuckDBVectorGetValidity(Vector);
-        vectorData = NativeMethods.Vectors.DuckDBVectorGetData(Vector);
+        // its items, and a retried row must still be able to mark them valid. Null when nothing is NULL: only a
+        // NULL written here creates the mask, so there is one to fetch only when this writer had one.
+        if (validity != default)
+        {
+            validity = DuckDBV2Vectors.GetMutableValidity((_duckdb_v2_vector*)Vector);
+        }
+
+        vectorData = DuckDBV2Vectors.GetMutableData((_duckdb_v2_vector*)Vector);
     }
 
     public virtual void Dispose()

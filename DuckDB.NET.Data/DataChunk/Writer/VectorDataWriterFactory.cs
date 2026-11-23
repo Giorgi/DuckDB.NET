@@ -1,11 +1,21 @@
-﻿namespace DuckDB.NET.Data.DataChunk.Writer;
+﻿using DuckDB.NET.Data.DataChunk.Reader;
+using DuckDB.NET.Data.Execution;
+using DuckDB.NET.Native.V2;
+
+namespace DuckDB.NET.Data.DataChunk.Writer;
 
 internal static class VectorDataWriterFactory
 {
-    public static unsafe VectorDataWriterBase CreateWriter(IntPtr vector, DuckDBLogicalType logicalType)
+    // The appender and the functions still hand over V1 vectors; they move to V2 in their own stages.
+    public static VectorDataWriterBase CreateWriter(IntPtr vector, DuckDBLogicalType logicalType) =>
+        throw new NotSupportedException("Writing to a V1 vector is not supported on the C API V2 yet.");
+
+    /// <summary>A writer for a V2 vector of the given type: a data chunk's column, or a LIST's or ARRAY's items.</summary>
+    public static unsafe VectorDataWriterBase CreateWriter(_duckdb_v2_vector* v2Vector, _duckdb_v2_logical_type* logicalType)
     {
-        var dataPointer = NativeMethods.Vectors.DuckDBVectorGetData(vector);
-        var columnType = NativeMethods.LogicalType.DuckDBGetTypeId(logicalType);
+        var vector = (IntPtr)v2Vector;
+        var dataPointer = DuckDBV2Vectors.GetMutableData(v2Vector);
+        var columnType = DuckDBV2LogicalTypes.GetId(logicalType).ToDuckDBType();
 
         return columnType switch
         {
@@ -27,7 +37,7 @@ internal static class VectorDataWriterFactory
             DuckDBType.Bit => throw new NotImplementedException($"Writing {columnType} to data chunk is not yet supported"),
             DuckDBType.Enum => new EnumVectorDataWriter(vector, dataPointer, logicalType, columnType),
             DuckDBType.Struct => throw new NotImplementedException($"Writing {columnType} to data chunk is not yet supported"),
-            DuckDBType.Decimal => new DecimalVectorDataWriter(vector, dataPointer, logicalType, columnType),
+            DuckDBType.Decimal => new DecimalVectorDataWriter(vector, dataPointer, (byte)DuckDBV2LogicalTypes.GetUIntParam(logicalType, 0), (byte)DuckDBV2LogicalTypes.GetUIntParam(logicalType, 1), columnType),
             DuckDBType.TimestampS => new DateTimeVectorDataWriter(vector, dataPointer, columnType),
             DuckDBType.TimestampMs => new DateTimeVectorDataWriter(vector, dataPointer, columnType),
             DuckDBType.TimestampNs => new DateTimeVectorDataWriter(vector, dataPointer, columnType),

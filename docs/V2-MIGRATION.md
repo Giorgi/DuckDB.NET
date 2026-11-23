@@ -188,8 +188,32 @@ keeps the base reader, as with V1.
 
 ## Stage 4: writing primitive types
 
-- The writers size each vector with `vector_set_size`, write strings through the vector's arena and use the mutable
-  validity mask. Primitive types first, then lists and structs.
+### The vector writers (done)
+
+- The writers take a V2 vector: `VectorDataWriterFactory.CreateWriter(_duckdb_v2_vector*, _duckdb_v2_logical_type*)`.
+  The data comes from `vector_get_data_mutable` and the validity from `vector_flat_get_validity_mutable`, which
+  allocates the mask. A writer that has a mask fetches it again when its vector moves; one that has none fetches it on
+  the first NULL, as with V1. The V1 overload throws `NotSupportedException`: the appender and the functions still
+  call it, and move to V2 in their own steps.
+- Strings: a value of 12 bytes or fewer is inlined into the 16-byte slot and padded with zeros. A longer one is copied
+  into memory from `arena_allocate` on the vector's arena, and the slot holds its length, its first 4 bytes and the
+  pointer. V1 had `duckdb_vector_assign_string_element_len` do this.
+- LIST and ARRAY: the items are child [0] and their type the type's first parameter; an ARRAY's size is its second
+  (BIGINT). A LIST grows its items with `vector_set_size` on the items' vector, which reserves room, and sets the size
+  that counts after each list. V1 used `duckdb_list_vector_reserve` and `duckdb_list_vector_set_size` on the list.
+- ENUM and DECIMAL: V2 has no internal-type getters. The storage follows from the type as V2 states in its contract:
+  an ENUM's index is uint8 up to 255 entries, uint16 up to 65535, uint32 beyond; a DECIMAL is int16 up to width 4,
+  int32 up to 9, int64 up to 18, int128 beyond. The ENUM names are the type's parameters.
+- STRUCT, MAP and BIT are not written, as with V1. UNION is not migrated.
+- `V2WriterTests` writes a column of a data chunk created through V2 (`data_chunk_create`) and reads it back with the
+  V2 readers: NULLs, short and long strings, an arena that needs more than one block, blobs, the four DECIMAL
+  storages and a value too wide for its column, ENUMs with uint8 and uint16 indexes, LISTs that outgrow their items'
+  vector, ARRAYs and an ARRAY of the wrong length. A round trip cannot catch a constant that is wrong in both
+  directions; the `*WriteConversionTests` compare with DuckDB once the appender is on V2. 3420 test cases are marked
+  V2-ready.
+
+### The appender (not started)
+
 - The appender builds chunks as it does today, appends them to a column data collection and, on flush, runs
   `INSERT INTO t (columns) SELECT * FROM buf` with `statement_add_collection`. The column types come from binding
   `SELECT * FROM t`. `append_default_to_chunk` has no equivalent, so the column list leaves out defaulted columns.

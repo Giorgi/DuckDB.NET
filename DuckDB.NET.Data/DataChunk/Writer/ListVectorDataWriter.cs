@@ -1,4 +1,7 @@
-﻿using DuckDB.NET.Data.Common;
+﻿using DuckDB.NET.Data.DataChunk.Reader;
+using DuckDB.NET.Data.Execution;
+using DuckDB.NET.Native.V2;
+using DuckDB.NET.Data.Common;
 
 namespace DuckDB.NET.Data.DataChunk.Writer;
 
@@ -10,8 +13,8 @@ internal sealed class ListVectorDataWriter : CollectionVectorDataWriter
     private ulong offset = 0;
     private ulong vectorReservedSize = DuckDBGlobalData.VectorSize;
 
-    public unsafe ListVectorDataWriter(IntPtr vector, void* vectorData, DuckDBType columnType, DuckDBLogicalType logicalType)
-        : base(vector, vectorData, columnType, NativeMethods.Vectors.DuckDBListVectorGetChild(vector), NativeMethods.LogicalType.DuckDBListTypeChildType(logicalType))
+    public unsafe ListVectorDataWriter(IntPtr vector, void* vectorData, DuckDBType columnType, _duckdb_v2_logical_type* logicalType)
+        : base(vector, vectorData, columnType, logicalType)
     {
     }
 
@@ -29,7 +32,12 @@ internal sealed class ListVectorDataWriter : CollectionVectorDataWriter
         var result = AppendValueInternal(new DuckDBListEntry(start, count), rowIndex);
 
         offset += count;
-        NativeMethods.Vectors.DuckDBListVectorSetSize(Vector, offset);
+
+        // V2 sizes the items' own vector, where V1 set the size on the list (duckdb_list_vector_set_size).
+        unsafe
+        {
+            DuckDBV2Vectors.SetSize((_duckdb_v2_vector*)ItemWriter.Vector, offset);
+        }
 
         return result;
     }
@@ -57,11 +65,12 @@ internal sealed class ListVectorDataWriter : CollectionVectorDataWriter
         }
 
         vectorReservedSize = (ulong)Math.Max(vectorReservedSize * factor, offset + count);
-        var state = NativeMethods.Vectors.DuckDBListVectorReserve(Vector, vectorReservedSize);
 
-        if (!state.IsSuccess())
+        // Setting the size reserves room for it; the size that counts is set after each list. The items' vector can
+        // move, so its writer fetches its pointers again.
+        unsafe
         {
-            throw new DuckDBException($"Failed to reserve {vectorReservedSize} for the list vector");
+            DuckDBV2Vectors.SetSize((_duckdb_v2_vector*)ItemWriter.Vector, vectorReservedSize);
         }
 
         ItemWriter.InitializeWriter();

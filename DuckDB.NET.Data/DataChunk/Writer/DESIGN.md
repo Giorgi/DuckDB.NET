@@ -287,6 +287,9 @@ between two runs.
   after the string. No native call is made for it. A longer one is encoded on the stack, or into a rented array
   above 170 characters, and handed to `duckdb_unsafe_vector_assign_string_element_len` with its length.
   (`4ef7efb`)
+- **On `nightly-vnext` (C API V2):** V2 has no function that assigns a string. A longer string is copied into
+  memory from `arena_allocate` on the vector's arena, and the writer fills the slot itself: the length, the first 4
+  bytes and the pointer. The arena is fetched again when the vector moves. Not measured against the V1 path yet.
 - **Why:** the string was passed to `duckdb_vector_assign_string_element`. The marshaller of the call encoded it
   with a terminator, into a buffer on the stack or, for a long string, on the heap. DuckDB then measured it
   again and checked the UTF-8.

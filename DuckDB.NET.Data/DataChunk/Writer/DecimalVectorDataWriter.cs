@@ -8,16 +8,24 @@ namespace DuckDB.NET.Data.DataChunk.Writer;
 // point that the column has no room for are dropped. A value with more digits than the width of the column is
 // refused: DuckDB does not check a chunk that is appended, so it would be stored and read back wrong.
 // The reasons and the measurements are in DESIGN.md, decision 10.
-internal sealed unsafe class DecimalVectorDataWriter(IntPtr vector, void* vectorData, DuckDBLogicalType logicalType, DuckDBType columnType)
+// The width and scale are the type's two parameters, and the storage follows from the width as V2 states in its
+// contract: int16 up to width 4, int32 up to 9, int64 up to 18, int128 up to 38.
+internal sealed unsafe class DecimalVectorDataWriter(IntPtr vector, void* vectorData, byte width, byte scale, DuckDBType columnType)
     : VectorDataWriterBase(vector, vectorData, columnType)
 {
-    private readonly DuckDBType decimalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
-    private readonly byte scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
-    private readonly byte width = NativeMethods.LogicalType.DuckDBDecimalWidth(logicalType);
+    private readonly DuckDBType decimalType = width switch
+    {
+        <= 4 => DuckDBType.SmallInt,
+        <= 9 => DuckDBType.Integer,
+        <= 18 => DuckDBType.BigInt,
+        _ => DuckDBType.HugeInt,
+    };
+    private readonly byte scale = scale;
+    private readonly byte width = width;
 
     // 10^width in two halves of 64 bits: the first integer with too many digits for the column.
-    private readonly ulong limitLower = (ulong)DecimalExtensions.Int128PowersOfTen[NativeMethods.LogicalType.DuckDBDecimalWidth(logicalType)];
-    private readonly ulong limitUpper = (ulong)(DecimalExtensions.Int128PowersOfTen[NativeMethods.LogicalType.DuckDBDecimalWidth(logicalType)] >> 64);
+    private readonly ulong limitLower = (ulong)DecimalExtensions.Int128PowersOfTen[width];
+    private readonly ulong limitUpper = (ulong)(DecimalExtensions.Int128PowersOfTen[width] >> 64);
 
     // An integer that fits 64 bits, with a scale less than 20 away from the column's: one multiplication or division
     // of 64 bits. Every value of up to 19 digits has such an integer.

@@ -1,3 +1,6 @@
+using DuckDB.NET.Data.DataChunk.Reader;
+using DuckDB.NET.Data.Execution;
+using DuckDB.NET.Native.V2;
 using System.Runtime.InteropServices;
 
 namespace DuckDB.NET.Data.DataChunk.Writer;
@@ -8,13 +11,15 @@ namespace DuckDB.NET.Data.DataChunk.Writer;
 /// </summary>
 internal abstract class CollectionVectorDataWriter : VectorDataWriterBase
 {
-    private readonly DuckDBLogicalType childType;
+    private readonly DuckDBV2LogicalType childType;
 
-    protected unsafe CollectionVectorDataWriter(IntPtr vector, void* vectorData, DuckDBType columnType, IntPtr childVector, DuckDBLogicalType childType)
+    // The items are the vector's child [0], and their type the type's first parameter, for a LIST and an ARRAY alike.
+    protected unsafe CollectionVectorDataWriter(IntPtr vector, void* vectorData, DuckDBType columnType, _duckdb_v2_logical_type* logicalType)
         : base(vector, vectorData, columnType)
     {
-        this.childType = childType;
-        ItemWriter = VectorDataWriterFactory.CreateWriter(childVector, childType);
+        childType = DuckDBV2LogicalTypes.GetTypeParam(logicalType, 0, out _);
+        using var lease = childType.Acquire();
+        ItemWriter = VectorDataWriterFactory.CreateWriter(DuckDBV2Vectors.GetChild((_duckdb_v2_vector*)vector, 0), lease.Pointer);
     }
 
     protected VectorDataWriterBase ItemWriter { get; }

@@ -44,6 +44,43 @@ internal static unsafe class DuckDBV2Vectors
         return child;
     }
 
+    /// <summary>The data of a FLAT or CONSTANT vector, for writing. Valid until the vector is reallocated.</summary>
+    public static void* GetMutableData(_duckdb_v2_vector* vector)
+    {
+        _duckdb_v2_error_info* error = null;
+        void* data;
+        NativeMethodsV2.duckdb_v2_vector_get_data_mutable(vector, &data, &error).ThrowIfFailed(ref error);
+        return data;
+    }
+
+    /// <summary>The validity mask of a FLAT vector, for writing; allocated, all rows valid, on first use.</summary>
+    public static ulong* GetMutableValidity(_duckdb_v2_vector* vector)
+    {
+        _duckdb_v2_error_info* error = null;
+        ulong* validity;
+        NativeMethodsV2.duckdb_v2_vector_flat_get_validity_mutable(vector, &validity, &error).ThrowIfFailed(ref error);
+        return validity;
+    }
+
+    /// <summary>
+    /// The arena that holds the bytes of a VARCHAR or BLOB vector's long values, allocated on first use. Borrowed, and
+    /// valid until the vector is flattened, reallocated or destroyed.
+    /// </summary>
+    public static _duckdb_v2_arena* GetArena(_duckdb_v2_vector* vector)
+    {
+        _duckdb_v2_error_info* error = null;
+        _duckdb_v2_arena* arena;
+        NativeMethodsV2.duckdb_v2_vector_get_arena(vector, &arena, &error).ThrowIfFailed(ref error);
+        return arena;
+    }
+
+    /// <summary>Sets how many elements the vector holds, reserving room for them. V2 sizes each vector; there is no chunk size to set.</summary>
+    public static void SetSize(_duckdb_v2_vector* vector, ulong size)
+    {
+        _duckdb_v2_error_info* error = null;
+        NativeMethodsV2.duckdb_v2_vector_set_size(vector, size, &error).ThrowIfFailed(ref error);
+    }
+
     public static _duckdb_v2_vector* GetVector(DuckDBV2DataChunk chunk, int index)
     {
         using var lease = chunk.Acquire();

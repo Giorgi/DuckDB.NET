@@ -1,13 +1,18 @@
+using DuckDB.NET.Data.DataChunk.Reader;
+using DuckDB.NET.Data.Execution;
+using DuckDB.NET.Native.V2;
+
 namespace DuckDB.NET.Data.DataChunk.Writer;
 
 internal sealed class ArrayVectorDataWriter : CollectionVectorDataWriter
 {
     private readonly ulong arraySize;
 
-    public unsafe ArrayVectorDataWriter(IntPtr vector, void* vectorData, DuckDBType columnType, DuckDBLogicalType logicalType)
-        : base(vector, vectorData, columnType, NativeMethods.Vectors.DuckDBArrayVectorGetChild(vector), NativeMethods.LogicalType.DuckDBArrayTypeChildType(logicalType))
+    public unsafe ArrayVectorDataWriter(IntPtr vector, void* vectorData, DuckDBType columnType, _duckdb_v2_logical_type* logicalType)
+        : base(vector, vectorData, columnType, logicalType)
     {
-        arraySize = (ulong)NativeMethods.LogicalType.DuckDBArrayVectorGetSize(logicalType);
+        // An ARRAY's size is its type's second parameter, a BIGINT.
+        arraySize = (ulong)DuckDBV2LogicalTypes.GetBigIntParam(logicalType, 1);
     }
 
     internal override bool AppendCollection(ICollection value, ulong rowIndex)
