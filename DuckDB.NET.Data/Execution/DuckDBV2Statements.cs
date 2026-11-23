@@ -94,7 +94,7 @@ internal static unsafe class DuckDBV2Statements
         }
     }
 
-    private static DuckDBV2StatementIterator Parse(DuckDBV2Connection connection, string sql)
+    internal static DuckDBV2StatementIterator Parse(DuckDBV2Connection connection, string sql)
     {
         using var text = DuckDBV2Utf8.FromManaged(sql);
         using var lease = connection.Acquire();
@@ -114,7 +114,7 @@ internal static unsafe class DuckDBV2Statements
     }
 
     // V2 parses lazily: a syntax error is reported here, for the statement it is in.
-    private static DuckDBV2SqlStatement? Next(DuckDBV2StatementIterator iterator)
+    internal static DuckDBV2SqlStatement? Next(DuckDBV2StatementIterator iterator)
     {
         using var lease = iterator.Acquire();
         _duckdb_v2_error_info* error = null;

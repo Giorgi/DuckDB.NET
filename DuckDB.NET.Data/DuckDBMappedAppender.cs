@@ -26,7 +26,7 @@ public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBAppe
             throw new InvalidOperationException($"AppenderMap {typeof(TMap).Name} has no property mappings defined");
         }
 
-        var columnTypes = appender.LogicalTypes;
+        var columnTypes = appender.ColumnTypes;
         if (mappings.Length != columnTypes.Count)
         {
             throw new InvalidOperationException($"AppenderMap {typeof(TMap).Name} has {mappings.Length} mappings but table has {columnTypes.Count} columns");
@@ -41,7 +41,7 @@ public class DuckDBMappedAppender<T, TMap> : IDisposable where TMap : DuckDBAppe
                 continue;
             }
 
-            var columnType = NativeMethods.LogicalType.DuckDBGetTypeId(columnTypes[index]);
+            var columnType = columnTypes[index];
             var acceptedTypes = GetAcceptedDuckDBTypes(mapping.PropertyType);
 
             if (Array.IndexOf(acceptedTypes, columnType) < 0)

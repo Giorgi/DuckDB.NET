@@ -109,6 +109,7 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     [InlineData("TIMESTAMP_MS")]
     [InlineData("TIMESTAMP_NS")]
     [InlineData("TIMESTAMPTZ")]
+    [Trait("V2", "Ready")]
     public void ATimeIsRefusedInAColumnOfAnotherDateOrTimeType(string columnType)
     {
         AppendIsRefused(columnType, row => row.AppendValue((TimeOnly?)new TimeOnly(12, 0)), "TimeOnly");
@@ -135,6 +136,7 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     [Theory]
     [InlineData("TIME")]
     [InlineData("TIME_NS")]
+    [Trait("V2", "Ready")]
     public void ADateIsRefusedInATimeColumn(string columnType)
     {
         AppendIsRefused(columnType, row => row.AppendValue((DateOnly?)new DateOnly(2024, 2, 29)), "DateOnly");
@@ -161,6 +163,7 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     [InlineData("1969-07-20 20:17:40.9999999")]
     [InlineData("0001-01-01 00:00:00.0000001")]
     [InlineData("9999-12-31 23:59:59.9999999")]
+    [Trait("V2", "Ready")]
     public void DateTimeAppendedToATimeIsItsTimeOfDay(string text)
     {
         var dateTime = DateTime.ParseExact(text, "yyyy-MM-dd HH:mm:ss.fffffff", CultureInfo.InvariantCulture);
@@ -181,6 +184,7 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void TimeNsAppenderPreservesSubMicrosecondPrecision()
     {
         var time = new TimeOnly(12, 34, 56).Add(TimeSpan.FromTicks(1_234_567));
@@ -211,6 +215,7 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void TimeNsAppenderPreserves24Hours()
     {
         var table = $"time_ns_end_of_day_{Guid.NewGuid():N}";
@@ -228,6 +233,7 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void TimeNsListsWriteDateTimeDuckDBTimeOnlyNullableAndEmptyItems()
     {
         var table = $"time_ns_lists_{Guid.NewGuid():N}";
@@ -334,6 +340,7 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    [Trait("V2", "Ready")]
     public void WrittenValuesAreSplitByDuckDBIntoTheSameParts(bool throughParameters)
     {
         var table = throughParameters ? "temporal_written_parameters" : "temporal_written_appender";

@@ -8,6 +8,7 @@ namespace DuckDB.NET.Test;
 public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
+    [Trait("V2", "Ready")]
     public void CommonTypes()
     {
         var table = "CREATE TABLE managedAppenderTest(a BOOLEAN, b TINYINT, c SMALLINT, d INTEGER, e BIGINT, f UTINYINT, " +
@@ -74,6 +75,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void UnicodeTests()
     {
         var words = new List<string> { "hello", "안녕하세요", "Ø3mm CHAIN", null, "" };
@@ -108,6 +110,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ByteArray()
     {
         Command.CommandText = "CREATE TABLE blobAppenderTest(a Integer, b blob)";
@@ -148,6 +151,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void EmptyByteArrayIsEmptyBlobAndDefaultSpanIsNull()
     {
         // Only a BLOB column, ordered by rowid: an integer literal such as AppendValue(1) binds to the sbyte? overload,
@@ -169,6 +173,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void UnsignedHugeIntAboveSignedHugeIntRange()
     {
         // Only UHUGEINT columns, ordered by rowid: the low-level appender does no type checking.
@@ -206,6 +211,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void UnsignedHugeIntRejectsValuesOutOfRange()
     {
         Command.CommandText = "CREATE TABLE uhugeintAppenderRangeTest(a UHUGEINT)";
@@ -234,6 +240,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void Decimals()
     {
         Command.CommandText = "CREATE TABLE managedAppenderDecimals(a INTEGER, b decimal(3, 1), c decimal (9, 4), d decimal (18, 6), e decimal(38, 12));";
@@ -270,6 +277,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void DecimalsTruncateExcessScale()
     {
         // Writing a .NET decimal with more fractional digits than the column's scale
@@ -333,6 +341,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void HighScaleDecimals()
     {
         // Scale 30 exceeds .NET decimal's max scale (28), exercising the 128-bit rescaling
@@ -362,6 +371,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void GuidValues()
     {
         Command.CommandText = "CREATE TABLE managedAppenderGuids(a UUID);";
@@ -383,6 +393,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void IntervalValues()
     {
         Command.CommandText = "CREATE TABLE managedAppenderInterval(a INTERVAL);";
@@ -410,6 +421,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void TemporalValues()
     {
         Command.CommandText = "CREATE TABLE managedAppenderTemporal(a Date, b TimeStamp, c TIMESTAMP_NS, d TIMESTAMP_MS, e TIMESTAMP_S, f TIMESTAMPTZ, g TIMETZ, h Time, i TIMESTAMPTZ);";
@@ -461,6 +473,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     // values it stores, except for a value DateOnly or TimeOnly cannot hold: an infinity and 24:00:00 would throw if
     // they went through the conversion.
     [Fact]
+    [Trait("V2", "Ready")]
     public void DateAndTimeValuesThroughTheRowInterface()
     {
         Command.CommandText = "CREATE TABLE managedAppenderDateTimeOnly(a DATE, b TIME, c DATE, d TIME)";
@@ -560,6 +573,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void EnumValues()
     {
         Command.CommandText = GetCreateEnumTypeSql("test_enum1", "test", 3);
@@ -604,6 +618,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void IncompleteRowThrowsException()
     {
         var table = "CREATE TABLE managedAppenderIncompleteTest(a BOOLEAN, b TINYINT, c INTEGER);";
@@ -622,6 +637,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void TableDoesNotExistsThrowsException()
     {
         Connection.Invoking(dbConnection =>
@@ -636,6 +652,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void TooManyAppendValueThrowsException()
     {
         var table = "CREATE TABLE managedAppenderManyValuesTest(a BOOLEAN, b TINYINT);";
@@ -656,6 +673,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void WrongTypesThrowException()
     {
         var table = "CREATE TABLE managedAppenderWrongTypeTest(a BOOLEAN, c Date, b TINYINT);";
@@ -675,6 +693,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ClosedAppenderRejectsFurtherOperations()
     {
         var table = "CREATE TABLE managedAppenderClosedAdapterTest(a BOOLEAN, c Date, b TINYINT);";
@@ -700,6 +719,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void EnumNotValidValueThrowException()
     {
         Command.CommandText = GetCreateEnumTypeSql("enum_not_valid_value_test_enum", "test", 100);
@@ -729,6 +749,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void TableWithSchema()
     {
         var schema = "CREATE SCHEMA managedAppenderTestSchema";
@@ -789,6 +810,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ManagedAppenderOnTableAndColumns()
     {
         var table = "CREATE TABLE managedAppenderTest2(a INTEGER, b VARCHAR, c DateTime);";
@@ -824,6 +846,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     [Theory]
     [InlineData("")]
     [InlineData("MY # SÇHËMÁ")]
+    [Trait("V2", "Ready")]
     public void ManagedAppenderOnTableAndColumnsWithSpecialCharacters(string schemaName)
     {
         if (!string.IsNullOrWhiteSpace(schemaName))
@@ -867,6 +890,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ManagedAppenderAppendToAttachedDatabase()
     {
         Command.CommandText = "ATTACH 'append_to_other.db'";
@@ -889,6 +913,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void AppendDefault()
     {
         Command.CommandText = "CREATE OR REPLACE TABLE tbl (i INT DEFAULT 4, j INT, k INT DEFAULT 30)";
@@ -913,6 +938,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void CreateRowReturnsIndependentRows()
     {
         Command.CommandText = "CREATE TABLE managedAppenderRowLifetime(a INTEGER, b INTEGER)";
@@ -942,6 +968,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void AppendRowStateOverloadWritesRows()
     {
         Command.CommandText = "CREATE TABLE managedAppenderScopedRow(a INTEGER, b VARCHAR)";
@@ -971,6 +998,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void AppendRowActionOverloadWritesCompleteRow()
     {
         Command.CommandText = "CREATE TABLE managedAppenderActionRow(a INTEGER, b VARCHAR)";
@@ -990,6 +1018,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void AppendRowActionOverloadRejectsNullCallback()
     {
         Command.CommandText = "CREATE TABLE managedAppenderNullAction(a INTEGER)";
@@ -1002,6 +1031,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void AppendRowStateOverloadRejectsNullCallback()
     {
         Command.CommandText = "CREATE TABLE managedAppenderNullStateAction(a INTEGER)";
@@ -1014,6 +1044,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void IncompleteAppendRowDiscardsFailedRowAndFaultsAppender()
     {
         Command.CommandText = "CREATE TABLE managedAppenderIncompleteScopedRow(a INTEGER, b INTEGER)";
@@ -1042,6 +1073,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     // string pointer, which crashes the process; a fixed-width slot is written as junk.
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void CreateRowWithFailedWriteIsNotWrittenOnDispose()
     {
         Command.CommandText = "CREATE TABLE managedAppenderCreateRowFailedWrite(a VARCHAR, b INTEGER)";
@@ -1061,6 +1093,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void NumericValueForNonNumericColumnThrows()
     {
         Command.CommandText = "CREATE TABLE managedAppenderNumericToVarchar(a VARCHAR, b INTEGER)";
@@ -1084,6 +1117,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void CreateRowWithoutValuesIsNotWrittenOnDispose()
     {
         Command.CommandText = "CREATE TABLE managedAppenderCreateRowNoValues(a VARCHAR, b INTEGER)";
@@ -1100,6 +1134,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void CreateRowWithMissingValuesIsNotWrittenOnDispose()
     {
         Command.CommandText = "CREATE TABLE managedAppenderCreateRowMissingValues(a VARCHAR, b INTEGER)";
@@ -1117,6 +1152,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
 
     // A failed write leaves the column unwritten, so the caller can catch the error and finish the row.
     [Fact]
+    [Trait("V2", "Ready")]
     public void CreateRowFinishedAfterFailedWriteIsWritten()
     {
         Command.CommandText = "CREATE TABLE managedAppenderCreateRowRetry(a VARCHAR, b INTEGER)";
@@ -1140,6 +1176,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     [Theory]
     [InlineData("INTEGER[2]")]
     [InlineData("INTEGER[]")]
+    [Trait("V2", "Ready")]
     public void CollectionFinishedAfterFailedWriteHasNoNullItems(string columnType)
     {
         var table = columnType.EndsWith("[]") ? "managedAppenderListRetry" : "managedAppenderArrayRetry";
@@ -1166,6 +1203,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     [Theory]
     [InlineData("INTEGER[][]")]
     [InlineData("INTEGER[2][2]")]
+    [Trait("V2", "Ready")]
     public void NestedCollectionFinishedAfterFailedWriteHasNoNullItems(string columnType)
     {
         var table = columnType == "INTEGER[][]" ? "managedAppenderNestedListRetry" : "managedAppenderNestedArrayRetry";
@@ -1192,6 +1230,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     // A retry with more items than a list has room for grows the list's items. DuckDB keeps the NULLs the
     // failed attempt marked, so the retried values must still clear them after the list has grown.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ListFinishedAfterFailedWriteHasNoNullItemsAfterListGrows()
     {
         Command.CommandText = "CREATE TABLE managedAppenderListRetryGrows(a INTEGER[], b VARCHAR)";
@@ -1217,6 +1256,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
 
     // Same for a list of arrays: growing the list also refreshes the array writer and its item writer.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ListOfArraysFinishedAfterFailedWriteHasNoNullItemsAfterListGrows()
     {
         Command.CommandText = "CREATE TABLE managedAppenderListOfArraysRetryGrows(a INTEGER[2][], b VARCHAR)";
@@ -1245,6 +1285,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     // Creating the next row discards it and faults the appender, so the skipped row never reaches the
     // table, even with only fixed-width columns where it would not crash.
     [Fact]
+    [Trait("V2", "Ready")]
     public void CreateRowAfterIncompleteRowFaultsAppender()
     {
         Command.CommandText = "CREATE TABLE managedAppenderSkippedRow(a INTEGER, b INTEGER)";
@@ -1268,6 +1309,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void AppendRowAfterIncompleteRowFaultsAppender()
     {
         Command.CommandText = "CREATE TABLE managedAppenderAppendRowAfterIncomplete(a VARCHAR, b INTEGER)";
@@ -1288,6 +1330,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void DiscardedRowCannotBeWrittenTo()
     {
         Command.CommandText = "CREATE TABLE managedAppenderDiscardedRowReference(a VARCHAR, b INTEGER)";
@@ -1310,6 +1353,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     // Clear drops every row that has not been written yet, so an incomplete row is simply gone and the
     // appender stays usable.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ClearDiscardsIncompleteRowWithoutFault()
     {
         Command.CommandText = "CREATE TABLE managedAppenderClearIncomplete(a VARCHAR, b INTEGER)";
@@ -1329,6 +1373,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
 
     // The incomplete row is dropped on Dispose even when it sits in the last slot of a full chunk.
     [Fact]
+    [Trait("V2", "Ready")]
     public void IncompleteRowInLastSlotOfChunkIsNotWritten()
     {
         Command.CommandText = "CREATE TABLE managedAppenderIncompleteLastSlot(a INTEGER, b VARCHAR)";
@@ -1362,6 +1407,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     // The next row must check the incomplete row before taking a slot: with the incomplete row in the last
     // slot, taking a slot first would see a full chunk and flush it, incomplete row included.
     [Fact]
+    [Trait("V2", "Ready")]
     public void CreateRowAfterIncompleteRowInLastSlotOfChunkDoesNotFlushIt()
     {
         Command.CommandText = "CREATE TABLE managedAppenderIncompleteLastSlotNextRow(a INTEGER, b VARCHAR)";
@@ -1392,6 +1438,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     // The incomplete row wrote part of a list before failing, which leaves unused items in the list's
     // child vector; DuckDB only reads the items that the written rows point to.
     [Fact]
+    [Trait("V2", "Ready")]
     public void IncompleteRowWithPartialListIsNotWrittenOnDispose()
     {
         Command.CommandText = "CREATE TABLE managedAppenderIncompleteList(a INTEGER[], b VARCHAR)";
@@ -1414,6 +1461,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void IncompleteRowWithPartialArrayIsNotWrittenOnDispose()
     {
         Command.CommandText = "CREATE TABLE managedAppenderIncompleteArray(a INTEGER[2], b VARCHAR)";
@@ -1437,6 +1485,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
 
     // EndRow only checks the row, so a row with every value is written even without it.
     [Fact]
+    [Trait("V2", "Ready")]
     public void CompleteRowWithoutEndRowIsWritten()
     {
         Command.CommandText = "CREATE TABLE managedAppenderWithoutEndRow(a INTEGER, b INTEGER)";
@@ -1476,6 +1525,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void AppendRowFailureDiscardsFailedRowAndCommitsCompletedRowsOnClose()
     {
         Command.CommandText = "CREATE TABLE managedAppenderThrownScopedRow(a INTEGER, b INTEGER[])";
@@ -1525,6 +1575,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void AppendRowFailureSurfacesCompletedRowCommitErrorAtClose()
     {
         Command.CommandText = "CREATE TABLE managedAppenderFailedFinalization(a INTEGER UNIQUE)";
@@ -1561,6 +1612,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void AppendRowFailureFlushesCompletedRowsAcrossDataChunks()
     {
         Command.CommandText = "CREATE TABLE managedAppenderFailedAcrossChunks(a INTEGER)";
@@ -1597,6 +1649,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void AppendRowFailureLeavesCompletedRowsInCallerTransaction()
     {
         Command.CommandText = "CREATE TABLE managedAppenderFailedTransaction(a INTEGER)";
@@ -1628,6 +1681,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void AppendRowWritesListValue()
     {
         Command.CommandText = "CREATE TABLE managedAppenderScopedListRow(a INTEGER, b INTEGER[])";
@@ -1647,6 +1701,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void AppendRowRejectsReentrantAppenderUseAndFaultsAppender()
     {
         Command.CommandText = "CREATE TABLE managedAppenderReentrantScopedRow(a INTEGER)";
@@ -1673,6 +1728,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ClearAppender()
     {
         Command.CommandText = "CREATE OR REPLACE TABLE tbl_empty (i INT DEFAULT 4, j INT, k INT DEFAULT 30)";
@@ -1695,6 +1751,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
 
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ClearAppenderAddMoreData()
     {
         Command.CommandText = "CREATE OR REPLACE TABLE tbl_empty (i INT DEFAULT 4, j INT, k INT DEFAULT 30)";
@@ -1721,6 +1778,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void AppenderWithEnum()
     {
         Command.CommandText = "CREATE TYPE mood AS ENUM ('happy', 'sad', 'neutral');";
@@ -1812,6 +1870,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     // Each date or timestamp used to allocate several hundred bytes, because the infinity checks compared structs
     // through ValueType.Equals.
     [Fact]
+    [Trait("V2", "Ready")]
     public void AppendingDatesAndTimestampsDoesNotAllocatePerValue()
     {
         Command.CommandText = "CREATE TABLE managedAppenderDateAllocations(a TIMESTAMP, b DATE, c DATE, d TIMESTAMPTZ)";

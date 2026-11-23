@@ -10,9 +10,10 @@ partial class DuckDBConnection
 
     public DuckDBAppender CreateAppender(string? catalog, string? schema, string table)
     {
-        var nativeAppender = CreateNativeAppender(catalog, schema, table);
+        EnsureConnectionOpen();
 
-        return new DuckDBAppender(nativeAppender, GetTableName());
+        var buffer = new Execution.DuckDBV2AppendBuffer(V2Connection, catalog, schema, table);
+        return new DuckDBAppender(buffer, GetTableName());
 
         string GetTableName()
         {

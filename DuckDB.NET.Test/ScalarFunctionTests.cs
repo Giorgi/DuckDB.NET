@@ -227,6 +227,7 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void RegisterScalarFunctionWithAny()
     {
         Connection.RegisterScalarFunction<object, string, string>("to_string", (readers, writer, rowCount) =>

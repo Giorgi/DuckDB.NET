@@ -24,6 +24,7 @@ public class HugeIntWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestB
     ];
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void AppendedInt128AndUInt128AreTheValuesDuckDBParses()
     {
         Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE hugeIntWriteSigned (text VARCHAR, value HUGEINT)");
@@ -56,6 +57,7 @@ public class HugeIntWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestB
     // Like the other integers, each type goes into the other 128-bit column as its bytes, without a check: an Int128 of
     // -1 in a UHUGEINT column is 2^128 - 1, as a long of -1 in a UBIGINT column is 2^64 - 1.
     [Fact]
+    [Trait("V2", "Ready")]
     public void Int128AndUInt128GoToTheOtherColumnReinterpreted()
     {
         Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE hugeIntWriteAcross (signed HUGEINT, unsigned UHUGEINT, expected_signed VARCHAR, expected_unsigned VARCHAR)");
@@ -83,6 +85,7 @@ public class HugeIntWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestB
 
     // The 16 bytes do not fit the slot of a narrower column, so they are refused there.
     [Fact]
+    [Trait("V2", "Ready")]
     public void Int128AndUInt128AreRefusedByOtherColumns()
     {
         Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE hugeIntWriteOther (a BIGINT, b DOUBLE)");
@@ -103,6 +106,7 @@ public class HugeIntWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestB
     // A BigInteger is refused there too. Before 2.0 its 16 bytes were written over the next values of a narrower
     // column, and into a VARINT slot as a broken string.
     [Fact]
+    [Trait("V2", "Ready")]
     public void BigIntegerIsRefusedByOtherColumns()
     {
         Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE bigIntegerWriteOther (a BIGINT, b DOUBLE, c VARINT)");
@@ -141,6 +145,7 @@ public class HugeIntWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestB
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ListsOfInt128AndUInt128()
     {
         Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE hugeIntWriteLists (signed HUGEINT[], unsigned UHUGEINT[], fixed HUGEINT[2])");
@@ -168,6 +173,7 @@ public class HugeIntWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestB
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void MappedInt128AndUInt128Properties()
     {
         Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE hugeIntWriteMapped (signed HUGEINT, unsigned UHUGEINT, nullable_signed HUGEINT, nullable_unsigned UHUGEINT)");
@@ -197,6 +203,7 @@ public class HugeIntWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestB
     // The mapped appender checks types when it is created. Like a long, which it accepts for BIGINT only, each type is
     // accepted for its own column only.
     [Fact]
+    [Trait("V2", "Ready")]
     public void MappedInt128AndUInt128AreRefusedForTheOtherColumn()
     {
         Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE hugeIntWriteMappedAcross (signed UHUGEINT, unsigned HUGEINT)");

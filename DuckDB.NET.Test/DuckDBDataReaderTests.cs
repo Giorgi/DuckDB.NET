@@ -381,6 +381,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadManyRows()
     {
         var table = "CREATE TABLE TableForManyRows(foo INTEGER, bar VARCHAR);";

@@ -75,6 +75,7 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     [InlineData("TimestampTz", "make_timestamp(v)::TIMESTAMPTZ", "epoch_us(c)", 1)]
     [InlineData("TimestampMs", "make_timestamp(v * 1000)::TIMESTAMP_MS", "epoch_us(c::TIMESTAMP)", 1_000)]
     [InlineData("TimestampS", "make_timestamp(v * 1000000)::TIMESTAMP_S", "epoch_us(c::TIMESTAMP)", 1_000_000)]
+    [Trait("V2", "Ready")]
     public void TimestampsAreReadAsDuckDBSplitsThem(string type, string expression, string microseconds, long microsecondsPerUnit)
     {
         // A day inside both ends, so that a TIMESTAMPTZ stays in range whatever the time zone of the session is.

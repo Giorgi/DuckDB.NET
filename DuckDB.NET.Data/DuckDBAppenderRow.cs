@@ -9,8 +9,7 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
 {
     private readonly string qualifiedTableName;
     private readonly VectorDataWriterBase[] vectorWriters;
-    private readonly DuckDBDataChunk dataChunk;
-    private readonly Native.DuckDBAppender nativeAppender;
+    private readonly DuckDBAppender appender;
 
     internal ulong ChunkRowIndex { get; private set; }
 
@@ -19,13 +18,12 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
     internal int ValueCount { get; private set; } = 0;
 
     internal DuckDBAppenderRow(string qualifiedTableName, VectorDataWriterBase[] vectorWriters,
-                               ulong rowIndex, DuckDBDataChunk dataChunk, Native.DuckDBAppender nativeAppender)
+                               ulong rowIndex, DuckDBAppender appender)
     {
         this.qualifiedTableName = qualifiedTableName;
         this.vectorWriters = vectorWriters;
         ChunkRowIndex = rowIndex;
-        this.dataChunk = dataChunk;
-        this.nativeAppender = nativeAppender;
+        this.appender = appender;
     }
 
     /// <summary>
@@ -177,14 +175,9 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
 
     public IDuckDBAppenderRow AppendDefault()
     {
-        GetCurrentWriter();
-
-        var state = NativeMethods.Appender.DuckDBAppendDefaultToChunk(nativeAppender, dataChunk, (ulong)ValueCount, ChunkRowIndex);
-
-        if (state == DuckDBState.Error)
-        {
-            NativeMethods.Appender.DuckDBAppenderErrorData(nativeAppender).ThrowOnError();
-        }
+        // The insert leaves the column out for this row, so DuckDB fills in its default (DuckDBV2AppendBuffer).
+        GetCurrentWriter().WriteNull(ChunkRowIndex);
+        appender.MarkDefault(ValueCount, ChunkRowIndex);
 
         ValueCount++;
         return this;

@@ -225,12 +225,32 @@ keeps the base reader, as with V1.
   directions; the `*WriteConversionTests` compare with DuckDB once the appender is on V2. 3420 test cases are marked
   V2-ready.
 
-### The appender (not started)
+### The appender (done)
 
-- The appender builds chunks as it does today, appends them to a column data collection and, on flush, runs
-  `INSERT INTO t (columns) SELECT * FROM buf` with `statement_add_collection`. The column types come from binding
-  `SELECT * FROM t`. `append_default_to_chunk` has no equivalent, so the column list leaves out defaulted columns.
-- Tests: `AppenderTests`, `DuckDBManagedAppender*`, `DuckDBMappedAppenderTests` and the `*WriteConversionTests`.
+V2 has no appender. `DuckDBAppender` keeps its API and writes its rows into `Execution/DuckDBV2AppendBuffer`:
+
+- **Buffer:** the writers fill a data chunk; full chunks go into a column data collection, which INSERT statements
+  read as a table (`statement_add_collection`, `INSERT INTO t (columns) SELECT columns FROM __duckdb_net_appender`),
+  prepared once per appender. The column names and types come from binding `SELECT * FROM t` when the appender is
+  created, so a missing table is reported then. Names are quoted.
+- **Flush:** every 204,800 rows, as DuckDB's appender did, and on `Close()`. A failed flush drops the rows since the
+  last one (`AFailedFlushDropsTheRowsSinceTheLastFlush`). Clearing the collection invalidates its append state, so
+  the state is made again after every flush and `Clear()`.
+- **Defaults:** `AppendDefault()` writes a NULL and records the column in the row's pattern (the columns it leaves
+  to their defaults). The collection has a hidden last column that numbers the rows. A flush of one run of one
+  pattern is one INSERT of the pattern's columns; a flush of several runs inserts each run with `WHERE
+  __duckdb_net_row >= $1 AND < $2`, so rows keep their order and each run leaves out its own columns. A row that
+  leaves every column to its default is `INSERT ... DEFAULT VALUES`. A flush of several runs is several statements:
+  outside a transaction, a failure part way keeps the runs before it.
+- **Behaviour changes:** a flush while a reader is open on the connection is refused with
+  `InvalidOperationException` (one open result per connection). The errors of a flush are those of the INSERT.
+- **Not measured:** the path is chunk, collection, INSERT, where V1 appended to the table's storage directly. The
+  list appender tests take 2 to 4 s each; there is no V1 time to compare them with yet. To benchmark on a VM.
+- Not handled: a table with generated columns (`SELECT *` includes them, an INSERT cannot write them), and
+  `preserve_insertion_order = false`, under which the INSERT need not keep the order of the buffer.
+- `V2AppenderTests` pins the default patterns over chunk boundaries, a row of only defaults, the flush at 204,800
+  rows, a failed flush, an open reader, quoted names and a missing table. `DuckDBArrowAppender` stays on V1 until
+  stage 7. 4292 test cases are marked V2-ready.
 
 ## Later stages
 

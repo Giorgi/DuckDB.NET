@@ -14,6 +14,7 @@ public class StringWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     private static readonly string[] Units = ["a", "é", "ა", "\U0001F600", "\uDE00\uD83D"];
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void AStringIsStoredAsItsUtf8Bytes()
     {
         var values = new List<string>();
@@ -64,6 +65,7 @@ public class StringWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     // DuckDB compares and hashes a short string by its 16 bytes, so the bytes after the string have to be zero.
     // Reading the string back does not show them; comparing with a string that DuckDB made does.
     [Fact]
+    [Trait("V2", "Ready")]
     public void AShortStringEqualsDuckDBsOwn()
     {
         Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE stringWriteEquals (value VARCHAR, length INTEGER)");
@@ -87,6 +89,7 @@ public class StringWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     private static readonly string[] NulValues = ["\0", "ab\0cd", "abcdefghijk\0", "abcdefghijkl\0mn", new string('n', 200) + "\0tail", "აააა\0ა"];
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void AnAppendedStringKeepsItsNulCharacters()
     {
         Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE stringWriteNul (value VARCHAR)");
@@ -113,6 +116,7 @@ public class StringWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     // A short string with a NUL is kept inside the value. It must compare and hash like the string DuckDB makes of the
     // same characters, which a wrong byte after its end would break while it still reads back right.
     [Fact]
+    [Trait("V2", "Ready")]
     public void AnAppendedStringWithNulEqualsDuckDBsOwn()
     {
         (string Value, string Sql)[] cases =

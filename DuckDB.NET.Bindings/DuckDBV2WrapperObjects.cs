@@ -114,3 +114,18 @@ internal sealed unsafe class DuckDBV2PreparedStatement(_duckdb_v2_prepared_state
 {
     protected override DUCKDB_V2_ERROR Destroy(_duckdb_v2_prepared_statement** pointer) => NativeMethodsV2.duckdb_v2_prepared_statement_destroy(pointer);
 }
+
+/// <summary>
+/// A column data collection: chunks buffered in DuckDB's memory, which a statement can read as a table
+/// (<c>statement_add_collection</c>). A statement or result that reads it must be destroyed before it.
+/// </summary>
+internal sealed unsafe class DuckDBV2ColumnDataCollection(_duckdb_v2_column_data_collection* pointer) : DuckDBV2SafeHandle<_duckdb_v2_column_data_collection>(pointer)
+{
+    protected override DUCKDB_V2_ERROR Destroy(_duckdb_v2_column_data_collection** pointer) => NativeMethodsV2.duckdb_v2_column_data_collection_destroy(pointer);
+}
+
+/// <summary>The state of appends to a column data collection; destroyed before the collection.</summary>
+internal sealed unsafe class DuckDBV2CollectionAppendState(_duckdb_v2_column_data_collection_append_state* pointer) : DuckDBV2SafeHandle<_duckdb_v2_column_data_collection_append_state>(pointer)
+{
+    protected override DUCKDB_V2_ERROR Destroy(_duckdb_v2_column_data_collection_append_state** pointer) => NativeMethodsV2.duckdb_v2_column_data_collection_append_state_destroy(pointer);
+}

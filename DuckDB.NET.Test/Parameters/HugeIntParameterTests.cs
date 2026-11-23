@@ -89,6 +89,7 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void HugeIntMinimumAndMaximumRoundTrip()
     {
         // HUGEINT is a 128-bit two's complement integer: -2^127 to 2^127 - 1.

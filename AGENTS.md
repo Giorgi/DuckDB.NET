@@ -153,7 +153,8 @@ dotnet run -c Release -f net10.0 --project DuckDB.NET.Benchmarks -- --filter "*N
   why the write path is written as it is, with the measurements and the designs that were rejected. The readers
   and the writers mirror each other, so look at both folders before changing how a type is read or written.
 - **`DuckDBAppender`:** the low-level appender (`connection.CreateAppender(table)`, then `CreateRow().AppendValue(...)`,
-  or the allocation-free `AppendRow`). It buffers rows in a data chunk of `VectorSize` (2048) rows. It does **no type
+  or the allocation-free `AppendRow`). On `nightly-vnext` it buffers into a column data collection that INSERT
+  statements read (`Execution/DuckDBV2AppendBuffer.cs`, "The appender" in `docs/V2-MIGRATION.md`). It buffers rows in a data chunk of `VectorSize` (2048) rows. It does **no type
   checking** and writes the raw bytes of the .NET type it is given; the docs call this out. A row is written only once
   every column has a value. Moving on from an incomplete row discards it and faults the appender.
 - **`DuckDBMappedAppender<T, TMap>`:** the type-checked alternative (`CreateAppender<T, TMap>(table)`). A

@@ -61,6 +61,7 @@ public class IntervalTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void AppendNegativeTimeSpan()
     {
         Command.CommandText = "CREATE TABLE NegativeIntervalTable (v INTERVAL);";

@@ -27,6 +27,7 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void MappedAppender_ValidatesTypeMatching()
     {
         // Create table with specific types
@@ -80,6 +81,7 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void MappedAppender_SupportsByteArray()
     {
         Command.CommandText = "CREATE TABLE file_entry(id INTEGER, data BLOB);";
@@ -129,6 +131,7 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void MappedAppender_ThrowsOnTypeMismatch()
     {
         Command.CommandText = "CREATE TABLE person_mismatch(id INTEGER, name VARCHAR, height REAL, birth_date TIMESTAMP);";
@@ -161,6 +164,7 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void MappedAppender_SupportsDefaultAndNull()
     {
         Command.CommandText = "CREATE TABLE person_defaults(id INTEGER, name VARCHAR, age INT DEFAULT 18, city VARCHAR);";
@@ -236,6 +240,7 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void MappedAppender_SupportsAllMappedTypes()
     {
         Command.CommandText = """
@@ -310,6 +315,9 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
             reader.GetFieldValue<TimeOnly>(15).Should().Be(record.TimeOnly);
         }
 
+        // A connection has one open result at a time.
+        reader.Dispose();
+
         Command.CommandText = "SELECT c_nullable_int, c_nullable_string FROM mapped_all_types ORDER BY rowid";
         using var nullableReader = Command.ExecuteReader();
 
@@ -357,6 +365,7 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void MappedAppender_SupportsDuckDBDateOnlyAndTimeOnly()
     {
         Command.CommandText = "CREATE TABLE mapped_duckdb_date_time(d DATE, t TIME, nullable_d DATE, nullable_t TIME);";
@@ -404,6 +413,7 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void MappedAppender_AcceptsTimeOnlyTypesForTimeNsColumns()
     {
         Command.CommandText = "CREATE TABLE mapped_time_ns (time TIME_NS, duck_db_time TIME_NS)";
@@ -455,6 +465,7 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void MappedAppender_SupportsBigIntegerForUnsignedHugeInt()
     {
         Command.CommandText = "CREATE TABLE mapped_big_numbers(signed_value HUGEINT, unsigned_value UHUGEINT);";
@@ -486,6 +497,7 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void MappedAppender_RejectsNegativeBigIntegerForUnsignedHugeInt()
     {
         Command.CommandText = "CREATE TABLE mapped_big_numbers_negative(signed_value HUGEINT, unsigned_value UHUGEINT);";
@@ -498,6 +510,7 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void MappedAppender_RejectsBigIntegerAboveUnsignedHugeIntRange()
     {
         Command.CommandText = "CREATE TABLE mapped_big_numbers_too_big(signed_value HUGEINT, unsigned_value UHUGEINT);";
@@ -510,6 +523,7 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void MappedAppender_SupportsNullableBigIntegerForUnsignedHugeInt()
     {
         Command.CommandText = "CREATE TABLE mapped_nullable_big_numbers(signed_value HUGEINT, unsigned_value UHUGEINT);";
@@ -549,6 +563,7 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void MappedAppender_NamesBothColumnTypesAcceptedForBigInteger()
     {
         Command.CommandText = "CREATE TABLE mapped_big_numbers_mismatch(signed_value HUGEINT, unsigned_value VARCHAR);";
@@ -561,6 +576,7 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
 
     // The appender has no writer for BIGNUM, so the column is rejected instead of being written with the wrong layout.
     [Fact]
+    [Trait("V2", "Ready")]
     public void MappedAppender_RejectsBigIntegerForBigNumColumn()
     {
         Command.CommandText = "CREATE TABLE mapped_big_numbers_bignum(signed_value HUGEINT, unsigned_value BIGNUM);";
@@ -626,6 +642,7 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
 
     // A nullable property takes its own path in the mapping, with one line per type.
     [Fact]
+    [Trait("V2", "Ready")]
     public void MappedAppender_SupportsNullablePropertiesOfEveryType()
     {
         Command.CommandText = "CREATE TABLE mapped_all_nullable_types(c0 BOOLEAN, c1 TINYINT, c2 SMALLINT, c3 INTEGER, c4 BIGINT, c5 UTINYINT, c6 USMALLINT, c7 UINTEGER, c8 UBIGINT, c9 FLOAT, c10 DOUBLE, c11 DECIMAL(18, 4), c12 TIMESTAMP, c13 TIMESTAMPTZ, c14 INTERVAL, c15 UUID, c16 HUGEINT, c17 DATE, c18 TIME, c19 DATE, c20 TIME);";

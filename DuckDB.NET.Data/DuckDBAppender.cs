@@ -1,7 +1,7 @@
 ﻿using DuckDB.NET.Data.Common;
 using DuckDB.NET.Data.DataChunk.Writer;
 using DuckDB.NET.Data.Extensions;
-using System.Diagnostics.CodeAnalysis;
+using DuckDB.NET.Data.Execution;
 namespace DuckDB.NET.Data;
 
 /// <summary>
@@ -16,42 +16,38 @@ public class DuckDBAppender : IDisposable
     private bool closed;
     private bool isAppendingRow;
     private bool isFaulted;
-    private readonly Native.DuckDBAppender nativeAppender;
     private readonly string qualifiedTableName;
 
     private ulong rowCount;
 
-    private readonly DuckDBLogicalType[] logicalTypes;
-    private readonly DuckDBDataChunk dataChunk;
+    // On the C API V2 the rows go into a buffer that is inserted into the table when it is flushed.
+    private readonly DuckDBV2AppendBuffer buffer;
+    private readonly DuckDBType[] columnTypes;
     private readonly VectorDataWriterBase[] vectorWriters;
     private DuckDBAppenderRow? reusableRow;
     private DuckDBAppenderRow? currentRow;
 
-    [SuppressMessage("Reliability", "S3869", Justification = "The logicalTypes field keeps the logical types alive as long as the appender.")]
-    internal DuckDBAppender(Native.DuckDBAppender appender, string qualifiedTableName)
+    // Per row of the chunk, which columns it leaves to their defaults (DuckDBV2AppendBuffer.GetPattern); 0 for none.
+    private readonly int[] rowPatterns = new int[DuckDBGlobalData.VectorSize];
+    private readonly bool[] defaultedColumns;
+    private bool rowHasDefaults;
+
+    internal unsafe DuckDBAppender(DuckDBV2AppendBuffer buffer, string qualifiedTableName)
     {
-        nativeAppender = appender;
+        this.buffer = buffer;
         this.qualifiedTableName = qualifiedTableName;
 
-        var columnCount = NativeMethods.Appender.DuckDBAppenderColumnCount(nativeAppender);
-
-        vectorWriters = new VectorDataWriterBase[columnCount];
-        logicalTypes = new DuckDBLogicalType[columnCount];
-        var logicalTypeHandles = new IntPtr[columnCount];
-
-        for (ulong index = 0; index < columnCount; index++)
+        vectorWriters = new VectorDataWriterBase[buffer.ColumnCount];
+        defaultedColumns = new bool[buffer.ColumnCount];
+        columnTypes = Array.ConvertAll(buffer.ColumnTypes, type =>
         {
-            logicalTypes[index] = NativeMethods.Appender.DuckDBAppenderColumnType(nativeAppender, index);
-            logicalTypeHandles[index] = logicalTypes[index].DangerousGetHandle();
-        }
-
-        dataChunk = NativeMethods.DataChunks.DuckDBCreateDataChunk(logicalTypeHandles, columnCount);
+            using var lease = type.Acquire();
+            return DuckDBV2LogicalTypes.GetId(lease.Pointer).ToDuckDBType();
+        });
     }
 
-    /// <summary>
-    /// Gets the logical types of the columns in the appender.
-    /// </summary>
-    internal IReadOnlyList<DuckDBLogicalType> LogicalTypes => logicalTypes;
+    /// <summary>The types of the table's columns, for the checks of the mapped appender.</summary>
+    internal IReadOnlyList<DuckDBType> ColumnTypes => columnTypes;
 
     /// <summary>
     /// Creates an independent row. The caller must append every column and call
@@ -74,7 +70,7 @@ public class DuckDBAppender : IDisposable
     {
         EnsureUsable();
         EnsurePreviousRowComplete();
-        currentRow = new DuckDBAppenderRow(qualifiedTableName, vectorWriters, PrepareRow(), dataChunk, nativeAppender);
+        currentRow = new DuckDBAppenderRow(qualifiedTableName, vectorWriters, PrepareRow(), this);
         return currentRow;
     }
 
@@ -165,7 +161,7 @@ public class DuckDBAppender : IDisposable
 
         if (reusableRow is null)
         {
-            reusableRow = new DuckDBAppenderRow(qualifiedTableName, vectorWriters, rowIndex, dataChunk, nativeAppender);
+            reusableRow = new DuckDBAppenderRow(qualifiedTableName, vectorWriters, rowIndex, this);
         }
         else
         {
@@ -187,24 +183,34 @@ public class DuckDBAppender : IDisposable
             rowCount = 0;
         }
 
+        if (rowHasDefaults)
+        {
+            Array.Clear(defaultedColumns);
+            rowHasDefaults = false;
+        }
+
+        rowPatterns[rowCount] = 0;
         rowCount++;
         return rowCount - 1;
+    }
+
+    // The row leaves the column to its default. The cell holds a NULL, which the insert does not read.
+    internal void MarkDefault(int column, ulong rowIndex)
+    {
+        defaultedColumns[column] = true;
+        rowHasDefaults = true;
+        rowPatterns[rowIndex] = buffer.GetPattern(defaultedColumns);
     }
 
     public void Clear()
     {
         EnsureUsable();
 
-        var state = NativeMethods.Appender.DuckDBAppenderClear(nativeAppender);
-        if (!state.IsSuccess())
-        {
-            NativeMethods.Appender.DuckDBAppenderErrorData(nativeAppender).ThrowOnError();
-        }
+        buffer.Clear();
 
         DiscardIncompleteRow();
 
         rowCount = 0;
-        NativeMethods.DataChunks.DuckDBDataChunkReset(dataChunk);
         InitVectorWriters();
     }
 
@@ -230,12 +236,7 @@ public class DuckDBAppender : IDisposable
         {
             DiscardIncompleteRow();
             AppendDataChunk();
-
-            var state = NativeMethods.Appender.DuckDBAppenderClose(nativeAppender);
-            if (!state.IsSuccess())
-            {
-                NativeMethods.Appender.DuckDBAppenderErrorData(nativeAppender).ThrowOnError();
-            }
+            buffer.Flush();
         }
         finally
         {
@@ -245,24 +246,17 @@ public class DuckDBAppender : IDisposable
             }
             finally
             {
-                nativeAppender.Close();
+                buffer.Dispose();
             }
         }
     }
 
     private void DisposeManagedResources()
     {
-        foreach (var logicalType in logicalTypes)
-        {
-            logicalType.Dispose();
-        }
-
         foreach (var writer in vectorWriters)
         {
             writer?.Dispose();
         }
-
-        dataChunk.Dispose();
     }
 
     public void Dispose()
@@ -273,29 +267,20 @@ public class DuckDBAppender : IDisposable
         }
     }
 
-    private void InitVectorWriters()
+    // The chunk is emptied after it is buffered, and its vectors change, so the writers are made again.
+    private unsafe void InitVectorWriters()
     {
-        for (long index = 0; index < vectorWriters.LongLength; index++)
+        for (var index = 0; index < vectorWriters.Length; index++)
         {
-            var vector = NativeMethods.DataChunks.DuckDBDataChunkGetVector(dataChunk, index);
-
             vectorWriters[index]?.Dispose();
-            vectorWriters[index] = VectorDataWriterFactory.CreateWriter(vector, logicalTypes[index]);
+
+            using var lease = buffer.ColumnTypes[index].Acquire();
+            vectorWriters[index] = VectorDataWriterFactory.CreateWriter(buffer.GetVector(index), lease.Pointer);
         }
     }
 
-    private void AppendDataChunk()
-    {
-        NativeMethods.DataChunks.DuckDBDataChunkSetSize(dataChunk, rowCount);
-        var state = NativeMethods.Appender.DuckDBAppendDataChunk(nativeAppender, dataChunk);
-
-        if (!state.IsSuccess())
-        {
-            NativeMethods.Appender.DuckDBAppenderErrorData(nativeAppender).ThrowOnError();
-        }
-
-        NativeMethods.DataChunks.DuckDBDataChunkReset(dataChunk);
-    }
+    // Buffers the rows of the chunk, which flushes the buffer every DuckDBV2AppendBuffer.FlushThreshold rows.
+    private void AppendDataChunk() => buffer.BufferChunk(rowCount, rowPatterns.AsSpan(0, (int)rowCount));
 
     private void DiscardFailedAppendRow(DuckDBAppenderRow row)
     {
