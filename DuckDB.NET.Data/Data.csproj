@@ -82,8 +82,6 @@ Thanks to Alaric Dailey (@alaricd) for his pull requests that brought DuckDB.NET
 
   <ItemGroup>
     <ProjectReference Include="..\DuckDB.NET.Bindings\Bindings.csproj" />
-    <!-- Internal in each assembly, so Data compiles its own copy for net8.0. -->
-    <Compile Include="..\DuckDB.NET.Bindings\OverloadResolutionPriorityAttribute.cs" Link="Extensions\OverloadResolutionPriorityAttribute.cs" />
   </ItemGroup>
 
   <!-- Data and Bindings ship together, and Data needs the Bindings of its own major version: Data 1.5.x, whose

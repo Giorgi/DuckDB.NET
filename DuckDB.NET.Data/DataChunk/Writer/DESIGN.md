@@ -564,9 +564,8 @@ between two runs.
   `AppendValue(BigInteger?)` (both on `IDuckDBAppenderRow` and on the class) removes the ambiguity for C# 13 and
   later: checked with a consumer assembly, every constant and every variable of the other numeric types binds as
   before, and `Int128`, `UInt128` and `BigInteger` bind to their own overloads. Lowering only `UInt128?` would send a
-  `UInt128` to `BigInteger?`, to which it converts too. C# 12, the default for a net8.0 project, ignores the
-  attribute, and there such a constant needs its type. The net8.0 build declares the attribute itself
-  (`Extensions/OverloadResolutionPriorityAttribute.cs`). Decided by the maintainer, 2026-11-05.
+  `UInt128` to `BigInteger?`, to which it converts too. A project that sets C# 12 or
+  older ignores the attribute, and there such a constant needs its type. Decided by the maintainer, 2026-11-05.
 - **The items of a list:** `IEnumerable<Int128>` and the three others are the last value-type lines of
   `CollectionVectorDataWriter.WriteCollection`, so a list of any other type is tested against no more interfaces
   than before (see "Costs" below).

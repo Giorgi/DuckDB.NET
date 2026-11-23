@@ -6,8 +6,8 @@ namespace DuckDB.NET.Data.DataChunk.Reader;
 // StructVectorDataReader.Setters.cs.
 internal sealed partial class StructVectorDataReader : VectorDataReaderBase
 {
-    // TODO: Replace with OrderedDictionary<string, VectorDataReaderBase> when .NET 8 support is dropped.
-    // The parallel array exists only to guarantee field-ordinal iteration in Reset/Dispose.
+    // The array holds every field by ordinal, for Reset and Dispose. A dictionary, ordered or not, cannot replace it:
+    // the fields of an unnamed struct, row(1, 2), all have the empty name, so only the last one stays in it.
     private readonly Dictionary<string, VectorDataReaderBase> fieldReadersByName;
     private readonly VectorDataReaderBase[] fieldReaders;
 

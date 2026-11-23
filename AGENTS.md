@@ -4,8 +4,8 @@ This file provides guidance to coding agents working with code in this repositor
 
 DuckDB.NET is an ADO.NET provider and low-level bindings for DuckDB. The solution (`DuckDB.NET.slnx`) has five
 projects: `Bindings` (P/Invoke over the DuckDB C API), `Data` (the ADO.NET provider), `Test` (xUnit),
-`Samples` and `Benchmarks` (BenchmarkDotNet). The libraries target `net8.0;net10.0`; the test project targets
-**net8.0 only**, so `dotnet test -f net10.0` silently runs nothing. The SDK is pinned by `global.json` (10.0.2xx).
+`Samples` and `Benchmarks` (BenchmarkDotNet). All of them target `net10.0`. The SDK is pinned by `global.json`
+(10.0.2xx).
 User documentation lives in a separate docfx repository (`S:\src\DuckDB.NET-Docs`, published at https://duckdb.net).
 
 ## Commands

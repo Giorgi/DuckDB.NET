@@ -58,5 +58,5 @@ directions together, so a round trip does not show a mistake; the tests that com
 ## Before proposing a change as faster
 
 Measure it: against the previous build in the same BenchmarkDotNet run, with a read or a write that must not
-change as a control, on one column type and on several, on net8.0 and net10.0. If the control moves, the run is
+change as a control, on one column type and on several, on net10.0. If the control moves, the run is
 not usable. State no gain and no cause that was not measured.
