@@ -54,13 +54,15 @@ public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(true)]
     public async Task ExecuteArrowBatches_StreamsMultipleChunks(bool useStreamingMode)
     {
-        const int rowCount = 5000;
+        // More rows than one batch holds: DuckDB makes batches of up to 131,072 rows.
+        const int rowCount = 300_000;
         Command.UseStreamingMode = useStreamingMode;
         Command.CommandText = $"select i from range({rowCount}) t(i)";
 
         var batches = await ReadAllAsync();
 
         batches.Count.Should().BeGreaterThan(1);
+        batches.Should().OnlyContain(b => b.Length <= 131_072);
         batches.Sum(b => b.Length).Should().Be(rowCount);
 
         var total = 0L;
@@ -79,6 +81,7 @@ public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public async Task ExecuteArrowStream_ThrowsWhenLaterStreamingChunkFails()
     {
         // The first chunks convert fine; the error is raised only while producing a later chunk.
@@ -104,6 +107,7 @@ public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ExecuteArrowStream_ExposesSchemaWithoutReading()
     {
         Command.CommandText = "select 1 as a, 'x' as b";
@@ -116,6 +120,7 @@ public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public async Task ExecuteArrowStream_ReadsBatchesUntilNull()
     {
         Command.CommandText = "select i from range(10) t(i)";
@@ -156,6 +161,7 @@ public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ExecuteArrowStream_ThrowsWhenNoResultSet()
     {
         Command.CommandText = "create table t_no_result (id integer)";
@@ -166,6 +172,7 @@ public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public async Task ReadNextRecordBatchAsync_WithCanceledToken_ReturnsCanceledTask()
     {
         Command.CommandText = "select i from range(10) t(i)";
@@ -178,6 +185,7 @@ public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public async Task ReadNextRecordBatchAsync_AfterDispose_Throws()
     {
         Command.CommandText = "select i from range(10) t(i)";
@@ -191,6 +199,7 @@ public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void Dispose_CalledTwice_IsNoOp()
     {
         Command.CommandText = "select i from range(10) t(i)";

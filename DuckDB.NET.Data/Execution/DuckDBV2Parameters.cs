@@ -85,8 +85,9 @@ internal sealed unsafe class DuckDBV2Parameters : IDisposable
         return new DuckDBV2Parameters(schema);
     }
 
+    // The result is a _duckdb_v2_result* or, for an Arrow execution, a _duckdb_v2_arrow_result*.
     public delegate DUCKDB_V2_ERROR ExecuteFunction(sbyte** names, ulong* nameLengths, _duckdb_v2_value** values, ulong count,
-                                                    _duckdb_v2_result** result, _duckdb_v2_error_info** error);
+                                                    void** result, _duckdb_v2_error_info** error);
 
     /// <summary>
     /// Converts the collection's values to the parameters and runs <paramref name="execute"/> with them, as V1 bound
@@ -99,7 +100,7 @@ internal sealed unsafe class DuckDBV2Parameters : IDisposable
     /// Every value is passed with its parameter's name, which is its binding key either way.
     /// </summary>
     public DUCKDB_V2_ERROR Execute(DuckDBV2Connection connection, DuckDBParameterCollection parameters, ExecuteFunction execute,
-                                   _duckdb_v2_result** result, _duckdb_v2_error_info** error)
+                                   void** result, _duckdb_v2_error_info** error)
     {
         var count = parameters.Count;
 

@@ -306,7 +306,16 @@ V2 has no appender. `DuckDBAppender` keeps its API and writes its rows into `Exe
      `ADefaultThatIsNotOfTheParameterTypeIsRefusedAtRegistration`, `ACSharpDefaultOnANamedParameterIsRefused`.
    - `UdfExceptionStore` is no longer written to; the V1 Arrow stream still reads it until stage 7. 4081 test cases
      are marked V2-ready.
-7. Arrow: results through `statement_execute_arrow`. `DuckDBArrowAppender` has no direct path in V2.
+7. Arrow.
+   - **Results (done):** `ExecuteArrowStream` and `ExecuteArrowBatchesAsync` execute with `statement_execute_arrow`
+     (`prepared_statement_execute_arrow` after `Prepare()`), and `DuckDBArrowArrayStream` imports each array that
+     `arrow_result_fetch_array` returns. DuckDB makes the batches, of V2's default size, up to 131,072 rows (V1: one
+     per chunk of 2,048 rows). The statements before the first that returns rows are drained. A failure is a
+     `DuckDBException` with DuckDB's error type, and a C# function's exception as the inner exception
+     (`V2ArrowResultTests`); the C stream that `arrow_result_to_arrow_c_stream` makes would report only EIO.
+     `UseStreamingMode = false` throws, as for readers. `UdfExceptionStore` and the V1 result extensions are gone.
+   - **`DuckDBArrowAppender`:** V2's Arrow importer needs a context with an active transaction, which only callbacks
+     have, so it has no direct path.
 8. Cleanup: the connection string builder enumerates the options through V2, Data stops using V1, the fate of the V1
    declarations in Bindings is decided, and CI runs the whole test suite again.
 

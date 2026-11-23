@@ -555,6 +555,7 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void PreparedCommandAsArrowStream()
     {
         using var command = Connection.CreateCommand();

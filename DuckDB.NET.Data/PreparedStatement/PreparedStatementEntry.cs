@@ -80,12 +80,35 @@ internal sealed unsafe class PreparedStatementEntry : IDisposable
             ? NativeMethodsV2.duckdb_v2_prepared_statement_execute(pointer, null, null, null, 0, &result, &error)
             : parameters.Execute(connection, parameterCollection,
                                  (names, lengths, values, count, output, executeError) =>
-                                     NativeMethodsV2.duckdb_v2_prepared_statement_execute(pointer, names, lengths, values, count, output, executeError),
-                                 &result, &error);
+                                     NativeMethodsV2.duckdb_v2_prepared_statement_execute(pointer, names, lengths, values, count, (_duckdb_v2_result**)output, executeError),
+                                 (void**)&result, &error);
 
         ExecutionCount++;
 
         return DuckDBV2Statements.Wrap(code, result, ref error, StatementType, connection);
+    }
+
+    /// <summary><see cref="Execute"/> for Arrow: the result produces Arrow arrays, in batches of V2's default size.</summary>
+    public DuckDBV2ArrowResult ExecuteArrow(DuckDBParameterCollection parameterCollection, DuckDBV2Connection connection)
+    {
+        using var lease = statement.Acquire();
+        var pointer = lease.Pointer;
+
+        using var scope = DuckDBV2CallbackScope.EnterExecution(connection);
+
+        _duckdb_v2_error_info* error = null;
+        _duckdb_v2_arrow_result* result;
+
+        var code = parameters is null
+            ? NativeMethodsV2.duckdb_v2_prepared_statement_execute_arrow(pointer, null, null, null, 0, 0, &result, &error)
+            : parameters.Execute(connection, parameterCollection,
+                                 (names, lengths, values, count, output, executeError) =>
+                                     NativeMethodsV2.duckdb_v2_prepared_statement_execute_arrow(pointer, names, lengths, values, count, 0, (_duckdb_v2_arrow_result**)output, executeError),
+                                 (void**)&result, &error);
+
+        ExecutionCount++;
+
+        return DuckDBV2Statements.WrapArrow(code, result, ref error, connection);
     }
 
     public void Dispose()

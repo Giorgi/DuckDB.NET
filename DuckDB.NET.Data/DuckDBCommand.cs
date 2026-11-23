@@ -153,23 +153,86 @@ public class DuckDBCommand : DbCommand
 
     /// <summary>
     /// Executes the command and returns the first result set as an Apache Arrow
-    /// <see cref="IArrowArrayStream"/>. Each DuckDB data chunk is converted to an Arrow record batch
-    /// using DuckDB's Arrow C Data Interface, with no row-by-row marshaling.
-    /// When <see cref="UseStreamingMode"/> is enabled, record batches are produced lazily from a
-    /// streaming result (bounded memory), otherwise the result is materialized first.
+    /// <see cref="IArrowArrayStream"/>. DuckDB produces the Arrow arrays itself, in batches of up to 131,072 rows,
+    /// with no row-by-row marshaling. The statements before the first one that returns rows are run to their end;
+    /// the ones after it are not run. The record batches are produced lazily from a streaming result, and the
+    /// connection has no other open result until the stream is disposed.
     /// The caller owns the returned stream and must dispose it.
     /// </summary>
     public IArrowArrayStream ExecuteArrowStream()
     {
         EnsureConnectionOpen();
 
-        throw new NotSupportedException("Arrow streams have not been migrated to DuckDB's C API V2 yet (docs/V2-MIGRATION.md, stage 7).");
+        if (!UseStreamingMode)
+        {
+            throw new NotSupportedException("Materialized results (UseStreamingMode = false) are not supported yet: results stream " +
+                                            "with DuckDB's C API V2 (docs/V2-MIGRATION.md).");
+        }
+
+        var v2Connection = connection!.V2Connection;
+        var results = prepared ? ExecutePreparedArrow(v2Connection) : DuckDBV2Statements.ExecuteArrow(v2Connection, CommandText, parameters);
+
+        foreach (var result in results)
+        {
+            if (result.ReturnsRows)
+            {
+                try
+                {
+                    return new DuckDBArrowArrayStream(result);
+                }
+                catch
+                {
+                    result.Dispose();
+                    throw;
+                }
+            }
+
+            using (result)
+            {
+                result.Drain();
+            }
+        }
+
+        throw new InvalidOperationException("The command did not return a result set.");
+    }
+
+    private IEnumerable<DuckDBV2ArrowResult> ExecutePreparedArrow(DuckDBV2Connection v2Connection)
+    {
+        if (preparePending || preparedEntry is { IsStale: true })
+        {
+            preparedEntry = connection!.GetOrPrepareStatement(CommandText);
+            preparePending = false;
+        }
+
+        var entry = preparedEntry;
+
+        if (entry is null || !entry.TryRent())
+        {
+            foreach (var result in DuckDBV2Statements.ExecuteArrow(v2Connection, CommandText, parameters))
+            {
+                yield return result;
+            }
+
+            yield break;
+        }
+
+        DuckDBV2ArrowResult arrowResult;
+        try
+        {
+            arrowResult = entry.ExecuteArrow(parameters, v2Connection);
+        }
+        finally
+        {
+            entry.Return();
+        }
+
+        yield return arrowResult;
     }
 
     /// <summary>
     /// Executes the command and asynchronously streams the first result set as Apache Arrow
-    /// <see cref="RecordBatch"/> values. The batches are produced lazily, one per DuckDB data chunk.
-    /// Set <see cref="UseStreamingMode"/> to stream from a streaming result with bounded memory.
+    /// <see cref="RecordBatch"/> values. The batches are produced lazily, of up to 131,072 rows each, from a
+    /// streaming result.
     /// </summary>
     public async IAsyncEnumerable<RecordBatch> ExecuteArrowBatchesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {

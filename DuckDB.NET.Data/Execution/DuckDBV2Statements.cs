@@ -37,6 +37,34 @@ internal static unsafe class DuckDBV2Statements
     }
 
     /// <summary>
+    /// <see cref="Execute"/> for Arrow: the results produce Arrow arrays, in batches of V2's default size.
+    /// </summary>
+    public static IEnumerable<DuckDBV2ArrowResult> ExecuteArrow(DuckDBV2Connection connection, string sql, DuckDBParameterCollection parameters)
+    {
+        using var iterator = Parse(connection, sql);
+
+        var any = false;
+
+        while (Next(iterator) is { } statement)
+        {
+            any = true;
+
+            DuckDBV2ArrowResult result;
+            using (statement)
+            {
+                result = ExecuteStatementArrow(connection, statement, parameters);
+            }
+
+            yield return result;
+        }
+
+        if (!any)
+        {
+            throw new DuckDBException("The command text holds no statement to execute");
+        }
+    }
+
+    /// <summary>
     /// Prepares a command that holds exactly one statement, to be executed many times. A command of several
     /// statements returns null: a later statement can depend on an earlier one having run, so each runs unprepared.
     /// </summary>
@@ -155,11 +183,69 @@ internal static unsafe class DuckDBV2Statements
             using var parameterInfo = ReadParameters(connection, statement);
             code = parameterInfo.Execute(connection, parameters,
                                          (names, lengths, values, count, output, executeError) =>
-                                             NativeMethodsV2.duckdb_v2_statement_execute(connectionPointer, statementPointer, names, lengths, values, count, output, executeError),
-                                         &result, &error);
+                                             NativeMethodsV2.duckdb_v2_statement_execute(connectionPointer, statementPointer, names, lengths, values, count, (_duckdb_v2_result**)output, executeError),
+                                         (void**)&result, &error);
         }
 
         return Wrap(code, result, ref error, statementType.ToStatementType(), connection);
+    }
+
+    private static DuckDBV2ArrowResult ExecuteStatementArrow(DuckDBV2Connection connection, DuckDBV2SqlStatement statement, DuckDBParameterCollection parameters)
+    {
+        using var connectionLease = connection.Acquire();
+        using var statementLease = statement.Acquire();
+        var connectionPointer = connectionLease.Pointer;
+        var statementPointer = statementLease.Pointer;
+
+        using var scope = DuckDBV2CallbackScope.EnterExecution(connection);
+
+        _duckdb_v2_error_info* error = null;
+        ulong parameterCount;
+        NativeMethodsV2.duckdb_v2_sql_statement_get_parameter_count(statementPointer, &parameterCount, &error).ThrowIfFailed(ref error);
+
+        _duckdb_v2_arrow_result* result;
+        DUCKDB_V2_ERROR code;
+
+        if (parameterCount == 0)
+        {
+            code = NativeMethodsV2.duckdb_v2_statement_execute_arrow(connectionPointer, statementPointer, null, null, null, 0, 0, &result, &error);
+        }
+        else
+        {
+            using var parameterInfo = ReadParameters(connection, statement);
+            code = parameterInfo.Execute(connection, parameters,
+                                         (names, lengths, values, count, output, executeError) =>
+                                             NativeMethodsV2.duckdb_v2_statement_execute_arrow(connectionPointer, statementPointer, names, lengths, values, count, 0,
+                                                                                               (_duckdb_v2_arrow_result**)output, executeError),
+                                         (void**)&result, &error);
+        }
+
+        return WrapArrow(code, result, ref error, connection);
+    }
+
+    /// <summary>The Arrow result of an execution, or the exception for its failure.</summary>
+    internal static DuckDBV2ArrowResult WrapArrow(DUCKDB_V2_ERROR code, _duckdb_v2_arrow_result* result, ref _duckdb_v2_error_info* error, DuckDBV2Connection connection)
+    {
+        try
+        {
+            code.ThrowIfFailed(ref error, connection, "Executing the statement failed");
+        }
+        catch (DuckDBException exception) when (exception.NativeErrorCode == DuckDBErrorCode.ResourceInUse)
+        {
+            throw OpenReader(exception);
+        }
+
+        var handle = new DuckDBV2ArrowResultHandle(result);
+
+        try
+        {
+            return new DuckDBV2ArrowResult(handle, connection);
+        }
+        catch
+        {
+            handle.Dispose();
+            throw;
+        }
     }
 
     private static DuckDBV2Parameters ReadParameters(DuckDBV2Connection connection, DuckDBV2SqlStatement statement)

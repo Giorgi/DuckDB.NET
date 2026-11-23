@@ -129,3 +129,9 @@ internal sealed unsafe class DuckDBV2CollectionAppendState(_duckdb_v2_column_dat
 {
     protected override DUCKDB_V2_ERROR Destroy(_duckdb_v2_column_data_collection_append_state** pointer) => NativeMethodsV2.duckdb_v2_column_data_collection_append_state_destroy(pointer);
 }
+
+/// <summary>A result that produces Arrow arrays (<c>statement_execute_arrow</c>). Destroying it before its end aborts the statement.</summary>
+internal sealed unsafe class DuckDBV2ArrowResultHandle(_duckdb_v2_arrow_result* pointer) : DuckDBV2SafeHandle<_duckdb_v2_arrow_result>(pointer)
+{
+    protected override DUCKDB_V2_ERROR Destroy(_duckdb_v2_arrow_result** pointer) => NativeMethodsV2.duckdb_v2_arrow_result_destroy(pointer);
+}
