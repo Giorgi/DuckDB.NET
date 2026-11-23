@@ -352,6 +352,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadMapOfDecimalValues()
     {
         Command.CommandText = "SELECT MAP {'a': 1.5::DECIMAL(4, 2), 'b': 2.25::DECIMAL(4, 2)}";
@@ -369,6 +370,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadListOfDecimalValues()
     {
         Command.CommandText = "SELECT [1.5::DECIMAL(4, 2), 2.25::DECIMAL(4, 2)]";

@@ -31,6 +31,19 @@ internal static unsafe class DuckDBV2Vectors
         return view;
     }
 
+    /// <summary>
+    /// A child of a nested vector, borrowed from its chunk: [0] the elements of a LIST or ARRAY, [0] the entries of a
+    /// MAP (a STRUCT of key and value), [i] field i of a STRUCT. Flatten the parent first: a child taken from a
+    /// dictionary or constant vector is not indexed by the parent's rows.
+    /// </summary>
+    public static _duckdb_v2_vector* GetChild(_duckdb_v2_vector* vector, int index)
+    {
+        _duckdb_v2_error_info* error = null;
+        _duckdb_v2_vector* child;
+        NativeMethodsV2.duckdb_v2_vector_get_child(vector, (ulong)index, &child, &error).ThrowIfFailed(ref error);
+        return child;
+    }
+
     public static _duckdb_v2_vector* GetVector(DuckDBV2DataChunk chunk, int index)
     {
         using var lease = chunk.Acquire();

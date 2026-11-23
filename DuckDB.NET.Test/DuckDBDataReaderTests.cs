@@ -17,6 +17,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [InlineData("SELECT {'x': 1}")]
     [InlineData("SELECT [1, 2]")]
     [InlineData("SELECT MAP {'k': 1}")]
+    [Trait("V2", "Ready")]
     public void GetFieldValueOfObjectMatchesGetValue(string query)
     {
         Command.CommandText = query;

@@ -95,10 +95,10 @@ No behaviour change.
   parsing and open tests in `ConnectionStringTests`. The tests that check a setting by running SQL, and those that
   build the option descriptors from `duckdb_settings()`, move to stage 2.
 
-## Stage 2: queries without parameters
+## Stage 2: queries without parameters (done)
 
 Done in steps: first the execution path and the primitive types (step 1, done), then dates, times, decimals,
-hugeint, uuid, interval and enum (step 2, done), then list, array, struct and map (step 3). UNION has no reader in DuckDB.NET, so it
+hugeint, uuid, interval and enum (step 2, done), then list, array, struct and map (step 3, done). UNION has no reader in DuckDB.NET, so it
 keeps the base reader, as with V1.
 
 ### Decisions
@@ -160,12 +160,23 @@ keeps the base reader, as with V1.
 - Speed: reading 10 million rows of DECIMAL(18,3), TIMESTAMP and ENUM took 231 to 410 ms with V1 and 218 to 365 ms
   with V2 after the first round, timed with a stopwatch.
 
-### Step 3: list, array, struct and map
+### Step 3: list, array, struct and map (done)
 
-- Child types come from `logical_type_get_param` as TYPE values (`value_get_type`), and child vectors from
-  `vector_get_child`. UNION is not migrated: DuckDB.NET has no reader for it.
-- Tests: the list, map, struct and nested reader tests, `DuckDBDataReaderTestAllTypes` last. The reader benchmarks
-  run before the stage is done: `DataChunk/Reader/DESIGN.md` has the performance constraints.
+- The LIST, ARRAY, STRUCT and MAP readers have a V2 constructor and a V2 `Reset`. Their child types come from
+  `logical_type_get_param` as TYPE values (`value_get_type`): a LIST's or ARRAY's element type and an ARRAY's size
+  (BIGINT), a MAP's key and value types, and a STRUCT's fields, each named after its parameter. The child readers are
+  made by the same factory, so nesting goes as deep as the type does.
+- `Reset` flattens the parent first, then takes the children with `vector_get_child`: [0] the elements of a LIST or
+  ARRAY, [0] the entries of a MAP (a STRUCT of key and value, flattened before its own children are taken), [i] field
+  i of a STRUCT. The code that builds .NET lists, dictionaries and objects did not change.
+- UNION is not migrated: DuckDB.NET has no reader for it, so it keeps the base reader, as with V1.
+- No query result we tried had a vector that is not flat: constants, cross joins, enums, Parquet, unnest. DuckDB
+  appears to hand results out flat, so the flattening is a safety net for query results; it matters for function
+  inputs (stage 5). `V2VectorTests` builds constant vectors through V2 and reads them, so it is tested.
+- Left from stage 1: a file database is named after its file, as with V1 (`current_database()`), and an in-memory one
+  `memory`. MotherDuck (`md:`) data sources go through `instance_attach`, which is not tested: it needs a token.
+- `V2NestedTypeTests` reads deep nesting, NULLs at every level, many chunks and the same nested value in every row.
+  3405 test cases are marked V2-ready.
 
 ## Stage 3: parameters and prepared statements
 

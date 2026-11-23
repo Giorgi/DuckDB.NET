@@ -3,6 +3,7 @@
 public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadListOfIntegers()
     {
         Command.CommandText = "SELECT [1, 2, 3];";
@@ -16,6 +17,7 @@ public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     [InlineData("SELECT [1, 2, 3];")]
     [InlineData("SELECT ['a', 'b'];")]
     [InlineData("SELECT [1, 2, 3]::INTEGER[3];")]
+    [Trait("V2", "Ready")]
     public void ReadListAsUntypedTargetIsNotSupported(string query)
     {
         Command.CommandText = query;
@@ -31,18 +33,23 @@ public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadListIntoATypeThatCannotHoldItIsRefused()
     {
         Command.CommandText = "SELECT [1, 2]";
-        using var reader = Command.ExecuteReader();
-        reader.Read();
 
-        // Interfaces and abstract classes cannot be created; they threw MissingMethodException before 2.0.
-        reader.Invoking(r => r.GetFieldValue<IEnumerable<int>>(0)).Should().ThrowExactly<InvalidCastException>()
-              .WithMessage("Cannot read column * as IEnumerable*: it is an interface or an abstract class.");
-        reader.Invoking(r => r.GetFieldValue<IReadOnlyList<int>>(0)).Should().ThrowExactly<InvalidCastException>();
-        reader.Invoking(r => r.GetFieldValue<ICollection<int>>(0)).Should().ThrowExactly<InvalidCastException>();
-        reader.Invoking(r => r.GetFieldValue<IList<int>>(0)).Should().ThrowExactly<InvalidCastException>();
+        // A connection has one open reader at a time, so this one is closed before the next query.
+        using (var reader = Command.ExecuteReader())
+        {
+            reader.Read();
+
+            // Interfaces and abstract classes cannot be created; they threw MissingMethodException before 2.0.
+            reader.Invoking(r => r.GetFieldValue<IEnumerable<int>>(0)).Should().ThrowExactly<InvalidCastException>()
+                  .WithMessage("Cannot read column * as IEnumerable*: it is an interface or an abstract class.");
+            reader.Invoking(r => r.GetFieldValue<IReadOnlyList<int>>(0)).Should().ThrowExactly<InvalidCastException>();
+            reader.Invoking(r => r.GetFieldValue<ICollection<int>>(0)).Should().ThrowExactly<InvalidCastException>();
+            reader.Invoking(r => r.GetFieldValue<IList<int>>(0)).Should().ThrowExactly<InvalidCastException>();
+        }
 
         // The same for a list read as a struct field.
         Command.CommandText = "SELECT {'Items': [1, 2]}";
@@ -57,6 +64,7 @@ public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadMultipleListOfIntegers()
     {
         Command.CommandText = "Select * from ( SELECT [1, 2, 3] Union Select [4, 5] Union Select []) order by 1";
@@ -75,6 +83,7 @@ public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadListOfIntegersWithNulls()
     {
         Command.CommandText = "Select * from ( SELECT [1, 2, NULL, 3, NULL] Union Select [NULL, NULL, 4, 5] Union Select null) order by 1";
@@ -91,6 +100,7 @@ public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadMultipleListOfDoubles()
     {
         Command.CommandText = "Select * from ( SELECT [1/2, 3/2, 5/2] Union Select [4, 5] Union Select []) order by 1";
@@ -109,6 +119,7 @@ public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadMultipleListOfFloats()
     {
         Command.CommandText = "Select * from ( SELECT [1/2::REAL, 3/2::REAL, 5/2::REAL, NULL] Union Select [4::REAL, 5::REAL] Union Select []) order by 1";
@@ -127,6 +138,7 @@ public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadMultipleListOfStrings()
     {
         Command.CommandText = "Select * from ( SELECT ['hello', NULL, 'world'] Union Select ['from DuckDB.Net', 'client'] Union Select []) order by 1";
@@ -145,6 +157,7 @@ public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadMultipleListOfDecimals()
     {
         Command.CommandText = "Select * from ( SELECT [1.1, 2.3456, NULL] Union Select [73.56725, 264387.632673487236]) order by 1";
@@ -169,6 +182,7 @@ public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadListOfTimeStamps()
     {
         Command.CommandText = "SELECT range(date '1992-01-01', date '1992-08-01', interval '1' month);";
@@ -181,6 +195,7 @@ public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadListOfDates()
     {
         Command.CommandText = "SELECT [Date '2002-04-06', Date '2008-10-12']";
@@ -199,6 +214,7 @@ public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadListOfTimes()
     {
         Command.CommandText = "SELECT [Time '12:14:16', Time '18:10:12']";
@@ -211,6 +227,7 @@ public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadListOfTimesWithNull()
     {
         Command.CommandText = "SELECT [Time '12:14:16', Time '18:10:12', NULL]";
@@ -222,6 +239,7 @@ public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadListWithDapper()
     {
         Command.CommandText = "CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy');";
@@ -234,6 +252,7 @@ public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadListAsEveryNumericType()
     {
         Command.CommandText = "SELECT [1, 2, 3];";
@@ -257,6 +276,7 @@ public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadListWithLargeValuesAsEveryNumericTypeThrowsException()
     {
         Command.CommandText = $"SELECT [{long.MaxValue - 1}, {long.MaxValue}];";
@@ -277,6 +297,7 @@ public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBas
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void GetEmptyListType()
     {
         Command.CommandText = "CREATE TABLE embeddings(embedding FLOAT[20]);";

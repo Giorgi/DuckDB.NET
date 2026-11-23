@@ -96,72 +96,84 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadBool()
     {
         VerifyDataStruct("bool", 0, new List<bool> { false, true });
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadTinyInt()
     {
         VerifyDataStruct("tinyint", 1, new List<sbyte> { sbyte.MinValue, sbyte.MaxValue });
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadSmallInt()
     {
         VerifyDataStruct("smallint", 2, new List<short> { short.MinValue, short.MaxValue });
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadInt()
     {
         VerifyDataStruct("int", 3, new List<int> { int.MinValue, int.MaxValue });
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadBigInt()
     {
         VerifyDataStruct("bigint", 4, new List<long> { long.MinValue, long.MaxValue });
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadHugeInt()
     {
         VerifyDataStruct("hugeint", 5, new List<Int128> { Int128.MinValue, Int128.MaxValue }, typeof(DuckDBHugeInt));
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadUHugeInt()
     {
         VerifyDataStruct("uhugeint", 6, new List<UInt128> { UInt128.Zero, UInt128.MaxValue }, typeof(DuckDBUHugeInt));
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadUTinyInt()
     {
         VerifyDataStruct("utinyint", 7, new List<byte> { 0, byte.MaxValue });
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadUSmallInt()
     {
         VerifyDataStruct("usmallint", 8, new List<ushort> { 0, ushort.MaxValue });
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadUInt()
     {
         VerifyDataStruct("uint", 9, new List<uint> { 0, uint.MaxValue });
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadUBigInt()
     {
         VerifyDataStruct("ubigint", 10, new List<ulong> { 0, ulong.MaxValue });
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadVarint()
     {
         VerifyDataStruct("bignum", 11, new List<BigInteger>
@@ -172,6 +184,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadDate()
     {
         VerifyDataStruct("date", 12, new List<DuckDBDateOnly>
@@ -182,6 +195,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadTime()
     {
         VerifyDataStruct("time", 13, new List<DuckDBTimeOnly>
@@ -192,6 +206,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadTimeNsInAllTypesFixture()
     {
         VerifyDataStruct("time_ns", 56, new List<DuckDBTimeOnly>
@@ -202,6 +217,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadTimeStamp()
     {
         VerifyDataStruct("timestamp", 14, new List<DuckDBTimestamp>
@@ -212,6 +228,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadTimeStampS()
     {
         VerifyDataStruct("timestamp_s", 15, new List<DuckDBTimestamp>
@@ -222,6 +239,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadTimeStampMS()
     {
         VerifyDataStruct("timestamp_ms", 16, new List<DuckDBTimestamp>
@@ -232,6 +250,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadTimeStampNS()
     {
         VerifyDataStruct("timestamp_ns", 17, new List<DateTime>
@@ -242,6 +261,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadTimeTz()
     {
         VerifyDataStruct("time_tz", 18, new List<DuckDBTimeTz>
@@ -260,6 +280,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadTimeStampTz()
     {
         VerifyDataStruct("timestamp_tz", 19, new List<DuckDBTimestamp>
@@ -270,48 +291,56 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadFloat()
     {
         VerifyDataStruct("float", 21, new List<float> { float.MinValue, float.MaxValue });
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadDouble()
     {
         VerifyDataStruct("double", 22, new List<double> { double.MinValue, double.MaxValue });
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadDecimal1()
     {
         VerifyDataStruct("dec_4_1", 23, new List<decimal> { -999.9m, 999.9m }, typeof(DuckDBDecimal));
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadDecimal2()
     {
         VerifyDataStruct("dec_9_4", 24, new List<decimal> { -99999.9999m, 99999.9999m }, typeof(DuckDBDecimal));
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadDecimal3()
     {
         VerifyDataStruct("dec_18_6", 25, new List<decimal> { -999999999999.999999m, 999999999999.999999m }, typeof(DuckDBDecimal));
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadDecimal4()
     {
         VerifyDataStruct("dec38_10", 26, new List<decimal> { -9999999999999999999999999999.9999999999m, 9999999999999999999999999999.9999999999m }, typeof(DuckDBDecimal));
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadGuid()
     {
         VerifyDataStruct("uuid", 27, new List<Guid> { Guid.Parse("00000000-0000-0000-0000-000000000000"), Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff") });
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadInterval()
     {
         VerifyDataStruct("interval", 28, new List<DuckDBInterval>
@@ -322,12 +351,14 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadString()
     {
         VerifyDataClass("varchar", 29, new List<string> { "🦆🦆🦆🦆🦆🦆", "goo\0se" });
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadBlob()
     {
         var columnIndex = 30;
@@ -357,42 +388,49 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadBit()
     {
         VerifyDataClass("bit", 31, new List<string> { "0010001001011100010101011010111", "10101" });
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadSmallEnum()
     {
         VerifyDataClass("small_enum", 32, new List<string> { "DUCK_DUCK_ENUM", "GOOSE" });
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadMediumEnum()
     {
         VerifyDataClass("medium_enum", 33, new List<string> { "enum_0", "enum_299" });
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadLargeEnum()
     {
         VerifyDataClass("large_enum", 34, new List<string> { "enum_0", "enum_69999" });
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadIntList()
     {
         VerifyDataList("int_array", 35, new List<List<int?>> { new(), new() { 42, 999, null, null, -42 } });
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadDoubleList()
     {
         VerifyDataList("double_array", 36, new List<List<double?>> { new(), new() { 42.0, double.NaN, double.PositiveInfinity, double.NegativeInfinity, null, -42.0 } });
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadDateList()
     {
         VerifyDataList("date_array", 37, new List<List<DuckDBDateOnly?>> { new(), new()
@@ -406,6 +444,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact()]
+    [Trait("V2", "Ready")]
     public void ReadTimeStampList()
     {
         VerifyDataList("timestamp_array", 38, new List<List<DuckDBTimestamp?>> { new(), new()
@@ -419,6 +458,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact()]
+    [Trait("V2", "Ready")]
     public void ReadTimeStampTZList()
     {
         VerifyDataList("timestamptz_array", 39, new List<List<DuckDBTimestamp?>> { new(), new()
@@ -432,12 +472,14 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadStringList()
     {
         VerifyDataListClass("varchar_array", 40, new List<List<string>> { new(), new() { "🦆🦆🦆🦆🦆🦆", "goose", null, "" } });
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadNestedIntList()
     {
         var data = new List<int?>() { 42, 999, null, null, -42 };
@@ -452,6 +494,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadStruct()
     {
         var columnIndex = 42;
@@ -478,6 +521,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadStructOfArray()
     {
         var columnIndex = 44;
@@ -500,6 +544,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadArrayOfStructs()
     {
         var columnIndex = 45;
@@ -527,6 +572,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadMap()
     {
         var columnIndex = 46;
@@ -547,18 +593,21 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadFixedIntArray()
     {
         VerifyDataList("fixed_int_array", 48, new List<List<int?>> { new() { null, 2, 3 }, new() { 4, 5, 6 }, new() { 42, 999, null, null, -42 } });
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadFixedVarcharArray()
     {
         VerifyDataListClass("fixed_varchar_array", 49, new List<List<string>> { new() { "a", null, "c" }, new() { "d", "e", "f" } });
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadFixedNestedIntArray()
     {
         VerifyDataListClass("fixed_nested_int_array", 50, new List<List<List<int?>>>
@@ -579,6 +628,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadFixedNestedVarcharArray()
     {
         VerifyDataListClass("fixed_nested_varchar_array", 51, new List<List<List<string>>>
@@ -599,6 +649,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadFixedStructArray()
     {
         var columnIndex = 52;
@@ -639,6 +690,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadStructOfFixedArray()
     {
         var columnIndex = 53;
@@ -665,6 +717,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadFixedArrayIntList()
     {
         VerifyDataListClass("fixed_array_of_int_list", 54, new List<List<List<int?>>>
@@ -685,6 +738,7 @@ public class DuckDBDataReaderTestAllTypes : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadListFixedIntArray()
     {
         VerifyDataListClass("list_of_fixed_int_array", 55, new List<List<List<int?>>>

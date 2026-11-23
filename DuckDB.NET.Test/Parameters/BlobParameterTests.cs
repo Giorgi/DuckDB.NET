@@ -98,6 +98,7 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void GetFieldValueByteArrayReadsBlobInAStruct()
     {
         Command.CommandText = "SELECT {'value': '\\x01\\x02\\x03'::BLOB};";
@@ -109,6 +110,7 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void GetFieldValueByteArrayReadsBlobInAMap()
     {
         Command.CommandText = "SELECT MAP {'value': '\\x04\\x05'::BLOB};";
@@ -120,6 +122,7 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void GetFieldValueByteArrayReadsBlobInAList()
     {
         Command.CommandText = "SELECT ['\\x06\\x07'::BLOB, '\\x08'::BLOB];";
@@ -214,6 +217,7 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void GetValueOfABlobListIsAListOfByteArrays()
     {
         Command.CommandText = "SELECT ['\\x01'::BLOB, NULL, '\\x02\\x03'::BLOB], ['\\x04'::BLOB, '\\x05'::BLOB]::BLOB[2];";

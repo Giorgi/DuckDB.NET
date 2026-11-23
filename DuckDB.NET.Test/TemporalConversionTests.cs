@@ -45,6 +45,7 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void DatesAreReadAsDuckDBPrintsThem()
     {
         Command.CommandText = "SELECT d, strftime(d, '%Y-%m-%d'), [d] FROM (SELECT DATE '0001-01-01' + (i * 997)::INTEGER d FROM range(3663) t(i))";
@@ -291,6 +292,7 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     [InlineData("TIMESTAMP_S")]
     [InlineData("TIMESTAMP_MS")]
     [InlineData("TIMESTAMP_NS")]
+    [Trait("V2", "Ready")]
     public void InfiniteTimestampIsNotAnOrdinaryValue(string type)
     {
         Command.CommandText = $"SELECT 'infinity'::{type}, '-infinity'::{type}, ['infinity'::{type}]";
@@ -313,6 +315,7 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void InfiniteDateIsNotAnOrdinaryValue()
     {
         Command.CommandText = "SELECT 'infinity'::DATE, '-infinity'::DATE, ['infinity'::DATE]";
@@ -370,6 +373,7 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     // Every second of the day, each with a different fraction. The hour, the minute and the microseconds within the
     // minute are DuckDB's own; the read as DuckDBTimeOnly has DuckDB split the value.
     [Fact]
+    [Trait("V2", "Ready")]
     public void EverySecondOfTheDayIsReadAsDuckDBSplitsIt()
     {
         Command.CommandText = "SELECT t, hour(t), minute(t), microsecond(t), [t] FROM (" +
@@ -402,6 +406,7 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
 
     // DuckDB has the end of the day as a time; a TimeOnly stops one tick before it.
     [Fact]
+    [Trait("V2", "Ready")]
     public void TheEndOfTheDayIsNotATimeOnly()
     {
         Command.CommandText = "SELECT TIME '24:00:00', [TIME '24:00:00']";
@@ -422,6 +427,7 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void TimeNsIsReadWithTimeOnlyPrecision()
     {
         Command.CommandText = "SELECT TIME_NS '12:34:56.123456789', [TIME_NS '12:34:56.123456789'], TIME_NS '24:00:00', [TIME_NS '24:00:00']";
@@ -457,6 +463,7 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     // A struct field and a map key and value are read by a child reader, which has to be a TIME_NS reader too, and
     // has to see a NULL in it.
     [Fact]
+    [Trait("V2", "Ready")]
     public void TimeNsIsReadInAStructAndAMap()
     {
         Command.CommandText = "SELECT {'t': TIME_NS '12:34:56.123456789', 'n': NULL::TIME_NS}, " +
@@ -496,6 +503,7 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     // Each time with each offset. What is expected comes from the text given to DuckDB, and the read as DuckDBTimeTz
     // has DuckDB take the stored value apart.
     [Fact]
+    [Trait("V2", "Ready")]
     public void TimeWithATimeZoneIsReadAsDuckDBSplitsIt()
     {
         (string Text, long Ticks)[] times =

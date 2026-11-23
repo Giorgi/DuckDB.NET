@@ -1,5 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using DuckDB.NET.Data.Execution;
+using DuckDB.NET.Native.V2;
 
 namespace DuckDB.NET.Data.DataChunk.Reader;
 
@@ -26,6 +28,20 @@ internal sealed partial class ListVectorDataReader : VectorDataReaderBase
 
         arraySize = IsList ? 0 : (ulong)NativeMethods.LogicalType.DuckDBArrayVectorGetSize(logicalColumnType);
         itemReader = VectorDataReaderFactory.CreateReader(childVector, childType, columnName);
+    }
+
+    /// <summary>
+    /// A reader for a LIST or ARRAY column of a V2 result: the element type is the type's first parameter, and an
+    /// ARRAY's size its second.
+    /// </summary>
+    internal unsafe ListVectorDataReader(_duckdb_v2_logical_type* type, DuckDBType columnType, string columnName)
+        : base(null, null, columnType, columnName)
+    {
+        using var childType = DuckDBV2LogicalTypes.GetTypeParam(type, 0, out _);
+        using var lease = childType.Acquire();
+
+        arraySize = IsList ? 0 : (ulong)DuckDBV2LogicalTypes.GetBigIntParam(type, 1);
+        itemReader = VectorDataReaderFactory.CreateReader(lease.Pointer, columnName);
     }
 
     protected override Type GetColumnType()
@@ -173,6 +189,13 @@ internal sealed partial class ListVectorDataReader : VectorDataReaderBase
             ? NativeMethods.Vectors.DuckDBListVectorGetChild(vector)
             : NativeMethods.Vectors.DuckDBArrayVectorGetChild(vector);
         itemReader.Reset(childVector);
+    }
+
+    internal override unsafe void Reset(_duckdb_v2_vector* vector)
+    {
+        // The list or array is flattened here first, so its entries index its elements as V1's did.
+        base.Reset(vector);
+        itemReader.Reset(DuckDBV2Vectors.GetChild(vector, 0));
     }
 
     public override void Dispose()

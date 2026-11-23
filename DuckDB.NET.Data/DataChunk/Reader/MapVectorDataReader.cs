@@ -1,5 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using DuckDB.NET.Data.Execution;
+using DuckDB.NET.Native.V2;
 
 namespace DuckDB.NET.Data.DataChunk.Reader;
 
@@ -28,6 +30,19 @@ internal sealed partial class MapVectorDataReader : VectorDataReaderBase
 
         keyReader = VectorDataReaderFactory.CreateReader(keyVector, keyTypeLogical, columnName);
         valueReader = VectorDataReaderFactory.CreateReader(valueVector, valueTypeLogical, columnName);
+    }
+
+    /// <summary>A reader for a MAP column of a V2 result: the key type is the type's first parameter, the value type its second.</summary>
+    internal unsafe MapVectorDataReader(_duckdb_v2_logical_type* type, string columnName)
+        : base(null, null, DuckDBType.Map, columnName)
+    {
+        using var keyType = DuckDBV2LogicalTypes.GetTypeParam(type, 0, out _);
+        using var valueType = DuckDBV2LogicalTypes.GetTypeParam(type, 1, out _);
+        using var keyLease = keyType.Acquire();
+        using var valueLease = valueType.Acquire();
+
+        keyReader = VectorDataReaderFactory.CreateReader(keyLease.Pointer, columnName);
+        valueReader = VectorDataReaderFactory.CreateReader(valueLease.Pointer, columnName);
     }
 
     protected override Type GetColumnType()
@@ -163,6 +178,18 @@ internal sealed partial class MapVectorDataReader : VectorDataReaderBase
         var valueVector = NativeMethods.Vectors.DuckDBStructVectorGetChild(childVector, 1);
         keyReader.Reset(keyVector);
         valueReader.Reset(valueVector);
+    }
+
+    internal override unsafe void Reset(_duckdb_v2_vector* vector)
+    {
+        base.Reset(vector);
+
+        // A MAP's child is its entries, a STRUCT of key and value, flattened before its children are taken.
+        var entries = DuckDBV2Vectors.GetChild(vector, 0);
+        DuckDBV2Vectors.ReadFlat(entries);
+
+        keyReader.Reset(DuckDBV2Vectors.GetChild(entries, 0));
+        valueReader.Reset(DuckDBV2Vectors.GetChild(entries, 1));
     }
 
     public override void Dispose()

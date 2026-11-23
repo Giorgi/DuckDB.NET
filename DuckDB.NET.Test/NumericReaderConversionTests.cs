@@ -270,6 +270,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void FloatReadAsDoubleIsAPlainWidening()
     {
         Command.CommandText = """
@@ -313,6 +314,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // The C# cast, with no check: digits beyond what a float holds are lost, and a value too large for a float
     // reads as infinity. Npgsql does the same.
     [Fact]
+    [Trait("V2", "Ready")]
     public void DoubleReadAsFloatIsAPlainNarrowing()
     {
         Command.CommandText = """
@@ -931,6 +933,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
     // A list item, a map key or value and a struct field read as Int128 or UInt128, as a column does.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ListsMapsAndStructsOfHugeIntsReadAsInt128AndUInt128()
     {
         Command.CommandText = """
@@ -1089,6 +1092,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
     // The items of a list come from the same readers as a column of that type. The six tests below read lists.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ListOfIntegersReadsAsListsOfOtherNumericTypes()
     {
         Command.CommandText = "SELECT [1,2,3]::INTEGER[], [1,2]::BIGINT[]";
@@ -1107,6 +1111,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ListWithANullItemReadsOnlyAsAListOfNullableItems()
     {
         Command.CommandText = "SELECT [1,NULL,3]::INTEGER[]";
@@ -1119,6 +1124,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ListWithAnItemThatDoesNotFitTheRequestedTypeThrows()
     {
         Command.CommandText = "SELECT [300,2]::INTEGER[]";
@@ -1130,6 +1136,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ListOfFloatingPointNumbersReadsAsFloatDoubleAndDecimal()
     {
         Command.CommandText = "SELECT [1.5,2.5]::DOUBLE[], [1.5,2.5]::FLOAT[]";
@@ -1146,6 +1153,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ListsOfBooleansAndHugeInts()
     {
         Command.CommandText = "SELECT [true,false]::BOOLEAN[], [1,2]::HUGEINT[]";
@@ -1159,6 +1167,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void NestedListOfIntegers()
     {
         Command.CommandText = "SELECT [[1,2],[3]]::INTEGER[][]";
@@ -1173,6 +1182,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void MapsAndStructsOfNumbers()
     {
         Command.CommandText = "SELECT MAP {1::INTEGER: 10::BIGINT}, {'a': 1::INTEGER, 'b': 2::BIGINT}";
@@ -1191,6 +1201,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // The values of a map and the fields of a struct are read with the target type known only at run time. They
     // convert as a column does; NumericReadPathAgreementTests pins that for every numeric pair.
     [Fact]
+    [Trait("V2", "Ready")]
     public void MapsAndStructsConvertFloatingPointLikeColumns()
     {
         Command.CommandText = "SELECT MAP {1::INTEGER: 1.5::DOUBLE} AS doubles, MAP {1::INTEGER: 2.5::FLOAT} AS floats, " +
@@ -1225,6 +1236,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
     // A UNION column has no reader. The query runs, and every read of a non-null value says so.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ColumnTypeWithoutAReaderThrows()
     {
         Command.CommandText = "SELECT union_value(a := 1) AS c";

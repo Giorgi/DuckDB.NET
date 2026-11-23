@@ -1,4 +1,6 @@
 using System.Runtime.CompilerServices;
+using DuckDB.NET.Data.Execution;
+using DuckDB.NET.Native.V2;
 
 namespace DuckDB.NET.Data.DataChunk.Reader;
 
@@ -31,6 +33,24 @@ internal sealed partial class StructVectorDataReader : VectorDataReaderBase
 
             using var childType = NativeMethods.LogicalType.DuckDBStructTypeChildType(logicalType, index);
             var reader = VectorDataReaderFactory.CreateReader(childVector, childType, columnName);
+            fieldReadersByName[name] = reader;
+            fieldReaders[index] = reader;
+        }
+    }
+
+    /// <summary>A reader for a STRUCT column of a V2 result: one type parameter per field, named after it.</summary>
+    internal unsafe StructVectorDataReader(_duckdb_v2_logical_type* type, string columnName) : base(null, null, DuckDBType.Struct, columnName)
+    {
+        var memberCount = (int)DuckDBV2LogicalTypes.GetParamCount(type);
+        fieldReadersByName = new Dictionary<string, VectorDataReaderBase>(memberCount, StringComparer.OrdinalIgnoreCase);
+        fieldReaders = new VectorDataReaderBase[memberCount];
+
+        for (var index = 0; index < memberCount; index++)
+        {
+            using var childType = DuckDBV2LogicalTypes.GetTypeParam(type, (ulong)index, out var name);
+            using var lease = childType.Acquire();
+
+            var reader = VectorDataReaderFactory.CreateReader(lease.Pointer, columnName);
             fieldReadersByName[name] = reader;
             fieldReaders[index] = reader;
         }
@@ -122,6 +142,17 @@ internal sealed partial class StructVectorDataReader : VectorDataReaderBase
         {
             var childVector = NativeMethods.Vectors.DuckDBStructVectorGetChild(vector, index);
             fieldReaders[index].Reset(childVector);
+        }
+    }
+
+    internal override unsafe void Reset(_duckdb_v2_vector* vector)
+    {
+        // The struct is flattened here first, so its fields are indexed by its rows.
+        base.Reset(vector);
+
+        for (var index = 0; index < fieldReaders.Length; index++)
+        {
+            fieldReaders[index].Reset(DuckDBV2Vectors.GetChild(vector, index));
         }
     }
 

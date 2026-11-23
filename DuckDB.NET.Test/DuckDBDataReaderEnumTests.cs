@@ -39,6 +39,7 @@ public class DuckDBDataReaderEnumTests : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void SelectEnumList()
     {
         Command.CommandText = "Select ['happy'::mood, 'ok'::mood]";

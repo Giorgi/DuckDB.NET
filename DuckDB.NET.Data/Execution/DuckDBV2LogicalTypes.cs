@@ -62,6 +62,44 @@ internal static unsafe class DuckDBV2LogicalTypes
         }
     }
 
+    public static long GetBigIntParam(_duckdb_v2_logical_type* type, ulong index)
+    {
+        var value = GetParam(type, index);
+
+        try
+        {
+            _duckdb_v2_error_info* error = null;
+            long result;
+            NativeMethodsV2.duckdb_v2_value_get_bigint(value, &result, &error).ThrowIfFailed(ref error);
+            return result;
+        }
+        finally
+        {
+            NativeMethodsV2.duckdb_v2_value_destroy(&value);
+        }
+    }
+
+    /// <summary>
+    /// A parameter that is a type, such as a LIST's element type or a STRUCT's field, with its name: the field's
+    /// name for a STRUCT, empty for a positional parameter. The type is owned by the caller.
+    /// </summary>
+    public static DuckDBV2LogicalType GetTypeParam(_duckdb_v2_logical_type* type, ulong index, out string name)
+    {
+        var value = GetParam(type, index, out name);
+
+        try
+        {
+            _duckdb_v2_error_info* error = null;
+            _duckdb_v2_logical_type* childType;
+            NativeMethodsV2.duckdb_v2_value_get_type(value, &childType, &error).ThrowIfFailed(ref error);
+            return new DuckDBV2LogicalType(childType);
+        }
+        finally
+        {
+            NativeMethodsV2.duckdb_v2_value_destroy(&value);
+        }
+    }
+
     public static DuckDBV2LogicalType Copy(_duckdb_v2_logical_type* type)
     {
         _duckdb_v2_error_info* error = null;
@@ -70,13 +108,18 @@ internal static unsafe class DuckDBV2LogicalTypes
         return new DuckDBV2LogicalType(copy);
     }
 
-    private static _duckdb_v2_value* GetParam(_duckdb_v2_logical_type* type, ulong index)
+    private static _duckdb_v2_value* GetParam(_duckdb_v2_logical_type* type, ulong index) => GetParam(type, index, out _);
+
+    private static _duckdb_v2_value* GetParam(_duckdb_v2_logical_type* type, ulong index, out string name)
     {
         _duckdb_v2_error_info* error = null;
-        sbyte* name;
+        sbyte* namePointer;
         ulong nameLength;
         _duckdb_v2_value* value;
-        NativeMethodsV2.duckdb_v2_logical_type_get_param(type, index, &name, &nameLength, &value, &error).ThrowIfFailed(ref error);
+        NativeMethodsV2.duckdb_v2_logical_type_get_param(type, index, &namePointer, &nameLength, &value, &error).ThrowIfFailed(ref error);
+
+        // Borrowed from the type, so copied now.
+        name = DuckDBV2Utf8.ToManaged(namePointer, nameLength);
         return value;
     }
 }

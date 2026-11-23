@@ -3,6 +3,7 @@
 public class DuckDBDataReaderStructTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadBasicStruct()
     {
         Command.CommandText = "SELECT {'x': 1, 'y': 2, 'z': 'test'};";
@@ -19,6 +20,7 @@ public class DuckDBDataReaderStructTests(DuckDBDatabaseFixture db) : DuckDBTestB
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadBasicStructWithGetValue()
     {
         Command.CommandText = "SELECT {'x': 1, 'y': 2, 'z': 'test', 'xy': null};";
@@ -30,6 +32,7 @@ public class DuckDBDataReaderStructTests(DuckDBDatabaseFixture db) : DuckDBTestB
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadBasicStructList()
     {
         Command.CommandText = "SELECT [{'x': 1, 'y': 2, 'z': 'test'}, {'x': 4, 'y': 3, 'z': 'tset'}, NULL];";
@@ -46,6 +49,7 @@ public class DuckDBDataReaderStructTests(DuckDBDatabaseFixture db) : DuckDBTestB
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadBasicStructListWithGetValue()
     {
         Command.CommandText = "SELECT [{'x': 1, 'y': 2, 'z': 'test'}, {'x': 4, 'y': 3, 'z': 'tset'}, NULL];";
@@ -62,6 +66,7 @@ public class DuckDBDataReaderStructTests(DuckDBDatabaseFixture db) : DuckDBTestB
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadStructWithNull()
     {
         Command.CommandText = "SELECT {'yes': 'duck', 'maybe': 'goose', 'huh': NULL, 'no': 'heron', 'type': 0} Union All " +
@@ -94,6 +99,7 @@ public class DuckDBDataReaderStructTests(DuckDBDatabaseFixture db) : DuckDBTestB
     }
     
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadStructWithNestedStruct()
     {
         Command.CommandText = "SELECT {'birds': {'yes': 'duck', 'maybe': 'goose', 'huh': NULL, 'no': 'heron', 'type': 0}, " +
@@ -128,6 +134,7 @@ public class DuckDBDataReaderStructTests(DuckDBDatabaseFixture db) : DuckDBTestB
     [Theory]
     //[InlineData("SELECT {'b': null};", $"Property '{nameof(Struct4.A)}' not found in struct")]
     [InlineData("SELECT {'b': null, 'a': 4};", $"Property '{nameof(Struct4.B)}' is not nullable but struct contains null value")]
+    [Trait("V2", "Ready")]
     public void ReadStructWithMissingDataThrowsException(string query, string error)
     {
         Command.CommandText = query;

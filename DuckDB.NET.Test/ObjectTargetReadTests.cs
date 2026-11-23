@@ -37,6 +37,7 @@ public class ObjectTargetReadTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
     [Theory]
     [MemberData(nameof(Cases))]
+    [Trait("V2", "Ready")]
     public void StructFieldReadAsObjectIsTheColumnValue(string expression)
     {
         Command.CommandText = $"SELECT {expression} AS c, {{'v': {expression}}} AS s";
@@ -85,6 +86,7 @@ public class ObjectTargetReadTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ListsAndMapsOfObjectStayRefused()
     {
         Command.CommandText = "SELECT [1, 2]::INTEGER[] AS l, MAP {1: 'x'} AS m";

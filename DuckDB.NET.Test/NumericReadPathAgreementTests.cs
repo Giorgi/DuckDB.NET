@@ -114,6 +114,7 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
     // a map key. Each read gives the same value of the same type, or each throws the same exception type.
     [Theory]
     [MemberData(nameof(Cases))]
+    [Trait("V2", "Ready")]
     public void EveryPathReadsANumberLikeTheColumn(string column, string literal)
     {
         using var reader = ReadOnEveryPathQuery($"TRY_CAST({literal} AS {column})");
@@ -174,6 +175,7 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
     // (string), as its position (an integer type, if it fits) and as a C# enum of any size, and refuses the rest.
     [Theory]
     [MemberData(nameof(EnumCases))]
+    [Trait("V2", "Ready")]
     public void EveryPathReadsAnEnumLikeTheColumn(int names, int position)
     {
         var enumType = names > 1000 ? CreateLargeEnumType(names) : $"ENUM({string.Join(", ", Enumerable.Range(0, names).Select(i => $"'v{i}'"))})";
@@ -247,6 +249,7 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void StructFieldsReadIntoPropertiesOfOtherNumericTypes()
     {
         Command.CommandText = """
@@ -285,6 +288,7 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void StructFieldThatDoesNotFitThePropertyThrows()
     {
         Command.CommandText = "SELECT {'v': 70000::BIGINT} AS big, {'v': 100000000000000000000::HUGEINT} AS huge, {'v': 1.25::DECIMAL(9,2)} AS dec";
@@ -304,6 +308,7 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void MapKeysAndValuesReadAsOtherNumericTypes()
     {
         Command.CommandText = """
@@ -330,6 +335,7 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ListsOfElementTypesReadOnTheObjectPath()
     {
         Command.CommandText = """
@@ -380,6 +386,7 @@ public class NumericReadPathAgreementTests(DuckDBDatabaseFixture db) : DuckDBTes
     // The column's own type and the provider-specific type on the object path. The own type of HUGEINT and UHUGEINT
     // is Int128 and UInt128 since 2.0 (BigInteger before).
     [Fact]
+    [Trait("V2", "Ready")]
     public void NaturalAndProviderSpecificTypesOfLists()
     {
         Command.CommandText = "SELECT [1]::HUGEINT[] AS huge, [2]::UHUGEINT[] AS uhuge, [3]::INTEGER[] AS ints, [4.5]::DECIMAL(9,2)[] AS decs";

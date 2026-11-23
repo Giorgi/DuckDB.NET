@@ -21,6 +21,7 @@ public class CompositeReadTargetTypeTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void AListColumnReadAsDifferentTypesInTurn()
     {
         Command.CommandText = "SELECT [i, i + 1, NULL]::INTEGER[] AS l, [i, i + 1]::INTEGER[] AS full_list FROM range(3) t(i) ORDER BY i";
@@ -54,6 +55,7 @@ public class CompositeReadTargetTypeTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void AStructColumnReadAsDifferentTypesInTurn()
     {
         Command.CommandText = "SELECT {'a': i::INTEGER, 'b': 'x' || i} AS s FROM range(3) t(i) ORDER BY i";
@@ -81,6 +83,7 @@ public class CompositeReadTargetTypeTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void AMapColumnReadAsDifferentTypesInTurn()
     {
         Command.CommandText = "SELECT MAP {i::INTEGER: 'v' || i, (i + 10)::INTEGER: NULL} AS m FROM range(3) t(i) ORDER BY i";
