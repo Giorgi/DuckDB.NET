@@ -51,8 +51,9 @@ jobs:
         echo "BuildBranch=nightly-builds" >> $env:GITHUB_ENV
         
     # Nightly native libraries: artifacts.duckdb.org/<branch>/, where 'latest' is DuckDB's main branch.
+    # vnext tracks DuckDB's main branch too, so it builds against the nightly libraries as well.
     - name: Set Env
-      if: startsWith(github.ref_name, 'nightly') || startsWith(env.BuildBranch, 'nightly')
+      if: startsWith(github.ref_name, 'nightly') || startsWith(env.BuildBranch, 'nightly') || github.ref_name == 'vnext' || github.base_ref == 'vnext'
       run: |
         echo "DuckDbArtifactRoot=https://artifacts.duckdb.org/latest" >> "$GITHUB_ENV"
         echo "NightlyBuild=true" >> "$GITHUB_ENV"
