@@ -46,7 +46,7 @@ dotnet run -c Release -f net10.0 --project DuckDB.NET.Benchmarks -- --filter "*N
 
 ## DuckDB version and releases
 
-- **Current target: DuckDB v2.0.1.** The version is set in `DuckDB.NET.Bindings/Bindings.csproj`
+- **Current target: DuckDB v2.0.1** (on `develop`). **vnext builds against the DuckDB nightly libraries** (`NightlyBuild` and `DuckDbArtifactRoot` default to `artifacts.duckdb.org/latest` in `Bindings.csproj`). The version is set in `DuckDB.NET.Bindings/Bindings.csproj`
   (`DuckDbArtifactRoot`). The "Updated to DuckDB vX" line in the `PackageReleaseNotes` of both `Bindings.csproj` and
   `Data.csproj` also needs updating; a release on the same DuckDB version says "Built on DuckDB vX". Every
   `LibraryImport` names its `EntryPoint`, so after an update, compare those names with the library's exports to
