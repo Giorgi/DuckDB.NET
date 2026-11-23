@@ -24,9 +24,7 @@ Fixes:
     </PackageReleaseNotes>
     <RootNamespace>DuckDB.NET.Native</RootNamespace>
     <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx</RuntimeIdentifiers>
-    <!-- vnext builds against DuckDB's nightly libraries: 'latest' is DuckDB's main branch. -->
-    <NightlyBuild Condition=" '$(NightlyBuild)' == '' ">true</NightlyBuild>
-    <DuckDbArtifactRoot Condition=" '$(DuckDbArtifactRoot)' == '' ">https://artifacts.duckdb.org/latest</DuckDbArtifactRoot>
+    <DuckDbArtifactRoot Condition=" '$(DuckDbArtifactRoot)' == '' ">https://github.com/duckdb/duckdb/releases/download/v2.0.1</DuckDbArtifactRoot>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
