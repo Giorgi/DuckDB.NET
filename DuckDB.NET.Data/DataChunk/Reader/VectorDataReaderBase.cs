@@ -257,16 +257,6 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
     private protected InvalidCastException CannotCastFraction(Type to) => new($"Cannot cast a value with a non-zero fractional part to {to.Name} in column {ColumnName}");
 
     /// <summary>
-    /// Updates the data and validity pointers for a new chunk without recreating the reader.
-    /// Composite readers (Struct, List, Map, Decimal) override this to also reset nested readers.
-    /// </summary>
-    internal virtual unsafe void Reset(IntPtr vector)
-    {
-        DataPointer = NativeMethods.Vectors.DuckDBVectorGetData(vector);
-        validityMaskPointer = NativeMethods.Vectors.DuckDBVectorGetValidity(vector);
-    }
-
-    /// <summary>
     /// Points the reader at a V2 vector of a new chunk. A V2 vector need not be flat (V1 flattened every result
     /// vector): a constant or dictionary vector is flattened first, so the reader indexes the data by row as before.
     /// </summary>

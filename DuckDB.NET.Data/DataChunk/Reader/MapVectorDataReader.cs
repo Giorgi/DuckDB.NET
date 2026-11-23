@@ -17,21 +17,6 @@ internal sealed partial class MapVectorDataReader : VectorDataReaderBase
     private Type? planType;
     private MapPlan plan;
 
-    internal unsafe MapVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, DuckDBLogicalType logicalColumnType, string columnName)
-        : base(dataPointer, validityMaskPointer, columnType, columnName)
-    {
-        using var keyTypeLogical = NativeMethods.LogicalType.DuckDBMapTypeKeyType(logicalColumnType);
-        using var valueTypeLogical = NativeMethods.LogicalType.DuckDBMapTypeValueType(logicalColumnType);
-
-        var childVector = NativeMethods.Vectors.DuckDBListVectorGetChild(vector);
-
-        var keyVector = NativeMethods.Vectors.DuckDBStructVectorGetChild(childVector, 0);
-        var valueVector = NativeMethods.Vectors.DuckDBStructVectorGetChild(childVector, 1);
-
-        keyReader = VectorDataReaderFactory.CreateReader(keyVector, keyTypeLogical, columnName);
-        valueReader = VectorDataReaderFactory.CreateReader(valueVector, valueTypeLogical, columnName);
-    }
-
     /// <summary>A reader for a MAP column of a V2 result: the key type is the type's first parameter, the value type its second.</summary>
     internal unsafe MapVectorDataReader(_duckdb_v2_logical_type* type, string columnName)
         : base(null, null, DuckDBType.Map, columnName)
@@ -169,16 +154,6 @@ internal sealed partial class MapVectorDataReader : VectorDataReaderBase
     // Builder reads keys and values on the typed path, or is null. KeyType, ValueType and AllowsNullValues are for
     // the IDictionary path: the types a key and a value are read as, and whether a NULL value is added.
     private readonly record struct MapPlan(MapBuilder? Builder, Type KeyType, Type ValueType, bool AllowsNullValues);
-
-    internal override void Reset(IntPtr vector)
-    {
-        base.Reset(vector);
-        var childVector = NativeMethods.Vectors.DuckDBListVectorGetChild(vector);
-        var keyVector = NativeMethods.Vectors.DuckDBStructVectorGetChild(childVector, 0);
-        var valueVector = NativeMethods.Vectors.DuckDBStructVectorGetChild(childVector, 1);
-        keyReader.Reset(keyVector);
-        valueReader.Reset(valueVector);
-    }
 
     internal override unsafe void Reset(_duckdb_v2_vector* vector)
     {

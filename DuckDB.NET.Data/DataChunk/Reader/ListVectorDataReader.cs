@@ -19,17 +19,6 @@ internal sealed partial class ListVectorDataReader : VectorDataReaderBase
 
     private bool IsList => DuckDBType == DuckDBType.List;
 
-    internal unsafe ListVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, DuckDBLogicalType logicalColumnType, string columnName)
-        : base(dataPointer, validityMaskPointer, columnType, columnName)
-    {
-        using var childType = IsList ? NativeMethods.LogicalType.DuckDBListTypeChildType(logicalColumnType) : NativeMethods.LogicalType.DuckDBArrayTypeChildType(logicalColumnType);
-
-        var childVector = IsList ? NativeMethods.Vectors.DuckDBListVectorGetChild(vector) : NativeMethods.Vectors.DuckDBArrayVectorGetChild(vector);
-
-        arraySize = IsList ? 0 : (ulong)NativeMethods.LogicalType.DuckDBArrayVectorGetSize(logicalColumnType);
-        itemReader = VectorDataReaderFactory.CreateReader(childVector, childType, columnName);
-    }
-
     /// <summary>
     /// A reader for a LIST or ARRAY column of a V2 result: the element type is the type's first parameter, and an
     /// ARRAY's size its second.
@@ -181,15 +170,6 @@ internal sealed partial class ListVectorDataReader : VectorDataReaderBase
     // which the builder creates. ItemType is the type an item is read as on the object path: the element type, or
     // the type under a nullable one.
     private readonly record struct ListPlan(ListBuilder? Builder, bool IsExactList, Type ItemType, bool AllowNulls);
-
-    internal override void Reset(IntPtr vector)
-    {
-        base.Reset(vector);
-        var childVector = IsList
-            ? NativeMethods.Vectors.DuckDBListVectorGetChild(vector)
-            : NativeMethods.Vectors.DuckDBArrayVectorGetChild(vector);
-        itemReader.Reset(childVector);
-    }
 
     internal override unsafe void Reset(_duckdb_v2_vector* vector)
     {

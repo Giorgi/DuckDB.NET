@@ -7,16 +7,6 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
     private readonly Int128 remainderShift;
     private readonly DuckDBType decimalType;
 
-    internal unsafe DecimalVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
-    {
-        using var logicalType = NativeMethods.Vectors.DuckDBVectorGetColumnType(vector);
-        Scale = NativeMethods.LogicalType.DuckDBDecimalScale(logicalType);
-        Precision = NativeMethods.LogicalType.DuckDBDecimalWidth(logicalType);
-        decimalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
-
-        remainderShift = GetRemainderShift(Scale);
-    }
-
     /// <summary>
     /// A reader for a DECIMAL column of a V2 result. The storage follows from the width, which V2 states as part of
     /// its contract: int16 up to width 4, int32 up to 9, int64 up to 18, int128 up to 38.

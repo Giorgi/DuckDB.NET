@@ -82,31 +82,5 @@ internal static class TypeExtensions
         return null;
     }
 
-    public static DuckDBLogicalType GetLogicalType<T>() => typeof(T).GetLogicalType();
-
-    public static DuckDBLogicalType GetLogicalType(this Type type)
-    {
-        type = type.UnderlyingTypeOrSelf();
-
-        if (type == typeof(decimal))
-        {
-            return NativeMethods.LogicalType.DuckDBCreateDecimalType(38, 18);
-        }
-
-        if (type.IsAssignableTo(typeof(IList)) && type.IsGenericType)
-        {
-            var genericTypeParameter = type.GetGenericArguments()[0];
-            using var nestedType = genericTypeParameter.GetLogicalType();
-            return NativeMethods.LogicalType.DuckDBCreateListType(nestedType);
-        }
-
-        if (ClrToDuckDBTypeMap.TryGetValue(type, out var duckDBType))
-        {
-            return NativeMethods.LogicalType.DuckDBCreateLogicalType(duckDBType);
-        }
-
-        throw new InvalidOperationException($"Cannot map type {type.FullName} to DuckDBType.");
-    }
-
     public static DuckDBType GetDuckDBType(this Type type) => ClrToDuckDBTypeMap.GetValueOrDefault(type, DuckDBType.Invalid);
 }

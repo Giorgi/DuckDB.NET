@@ -7,15 +7,8 @@ namespace DuckDB.NET.Data.DataChunk.Reader;
 internal sealed class EnumVectorDataReader : VectorDataReaderBase
 {
     private readonly DuckDBType enumType;
-    private readonly DuckDBLogicalType? logicalType;
-    private readonly DuckDBV2LogicalType? v2LogicalType;
+    private readonly DuckDBV2LogicalType logicalType;
     private readonly Dictionary<long, string> cachedNames = new(8);
-
-    internal unsafe EnumVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
-    {
-        logicalType = NativeMethods.Vectors.DuckDBVectorGetColumnType(vector);
-        enumType = NativeMethods.LogicalType.DuckDBEnumInternalType(logicalType);
-    }
 
     /// <summary>
     /// A reader for an ENUM column of a V2 result. It keeps its own copy of the type to look the names up in. The
@@ -32,7 +25,7 @@ internal sealed class EnumVectorDataReader : VectorDataReaderBase
             _ => DuckDBType.UnsignedInteger,
         };
 
-        v2LogicalType = DuckDBV2LogicalTypes.Copy(type);
+        logicalType = DuckDBV2LogicalTypes.Copy(type);
     }
 
     internal override string ReadString(ulong offset) => GetValidValue<string>(offset);
@@ -88,14 +81,13 @@ internal sealed class EnumVectorDataReader : VectorDataReaderBase
     {
         if (!cachedNames.TryGetValue(index, out var name))
         {
-            cachedNames[index] = name = v2LogicalType is not null ? GetV2Name(v2LogicalType, index)
-                                                                  : NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType!, index);
+            cachedNames[index] = name = GetName(logicalType, index);
         }
 
         return name;
     }
 
-    private static unsafe string GetV2Name(DuckDBV2LogicalType type, long index)
+    private static unsafe string GetName(DuckDBV2LogicalType type, long index)
     {
         using var lease = type.Acquire();
         return DuckDBV2LogicalTypes.GetStringParam(lease.Pointer, (ulong)index);
@@ -166,8 +158,7 @@ internal sealed class EnumVectorDataReader : VectorDataReaderBase
 
     public override void Dispose()
     {
-        logicalType?.Dispose();
-        v2LogicalType?.Dispose();
+        logicalType.Dispose();
         base.Dispose();
     }
 }

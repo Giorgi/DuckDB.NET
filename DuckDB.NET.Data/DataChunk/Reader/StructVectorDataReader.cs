@@ -19,25 +19,6 @@ internal sealed partial class StructVectorDataReader : VectorDataReaderBase
     private Type? planType;
     private StructPlan plan;
 
-    internal unsafe StructVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
-    {
-        using var logicalType = NativeMethods.Vectors.DuckDBVectorGetColumnType(vector);
-        var memberCount = NativeMethods.LogicalType.DuckDBStructTypeChildCount(logicalType);
-        fieldReadersByName = new Dictionary<string, VectorDataReaderBase>((int)memberCount, StringComparer.OrdinalIgnoreCase);
-        fieldReaders = new VectorDataReaderBase[memberCount];
-
-        for (int index = 0; index < memberCount; index++)
-        {
-            var name = NativeMethods.LogicalType.DuckDBStructTypeChildName(logicalType, index);
-            var childVector = NativeMethods.Vectors.DuckDBStructVectorGetChild(vector, index);
-
-            using var childType = NativeMethods.LogicalType.DuckDBStructTypeChildType(logicalType, index);
-            var reader = VectorDataReaderFactory.CreateReader(childVector, childType, columnName);
-            fieldReadersByName[name] = reader;
-            fieldReaders[index] = reader;
-        }
-    }
-
     /// <summary>A reader for a STRUCT column of a V2 result: one type parameter per field, named after it.</summary>
     internal unsafe StructVectorDataReader(_duckdb_v2_logical_type* type, string columnName) : base(null, null, DuckDBType.Struct, columnName)
     {
@@ -134,16 +115,6 @@ internal sealed partial class StructVectorDataReader : VectorDataReaderBase
 
     // A property of the target type, with the reader of the field of the same name.
     private readonly record struct BoundProperty(PropertySetter Setter, VectorDataReaderBase FieldReader);
-
-    internal override void Reset(IntPtr vector)
-    {
-        base.Reset(vector);
-        for (int index = 0; index < fieldReaders.Length; index++)
-        {
-            var childVector = NativeMethods.Vectors.DuckDBStructVectorGetChild(vector, index);
-            fieldReaders[index].Reset(childVector);
-        }
-    }
 
     internal override unsafe void Reset(_duckdb_v2_vector* vector)
     {

@@ -6,10 +6,6 @@ namespace DuckDB.NET.Data.DataChunk.Writer;
 
 internal static class VectorDataWriterFactory
 {
-    // The appender and the functions still hand over V1 vectors; they move to V2 in their own stages.
-    public static VectorDataWriterBase CreateWriter(IntPtr vector, DuckDBLogicalType logicalType) =>
-        throw new NotSupportedException("Writing to a V1 vector is not supported on the C API V2 yet.");
-
     /// <summary>A writer for a V2 vector of the given type: a data chunk's column, or a LIST's or ARRAY's items.</summary>
     public static unsafe VectorDataWriterBase CreateWriter(_duckdb_v2_vector* v2Vector, _duckdb_v2_logical_type* logicalType)
     {

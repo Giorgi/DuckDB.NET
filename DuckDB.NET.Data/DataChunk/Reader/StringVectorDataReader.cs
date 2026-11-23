@@ -110,12 +110,6 @@ internal sealed class StringVectorDataReader : VectorDataReaderBase
     private string? charsValue;
     private ulong charsRow;
 
-    internal override void Reset(IntPtr vector)
-    {
-        charsValue = null;
-        base.Reset(vector);
-    }
-
     internal override unsafe void Reset(_duckdb_v2_vector* vector)
     {
         charsValue = null;
