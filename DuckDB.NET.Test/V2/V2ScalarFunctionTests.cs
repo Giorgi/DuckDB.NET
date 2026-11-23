@@ -30,15 +30,16 @@ public class V2ScalarFunctionTests
     [Fact]
     public void TheExceptionReachesTheConnectionThatRanTheFunction()
     {
-        var dataSource = $"DataSource=:memory:shared_udf_{Guid.NewGuid():N}?cache=shared";
-        using var first = Open(dataSource);
-        using var second = Open(dataSource);
+        // The shared in-memory database is the whole test run's, so the function gets a name of its own.
+        using var first = Open("DataSource=:memory:?cache=shared");
+        using var second = Open("DataSource=:memory:?cache=shared");
+        var function = $"fails_on_negative_{Guid.NewGuid():N}";
 
         var thrown = new InvalidOperationException("from the function");
-        first.RegisterScalarFunction<int, int>("fails_on_negative", (int x) => x < 0 ? throw thrown : x);
+        first.RegisterScalarFunction<int, int>(function, (int x) => x < 0 ? throw thrown : x);
 
         // Registered through the first connection, the function is in the database's catalog and the second runs it.
-        var error = second.Invoking(c => Scalar(c, "SELECT fails_on_negative(-1)")).Should().Throw<DuckDBException>().Which;
+        var error = second.Invoking(c => Scalar(c, $"SELECT {function}(-1)")).Should().Throw<DuckDBException>().Which;
         error.InnerException.Should().BeSameAs(thrown);
 
         // The first connection ran nothing that failed, so its next error has no inner exception.
