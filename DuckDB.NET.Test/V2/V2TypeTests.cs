@@ -76,8 +76,8 @@ public class V2TypeTests
     [Fact]
     public void TemporalAndWideIntegerTypesAreRead()
     {
-        using var connection = new DuckDBConnection("DataSource=:memory:;TimeZone=UTC");
-        connection.Open();
+        // No TimeZone setting: it needs the ICU extension, which CI cannot load for a nightly build.
+        using var connection = Open();
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT DATE '2024-02-29' AS d, TIME '12:34:56.789' AS t, TIMESTAMP '2024-02-29 12:34:56.789' AS ts, " +
@@ -90,7 +90,7 @@ public class V2TypeTests
         reader.GetDateTime(0).Should().Be(new DateTime(2024, 2, 29));
         reader.GetFieldValue<TimeOnly>(1).Should().Be(new TimeOnly(12, 34, 56, 789));
         reader.GetDateTime(2).Should().Be(new DateTime(2024, 2, 29, 12, 34, 56, 789));
-        reader.GetFieldValue<DateTimeOffset>(3).Should().Be(new DateTimeOffset(2024, 2, 29, 12, 34, 56, TimeSpan.Zero));
+        reader.GetFieldValue<DateTimeOffset>(3).UtcDateTime.Should().Be(new DateTime(2024, 2, 29, 12, 34, 56, DateTimeKind.Utc));
         reader.GetFieldValue<TimeSpan>(4).Should().Be(TimeSpan.FromDays(3));
         reader.GetGuid(5).Should().Be(new Guid("00000000-0000-0000-0000-000000000001"));
         reader.GetFieldValue<BigInteger>(6).Should().Be(BigInteger.Parse("170141183460469231731687303715884105727"));
@@ -110,6 +110,22 @@ public class V2TypeTests
 
         reader.GetInt32(0).Should().Be(1);
         reader.GetDataTypeName(1).Should().Be("42");
+        reader.Invoking(r => r.GetValue(1)).Should().Throw<Exception>();
+    }
+
+    [Fact]
+    public void AUnionColumnDoesNotStopTheQuery()
+    {
+        // DuckDB.NET has no reader for UNION, as with V1: the query runs and reading that column throws.
+        using var connection = Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT 1 AS one, union_value(num := 2)::UNION(num INTEGER, str VARCHAR) AS u";
+
+        using var reader = command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        reader.GetInt32(0).Should().Be(1);
+        reader.GetDataTypeName(1).Should().Be(nameof(DuckDBType.Union));
         reader.Invoking(r => r.GetValue(1)).Should().Throw<Exception>();
     }
 }

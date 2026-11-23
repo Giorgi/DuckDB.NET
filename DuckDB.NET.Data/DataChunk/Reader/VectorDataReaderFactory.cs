@@ -61,10 +61,10 @@ internal static class VectorDataReaderFactory
                                                               (byte)DuckDBV2LogicalTypes.GetUIntParam(logicalType, 1), columnName),
             DuckDBType.Enum => new EnumVectorDataReader(logicalType, columnName),
 
-            DuckDBType.List or DuckDBType.Array or DuckDBType.Struct or DuckDBType.Map or DuckDBType.Union => throw new NotSupportedException($"Reading {typeId} columns ('{columnName}') has not been migrated to DuckDB's C API V2 yet (docs/V2-MIGRATION.md)."),
+            DuckDBType.List or DuckDBType.Array or DuckDBType.Struct or DuckDBType.Map => throw new NotSupportedException($"Reading {typeId} columns ('{columnName}') has not been migrated to DuckDB's C API V2 yet (docs/V2-MIGRATION.md)."),
 
-            // A type with no reader, as with V1: reading its values or asking for its .NET type throws. A column that is
-            // NULL in every row (SELECT NULL) is one of them: it has no values to read.
+            // A type with no reader, as with V1: reading its values or asking for its .NET type throws. UNION is one, and
+            // so is a column that is NULL in every row (SELECT NULL), which has no values to read.
             _ => new VectorDataReaderBase(null, null, columnType, columnName)
         };
     }

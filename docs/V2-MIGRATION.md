@@ -98,7 +98,8 @@ No behaviour change.
 ## Stage 2: queries without parameters
 
 Done in steps: first the execution path and the primitive types (step 1, done), then dates, times, decimals,
-hugeint, uuid, interval and enum (step 2, done), then list, array, struct, map and union (step 3).
+hugeint, uuid, interval and enum (step 2, done), then list, array, struct and map (step 3). UNION has no reader in DuckDB.NET, so it
+keeps the base reader, as with V1.
 
 ### Decisions
 
@@ -151,18 +152,18 @@ hugeint, uuid, interval and enum (step 2, done), then list, array, struct, map a
   int128; an ENUM of up to 255 entries is uint8, up to 65535 uint16, beyond that uint32. The enum reader keeps a copy
   of its type (`DuckDBV2LogicalType`) to look names up, cached as before.
 - A type with no reader gets the base reader, as with V1: the query runs and reading that column throws.
-  TIMESTAMP_TZ_NS is one; V1 reports it as 42, which `DuckDBType` has no member for, and so does V2 now. Only list,
-  array, struct, map and union throw `NotSupportedException` until step 3.
+  TIMESTAMP_TZ_NS and UNION are two; V1 reports TIMESTAMP_TZ_NS as 42, which `DuckDBType` has no member for, and so
+  does V2 now. Only list, array, struct and map throw `NotSupportedException` until step 3.
 - `GetSchemaTable` of an empty result now reports a DECIMAL's precision and scale. V1 took them from the first
   chunk's vector and reported 0 and 0 without rows; `ReadDecimalSchemaWithoutTableRow` now expects the real values.
 - `V2TypeTests` reads DECIMAL and ENUM at every storage boundary. 2919 test cases are marked V2-ready.
 - Speed: reading 10 million rows of DECIMAL(18,3), TIMESTAMP and ENUM took 231 to 410 ms with V1 and 218 to 365 ms
   with V2 after the first round, timed with a stopwatch.
 
-### Step 3: list, array, struct, map and union
+### Step 3: list, array, struct and map
 
 - Child types come from `logical_type_get_param` as TYPE values (`value_get_type`), and child vectors from
-  `vector_get_child`. Union's tag is child 0.
+  `vector_get_child`. UNION is not migrated: DuckDB.NET has no reader for it.
 - Tests: the list, map, struct and nested reader tests, `DuckDBDataReaderTestAllTypes` last. The reader benchmarks
   run before the stage is done: `DataChunk/Reader/DESIGN.md` has the performance constraints.
 
