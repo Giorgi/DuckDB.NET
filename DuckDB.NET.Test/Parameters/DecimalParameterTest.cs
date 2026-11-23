@@ -6,6 +6,7 @@ namespace DuckDB.NET.Test.Parameters;
 public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
+    [Trait("V2", "Ready")]
     public void SimpleTest()
     {
         var values = new[]{0m, decimal.Zero, decimal.MinValue,
@@ -171,6 +172,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [InlineData("SELECT -1.5::DECIMAL(38, 30)", -1.5)]
     [InlineData("SELECT 0.0::DECIMAL(38, 30)", 0.0)]
     [InlineData("SELECT 123.456::DECIMAL(38, 30)", 123.456)]
+    [Trait("V2", "Ready")]
     public void ReadHighScaleDecimal(string query, double expected)
     {
         // DuckDB DECIMAL(38, 30) uses HugeInt internal type with scale 30,
@@ -188,6 +190,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [InlineData("SELECT 12345678901234567890.12::DECIMAL(38, 2)", "12345678901234567890.12")]
     [InlineData("SELECT -99999999999999999999999999.999::DECIMAL(38, 3)", "-99999999999999999999999999.999")]
     [InlineData("SELECT 0.01::DECIMAL(38, 2)", "0.01")]
+    [Trait("V2", "Ready")]
     public void ReadWideDecimalLowScale(string query, string expected)
     {
         // DuckDB DECIMAL(38, 2) uses HugeInt internal type (width > 18)
@@ -213,6 +216,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [InlineData("SELECT -1.23456789012345678901234567891::DECIMAL(38, 29)", "-1.2345678901234567890123456789")]
     [InlineData("SELECT 0.00000000000000000000000000019::DECIMAL(38, 29)", "0.0000000000000000000000000001")]
     [InlineData("SELECT 0.00000000000000000000000000009::DECIMAL(38, 29)", "0")]
+    [Trait("V2", "Ready")]
     public void ReadDecimalAtScaleBoundary(string query, string expected)
     {
         Command.CommandText = query;
@@ -265,6 +269,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [InlineData("SELECT 123.00::DECIMAL(38, 2)", "123")]
     [InlineData("SELECT -42.000::DECIMAL(9, 3)", "-42")]
     [InlineData("SELECT '0'::DECIMAL(38, 38)", "0")]
+    [Trait("V2", "Ready")]
     public void ReadDecimalAsBigInteger(string query, string expected)
     {
         Command.CommandText = query;
@@ -279,6 +284,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [Theory]
     [InlineData("SELECT 123.45::DECIMAL(38, 2)")]
     [InlineData("SELECT 1.5::DECIMAL(4, 2)")]
+    [Trait("V2", "Ready")]
     public void ReadDecimalWithFractionalPartAsBigIntegerThrows(string query)
     {
         Command.CommandText = query;
@@ -290,6 +296,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadWideDecimalAsDecimalThrowsOverflow()
     {
         Command.CommandText = "SELECT '99999999999999999999999999999999999999'::DECIMAL(38, 0)";
@@ -312,6 +319,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [InlineData("SELECT '-99999999999999999999999999999999999.999'::DECIMAL(38, 3)", 38, 3, "-99999999999999999999999999999999999999")]
     // Scale above decimal's 28-digit limit (bigIntRemainderShift regime)
     [InlineData("SELECT '-0.99999999999999999999999999999999999999'::DECIMAL(38, 38)", 38, 38, "-99999999999999999999999999999999999999")]
+    [Trait("V2", "Ready")]
     public void ReadDecimalAsDuckDBDecimal(string query, int width, int scale, string unscaledValue)
     {
         Command.CommandText = query;
@@ -330,6 +338,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadDecimalJustAboveDecimalMaxValueThrowsOverflow()
     {
         // Quotient is exactly decimal.MaxValue; adding the 0.5 fraction rounds up and overflows.
@@ -374,6 +383,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadNullDecimalAsBigIntegerAndDuckDBDecimal()
     {
         Command.CommandText = "SELECT NULL::DECIMAL(38, 0)";

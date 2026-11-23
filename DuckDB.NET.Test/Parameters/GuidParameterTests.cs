@@ -3,6 +3,7 @@ namespace DuckDB.NET.Test.Parameters;
 public class GuidParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadGuid()
     {
         var guids = new[] { Guid.NewGuid(), Guid.Empty };

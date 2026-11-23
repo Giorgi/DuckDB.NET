@@ -3,6 +3,7 @@ namespace DuckDB.NET.Test.Parameters;
 public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
+    [Trait("V2", "Ready")]
     public void SimpleTest()
     {
         Command.CommandText = "SELECT 125::HUGEINT;";
@@ -48,6 +49,7 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void SimpleNegativeHugeIntTest()
     {
         // The parentheses matter: a cast binds tighter than the minus sign, and 2^127 itself is not a HUGEINT.

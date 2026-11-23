@@ -215,6 +215,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReaderValues()
     {
         Command.CommandText = "CREATE TABLE IndexerValuesTests (key INTEGER, value decimal, State Boolean, ErrorCode Integer, mean Float, stdev double)";
@@ -280,6 +281,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadIntervalValues()
     {
         Command.CommandText = "SELECT INTERVAL 1 YEAR;";
@@ -322,6 +324,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void LoadDataTable()
     {
         Command.CommandText = "select 1 as num, 'text' as str, TIMESTAMP '1992-09-20 20:38:40' as tme";
@@ -424,6 +427,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadDateAsDateTime()
     {
         Command.CommandText = "CREATE TABLE intdate(foo INTEGER, bar DATE);";
@@ -449,6 +453,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadPivotStatementResult()
     {
         Command.CommandText = "CREATE TABLE Cities(Country VARCHAR, Name VARCHAR, Year INT, Population INT);";
@@ -584,6 +589,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadDecimalSchema()
     {
         Command.CommandText = "CREATE TABLE decimaltbl(foo decimal(10,2));";
@@ -631,6 +637,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadDecimalSchemaWithoutTableRow()
     {
         Command.CommandText = "CREATE TABLE decimaltbl_empty(foo decimal(10,2));";
@@ -639,9 +646,11 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         Command.CommandText = "SELECT foo FROM decimaltbl_empty";
         using var reader = Command.ExecuteReader();
 
+        // V1 took the type from the first chunk's vector, so with no rows it reported 0 and 0. V2 takes it from the
+        // result's schema, which a result has without rows.
         var schemaTable = reader.GetSchemaTable();
-        schemaTable.Rows[0]["NumericScale"].Should().Be(0);
-        schemaTable.Rows[0]["NumericPrecision"].Should().Be(0);
+        schemaTable.Rows[0]["NumericScale"].Should().Be(2);
+        schemaTable.Rows[0]["NumericPrecision"].Should().Be(10);
     }
 
     [Theory]
@@ -720,6 +729,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadVarint()
     {
         Command.CommandText = "SELECT (-1234)::VARINT";
@@ -804,6 +814,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadHugeIntAsDuckDBHugeInt()
     {
         Command.CommandText = "SELECT 170141183460469231731687303715884105727::HUGEINT, (-170141183460469231731687303715884105728)::HUGEINT, (-5)::HUGEINT, " +

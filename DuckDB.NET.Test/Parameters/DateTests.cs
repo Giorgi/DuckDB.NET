@@ -6,6 +6,7 @@ public class DateTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(1992, 09, 20)]
     [InlineData(2022, 05, 04)]
     [InlineData(2022, 04, 05)]
+    [Trait("V2", "Ready")]
     public void QueryScalarTest(int year, int mon, int day)
     {
         Command.CommandText = $"SELECT DATE '{year}-{mon}-{day}';";

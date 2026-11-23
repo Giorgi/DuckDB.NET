@@ -89,3 +89,9 @@ internal sealed unsafe class DuckDBV2SqlStatement(_duckdb_v2_sql_statement* poin
 {
     protected override DUCKDB_V2_ERROR Destroy(_duckdb_v2_sql_statement** pointer) => NativeMethodsV2.duckdb_v2_sql_statement_destroy(pointer);
 }
+
+/// <summary>An owned logical type, such as a copy a reader keeps to look up an enum's names.</summary>
+internal sealed unsafe class DuckDBV2LogicalType(_duckdb_v2_logical_type* pointer) : DuckDBV2SafeHandle<_duckdb_v2_logical_type>(pointer)
+{
+    protected override DUCKDB_V2_ERROR Destroy(_duckdb_v2_logical_type** pointer) => NativeMethodsV2.duckdb_v2_logical_type_destroy(pointer);
+}

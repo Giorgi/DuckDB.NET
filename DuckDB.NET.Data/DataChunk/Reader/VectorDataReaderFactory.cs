@@ -41,10 +41,31 @@ internal static class VectorDataReaderFactory
             DuckDBType.Float => new NumericVectorDataReader<float>(null, null, columnType, columnName),
             DuckDBType.Double => new NumericVectorDataReader<double>(null, null, columnType, columnName),
 
-            // A column that is NULL in every row (SELECT NULL) has no values to read.
-            DuckDBType.SqlNull => new VectorDataReaderBase(null, null, columnType, columnName),
+            DuckDBType.Uuid => new GuidVectorDataReader(null, null, columnType, columnName),
+            DuckDBType.Date => new DateTimeVectorDataReader(null, null, columnType, columnName),
+            DuckDBType.Time => new TimeVectorDataReader<DuckDBTime>(null, null, columnType, columnName),
+            DuckDBType.TimeNs => new TimeVectorDataReader<DuckDBTimeNs>(null, null, columnType, columnName),
+            DuckDBType.TimeTz => new DateTimeVectorDataReader(null, null, columnType, columnName),
+            DuckDBType.Interval => new IntervalVectorDataReader(null, null, columnType, columnName),
+            DuckDBType.Timestamp => new DateTimeVectorDataReader(null, null, columnType, columnName),
+            DuckDBType.TimestampS => new DateTimeVectorDataReader(null, null, columnType, columnName),
+            DuckDBType.TimestampMs => new DateTimeVectorDataReader(null, null, columnType, columnName),
+            DuckDBType.TimestampNs => new DateTimeVectorDataReader(null, null, columnType, columnName),
+            DuckDBType.TimestampTz => new DateTimeVectorDataReader(null, null, columnType, columnName),
 
-            _ => throw new NotSupportedException($"Reading {typeId} columns ('{columnName}') has not been migrated to DuckDB's C API V2 yet (docs/V2-MIGRATION.md).")
+            DuckDBType.HugeInt => new BigIntegerVectorDataReader(null, null, columnType, columnName),
+            DuckDBType.UnsignedHugeInt => new BigIntegerVectorDataReader(null, null, columnType, columnName),
+            DuckDBType.VarInt => new BigIntegerVectorDataReader(null, null, columnType, columnName),
+
+            DuckDBType.Decimal => new DecimalVectorDataReader((byte)DuckDBV2LogicalTypes.GetUIntParam(logicalType, 0),
+                                                              (byte)DuckDBV2LogicalTypes.GetUIntParam(logicalType, 1), columnName),
+            DuckDBType.Enum => new EnumVectorDataReader(logicalType, columnName),
+
+            DuckDBType.List or DuckDBType.Array or DuckDBType.Struct or DuckDBType.Map or DuckDBType.Union => throw new NotSupportedException($"Reading {typeId} columns ('{columnName}') has not been migrated to DuckDB's C API V2 yet (docs/V2-MIGRATION.md)."),
+
+            // A type with no reader, as with V1: reading its values or asking for its .NET type throws. A column that is
+            // NULL in every row (SELECT NULL) is one of them: it has no values to read.
+            _ => new VectorDataReaderBase(null, null, columnType, columnName)
         };
     }
 

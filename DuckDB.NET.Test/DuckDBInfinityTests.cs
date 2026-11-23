@@ -177,6 +177,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     #region Infinity Date Tests
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadInfinityDate()
     {
         Command.CommandText = "SELECT 'infinity'::DATE, '-infinity'::DATE, isinf('infinity'::DATE), isinf('-infinity'::DATE)";
@@ -203,6 +204,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     #region Infinity Timestamp Tests
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadInfinityTimestamp()
     {
         Command.CommandText = "SELECT 'infinity'::TIMESTAMP, '-infinity'::TIMESTAMP, isinf('infinity'::TIMESTAMP), isinf('-infinity'::TIMESTAMP)";
@@ -225,6 +227,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadInfinityTimestampNs()
     {
         Command.CommandText = "SELECT 'infinity'::TIMESTAMP_NS, '-infinity'::TIMESTAMP_NS, isinf('infinity'::TIMESTAMP_NS), isinf('-infinity'::TIMESTAMP_NS)";
@@ -247,6 +250,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadInfinityTimestampMs()
     {
         Command.CommandText = "SELECT 'infinity'::TIMESTAMP_MS, '-infinity'::TIMESTAMP_MS, isinf('infinity'::TIMESTAMP_MS), isinf('-infinity'::TIMESTAMP_MS)";
@@ -269,6 +273,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadInfinityTimestampS()
     {
         Command.CommandText = "SELECT 'infinity'::TIMESTAMP_S, '-infinity'::TIMESTAMP_S, isinf('infinity'::TIMESTAMP_S), isinf('-infinity'::TIMESTAMP_S)";
@@ -291,6 +296,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadInfinityTimestampTz()
     {
         Command.CommandText = "SELECT 'infinity'::TIMESTAMPTZ, '-infinity'::TIMESTAMPTZ, isinf('infinity'::TIMESTAMPTZ), isinf('-infinity'::TIMESTAMPTZ)";
@@ -317,6 +323,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     #region Mixed Infinity and Finite Values
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadMixedInfinityDatesAsDuckDBDateOnly()
     {
         Command.CommandText = "SELECT * FROM (VALUES ('infinity'::DATE), ('-infinity'::DATE), ('2024-01-15'::DATE)) AS t(d)";
@@ -339,6 +346,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadMixedInfinityTimestampsAsDuckDBTimestamp()
     {
         Command.CommandText = "SELECT * FROM (VALUES ('infinity'::TIMESTAMP), ('-infinity'::TIMESTAMP), ('2024-01-15 12:30:45'::TIMESTAMP)) AS t(ts)";

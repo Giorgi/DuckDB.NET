@@ -50,7 +50,9 @@ internal static class DuckDBV2TypeMap
         DUCKDB_V2_LOGICAL_TYPE_ID.TIME_NS => DuckDBType.TimeNs,
         DUCKDB_V2_LOGICAL_TYPE_ID.GEOMETRY => DuckDBType.Geometry,
         DUCKDB_V2_LOGICAL_TYPE_ID.VARIANT => DuckDBType.Variant,
-        // TIMESTAMP_TZ_NS, GEOGRAPHY, TUPLE, TYPE, UNKNOWN: V1 has no DuckDBType for them.
+        // DuckDBType has no member for it, but V1 reports it as 42 (DUCKDB_TYPE_TIMESTAMP_TZ_NS), so it does here too.
+        DUCKDB_V2_LOGICAL_TYPE_ID.TIMESTAMP_TZ_NS => (DuckDBType)42,
+        // GEOGRAPHY, TUPLE, TYPE, UNKNOWN: V1 has no DuckDBType for them.
         _ => DuckDBType.Invalid,
     };
 

@@ -159,6 +159,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     [Theory]
     [Trait("Category", "Long Running")]
     [MemberData(nameof(GetBigIntegers))]
+    [Trait("V2", "Ready")]
     public void VarintTest(BigInteger expectedValue)
     {
         TestSimple<BigInteger>("VARINT", expectedValue, r => r.GetFieldValue<BigInteger>(0));

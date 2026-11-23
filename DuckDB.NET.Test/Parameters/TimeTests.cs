@@ -9,6 +9,7 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(12, 15, 17, 350_300)]
     [InlineData(12, 17, 15, 450_500)]
     [InlineData(18, 15, 17, 125_700)]
+    [Trait("V2", "Ready")]
     public void QueryScalarTest(int hour, int minute, int second, int microsecond)
     {
         Command.CommandText = $"SELECT TIME '{hour}:{minute}:{second}.{microsecond:000000}';";
@@ -118,6 +119,7 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(12, 15, 17, 350_300, 0, 30)]
     [InlineData(12, 17, 15, 450_500, 2, 45)]
     [InlineData(18, 15, 17, 125_700, 4, 30)]
+    [Trait("V2", "Ready")]
     public void QueryTimeTzScalarTest(int hour, int minute, int second, int microsecond, int offsetHours, int offsetMinutes)
     {
         Command.CommandText = $"SELECT TIMETZ '{hour}:{minute}:{second}.{microsecond:000000}{offsetHours:00+##;00-##;}:{offsetMinutes:00}';";
@@ -298,6 +300,7 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
     // The latest time DuckDB has is the end of the day, which is the start of the third day.
     [Fact]
+    [Trait("V2", "Ready")]
     public void TimeWithATimeZoneAtTheEndOfTheDay()
     {
         Command.CommandText = "SELECT '24:00:00+00'::TIMETZ";
@@ -311,6 +314,7 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData("12:00:00+14:01", typeof(ArgumentOutOfRangeException), 50460)]
     [InlineData("12:00:00+00:00:30", typeof(ArgumentException), 30)]
     [InlineData("12:00:00-15:59:59", typeof(ArgumentException), -57599)]
+    [Trait("V2", "Ready")]
     public void TimeWithAnOffsetThatDateTimeOffsetDoesNotHave(string value, Type exception, int offsetSeconds)
     {
         Command.CommandText = $"SELECT '{value}'::TIMETZ";

@@ -14,6 +14,7 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     private const long MicrosecondsAtDateTimeMaxValue = 253_402_300_799_999_999;
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void EveryDateThatDateTimeHoldsIsReadAsDuckDBSplitsIt()
     {
         var dayCount = DateOnly.MaxValue.DayNumber + 1;
@@ -135,6 +136,7 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void TimestampsAreReadAsDuckDBPrintsThem()
     {
         Command.CommandText = "SELECT ts, strftime(ts, '%Y-%m-%d %H:%M:%S.%f'), epoch_us(ts) FROM (" +
@@ -176,6 +178,7 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     // The whole range of a TIMESTAMP_NS is inside the range of a DateTime: 1677-09-22 to 2262-04-11 23:47:16.854775806.
     [InlineData(long.MaxValue - 1, 92_233_720_368_547_758)]
     [InlineData(-9_223_286_400_000_000_000, -92_232_864_000_000_000)]
+    [Trait("V2", "Ready")]
     public void TimestampNsKeepsTheTicksAndDropsWhatIsBelowATick(long nanoseconds, long ticksFromEpoch)
     {
         Command.CommandText = $"SELECT make_timestamp_ns({nanoseconds})";
@@ -193,6 +196,7 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     // The rule above over the whole range, against the nanoseconds DuckDB stores rather than against its cast, which
     // dropped the digits toward zero up to DuckDB 1.5.
     [Fact]
+    [Trait("V2", "Ready")]
     public void TimestampNsDropsWhatIsBelowATickTowardMinusInfinity()
     {
         Command.CommandText = "SELECT ns, epoch_ns(ns) FROM (SELECT make_timestamp_ns((i - 1844) * 5000000000000037) ns FROM range(3689) t(i))";
@@ -225,6 +229,7 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     [InlineData("make_timestamp(-62135596801000000)::TIMESTAMP_S", 0)]
     [InlineData("TIMESTAMP '294247-01-10 04:00:54.775806'", 294247)]
     [InlineData("TIMESTAMP '290309-12-22 (BC) 00:00:00'", -290308)]
+    [Trait("V2", "Ready")]
     public void TimestampOutsideTheRangeOfDateTimeIsRefused(string expression, int year)
     {
         Command.CommandText = $"SELECT {expression} AS moment";
@@ -243,6 +248,7 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     [InlineData("DATE '0001-01-01' - 1", 0)]
     [InlineData("DATE '5881580-07-10'", 5881580)]
     [InlineData("DATE '5877642-06-25 (BC)'", -5877641)]
+    [Trait("V2", "Ready")]
     public void DateOutsideTheRangeOfDateTimeIsRefused(string expression, int year)
     {
         Command.CommandText = $"SELECT {expression} AS day";
@@ -257,6 +263,7 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void TheLimitsOfDateTimeAreRead()
     {
         Command.CommandText = "SELECT make_timestamp(253402300799999999), make_timestamp(-62135596800000000), " +
@@ -330,6 +337,7 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     // DuckDB stores a timestamp below its own minimum when make_timestamp is given one, and cannot split it into
     // year, month and day. The message does not send the caller to the read as DuckDBTimestamp, which fails in DuckDB.
     [Fact]
+    [Trait("V2", "Ready")]
     public void TimestampBelowTheMinimumOfDuckDBIsRefusedWithoutAdvice()
     {
         Command.CommandText = "SELECT make_timestamp(-9223372022400000001) AS moment";

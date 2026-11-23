@@ -1,17 +1,38 @@
 ﻿using System.Runtime.CompilerServices;
+using DuckDB.NET.Data.Execution;
+using DuckDB.NET.Native.V2;
 
 namespace DuckDB.NET.Data.DataChunk.Reader;
 
 internal sealed class EnumVectorDataReader : VectorDataReaderBase
 {
     private readonly DuckDBType enumType;
-    private readonly DuckDBLogicalType logicalType;
+    private readonly DuckDBLogicalType? logicalType;
+    private readonly DuckDBV2LogicalType? v2LogicalType;
     private readonly Dictionary<long, string> cachedNames = new(8);
 
     internal unsafe EnumVectorDataReader(IntPtr vector, void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
         logicalType = NativeMethods.Vectors.DuckDBVectorGetColumnType(vector);
         enumType = NativeMethods.LogicalType.DuckDBEnumInternalType(logicalType);
+    }
+
+    /// <summary>
+    /// A reader for an ENUM column of a V2 result. It keeps its own copy of the type to look the names up in. The
+    /// storage follows from the size of the dictionary, which V2 states as part of its contract: uint8 up to 255
+    /// entries (and for an empty dictionary), uint16 up to 65535, uint32 beyond.
+    /// </summary>
+    internal unsafe EnumVectorDataReader(_duckdb_v2_logical_type* type, string columnName) : base(null, null, DuckDBType.Enum, columnName)
+    {
+        var size = DuckDBV2LogicalTypes.GetParamCount(type);
+        enumType = size switch
+        {
+            <= byte.MaxValue => DuckDBType.UnsignedTinyInt,
+            <= ushort.MaxValue => DuckDBType.UnsignedSmallInt,
+            _ => DuckDBType.UnsignedInteger,
+        };
+
+        v2LogicalType = DuckDBV2LogicalTypes.Copy(type);
     }
 
     internal override string ReadString(ulong offset) => GetValidValue<string>(offset);
@@ -67,10 +88,17 @@ internal sealed class EnumVectorDataReader : VectorDataReaderBase
     {
         if (!cachedNames.TryGetValue(index, out var name))
         {
-            cachedNames[index] = name = NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType, index);
+            cachedNames[index] = name = v2LogicalType is not null ? GetV2Name(v2LogicalType, index)
+                                                                  : NativeMethods.LogicalType.DuckDBEnumDictionaryValue(logicalType!, index);
         }
 
         return name;
+    }
+
+    private static unsafe string GetV2Name(DuckDBV2LogicalType type, long index)
+    {
+        using var lease = type.Acquire();
+        return DuckDBV2LogicalTypes.GetStringParam(lease.Pointer, (ulong)index);
     }
 
     // A C# enum is an integer of 1, 2, 4 or 8 bytes. Unsafe.As reads as many bytes as T has, so it must be given
@@ -138,7 +166,8 @@ internal sealed class EnumVectorDataReader : VectorDataReaderBase
 
     public override void Dispose()
     {
-        logicalType.Dispose();
+        logicalType?.Dispose();
+        v2LogicalType?.Dispose();
         base.Dispose();
     }
 }

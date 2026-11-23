@@ -56,6 +56,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // GetValue must return the value in the .NET type that ColumnClrTypes gives for the column type.
     [Theory]
     [MemberData(nameof(Cases))]
+    [Trait("V2", "Ready")]
     public void ReadNumericColumnAsEveryNumericType(string column, string literal)
     {
         Command.CommandText = $"SELECT TRY_CAST({literal} AS {column}) AS c";
@@ -551,6 +552,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     [InlineData("huge", "HugeInt")]
     [InlineData("unsigned", "UnsignedHugeInt")]
     [InlineData("big", "VarInt")]
+    [Trait("V2", "Ready")]
     public void OverflowingHugeIntReadNamesTheColumnTypeAndTheColumn(string name, string columnType)
     {
         Command.CommandText = "SELECT 10000000000000000000000::HUGEINT AS huge, 10000000000000000000000::UHUGEINT AS unsigned, " +
@@ -568,6 +570,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
     // The values just inside and just outside what long and ulong hold, where a range check goes wrong first.
     [Fact]
+    [Trait("V2", "Ready")]
     public void HugeIntAtTheLimitsOfLongAndULong()
     {
         Command.CommandText = """
@@ -625,6 +628,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void VarIntReadsAsIntegersAndBigIntegerOnly()
     {
         Command.CommandText = "SELECT 42::VARINT, (-5)::VARINT, 99999999999999999999::VARINT";
@@ -653,6 +657,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // its column, and every other integer column, VARINT and a whole DECIMAL when the value fits. They are also the
     // default types of the two columns (2.0; BigInteger before), which still read as BigInteger.
     [Fact]
+    [Trait("V2", "Ready")]
     public void Int128AndUInt128ReadTheWholeRangeOfHugeIntAndUHugeInt()
     {
         Command.CommandText = """
@@ -732,6 +737,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // The default types reach what is built on GetFieldType and GetValue: the schema table, a DataTable and
     // ExecuteScalar. sum() of an integer column is a HUGEINT, so its result is an Int128 now (a BigInteger before 2.0).
     [Fact]
+    [Trait("V2", "Ready")]
     public void Int128AndUInt128AreTheTypesOfTheSchemaTableADataTableAndExecuteScalar()
     {
         Command.CommandText = "SELECT '-170141183460469231731687303715884105728'::HUGEINT AS huge, '340282366920938463463374607431768211455'::UHUGEINT AS unsigned, 42::VARINT AS big";
@@ -799,6 +805,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void VarIntReadsAsInt128AndUInt128WhenItFits()
     {
         Command.CommandText = """
@@ -852,6 +859,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     [InlineData("DECIMAL(9,2)")]
     [InlineData("DECIMAL(18,3)")]
     [InlineData("DECIMAL(38,4)")]
+    [Trait("V2", "Ready")]
     public void DecimalReadsAsInt128AndUInt128WhenItIsWhole(string type)
     {
         Command.CommandText = $"SELECT 42::{type} AS whole, (-42)::{type} AS minus_whole, 1.5::{type} AS fraction, (-0.5)::{type} AS minus_half";
@@ -873,6 +881,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
     // The widest DECIMAL is beyond the range of decimal, and within that of Int128.
     [Fact]
+    [Trait("V2", "Ready")]
     public void WidestDecimalReadsAsInt128()
     {
         Command.CommandText = "SELECT '99999999999999999999999999999999999999'::DECIMAL(38,0), '-99999999999999999999999999999999999999'::DECIMAL(38,0)";
@@ -890,6 +899,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // are, so it keeps the scale of its column: 1.5000 from a DECIMAL(38,4) as from a DECIMAL(18,4). Before 2.0 it was
     // divided, which dropped the trailing zeros. A value beyond 96 bits, or a scale above 28, is still divided.
     [Fact]
+    [Trait("V2", "Ready")]
     public void AWideDecimalKeepsTheScaleOfItsColumn()
     {
         Command.CommandText = """
@@ -977,6 +987,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     [InlineData("DECIMAL(9,2)")]
     [InlineData("DECIMAL(18,2)")]
     [InlineData("DECIMAL(38,2)")]
+    [Trait("V2", "Ready")]
     public void DecimalReadAsIntegerNeedsAWholeValue(string type)
     {
         Command.CommandText = $"SELECT 42::{type} AS whole, (-42)::{type} AS minus_whole, (-0.0)::{type} AS minus_zero, " +
@@ -1022,6 +1033,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // one past it. A DECIMAL(38) beyond the range of decimal reads as an integer type that holds it, because the value
     // is never made a decimal on the way.
     [Fact]
+    [Trait("V2", "Ready")]
     public void DecimalReadAsIntegerIsCheckedAgainstTheRangeOfTheRequestedType()
     {
         Command.CommandText = """

@@ -11,6 +11,7 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(1992, 09, 20, 12, 15, 17, 350_300)]
     [InlineData(2022, 05, 04, 12, 17, 15, 450_500)]
     [InlineData(2022, 04, 05, 18, 15, 17, 125_700)]
+    [Trait("V2", "Ready")]
     public void QueryScalarTest(int year, int mon, int day, int hour, int minute, int second, int microsecond)
     {
         var expectedValue = new DateTime(year, mon, day, hour, minute, second).AddTicks(microsecond * 10);

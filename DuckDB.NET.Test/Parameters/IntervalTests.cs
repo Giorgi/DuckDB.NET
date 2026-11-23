@@ -8,6 +8,7 @@ public class IntervalTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData("-1 day", -86_400)]
     [InlineData("-1 day 2 hours", -79_200)]
     [InlineData("1 day -2 hours", 79_200)]
+    [Trait("V2", "Ready")]
     public void QueryNegativeInterval(string interval, int seconds)
     {
         Command.CommandText = $"SELECT INTERVAL '{interval}';";
@@ -22,6 +23,7 @@ public class IntervalTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Theory]
     [InlineData("-1 month")]
     [InlineData("1 month")]
+    [Trait("V2", "Ready")]
     public void QueryMonthInterval_AsTimeSpan_Throws(string interval)
     {
         Command.CommandText = $"SELECT INTERVAL '{interval}';";

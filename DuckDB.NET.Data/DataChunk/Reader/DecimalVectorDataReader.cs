@@ -14,13 +14,32 @@ internal sealed class DecimalVectorDataReader : VectorDataReaderBase
         Precision = NativeMethods.LogicalType.DuckDBDecimalWidth(logicalType);
         decimalType = NativeMethods.LogicalType.DuckDBDecimalInternalType(logicalType);
 
-        // SmallInt/Integer/BigInt paths have scale ≤ 18, always within range.
-        if (Scale > DecimalExtensions.MaxDecimalScale)
-        {
-            // Scale > 28: precompute the shift divisor for truncating the remainder to decimal range.
-            remainderShift = DecimalExtensions.Int128PowersOfTen[Scale - DecimalExtensions.MaxDecimalScale];
-        }
+        remainderShift = GetRemainderShift(Scale);
     }
+
+    /// <summary>
+    /// A reader for a DECIMAL column of a V2 result. The storage follows from the width, which V2 states as part of
+    /// its contract: int16 up to width 4, int32 up to 9, int64 up to 18, int128 up to 38.
+    /// </summary>
+    internal unsafe DecimalVectorDataReader(byte precision, byte scale, string columnName) : base(null, null, DuckDBType.Decimal, columnName)
+    {
+        Precision = precision;
+        Scale = scale;
+        decimalType = precision switch
+        {
+            <= 4 => DuckDBType.SmallInt,
+            <= 9 => DuckDBType.Integer,
+            <= 18 => DuckDBType.BigInt,
+            _ => DuckDBType.HugeInt,
+        };
+
+        remainderShift = GetRemainderShift(Scale);
+    }
+
+    // SmallInt/Integer/BigInt paths have scale ≤ 18, always within range.
+    // Scale > 28: precompute the shift divisor for truncating the remainder to decimal range.
+    private static Int128 GetRemainderShift(byte scale) =>
+        scale > DecimalExtensions.MaxDecimalScale ? DecimalExtensions.Int128PowersOfTen[scale - DecimalExtensions.MaxDecimalScale] : default;
 
     internal byte Scale { get; }
 
