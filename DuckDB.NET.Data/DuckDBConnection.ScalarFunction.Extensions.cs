@@ -144,8 +144,8 @@ public static class DuckDBConnectionScalarFunctionExtensions
         }
     }
 
-    // System.Reflection has a TypeExtensions class too, so the one of this library is named in full, once.
-    private static DuckDBLogicalType LogicalType<T>() => Extensions.TypeExtensions.GetLogicalType<T>();
+    // The CLR type a parameter or the result is declared as; RegisterScalarMethod maps it to DuckDB's.
+    private static Type LogicalType<T>() => typeof(T);
 
     // The result of a function. A nullable result is taken apart here and its value written as the type under it, or
     // a NULL. Passed on whole as WriteValue<int?>, it cost about 4 ns more per row than an int (.NET 10, x64,

@@ -353,6 +353,7 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
 
     // The reader of an argument of a function has no column name.
     [Fact]
+    [Trait("V2", "Ready")]
     public void OutOfRangeArgumentOfAFunctionIsRefusedWithoutAColumnName()
     {
         Connection.RegisterScalarFunction<DateTime, long>("temporal_ticks", (readers, writer, rowCount) =>

@@ -10,12 +10,16 @@ internal sealed unsafe class DuckDBV2StatementResult : IDisposable
 {
     private readonly DuckDBV2Result result;
 
+    // The statement runs while its chunks are fetched, so the callbacks of C# functions run then too.
+    private readonly DuckDBV2Connection connection;
+
     // The first chunk, fetched before the reader asked for it to learn the result's shape.
     private DuckDBV2DataChunk? pendingChunk;
 
-    public DuckDBV2StatementResult(DuckDBV2Result result, DuckDBStatementType statementType)
+    public DuckDBV2StatementResult(DuckDBV2Result result, DuckDBStatementType statementType, DuckDBV2Connection connection)
     {
         this.result = result;
+        this.connection = connection;
         StatementType = statementType;
 
         if (TryGetResultType(out var resultType))
@@ -89,9 +93,10 @@ internal sealed unsafe class DuckDBV2StatementResult : IDisposable
         }
 
         using var lease = result.Acquire();
+        using var scope = DuckDBV2CallbackScope.Enter(connection);
         _duckdb_v2_error_info* error = null;
         _duckdb_v2_data_chunk* chunk;
-        NativeMethodsV2.duckdb_v2_result_fetch_chunk(lease.Pointer, &chunk, &error).ThrowIfFailed(ref error, "Fetching the result failed");
+        NativeMethodsV2.duckdb_v2_result_fetch_chunk(lease.Pointer, &chunk, &error).ThrowIfFailed(ref error, connection, "Fetching the result failed");
 
         if (chunk == null)
         {
@@ -126,9 +131,10 @@ internal sealed unsafe class DuckDBV2StatementResult : IDisposable
         }
 
         using var lease = result.Acquire();
+        using var scope = DuckDBV2CallbackScope.Enter(connection);
         _duckdb_v2_error_info* error = null;
         ulong rowsChanged;
-        NativeMethodsV2.duckdb_v2_result_drain(lease.Pointer, &rowsChanged, &error).ThrowIfFailed(ref error, "Executing the statement failed");
+        NativeMethodsV2.duckdb_v2_result_drain(lease.Pointer, &rowsChanged, &error).ThrowIfFailed(ref error, connection, "Executing the statement failed");
 
         Ended = true;
         RowsFetched = (long)rowsChanged;

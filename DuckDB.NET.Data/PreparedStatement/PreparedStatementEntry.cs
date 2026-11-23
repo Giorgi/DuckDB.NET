@@ -70,6 +70,9 @@ internal sealed unsafe class PreparedStatementEntry : IDisposable
         using var lease = statement.Acquire();
         var pointer = lease.Pointer;
 
+        // Executing a prepared statement binds it again, and calls the callbacks of C# functions.
+        using var scope = DuckDBV2CallbackScope.EnterExecution(connection);
+
         _duckdb_v2_error_info* error = null;
         _duckdb_v2_result* result;
 
@@ -82,7 +85,7 @@ internal sealed unsafe class PreparedStatementEntry : IDisposable
 
         ExecutionCount++;
 
-        return DuckDBV2Statements.Wrap(code, result, ref error, StatementType);
+        return DuckDBV2Statements.Wrap(code, result, ref error, StatementType, connection);
     }
 
     public void Dispose()

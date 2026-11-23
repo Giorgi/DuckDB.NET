@@ -30,4 +30,12 @@ public class DuckDBException : DbException
     internal DuckDBException(string message, Exception? innerException) : base(message, innerException)
     {
     }
+
+    internal DuckDBException(string message, DuckDBErrorCode errorCode, Exception? innerException)
+        : base(message, innerException)
+    {
+        HResult = (int)errorCode.ToErrorType();
+        ErrorType = errorCode.ToErrorType();
+        NativeErrorCode = errorCode;
+    }
 }

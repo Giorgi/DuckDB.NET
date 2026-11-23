@@ -146,6 +146,7 @@ public class StringWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void AFunctionResultKeepsItsNulCharacters()
     {
         Connection.RegisterScalarFunction<int, string>("string_with_nul", index => NulValues[index]);

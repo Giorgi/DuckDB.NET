@@ -8,6 +8,7 @@ namespace DuckDB.NET.Test;
 public class ScalarFunctionNullableTypesTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
+    [Trait("V2", "Ready")]
     public void ANullableArgumentAndResultRoundTripForEveryType()
     {
         Connection.ExecuteNonQuery("""
@@ -63,6 +64,7 @@ public class ScalarFunctionNullableTypesTests(DuckDBDatabaseFixture db) : DuckDB
 
     // The form with a variable number of arguments writes its result in a loop of its own.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ANullableResultOfAFunctionWithManyArguments()
     {
         Connection.ExecuteNonQuery("""

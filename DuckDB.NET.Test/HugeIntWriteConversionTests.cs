@@ -209,6 +209,7 @@ public class HugeIntWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestB
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ScalarFunctionsTakeAndReturnInt128AndUInt128()
     {
         Connection.RegisterScalarFunction<Int128, Int128>("int128_minus_one", value => value - 1);

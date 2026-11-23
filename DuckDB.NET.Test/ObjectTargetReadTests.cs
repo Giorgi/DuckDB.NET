@@ -56,6 +56,7 @@ public class ObjectTargetReadTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     // it the test calls GetValue(offset, typeof(object)) directly, the route of a struct field read without dynamic
     // code, which a test process cannot take otherwise.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadersGiveTheColumnValueForObject()
     {
         Connection.RegisterScalarFunction<object, string>("describe_as_object", (readers, writer, rowCount) =>

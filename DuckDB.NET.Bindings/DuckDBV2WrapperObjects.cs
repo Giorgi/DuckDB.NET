@@ -63,6 +63,13 @@ internal sealed unsafe class DuckDBV2Instance(_duckdb_v2_instance* pointer) : Du
 
 internal sealed unsafe class DuckDBV2Connection(_duckdb_v2_connection* pointer) : DuckDBV2SafeHandle<_duckdb_v2_connection>(pointer)
 {
+    /// <summary>
+    /// The exception a C# function threw while a statement of this connection ran. The function's callbacks find
+    /// this connection through their bind data, store the exception here and report only its message to DuckDB; the
+    /// command attaches it to the <c>DuckDBException</c> for the failure. Set from DuckDB's worker threads.
+    /// </summary>
+    internal Exception? CallbackException;
+
     protected override DUCKDB_V2_ERROR Destroy(_duckdb_v2_connection** pointer) => NativeMethodsV2.duckdb_v2_connection_destroy(pointer);
 }
 

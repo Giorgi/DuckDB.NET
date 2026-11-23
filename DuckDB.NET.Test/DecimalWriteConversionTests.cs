@@ -154,6 +154,7 @@ public class DecimalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestB
 
     // The result of a function is a DECIMAL(38,18): 20 digits in front of the point.
     [Fact]
+    [Trait("V2", "Ready")]
     public void AScalarFunctionResultWithMoreDigitsThanItsTypeIsRefused()
     {
         Connection.RegisterScalarFunction<int, decimal>("decimal_write_scalar", value => value == 0 ? 99999999999999999999m : 100000000000000000000m);

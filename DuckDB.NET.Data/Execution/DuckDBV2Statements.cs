@@ -63,12 +63,15 @@ internal static unsafe class DuckDBV2Statements
         ulong parameterCount;
         NativeMethodsV2.duckdb_v2_sql_statement_get_parameter_count(statementLease.Pointer, &parameterCount, &error).ThrowIfFailed(ref error);
 
+        // Preparing binds the statement, and the bind callbacks of C# functions look for the connection.
+        using var scope = DuckDBV2CallbackScope.EnterExecution(connection);
+
         _duckdb_v2_prepared_statement* prepared;
         var code = NativeMethodsV2.duckdb_v2_prepared_statement_create(connectionLease.Pointer, statementLease.Pointer, 0, &prepared, &error);
 
         try
         {
-            code.ThrowIfFailed(ref error, "Preparing the statement failed");
+            code.ThrowIfFailed(ref error, connection, "Preparing the statement failed");
         }
         catch (DuckDBException exception) when (exception.NativeErrorCode == DuckDBErrorCode.ResourceInUse)
         {
@@ -128,6 +131,9 @@ internal static unsafe class DuckDBV2Statements
         var connectionPointer = connectionLease.Pointer;
         var statementPointer = statementLease.Pointer;
 
+        // Binding and executing call the callbacks of C# functions, which look for the connection.
+        using var scope = DuckDBV2CallbackScope.EnterExecution(connection);
+
         _duckdb_v2_error_info* error = null;
         DUCKDB_V2_STATEMENT_TYPE statementType;
         NativeMethodsV2.duckdb_v2_sql_statement_get_type(statementPointer, &statementType, &error).ThrowIfFailed(ref error);
@@ -153,7 +159,7 @@ internal static unsafe class DuckDBV2Statements
                                          &result, &error);
         }
 
-        return Wrap(code, result, ref error, statementType.ToStatementType());
+        return Wrap(code, result, ref error, statementType.ToStatementType(), connection);
     }
 
     private static DuckDBV2Parameters ReadParameters(DuckDBV2Connection connection, DuckDBV2SqlStatement statement)
@@ -169,11 +175,12 @@ internal static unsafe class DuckDBV2Statements
     }
 
     /// <summary>The result of an execution, or the exception for its failure.</summary>
-    internal static DuckDBV2StatementResult Wrap(DUCKDB_V2_ERROR code, _duckdb_v2_result* result, ref _duckdb_v2_error_info* error, DuckDBStatementType statementType)
+    internal static DuckDBV2StatementResult Wrap(DUCKDB_V2_ERROR code, _duckdb_v2_result* result, ref _duckdb_v2_error_info* error, DuckDBStatementType statementType,
+                                                 DuckDBV2Connection connection)
     {
         try
         {
-            code.ThrowIfFailed(ref error, "Executing the statement failed");
+            code.ThrowIfFailed(ref error, connection, "Executing the statement failed");
         }
         catch (DuckDBException exception) when (exception.NativeErrorCode == DuckDBErrorCode.ResourceInUse)
         {
@@ -184,7 +191,7 @@ internal static unsafe class DuckDBV2Statements
 
         try
         {
-            return new DuckDBV2StatementResult(handle, statementType);
+            return new DuckDBV2StatementResult(handle, statementType, connection);
         }
         catch
         {

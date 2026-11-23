@@ -32,13 +32,4 @@ internal static class UdfExceptionStore
             return context.ConnectionId;
         }
     }
-
-    internal static ulong GetScalarFunctionBindConnectionId(IntPtr bindInfo)
-    {
-        NativeMethods.ScalarFunction.DuckDBScalarFunctionGetClientContext(bindInfo, out var context);
-        using (context)
-        {
-            return context.ConnectionId;
-        }
-    }
 }

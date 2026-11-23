@@ -234,8 +234,18 @@ keeps the base reader, as with V1.
 
 ## Later stages
 
-5. Scalar functions: `connection_register_scalar_function`, errors through the callback's `err` slot. Overloads are
-   probably registrations under the same name (`ALTER_ON_CONFLICT` in DuckDB's source), which needs a test.
+5. Scalar functions (done): `connection_register_scalar_function`, errors through the callback's `err` slot.
+   - **Registration** (`DuckDBConnection.ScalarFunction.cs`): positional-only parameters named `arg0`, `arg1`, ...
+     (invisible to SQL, but they may not share a name), or one `POSITIONAL_VARIADIC` parameter for `params`. Volatile
+     and special NULL handling are the properties `STABILITY_VOLATILE` and `NULL_HANDLING_SPECIAL`; fallibility keeps
+     V2's default, `FALLIBLE`. The action and the types are the function's user data, which DuckDB destroys with it.
+   - **Overloads:** a second function with the same name and other parameter types is an overload. Registered again
+     with the same signature, a function replaces the first, with no error. `V2ScalarFunctionTests` pins both.
+   - **Arguments and result:** the stage 2 readers read the arguments (`exec_get_arg`) as the parameter types,
+     which DuckDB casts them to; an argument of an ANY parameter (`object`) is read as the type its vector has. The
+     stage 4 writers write the result (`exec_get_result`).
+   - The types come from `DuckDBV2Types.ForClrType`, so `RegisterScalarMethod` takes CLR types.
+   - Not measured against V1 yet: the readers are made per chunk, as with V1, now from V2 types.
    - **The exception of a C# UDF** reaches the command without passing through the error text. V2 has no
      connection id, and a callback cannot see its connection, so `UdfExceptionStore` cannot keep its key. Instead the
      connection puts itself in a `[ThreadStatic]` before each native call that can bind; the function's bind
@@ -248,8 +258,13 @@ keeps the base reader, as with V1.
      table under a prepared statement is replaced. Exec runs on up to four threads, sometimes not on the caller's, and
      always sees the bind data of the current execution. An error the exec callback sets reaches the command as
      "Invalid Input Error: <text>". The bind data is destroyed.
-   - **To keep in mind:** an error DuckDB never reports (a cancelled statement, or one an expression swallows) can
-     leave an exception in the slot, so the slot is cleared before each execution.
+   - **The slot** is `DuckDBV2Connection.CallbackException`, and `DuckDBV2CallbackScope` is the `[ThreadStatic]`. An
+     error DuckDB never reports can leave an exception in it (`TRY(f(x))` turns the error into NULL), so each
+     execution clears it (`EnterExecution`). `ThrowIfFailed(ref error, connection)` attaches it, on executing,
+     preparing, fetching and draining. `V2ScalarFunctionTests` checks a function registered on one connection and run
+     on another of the same database, a swallowed error, and every execution of a prepared statement.
+   - 3990 test cases are marked V2-ready. The scalar function tests left out need the appender or materialized
+     results.
 6. Table functions.
 7. Arrow: results through `statement_execute_arrow`. `DuckDBArrowAppender` has no direct path in V2.
 8. Cleanup: the connection string builder enumerates the options through V2, Data stops using V1, the fate of the V1

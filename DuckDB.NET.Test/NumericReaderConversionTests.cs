@@ -771,6 +771,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // Values read as objects inside a struct, a map and a list of structs, and the input of a scalar function read as
     // an object, have the default types too.
     [Fact]
+    [Trait("V2", "Ready")]
     public void NestedHugeIntsReadAsObjectsAreInt128AndUInt128()
     {
         Command.CommandText = """

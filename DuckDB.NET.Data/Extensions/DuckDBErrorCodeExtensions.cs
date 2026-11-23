@@ -1,3 +1,4 @@
+using System.Threading;
 using DuckDB.NET.Native.V2;
 
 namespace DuckDB.NET.Data.Extensions;
@@ -20,12 +21,33 @@ internal static class DuckDBErrorCodeExtensions
             return;
         }
 
+        Throw(code, ref errorInfo, fallbackMessage, null);
+    }
+
+    /// <summary>
+    /// <see cref="ThrowIfFailed(DUCKDB_V2_ERROR, ref _duckdb_v2_error_info*, string?)"/> for a call that runs
+    /// statements on <paramref name="connection"/>: an exception a C# function threw while they ran becomes the
+    /// <see cref="Exception.InnerException"/>.
+    /// </summary>
+    public static unsafe void ThrowIfFailed(this DUCKDB_V2_ERROR code, ref _duckdb_v2_error_info* errorInfo, DuckDBV2Connection connection,
+                                            string? fallbackMessage = null)
+    {
+        if (code == DUCKDB_V2_ERROR.NONE)
+        {
+            return;
+        }
+
+        Throw(code, ref errorInfo, fallbackMessage, Interlocked.Exchange(ref connection.CallbackException, null));
+    }
+
+    private static unsafe void Throw(DUCKDB_V2_ERROR code, ref _duckdb_v2_error_info* errorInfo, string? fallbackMessage, Exception? innerException)
+    {
         var message = ReadAndDestroy(ref errorInfo);
         var errorCode = code.ToErrorCode();
 
         if (errorCode == DuckDBErrorCode.RuntimeInterrupt)
         {
-            throw new OperationCanceledException(message);
+            throw new OperationCanceledException(message, innerException);
         }
 
         if (string.IsNullOrEmpty(message))
@@ -33,7 +55,7 @@ internal static class DuckDBErrorCodeExtensions
             message = fallbackMessage ?? $"DuckDB call failed with {errorCode}";
         }
 
-        throw new DuckDBException(message, errorCode);
+        throw new DuckDBException(message, errorCode, innerException);
     }
 
     /// <summary>The public <see cref="DuckDBErrorCode"/> of a generated <see cref="DUCKDB_V2_ERROR"/>: the same numbers.</summary>
