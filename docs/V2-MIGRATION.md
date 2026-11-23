@@ -245,6 +245,8 @@ keeps the base reader, as with V1.
      which DuckDB casts them to; an argument of an ANY parameter (`object`) is read as the type its vector has. The
      stage 4 writers write the result (`exec_get_result`).
    - The types come from `DuckDBV2Types.ForClrType`, so `RegisterScalarMethod` takes CLR types.
+   - Named parameters are not registered yet: V1 scalar functions had none. When they are added, they follow
+     "Named parameters and defaults" below, as table functions do.
    - Not measured against V1 yet: the readers are made per chunk, as with V1, now from V2 types.
    - **The exception of a C# UDF** reaches the command without passing through the error text. V2 has no
      connection id, and a callback cannot see its connection, so `UdfExceptionStore` cannot keep its key. Instead the
@@ -265,10 +267,81 @@ keeps the base reader, as with V1.
      on another of the same database, a swallowed error, and every execution of a prepared statement.
    - 3990 test cases are marked V2-ready. The scalar function tests left out need the appender or materialized
      results.
-6. Table functions.
+6. Table functions. Named parameters follow "Named parameters and defaults" below. The rest maps one to one:
+   - **Scan:** V2 scans on one thread and keeps insertion order by default, as V1 does; the data enumerator is not
+     thread-safe, so both stay. It is still created per scan init (the global init callback), not per bind, for
+     recursive CTEs.
+   - **Output and pushdown:** the output chunk comes from `exec_get_output_chunk`, its row count from
+     `vector_set_size` on its first vector. Projection pushdown and cardinality have direct calls. A query that
+     reads no column (`count(*)`) with projection pushdown needs a test: the chunk may have no vector to size.
+   - **Exceptions:** through the bind data, as for scalar functions; the bind callback is ours, so the connection
+     goes next to the function's data.
+   - **Parameter values:** V2 hands values (`function_bind_get_arg_value`), so `IDuckDBValueReader` needs a V2
+     implementation with the conversions of `DuckDBValue.GetValue<T>`.
 7. Arrow: results through `statement_execute_arrow`. `DuckDBArrowAppender` has no direct path in V2.
 8. Cleanup: the connection string builder enumerates the options through V2, Data stops using V1, the fate of the V1
    declarations in Bindings is decided, and CI runs the whole test suite again.
+
+## Named parameters and defaults
+
+Decided for table functions (stage 6), and to apply to scalar functions when they get named parameters: V2 scalar
+functions can have them (`STANDARD` and `NAMED_ONLY` parameter kinds), V1 ones could not, and stage 5 registers only
+positional ones.
+
+### The rule
+
+**A named parameter is required unless the C# code gives it a default.** With V1 an omitted named parameter reached
+the function as NULL: a nullable parameter could not tell "left out" from "passed NULL", and a forgotten or misspelt
+argument became `null` without a word. V2 enforces required parameters itself, so:
+
+- **No default:** registered without one (`NAMED_ONLY`, `value` NULL). DuckDB refuses a call that leaves it out, at
+  bind, before any C# code runs. This holds for nullable parameters too.
+- **A C# default** (`[Named] int limit = 100`, `[Named] string? suffix = null`): registered with that value as the
+  default, which DuckDB fills in. `= null` is how an author says "optional, NULL when left out".
+- **An explicit NULL** (`prefix := NULL`) for a non-nullable parameter still throws, as with V1.
+
+**Breaking change** (for the release notes of the switch to V2): a nullable named parameter without a default, left
+out of a call, used to arrive as `null` and is now an error. The fix is `= null` on the parameter.
+
+### What DuckDB does (checked, `V2NamedParameterProbeTests`)
+
+- A required named parameter left out is a Binder Error that names it: "No function matches ... Candidates:
+  f(x INTEGER, /, *, n INTEGER) -> INTEGER / Required parameter "n" is missing".
+- An explicit NULL is passed to the function; a NULL default (`value_create_null`) is cast to the parameter's type
+  and arrives as NULL.
+- Names match without regard to case (`N := 6` reaches `n`).
+- **A default is cast to the parameter's type when the function is called, not when it is registered.** A VARCHAR
+  default becomes a DATE ('2024-01-01'), a UUID or an INTEGER[] ('[1, 2, 3]'), with no SQL quoting: it is a string
+  value, not SQL text. A default that does not cast ('not a date' for a DATE) is accepted by the registration and
+  fails every call that leaves the parameter out ("Conversion Error: invalid date field format"). So the
+  registration has to check a default itself, by casting it, and refuse the function.
+- `duckdb_functions()` lists the parameters and types; it shows no defaults.
+
+### What C# and reflection give
+
+- **Defaults are compile-time constants only:** numbers, `bool`, `char`, `string`, enums, `decimal` and `null`.
+  `DateTime`, `DateOnly`, `TimeOnly`, `TimeSpan`, `DateTimeOffset`, `Guid`, `BigInteger`, arrays and lists can only
+  have `default`, their zero value. `[Optional, DateTimeConstant(ticks)]` gives a `DateTime` a real one (not tried on
+  a lambda).
+- **Reflection** (`ParameterInfo.HasDefaultValue`, `DefaultValue`) reports a lambda's defaults, also when the lambda
+  is converted to a `Func<...>`, which is what the public API takes.
+- **`default` of a struct reads as null:** for `DateTime when = default` or `Guid id = default`, `DefaultValue` is
+  null, as for `string none = null`. A non-nullable value type whose `DefaultValue` is null therefore means the zero
+  value of the type (`Activator.CreateInstance`), not NULL.
+- **The compiler warns.** A default in a lambda converted to `Func<...>` is warning CS9099 ("Parameter 2 has default
+  value '"Mr."' in lambda but '<missing>' in the target delegate type"), on every such parameter. Users would see it
+  or suppress it, which argues for an attribute instead; see the open question below.
+
+### Open: how a user writes a default
+
+1. **C# defaults** (`[Named] int limit = 100`): natural, but warning CS9099 on each one, and constants only.
+2. **An attribute** with the default, e.g. `[Named(Default = 100)]`, and as text for the other types,
+   `[Named(Default = "2024-01-01")]`, cast by DuckDB (see above, checked by casting at registration). No warning, and
+   every type that casts from text, but an `object` property loses compile-time type checking; `[Named(Optional =
+   true)]` or `Default = null` would mark "optional, NULL".
+3. Both: the attribute where C# cannot express the value.
+
+To decide before stage 6 starts on named parameters.
 
 ## Gaps to raise with DuckDB before V2 is stable
 
