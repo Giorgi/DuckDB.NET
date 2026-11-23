@@ -332,16 +332,31 @@ out of a call, used to arrive as `null` and is now an error. The fix is `= null`
   value '"Mr."' in lambda but '<missing>' in the target delegate type"), on every such parameter. Users would see it
   or suppress it, which argues for an attribute instead; see the open question below.
 
-### Open: how a user writes a default
+### Decided: defaults are written in the attribute
 
-1. **C# defaults** (`[Named] int limit = 100`): natural, but warning CS9099 on each one, and constants only.
-2. **An attribute** with the default, e.g. `[Named(Default = 100)]`, and as text for the other types,
-   `[Named(Default = "2024-01-01")]`, cast by DuckDB (see above, checked by casting at registration). No warning, and
-   every type that casts from text, but an `object` property loses compile-time type checking; `[Named(Optional =
-   true)]` or `Default = null` would mark "optional, NULL".
-3. Both: the attribute where C# cannot express the value.
+`NamedAttribute` gets a `Default` property. C# defaults on the lambda are not used: each one is warning CS9099, and
+they allow constants only.
 
-To decide before stage 6 starts on named parameters.
+```csharp
+(int count,
+ [Named] string prefix,                          // required
+ [Named(Default = null)] string? suffix,         // optional, NULL when left out
+ [Named(Default = 100)] int limit,               // optional, a constant of the parameter's type
+ [Named(Default = "2024-01-01")] DateOnly from,  // optional, text that DuckDB casts to the type
+ [Named(Default = "[1, 2, 3]")] List<int> ids) => ...
+```
+
+- **`Default` is `object?` with a setter that also records that it was set**, so `Default = null` (optional, NULL)
+  differs from no `Default` (required). An attribute argument cannot be a `decimal`, a date or a Guid, so those are
+  written as text.
+- **The value:** a string goes to DuckDB as VARCHAR, and DuckDB casts it to the parameter's type; any other
+  constant goes through the parameter converter of stage 3 (`ClrToDuckDBConverter`) with the parameter's type.
+- **Checked at registration:** the registration casts the default to the parameter's type with `value_cast`, and
+  refuses the function if the cast fails, naming the parameter and the default. It registers the cast value, so a
+  call never meets a default that does not cast (DuckDB itself casts only when the function is called).
+- **A C# default on a named parameter is refused** at registration, with a message that points to
+  `[Named(Default = ...)]`, so it is not silently ignored.
+- **Positional parameters** stay required; defaults are for named ones only.
 
 ## Gaps to raise with DuckDB before V2 is stable
 
