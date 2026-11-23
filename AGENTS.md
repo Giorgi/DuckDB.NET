@@ -81,6 +81,11 @@ dotnet run -c Release -f net10.0 --project DuckDB.NET.Benchmarks -- --filter "*N
 - **Strings:** returned strings use the marshallers in `DuckDBStringMarshallers.cs`. Use
   `DuckDBOwnedStringMarshaller` when DuckDB owns the memory, and `DuckDBCallerOwnedStringMarshaller` when the caller
   must `duckdb_free` it.
+- **C API V2 (internal):** `NativeMethods/V2/Generated` is generated from `duckdb_v2.h` by
+  `scripts/generate-v2-bindings.sh` (ClangSharpPInvokeGenerator, pinned in `dotnet-tools.json`). Never edit it by hand:
+  build with `/p:BuildType=Full`, run the script and commit the result. It stays `internal` until DuckDB marks V2
+  stable; the long-lived handles have SafeHandles in `DuckDBV2WrapperObjects.cs`. Nightly CI fails when the bindings
+  no longer match the header. The migration plan is `docs/V2-MIGRATION.md`.
 
 ### Connections (`DuckDB.NET.Data/Connection`)
 

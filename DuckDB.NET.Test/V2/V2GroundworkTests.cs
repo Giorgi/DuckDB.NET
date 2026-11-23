@@ -1,10 +1,24 @@
 using DuckDB.NET.Data.Extensions;
+using DuckDB.NET.Native.V2;
 
 namespace DuckDB.NET.Test.V2;
 
-// Stage 0 of docs/V2-MIGRATION.md: the V2 error codes, the error helper, the UTF-8 strings and the SafeHandles.
-public class V2GroundworkTests
+// Stage 0 of docs/V2-MIGRATION.md: the generated bindings, the error codes, the error helper, the UTF-8 strings and
+// the SafeHandles.
+public unsafe class V2GroundworkTests
 {
+    [Fact]
+    public void PublicErrorCodesMatchTheGeneratedOnes()
+    {
+        static string Normalize(string name) => name.Replace("_", "").ToUpperInvariant();
+
+        var generated = Enum.GetValues<DUCKDB_V2_ERROR>().Where(code => code != DUCKDB_V2_ERROR.MAX_ENUM)
+                            .ToDictionary(code => Normalize(code.ToString()), code => (long)code);
+        var published = Enum.GetValues<DuckDBErrorCode>().ToDictionary(code => Normalize(code.ToString()), code => (long)code);
+
+        published.Should().BeEquivalentTo(generated);
+    }
+
     [Fact]
     public void EveryErrorCodeOfAnEngineExceptionMapsToItsErrorType()
     {
@@ -38,15 +52,18 @@ public class V2GroundworkTests
     [Fact]
     public void SuccessDoesNotThrow()
     {
-        var error = IntPtr.Zero;
-        DuckDBErrorCode.None.ThrowIfFailed(ref error);
+        _duckdb_v2_error_info* error = null;
+        DUCKDB_V2_ERROR.NONE.ThrowIfFailed(ref error);
     }
 
     [Fact]
     public void FailureWithoutErrorInfoThrowsTheFallbackMessage()
     {
-        var error = IntPtr.Zero;
-        var act = () => DuckDBErrorCode.InputInvalid.ThrowIfFailed(ref error, "fallback");
+        var act = () =>
+        {
+            _duckdb_v2_error_info* error = null;
+            DUCKDB_V2_ERROR.INPUT_INVALID.ThrowIfFailed(ref error, "fallback");
+        };
 
         act.Should().Throw<DuckDBException>().Which.Should()
            .Match<DuckDBException>(e => e.Message == "fallback" && e.NativeErrorCode == DuckDBErrorCode.InputInvalid
@@ -56,17 +73,22 @@ public class V2GroundworkTests
     [Fact]
     public void InterruptThrowsOperationCanceled()
     {
-        var error = IntPtr.Zero;
-        var act = () => DuckDBErrorCode.RuntimeInterrupt.ThrowIfFailed(ref error);
+        var act = () =>
+        {
+            _duckdb_v2_error_info* error = null;
+            DUCKDB_V2_ERROR.RUNTIME_INTERRUPT.ThrowIfFailed(ref error);
+        };
 
         act.Should().Throw<OperationCanceledException>();
     }
 
     [Fact]
-    public unsafe void LibraryVersionMatchesV1()
+    public void LibraryVersionMatchesV1()
     {
-        var error = IntPtr.Zero;
-        NativeMethodsV2.Startup.DuckDBV2LibraryVersion(out var version, out var length, ref error).ThrowIfFailed(ref error);
+        _duckdb_v2_error_info* error = null;
+        sbyte* version;
+        ulong length;
+        NativeMethodsV2.duckdb_v2_library_version(&version, &length, &error).ThrowIfFailed(ref error);
 
         DuckDBV2Utf8.ToManaged(version, length).Should().Be(NativeMethods.Startup.DuckDBLibraryVersion());
     }
@@ -74,61 +96,72 @@ public class V2GroundworkTests
     [Fact]
     public void CreatesAndDestroysEnvironmentInstanceAndConnection()
     {
-        var error = IntPtr.Zero;
-        NativeMethodsV2.Startup.DuckDBV2EnvironmentCreate(out var environment, ref error).ThrowIfFailed(ref error);
+        using var environment = CreateEnvironment();
 
-        using (environment)
+        var instance = CreateInstance(environment);
+        DuckDBV2Connection connection;
+        using (var lease = instance.Acquire())
         {
-            NativeMethodsV2.Startup.DuckDBV2InstanceCreate(environment, out var instance, ref error).ThrowIfFailed(ref error);
-            NativeMethodsV2.Startup.DuckDBV2ConnectionCreate(instance, out var connection, ref error).ThrowIfFailed(ref error);
-
-            InstanceCount(environment).Should().Be(1);
-
-            // A connection keeps its instance alive, so the instance handle can go first.
-            instance.Dispose();
-            connection.Dispose();
-
-            InstanceCount(environment).Should().Be(0);
+            _duckdb_v2_error_info* error = null;
+            _duckdb_v2_connection* pointer;
+            NativeMethodsV2.duckdb_v2_connection_create(lease.Pointer, &pointer, &error).ThrowIfFailed(ref error);
+            connection = new DuckDBV2Connection(pointer);
         }
 
-        environment.IsClosed.Should().BeTrue();
+        InstanceCount(environment).Should().Be(1);
+
+        // The count is of instance handles. A connection keeps its instance alive after the handle is destroyed, so
+        // the instance handle can go first.
+        instance.Dispose();
+        InstanceCount(environment).Should().Be(0);
+
+        connection.Dispose();
     }
 
     [Fact]
     public void EnvironmentRefusesToCloseWhileAnInstanceIsAlive()
     {
-        var error = IntPtr.Zero;
-        NativeMethodsV2.Startup.DuckDBV2EnvironmentCreate(out var environment, ref error).ThrowIfFailed(ref error);
-        NativeMethodsV2.Startup.DuckDBV2InstanceCreate(environment, out var instance, ref error).ThrowIfFailed(ref error);
+        var environment = CreateEnvironment();
+        var instance = CreateInstance(environment);
 
-        var handle = environment.DangerousGetHandle();
-        NativeMethodsV2.Startup.DuckDBV2EnvironmentDestroy(ref handle).Should().Be(DuckDBErrorCode.ResourceInUse);
-        handle.Should().Be(environment.DangerousGetHandle(), "a refused destroy leaves the handle as it was");
+        using (var lease = environment.Acquire())
+        {
+            var pointer = lease.Pointer;
+            NativeMethodsV2.duckdb_v2_environment_destroy(&pointer).Should().Be(DUCKDB_V2_ERROR.RESOURCE_IN_USE);
+            ((IntPtr)pointer).Should().Be((IntPtr)lease.Pointer, "a refused destroy leaves the handle as it was");
+        }
 
         instance.Dispose();
         environment.Dispose();
     }
 
     [Fact]
-    public unsafe void InstanceOptionsArePassedAsUtf8WithLengths()
+    public void LeaseOfAClosedHandleThrows()
     {
-        var error = IntPtr.Zero;
-        NativeMethodsV2.Startup.DuckDBV2EnvironmentCreate(out var environment, ref error).ThrowIfFailed(ref error);
+        var environment = CreateEnvironment();
+        environment.Dispose();
 
-        using (environment)
-        {
-            CreateWithOption(environment, "threads", "3").Dispose();
+        var act = () => { using var lease = environment.Acquire(); };
 
-            var act = () => CreateWithOption(environment, "no_such_option", "1");
-
-            var exception = act.Should().Throw<DuckDBException>().Which;
-            exception.Message.Should().Contain("no_such_option");
-            exception.NativeErrorCode.Should().NotBeNull().And.NotBe(DuckDBErrorCode.None);
-        }
+        act.Should().Throw<ObjectDisposedException>();
     }
 
     [Fact]
-    public unsafe void Utf8RoundTripsNonAsciiText()
+    public void InstanceOptionsArePassedAsUtf8WithLengths()
+    {
+        using var environment = CreateEnvironment();
+
+        CreateInstance(environment, "threads", "3").Dispose();
+
+        var act = () => CreateInstance(environment, "no_such_option", "1");
+
+        var exception = act.Should().Throw<DuckDBException>().Which;
+        exception.Message.Should().Contain("no_such_option");
+        exception.NativeErrorCode.Should().NotBeNull().And.NotBe(DuckDBErrorCode.None);
+    }
+
+    [Fact]
+    public void Utf8RoundTripsNonAsciiText()
     {
         const string text = "中文 한국어 ünïcödé";
 
@@ -136,34 +169,57 @@ public class V2GroundworkTests
 
         fixed (byte* bytes = buffer.Bytes)
         {
-            DuckDBV2Utf8.ToManaged(bytes, (ulong)buffer.Length).Should().Be(text);
+            DuckDBV2Utf8.ToManaged((sbyte*)bytes, (ulong)buffer.Length).Should().Be(text);
         }
 
         DuckDBV2Utf8.ToManaged(null, 0).Should().BeEmpty();
     }
 
-    private static ulong InstanceCount(DuckDBV2Environment environment)
+    private static DuckDBV2Environment CreateEnvironment()
     {
-        var error = IntPtr.Zero;
-        NativeMethodsV2.Startup.DuckDBV2EnvironmentGetInstanceCount(environment, out var count, ref error).ThrowIfFailed(ref error);
-        return count;
+        _duckdb_v2_error_info* error = null;
+        _duckdb_v2_environment* pointer;
+        NativeMethodsV2.duckdb_v2_environment_create(&pointer, &error).ThrowIfFailed(ref error);
+        return new DuckDBV2Environment(pointer);
     }
 
-    private static unsafe DuckDBV2Instance CreateWithOption(DuckDBV2Environment environment, string name, string value)
+    private static DuckDBV2Instance CreateInstance(DuckDBV2Environment environment)
+    {
+        using var lease = environment.Acquire();
+        _duckdb_v2_error_info* error = null;
+        _duckdb_v2_instance* pointer;
+        NativeMethodsV2.duckdb_v2_instance_create(lease.Pointer, &pointer, &error).ThrowIfFailed(ref error);
+        return new DuckDBV2Instance(pointer);
+    }
+
+    private static DuckDBV2Instance CreateInstance(DuckDBV2Environment environment, string name, string value)
     {
         using var nameBuffer = DuckDBV2Utf8.FromManaged(name);
         using var valueBuffer = DuckDBV2Utf8.FromManaged(value);
+        using var lease = environment.Acquire();
 
         fixed (byte* namePointer = nameBuffer.Bytes)
         fixed (byte* valuePointer = valueBuffer.Bytes)
         {
+            var names = (sbyte*)namePointer;
+            var values = (sbyte*)valuePointer;
             var nameLength = (ulong)nameBuffer.Length;
             var valueLength = (ulong)valueBuffer.Length;
 
-            var error = IntPtr.Zero;
-            NativeMethodsV2.Startup.DuckDBV2InstanceCreateWithOptions(environment, &namePointer, &nameLength, &valuePointer, &valueLength,
-                                                                     1, out var instance, ref error).ThrowIfFailed(ref error);
-            return instance;
+            _duckdb_v2_error_info* error = null;
+            _duckdb_v2_instance* pointer;
+            NativeMethodsV2.duckdb_v2_instance_create_with_options(lease.Pointer, &names, &nameLength, &values, &valueLength, 1,
+                                                                  &pointer, &error).ThrowIfFailed(ref error);
+            return new DuckDBV2Instance(pointer);
         }
+    }
+
+    private static ulong InstanceCount(DuckDBV2Environment environment)
+    {
+        using var lease = environment.Acquire();
+        _duckdb_v2_error_info* error = null;
+        ulong count;
+        NativeMethodsV2.duckdb_v2_environment_get_instance_count(lease.Pointer, &count, &error).ThrowIfFailed(ref error);
+        return count;
     }
 }

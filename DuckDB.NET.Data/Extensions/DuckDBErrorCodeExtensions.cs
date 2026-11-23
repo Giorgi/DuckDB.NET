@@ -1,54 +1,65 @@
+using DuckDB.NET.Native.V2;
+
 namespace DuckDB.NET.Data.Extensions;
 
 internal static class DuckDBErrorCodeExtensions
 {
     /// <summary>
     /// Throws when a V2 call failed. Reads the text of the error info that the call left in its err slot, destroys
-    /// the info and sets the slot to zero. An interrupt becomes <see cref="OperationCanceledException"/>, as it does
+    /// the info and sets the slot to null. An interrupt becomes <see cref="OperationCanceledException"/>, as it does
     /// for V1 results.
     /// </summary>
     /// <param name="code">The code the call returned. V2 reports success only through it: the err slot may be left
     /// untouched.</param>
-    /// <param name="errorInfo">The err slot passed to the call, holding zero beforehand.</param>
+    /// <param name="errorInfo">The err slot passed to the call, holding null beforehand.</param>
     /// <param name="fallbackMessage">The message when DuckDB reports no text.</param>
-    public static void ThrowIfFailed(this DuckDBErrorCode code, ref IntPtr errorInfo, string? fallbackMessage = null)
+    public static unsafe void ThrowIfFailed(this DUCKDB_V2_ERROR code, ref _duckdb_v2_error_info* errorInfo, string? fallbackMessage = null)
     {
-        if (code == DuckDBErrorCode.None)
+        if (code == DUCKDB_V2_ERROR.NONE)
         {
             return;
         }
 
         var message = ReadAndDestroy(ref errorInfo);
+        var errorCode = code.ToErrorCode();
 
-        if (code == DuckDBErrorCode.RuntimeInterrupt)
+        if (errorCode == DuckDBErrorCode.RuntimeInterrupt)
         {
             throw new OperationCanceledException(message);
         }
 
         if (string.IsNullOrEmpty(message))
         {
-            message = fallbackMessage ?? $"DuckDB call failed with {code}";
+            message = fallbackMessage ?? $"DuckDB call failed with {errorCode}";
         }
 
-        throw new DuckDBException(message, code);
+        throw new DuckDBException(message, errorCode);
     }
 
-    private static unsafe string ReadAndDestroy(ref IntPtr errorInfo)
+    /// <summary>The public <see cref="DuckDBErrorCode"/> of a generated <see cref="DUCKDB_V2_ERROR"/>: the same numbers.</summary>
+    public static DuckDBErrorCode ToErrorCode(this DUCKDB_V2_ERROR code) => (DuckDBErrorCode)(int)code;
+
+    private static unsafe string ReadAndDestroy(ref _duckdb_v2_error_info* errorInfo)
     {
-        if (errorInfo == IntPtr.Zero)
+        if (errorInfo == null)
         {
             return string.Empty;
         }
 
         try
         {
-            return NativeMethodsV2.ErrorInfo.DuckDBV2ErrorInfoGetText(errorInfo, out var text, out var length) == DuckDBErrorCode.None
+            sbyte* text;
+            ulong length;
+            return NativeMethodsV2.duckdb_v2_error_info_get_text(errorInfo, &text, &length) == DUCKDB_V2_ERROR.NONE
                 ? DuckDBV2Utf8.ToManaged(text, length)
                 : string.Empty;
         }
         finally
         {
-            NativeMethodsV2.ErrorInfo.DuckDBV2ErrorInfoDestroy(ref errorInfo);
+            fixed (_duckdb_v2_error_info** slot = &errorInfo)
+            {
+                NativeMethodsV2.duckdb_v2_error_info_destroy(slot);
+            }
         }
     }
 

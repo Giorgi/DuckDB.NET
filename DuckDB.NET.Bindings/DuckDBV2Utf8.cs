@@ -5,19 +5,19 @@ namespace DuckDB.NET.Native;
 /// <summary>
 /// UTF-8 strings for the C API V2, which takes and returns them as a pointer and a length, with no null terminator.
 /// </summary>
-public static class DuckDBV2Utf8
+internal static class DuckDBV2Utf8
 {
     /// <summary>
     /// Reads a string that V2 returned as a borrowed pointer and a length. The bytes stay owned by DuckDB.
     /// </summary>
-    public static unsafe string ToManaged(byte* text, ulong length)
+    public static unsafe string ToManaged(sbyte* text, ulong length)
     {
         if (text == null || length == 0)
         {
             return string.Empty;
         }
 
-        return Encoding.UTF8.GetString(text, checked((int)length));
+        return Encoding.UTF8.GetString((byte*)text, checked((int)length));
     }
 
     /// <summary>
@@ -44,8 +44,6 @@ public static class DuckDBV2Utf8
         public byte[] Bytes => buffer;
 
         public int Length { get; }
-
-        public ReadOnlySpan<byte> Span => buffer.AsSpan(0, Length);
 
         public void Dispose()
         {

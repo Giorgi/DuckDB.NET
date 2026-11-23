@@ -92,6 +92,18 @@ jobs:
     - name: Build
       run: dotnet build --configuration Release /p:BuildType=Full
 
+    # The internal V2 bindings are generated from duckdb_v2.h, whose V2 API is still unstable. A nightly build fails
+    # here when DuckDB has changed that API since the bindings were generated: run scripts/generate-v2-bindings.sh
+    # and commit the result with the code that calls it.
+    - name: Check that the V2 bindings match the DuckDB header
+      if: matrix.os == 'ubuntu-latest' && env.NightlyBuild == 'true'
+      shell: bash
+      run: |
+        command -v clang >/dev/null || sudo apt-get install -y clang
+        scripts/generate-v2-bindings.sh
+        git add --intent-to-add DuckDB.NET.Bindings/NativeMethods/V2/Generated
+        git diff --stat --exit-code -- DuckDB.NET.Bindings/NativeMethods/V2/Generated
+
     - name: Pack
       if: matrix.os == 'ubuntu-latest' && github.event_name != 'pull_request'
       run: |

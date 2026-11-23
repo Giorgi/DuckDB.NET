@@ -31,11 +31,18 @@ that take none of those handles keep working next to V2, for example `duckdb_con
 ## Ground rules
 
 - The branch builds against DuckDB's nightly libraries, which have the signatures of DuckDB's `main` branch.
-- The V2 declarations live in their own files in the Bindings project (`NativeMethods/V2`, `NativeMethodsV2`) with
-  their own SafeHandles (`DuckDBV2*`). The V1 declarations stay: they are public API of the Bindings package.
-  Whether to remove them is decided at the end.
-- Stages 1 to 3 need about 40 functions, which are written by hand. A generator that reads DuckDB's
-  `api_spec/v2/*.yaml` pays off when the surface grows, around stage 4.
+- The V2 bindings are generated from `duckdb_v2.h` by ClangSharpPInvokeGenerator (pinned in `dotnet-tools.json`) with
+  `scripts/generate-v2-bindings.sh`, into `DuckDB.NET.Bindings/NativeMethods/V2/Generated`. They are raw and
+  blittable (`DllImport`, typed pointers, the C names) and `internal` until DuckDB marks V2 stable; Bindings gives
+  Data and Test access. CI regenerates them on nightly builds and fails when they no longer match the header, so a
+  change of DuckDB's API shows up as a failed check and then as compile errors at the call sites. ClangSharp emits
+  `DllImport` rather than `LibraryImport`: for blittable signatures the two are the same.
+- Only the long-lived handles get hand-written SafeHandles (`DuckDBV2Environment`, `DuckDBV2Instance`,
+  `DuckDBV2Connection`, `DuckDBV2Result`, later the prepared statement), whose `Acquire()` lease keeps the handle
+  alive during a call. Borrowed handles such as vectors stay plain pointers, as the V1 code passes vectors as
+  `IntPtr`.
+- The V1 declarations stay: they are public API of the Bindings package. Whether to remove them is decided at the
+  end. A public V2 API in Bindings, if wanted, is written once V2 is stable.
 - Each stage names the tests that must pass before the next one starts. From stage 1 on, CI on `nightly-vnext` runs
   only the test classes the finished stages have enabled, so the run stays green while the rest of Data is broken.
 
@@ -43,13 +50,14 @@ that take none of those handles keep working next to V2, for example `duckdb_con
 
 No behaviour change.
 
-- `DuckDBErrorCode`, the V2 error codes, and the mapping of each code to the public `DuckDBErrorType`. The mapping is
+- `DuckDBErrorCode`, the V2 error codes as a public enum (a test keeps it equal to the generated one), and the mapping of each code to the public `DuckDBErrorType`. The mapping is
   the inverse of the engine's `GetErrorCodeFromExceptionType` (`src/main/capi/v2/capi_v2.cpp`), so it is one to one
   for every engine exception type. The V2-only codes go to the nearest type.
 - `DuckDBException.NativeErrorCode`: the exact V2 code, next to `ErrorType`.
 - A `ThrowIfFailed` helper that reads the error info text, destroys the info and throws. `RUNTIME_INTERRUPT` becomes
   `OperationCanceledException`, as it does for V1 results.
-- UTF-8 strings: pointer and length in, borrowed `(pointer, length)` out, never freed.
+- UTF-8 strings: pointer and length in, borrowed `(pointer, length)` out, never freed (`DuckDBV2Utf8`).
+- The generated bindings, the generation script and the CI check.
 - SafeHandles for the environment, instance, connection and result, following V2's "destroy takes `T*` and sets it to
   null" convention.
 
