@@ -178,13 +178,26 @@ keeps the base reader, as with V1.
 - `V2NestedTypeTests` reads deep nesting, NULLs at every level, many chunks and the same nested value in every row.
   3405 test cases are marked V2-ready.
 
-## Stage 3: parameters and prepared statements
+## Stage 3: parameters and prepared statements (done)
 
-- `ClrToDuckDBConverter` creates values with `value_create_*`, which needs the connection's factory. Enum and union
-  values are made by casting.
-- Parameters are passed as a value array to `statement_execute` or `prepared_statement_execute`, by position or by
-  name. Their types come from `statement_bind`.
-- Tests: `Parameters/*` and `PreparedCommandTests`.
+- `PreparedStatement/DESIGN.md` ("On `nightly-vnext`") describes the V2 paths; in short:
+  - A statement that declares parameters is bound without running (`statement_bind`) for its parameter schema, then
+    executed with its values (`statement_execute`). The schema names each parameter, and the name is its binding key,
+    so positional and named binding are one path.
+  - `Prepare()` uses `prepared_statement_create` and `prepared_statement_execute`; the schema is read once.
+  - Values are bound per execution, so there are no bindings to clear.
+  - `ClrToDuckDBConverter` keeps its rules and creates values with the connection's factory
+    (`Execution/DuckDBV2Values.cs`). A NULL is SQLNULL-typed, a UUID goes in DuckDB's flipped form, a BIGNUM as the
+    bytes from `bignum_encode`, and lists copy their items.
+  - V1's `PreparedStatement.cs` and `StatementResult.cs` are gone.
+- **Behaviour change:** a connection has one open result, so two threads executing on one connection at once collide:
+  the second is refused with `InvalidOperationException` (RESOURCE_IN_USE). V1 ran both. ADO.NET does not promise
+  that a connection is thread-safe, but this worked before. `CommandsWithTheSameTextOnTwoThreads` pins the V1
+  behaviour and is not marked V2-ready. Whether to serialize executions on a connection is open.
+- Test changes: tests that left a reader open before the next command dispose it first;
+  `PrepareThatFailsWhileAResultIsOpenIsRetried` expects `InvalidOperationException`; `ExecutingAgainWhileAReaderIsOpen`
+  checks that the second execution is refused and runs once the first reader is closed. 3920 test cases are marked
+  V2-ready (the theories with random data vary by a case or two).
 
 ## Stage 4: writing primitive types
 

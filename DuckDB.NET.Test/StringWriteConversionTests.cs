@@ -158,6 +158,7 @@ public class StringWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void AStringParameterKeepsItsNulCharacters()
     {
         // The empty string too: its bytes are an empty span, which may have no address.

@@ -784,6 +784,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void GetCharsReadsLargeUtf8ValuesInUtf16Chunks()
     {
         var expected = string.Concat(Enumerable.Repeat("aéქართული😀𐐷", 2_000));

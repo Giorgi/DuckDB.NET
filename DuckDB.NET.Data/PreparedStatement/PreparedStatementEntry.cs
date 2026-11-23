@@ -1,51 +1,33 @@
 using System.Threading;
+using DuckDB.NET.Data.Execution;
+using DuckDB.NET.Native.V2;
 
 namespace DuckDB.NET.Data.PreparedStatement;
 
 /// <summary>
 /// A statement prepared once by <see cref="DuckDBCommand.Prepare"/> and kept by its connection, which destroys it when
-/// it closes. What the binding needs (the count, the type of each parameter, the index of each name) is read from
-/// DuckDB once, before any value is bound, instead of on every execution. Once a value is bound, DuckDB reports a
-/// parameter whose type it could not infer (as in <c>SELECT $1</c>) as the type of that value until the bindings are
-/// cleared, so the types must not be read in between.
+/// it closes. What the binding needs (each parameter's name, which is its binding key, and its type) is read once,
+/// when it is prepared. V2 binds the values per execution and keeps nothing between executions, so unlike V1 there
+/// are no bindings to clear and an untyped parameter's type cannot drift.
 /// </summary>
-internal sealed class PreparedStatementEntry : IDisposable
+internal sealed unsafe class PreparedStatementEntry : IDisposable
 {
-    private readonly DuckDBPreparedStatement statement;
-    private readonly DuckDBLogicalType[] parameterLogicalTypes;
-    private readonly DuckDBType[] parameterTypes;
-    private Dictionary<string, long>? parameterIndexes;
+    private readonly DuckDBV2PreparedStatement statement;
+    private readonly DuckDBV2Parameters? parameters;
     private int inUse;
     private int disposed;
     private volatile bool retired;
 
-    public PreparedStatementEntry(DuckDBPreparedStatement statement)
+    public PreparedStatementEntry(DuckDBV2PreparedStatement statement, DuckDBStatementType statementType, DuckDBV2Parameters? parameters)
     {
         this.statement = statement;
-        StatementType = NativeMethods.PreparedStatements.DuckDBPreparedStatementType(statement);
-        ParameterCount = NativeMethods.PreparedStatements.DuckDBParams(statement);
-
-        parameterLogicalTypes = new DuckDBLogicalType[ParameterCount];
-        parameterTypes = new DuckDBType[ParameterCount];
-
-        try
-        {
-            for (var index = 0; index < ParameterCount; index++)
-            {
-                parameterLogicalTypes[index] = NativeMethods.PreparedStatements.DuckDBParamLogicalType(statement, index + 1);
-                parameterTypes[index] = NativeMethods.LogicalType.DuckDBGetTypeId(parameterLogicalTypes[index]);
-            }
-        }
-        catch
-        {
-            DisposeParameterTypes();
-            throw;
-        }
+        this.parameters = parameters;
+        StatementType = statementType;
     }
 
     public DuckDBStatementType StatementType { get; }
 
-    public long ParameterCount { get; }
+    public long ParameterCount => parameters?.Count ?? 0;
 
     public bool IsDisposed => Volatile.Read(ref disposed) != 0;
 
@@ -62,8 +44,7 @@ internal sealed class PreparedStatementEntry : IDisposable
 
     /// <summary>
     /// Takes the statement for one execution. False when another execution has it (two commands with the same text,
-    /// on two threads of one connection): the caller then prepares a statement of its own, as an unprepared command
-    /// does. DuckDB does not allow binding one statement from two threads.
+    /// on two threads of one connection): the caller then runs the text unprepared, as an unprepared command does.
     /// </summary>
     public bool TryRent() => !IsDisposed && Interlocked.CompareExchange(ref inUse, 1, 0) == 0;
 
@@ -83,39 +64,25 @@ internal sealed class PreparedStatementEntry : IDisposable
         }
     }
 
-    /// <summary>
-    /// Binds the parameters and executes. The bindings of the previous execution are cleared first, so a named
-    /// parameter that is no longer in the collection is reported as missing instead of keeping its old value.
-    /// </summary>
-    public DuckDBResult Execute(DuckDBParameterCollection parameters, bool useStreamingMode, DuckDBNativeConnection connection)
+    /// <summary>Binds the collection's values for this execution and executes; the result streams.</summary>
+    public DuckDBV2StatementResult Execute(DuckDBParameterCollection parameterCollection, DuckDBV2Connection connection)
     {
-        if (!NativeMethods.PreparedStatements.DuckDBClearBindings(statement).IsSuccess())
-        {
-            var errorMessage = NativeMethods.PreparedStatements.DuckDBPrepareError(statement);
-            throw new InvalidOperationException($"Unable to clear the bindings of the prepared statement: {errorMessage}");
-        }
+        using var lease = statement.Acquire();
+        var pointer = lease.Pointer;
 
-        PreparedStatement.BindParameters(statement, parameters, this);
+        _duckdb_v2_error_info* error = null;
+        _duckdb_v2_result* result;
+
+        var code = parameters is null
+            ? NativeMethodsV2.duckdb_v2_prepared_statement_execute(pointer, null, null, null, 0, &result, &error)
+            : parameters.Execute(connection, parameterCollection,
+                                 (names, lengths, values, count, output, executeError) =>
+                                     NativeMethodsV2.duckdb_v2_prepared_statement_execute(pointer, names, lengths, values, count, output, executeError),
+                                 &result, &error);
+
         ExecutionCount++;
 
-        return PreparedStatement.Execute(statement, useStreamingMode, connection);
-    }
-
-    public (DuckDBLogicalType LogicalType, DuckDBType Type) GetParameterType(long index) =>
-        (parameterLogicalTypes[index - 1], parameterTypes[index - 1]);
-
-    public bool TryGetParameterIndex(string name, out long index)
-    {
-        parameterIndexes ??= new Dictionary<string, long>(StringComparer.Ordinal);
-
-        if (!parameterIndexes.TryGetValue(name, out index))
-        {
-            // A name the statement does not declare is kept as 0, so it is not looked up again.
-            index = NativeMethods.PreparedStatements.DuckDBBindParameterIndex(statement, out var found, name).IsSuccess() ? found : 0;
-            parameterIndexes.Add(name, index);
-        }
-
-        return index > 0;
+        return DuckDBV2Statements.Wrap(code, result, ref error, StatementType);
     }
 
     public void Dispose()
@@ -125,15 +92,7 @@ internal sealed class PreparedStatementEntry : IDisposable
             return;
         }
 
-        DisposeParameterTypes();
+        parameters?.Dispose();
         statement.Dispose();
-    }
-
-    private void DisposeParameterTypes()
-    {
-        foreach (var logicalType in parameterLogicalTypes)
-        {
-            logicalType?.Dispose();
-        }
     }
 }

@@ -19,6 +19,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     [InlineData("SELECT ?1::INT;")]
     [InlineData("SELECT ?::INT;")]
     [InlineData("SELECT $1::INT;")]
+    [Trait("V2", "Ready")]
     public void BindSingleValueTest(string query)
     {
         Command.Parameters.Add(new DuckDBParameter("1", 42));
@@ -31,6 +32,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     [InlineData("SELECT ?1;")]
     [InlineData("SELECT ?;")]
     [InlineData("SELECT $1;")]
+    [Trait("V2", "Ready")]
     public void BindSingleValueNullTest(string query)
     {
         Command.Parameters.Add(new DuckDBParameter("1", null));
@@ -40,6 +42,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void BindNullValueTest()
     {
         Command.CommandText = "SELECT ?";
@@ -50,6 +53,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ParameterCountMismatchTest()
     {
         Command.CommandText = "SELECT ?";
@@ -57,6 +61,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void PrepareCommandReportsAnUnknownTable()
     {
         Command.CommandText = "SELECT ? FROM nowhere";
@@ -64,6 +69,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ParameterConstructorTests()
     {
         Command.CommandText = "CREATE TABLE ParameterConstructorTests (key INTEGER, value double, State Boolean, ErrorCode Long, value2 float)";
@@ -185,6 +191,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     [InlineData("UPDATE ParametersTestKeyValue SET KEY = ?, VALUE = ?;")]
     [InlineData("UPDATE ParametersTestKeyValue SET KEY = ?1, VALUE = ?2;")]
     [InlineData("UPDATE ParametersTestKeyValue SET KEY = $1, VALUE = $2;")]
+    [Trait("V2", "Ready")]
     public void BindMultipleValuesTest(string queryStatement)
     {
         using var defer = new Defer(() => Connection.Execute("DROP TABLE ParametersTestKeyValue;"));
@@ -204,6 +211,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     [Theory]
     [InlineData("INSERT INTO ParametersTestKeyValue (KEY, VALUE) VALUES ($key, $value)")]
     [InlineData("UPDATE ParametersTestKeyValue SET KEY = $key, VALUE = $value;")]
+    [Trait("V2", "Ready")]
     public void BindMultipleValuesTestNamedParameters(string queryStatement)
     {
         using var defer = new Defer(() => Connection.Execute("DROP TABLE ParametersTestKeyValue;"));
@@ -225,6 +233,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     [InlineData("INSERT INTO ParametersTestInvalidOrderKeyValue (KEY, VALUE) VALUES ($2::VARCHAR, $1::INT)")]
     [InlineData("UPDATE ParametersTestInvalidOrderKeyValue SET Key = ?2::INT, Value = ?1::VARCHAR;")]
     [InlineData("UPDATE ParametersTestInvalidOrderKeyValue SET Key = $2::INT, Value = $1::VARCHAR;")]
+    [Trait("V2", "Ready")]
     public void BindMultipleValuesInvalidOrderTest(string queryStatement)
     {
         using var defer = new Defer(() => Connection.Execute("DROP TABLE ParametersTestInvalidOrderKeyValue;"));
@@ -249,6 +258,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     // Dapper supports ? placeholders when using both DynamicParameters and an object
     [InlineData("INSERT INTO DapperParametersObjectBindingTest VALUES (?, ?);")]
     [InlineData("UPDATE DapperParametersObjectBindingTest SET a = ?, b = ?;")]
+    [Trait("V2", "Ready")]
     public void BindDapperWithObjectTest(string queryStatement)
     {
         using var defer = new Defer(() => Connection.Execute("DROP TABLE DapperParametersObjectBindingTest;"));
@@ -267,6 +277,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     // Dapper supports ? placeholders when using both DynamicParameters and an object
     [InlineData("INSERT INTO DapperParametersObjectBindingTest VALUES ($foo, $bar);")]
     [InlineData("UPDATE DapperParametersObjectBindingTest SET a = $foo, b = $bar;")]
+    [Trait("V2", "Ready")]
     public void BindDapperWithObjectTestNamesParameters(string queryStatement)
     {
         using var defer = new Defer(() => Connection.Execute("DROP TABLE DapperParametersObjectBindingTest;"));
@@ -288,6 +299,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     [InlineData("INSERT INTO DapperParametersDynamicParamsBindingTest VALUES ($1, $2);")]
     [InlineData("UPDATE DapperParametersDynamicParamsBindingTest SET a = ?1, b = ?2;")]
     [InlineData("UPDATE DapperParametersDynamicParamsBindingTest SET a = $1, b = $2;")]
+    [Trait("V2", "Ready")]
     public void BindDapperDynamicParamsOnlyTest(string queryStatement)
     {
         using var defer = new Defer(() => Connection.Execute("DROP TABLE DapperParametersDynamicParamsBindingTest;"));
@@ -305,6 +317,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     [InlineData("SELECT ?1;")]
     [InlineData("SELECT ?;")]
     [InlineData("SELECT $1;")]
+    [Trait("V2", "Ready")]
     public void BindSingleValueDapperNullTest(string query)
     {
         var parameters = new DynamicParameters();
@@ -319,6 +332,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     [InlineData("INSERT INTO DapperParametersObjectBindingFailTest VALUES ($1, $2);")]
     [InlineData("UPDATE DapperParametersObjectBindingFailTest SET a = ?1, b = ?2;")]
     [InlineData("UPDATE DapperParametersObjectBindingFailTest SET a = $1, b = $2;")]
+    [Trait("V2", "Ready")]
     public void BindDapperObjectFailuresTest(string queryStatement)
     {
         using var defer = new Defer(() => Connection.Execute("DROP TABLE DapperParametersObjectBindingFailTest;"));
@@ -330,6 +344,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void BindUnreferencedNamedParameterInParameterlessQueryTest()
     {
         Command.CommandText = "SELECT 42";
@@ -340,6 +355,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
 
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void BindUnreferencedNamedParameterTest()
     {
         Command.CommandText = "SELECT $used::INT";
@@ -350,6 +366,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void BindUnreferencedPositionalParameterTest()
     {
         Command.CommandText = "SELECT 1";
@@ -359,6 +376,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void BindUnicodeParameterTest()
     {
         Command.CommandText = "SELECT $数字::INT";
@@ -369,6 +387,7 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     [Theory]
     [InlineData("SELECT $2::INT - $1::INT", 18)]
     [InlineData("SELECT ?::INT - ?::INT", -18)]
+    [Trait("V2", "Ready")]
     public void BindParameterWithPositionOrAutoIncrement(string query, int result)
     {
         Command.Parameters.Add(new DuckDBParameter(24));

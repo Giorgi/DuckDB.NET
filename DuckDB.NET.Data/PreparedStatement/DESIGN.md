@@ -9,6 +9,47 @@ The DuckDB behaviour described here is that of v2.0.0 (`S:\src\duckdb-2`, read w
 numbers were measured in November 2026 on the Azure benchmark VM with BenchmarkDotNet; the ratios should hold, the
 absolute times will not.
 
+## On `nightly-vnext`: the C API V2
+
+On this branch commands run through DuckDB's C API V2 (`docs/V2-MIGRATION.md`, stage 3). The rules below still hold
+(the decision order of the converter, the count and named or positional binding, the store on the connection and its
+rent, retire and return), but the native calls they name are V1's. What is different:
+
+- **The unprepared path** is `DuckDBV2Statements.Execute` (`Execution/DuckDBV2Statements.cs`), an iterator like
+  `PrepareMultiple` was: `parse_sql`, then one statement per `MoveNext()` with `statement_iterator_next`, which also
+  reports syntax errors. A statement that declares parameters (`sql_statement_get_parameter_count`, known from the
+  parse) is bound without running (`statement_bind`) for its parameter schema, then executed with its values
+  (`statement_execute`); one without parameters skips the bind. V1 also prepared and then executed every statement,
+  so it bound twice too.
+- **The parameter schema** (`Execution/DuckDBV2Parameters.cs`) gives each parameter's name and type in binding
+  order. The name is the binding key: "1", "2", ... for a positional parameter (gaps kept: `$1, $3` are "1" and "3"),
+  the identifier for a named one, matched without regard to case. Every value is passed with its parameter's name,
+  so positional and named binding are one path. An untyped parameter reports UNKNOWN, which is `DuckDBType.Invalid`
+  here, as V1 reported it. The names are encoded once, into native memory.
+- **No bindings to clear.** Values are passed with each execution and nothing carries over, so `duckdb_clear_bindings`
+  and the drift of an untyped parameter's type after a bind (decision 5) are gone.
+- **The prepared path** prepares with `prepared_statement_create` and executes with `prepared_statement_execute`. The
+  parameter schema is read once, from the parsed statement, when it is prepared: a prepared handle has no signature of
+  its own. A statement that DuckDB expands into several (a dynamic PIVOT) has no schema until it runs, and takes no
+  parameters.
+- **Values** are made with the connection's factory (`connection_get_factory`), so they see the catalog's types and
+  the session's settings (`Execution/DuckDBV2Values.cs`). The converter's rules did not change; what V2 changes under
+  them:
+  - **NULL** is a NULL of DuckDB's NULL type, as V1's untyped NULL was. A NULL of the UNKNOWN type that the parameter
+    schema reports counts as no value at all ("Not all parameters were bound").
+  - **UUID** goes in DuckDB's storage form, with the top bit flipped; V1's `duckdb_create_uuid` flipped it itself.
+  - **BIGNUM** goes as DuckDB's storage bytes, made by `bignum_encode` from the magnitude and the sign.
+  - **Lists and arrays copy their items**, so the converter releases them after the list is made, created or not.
+    A list whose items cannot be converted is reported by V2 with DuckDB's message, where V1 returned no value
+    (`ThrowIfNotCreated` is gone).
+  - **A list with no reported item type** gets its item type from the CLR type (`DuckDBV2Types.ForClrType`), built
+    from the type id, with `DECIMAL(38,18)` and `T[]` built from text.
+- **One open result per connection:** binding, preparing or executing while a reader is open on the connection is an
+  `InvalidOperationException`, as for any other command. So is executing on two threads of one connection at once:
+  whichever comes second while the other's result is open is refused. With V1 both ran. The rent and the fallback to
+  an unprepared execution are kept, but a command can no longer reach the fallback, because the second execution is
+  refused first; `CommandsWithTheSameTextOnTwoThreads` fails for that reason and is not marked V2-ready.
+
 ## How a command executes
 
 `ExecuteNonQuery`, `ExecuteReader` (and `ExecuteScalar` through it) and `ExecuteArrowStream` all call

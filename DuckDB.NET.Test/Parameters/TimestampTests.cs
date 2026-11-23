@@ -42,6 +42,7 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(1992, 09, 20, 12, 15, 17, 350_300)]
     [InlineData(2022, 05, 04, 12, 17, 15, 450_500)]
     [InlineData(2022, 04, 05, 18, 15, 17, 125_700)]
+    [Trait("V2", "Ready")]
     public void BindTest(int year, int mon, int day, int hour, int minute, int second, int microsecond)
     {
         var expectedValue = new DateTime(year, mon, day, hour, minute, second).AddTicks(microsecond * 10);
@@ -73,6 +74,7 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(1992, 09, 20, 12, 15, 17, 350_300, 0)]
     [InlineData(2022, 05, 04, 12, 17, 15, 450_543, 200)]
     [InlineData(2022, 04, 05, 18, 15, 17, 125_700, 0)]
+    [Trait("V2", "Ready")]
     public void InsertAndQueryTest(int year, int mon, int day, byte hour, byte minute, byte second, int microsecond, int nanosecond)
     {
         var expectedValue = new DateTime(year, mon, day, hour, minute, second, DateTimeKind.Utc).AddTicks(microsecond * 10).AddNanoseconds(nanosecond);
@@ -192,6 +194,7 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void BindParameterWithoutTable_DateTime()
     {
         var value = Trim(Faker.Date.Recent(), TimeSpan.FromTicks(100).Ticks);
@@ -206,6 +209,7 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void BindParameterWithoutTable_DateTimeOffset()
     {
         var value = Trim(Faker.Date.PastOffset(), TimeSpan.FromTicks(100).Ticks);
@@ -223,6 +227,7 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     // DbType.DateTime2 had no converter, so the value was sent as DateTime.ToString() in the current culture:
     // text a statement could misread or refuse, and a VARCHAR column stored as such.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ExplicitDateTime2DbTypeIsSentAsATimestampInAnyCulture()
     {
         var value = new DateTime(2026, 10, 18, 13, 45, 30, 123);
@@ -244,6 +249,7 @@ public class TimestampTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
     // An assigned DbType does not parse text: the value is refused, and without the DbType DuckDB casts the text.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ExplicitDateTime2DbTypeWithATextValueIsRefused()
     {
         Command.CommandText = "SELECT ?::TIMESTAMP;";

@@ -76,6 +76,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
 
     [Theory]
     [MemberData(nameof(Accepted))]
+    [Trait("V2", "Ready")]
     public void AcceptedWhereDuckDBReportsNoType(DbType dbType, object value, string type, string text)
     {
         Command.CommandText = Untyped;
@@ -138,6 +139,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
 
     [Theory]
     [MemberData(nameof(Refused))]
+    [Trait("V2", "Ready")]
     public void RefusedWhereDuckDBReportsNoType(DbType dbType, object value, string message)
     {
         Command.CommandText = "SELECT $1";
@@ -149,6 +151,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
     // A refused value is refused whatever the parameter's type: the DbType decides, not the statement.
     [Theory]
     [MemberData(nameof(Refused))]
+    [Trait("V2", "Ready")]
     public void RefusedWhereDuckDBReportsAType(DbType dbType, object value, string message)
     {
         Command.CommandText = "SELECT $1 = 1";
@@ -158,6 +161,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void TheMessageNamesANamedParameter()
     {
         Command.CommandText = "SELECT $id";
@@ -168,6 +172,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void TheMessageNamesTheSecondParameter()
     {
         Command.CommandText = "SELECT $1, $2";
@@ -181,6 +186,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
     // After the DbType has converted the value, it is fitted to the column: a long with DbType.Int64 still goes into
     // an INTEGER column as an INTEGER, and an int with DbType.Int64 into a BIGINT one.
     [Fact]
+    [Trait("V2", "Ready")]
     public void TheConvertedValueIsFittedToTheColumn()
     {
         Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE ExplicitDbTypeColumns (i INTEGER, b BIGINT, d DATE, t TIME, m DECIMAL(18,4), v VARCHAR)");
@@ -199,6 +205,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
 
     // Without the DbType DuckDB rounds 2.5 to 2 for an INTEGER column; with it the value is refused.
     [Fact]
+    [Trait("V2", "Ready")]
     public void AFractionIsRefusedForAnIntegerColumn()
     {
         Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE ExplicitDbTypeFraction (i INTEGER)");
@@ -215,6 +222,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
 
     // A DbType on a collection applies to each item.
     [Fact]
+    [Trait("V2", "Ready")]
     public void TheDbTypeOfAListAppliesToItsItems()
     {
         Command.CommandText = Untyped;
@@ -233,6 +241,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
 
     // An Int128 with DbType.Int32 that fits is an INTEGER, where it used to throw.
     [Fact]
+    [Trait("V2", "Ready")]
     public void AnInt128WithAnIntegerDbTypeThatFits()
     {
         Command.CommandText = "SELECT $1";
@@ -243,6 +252,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
 
     // Items of a list with no DbType go as their own type, so DuckDB casts them to the list's item type.
     [Fact]
+    [Trait("V2", "Ready")]
     public void AListOfInt128ForABooleanList()
     {
         Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE ExplicitDbTypeBooleans (b BOOLEAN[])");
@@ -256,6 +266,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
     // SqlClient's convention gives a TimeSpan DbType.Time; DuckDB has no cast from TIME to INTERVAL, so for an
     // INTERVAL parameter the TimeSpan stays as it is, a day or more included.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ATimeSpanWithDbTypeTimeForAnInterval()
     {
         Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE ExplicitDbTypeIntervals (i INTERVAL, l INTERVAL[])");
@@ -274,6 +285,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
     // Where DuckDB reports a type, a DateTime with DbType.DateTimeOffset is not made a DateTimeOffset, so a TIMESTAMP
     // keeps its clock time instead of having it moved by the session's time zone.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ADateTimeWithDbTypeDateTimeOffsetForATimestamp()
     {
         Connection.ExecuteNonQuery("SET TimeZone = 'Asia/Tbilisi'");
@@ -307,6 +319,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
     [InlineData(DbType.Double, "DOUBLE[]", "[1.0, 2.0]")]
     [InlineData(DbType.Decimal, "BIGINT[]", "[1, 2]")]      // the element type stays (DECIMAL(38,18) could be too small)
     [InlineData(DbType.VarNumeric, "BIGINT[]", "[1, 2]")]
+    [Trait("V2", "Ready")]
     public void AnUntypedListHasItemsOfTheDbTypesType(DbType dbType, string type, string text)
     {
         Command.CommandText = Untyped;
@@ -321,6 +334,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
     // A nested list keeps its element type, and the DbType goes on to the items of the inner lists. A large value with
     // Decimal or VarNumeric keeps the element type too, which holds it, where DECIMAL(38,18) or HUGEINT would not.
     [Fact]
+    [Trait("V2", "Ready")]
     public void AnUntypedListKeepsItsElementTypeWhenTheDbTypesTypeWouldNotHoldIt()
     {
         Command.CommandText = Untyped;
@@ -362,6 +376,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
     [InlineData(DbType.Decimal, "DECIMAL(38,18)[]")]
     [InlineData(DbType.VarNumeric, "HUGEINT[]")]
     [InlineData(DbType.Int32, "INTEGER[]")]
+    [Trait("V2", "Ready")]
     public void AnUntypedListWithoutAnElementTypeTakesTheDbTypesType(DbType dbType, string type)
     {
         Command.CommandText = Untyped;
@@ -380,6 +395,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
 
     // A list item refused after others were created: the refusal comes through, and the created items are released.
     [Fact]
+    [Trait("V2", "Ready")]
     public void AListItemRefusedPartWayThrough()
     {
         Command.CommandText = Untyped;
@@ -396,6 +412,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
 
     // A TimeSpan out of a day for a TIME_NS parameter, with no DbType, goes as text for DuckDB to refuse, as for TIME.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ATimeSpanOutOfADayForATimeNsColumn()
     {
         Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE ExplicitDbTypeTimeNs (t TIME_NS)");
@@ -410,6 +427,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
 
     // A type nested in a generic class is generic but has no backtick in its name.
     [Fact]
+    [Trait("V2", "Ready")]
     public void TheMessageNamesATypeNestedInAGenericClass()
     {
         Command.CommandText = "SELECT $1";
@@ -420,6 +438,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void AnUntypedListOfTimeSpansWithDbTypeTimeIsAListOfTimes()
     {
         Command.CommandText = Untyped;
@@ -433,6 +452,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
 
     // A typed list takes its items with the DbType applied to each.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ATypedListWithADbType()
     {
         Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE ExplicitDbTypeLists (i INTEGER[], d DATE[3])");
@@ -452,6 +472,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
     [InlineData(DbType.Byte)]
     [InlineData(DbType.Binary)]
     [InlineData(DbType.Object)]
+    [Trait("V2", "Ready")]
     public void AByteArrayForAListOfBytes(DbType dbType)
     {
         Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE ExplicitDbTypeBytes (b UTINYINT[])");
@@ -464,6 +485,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
 
     // A refused value on a prepared command leaves the command usable, and a value that converts then works.
     [Fact]
+    [Trait("V2", "Ready")]
     public void APreparedCommandRefusesAndThenTakesAValue()
     {
         Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE ExplicitDbTypePrepared (i INTEGER)");
@@ -487,6 +509,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
     [InlineData(DbType.Int32)]
     [InlineData(DbType.Date)]
     [InlineData(DbType.String)]
+    [Trait("V2", "Ready")]
     public void ANullWithADbType(DbType dbType)
     {
         Command.CommandText = "SELECT $1 IS NULL, $2 IS NULL";
@@ -501,6 +524,7 @@ public class ExplicitDbTypeConversionTests(DuckDBDatabaseFixture db) : DuckDBTes
 
     // A DbType set before the value stays, so the value is converted (DbType.Time makes a TimeSpan a time of day).
     [Fact]
+    [Trait("V2", "Ready")]
     public void ADbTypeSetBeforeTheValueConvertsIt()
     {
         Command.CommandText = "SELECT typeof($1)";

@@ -46,6 +46,7 @@ public class ExtractStatementsTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void MissingParametersThrowsException()
     {
         Command.CommandText = "Select ?1::integer; Select ?1::integer, ?2::integer";

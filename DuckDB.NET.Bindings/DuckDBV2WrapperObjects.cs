@@ -95,3 +95,15 @@ internal sealed unsafe class DuckDBV2LogicalType(_duckdb_v2_logical_type* pointe
 {
     protected override DUCKDB_V2_ERROR Destroy(_duckdb_v2_logical_type** pointer) => NativeMethodsV2.duckdb_v2_logical_type_destroy(pointer);
 }
+
+/// <summary>An owned value, such as one bound to a parameter. A list or execution copies the values it is given.</summary>
+internal sealed unsafe class DuckDBV2Value(_duckdb_v2_value* pointer) : DuckDBV2SafeHandle<_duckdb_v2_value>(pointer)
+{
+    protected override DUCKDB_V2_ERROR Destroy(_duckdb_v2_value** pointer) => NativeMethodsV2.duckdb_v2_value_destroy(pointer);
+}
+
+/// <summary>A statement prepared once and executed many times, with values bound per execution.</summary>
+internal sealed unsafe class DuckDBV2PreparedStatement(_duckdb_v2_prepared_statement* pointer) : DuckDBV2SafeHandle<_duckdb_v2_prepared_statement>(pointer)
+{
+    protected override DUCKDB_V2_ERROR Destroy(_duckdb_v2_prepared_statement** pointer) => NativeMethodsV2.duckdb_v2_prepared_statement_destroy(pointer);
+}

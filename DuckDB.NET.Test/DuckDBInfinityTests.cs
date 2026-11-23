@@ -188,6 +188,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadInfinityDateWithParameters()
     {
         Command.CommandText = "SELECT $1::DATE, $2::DATE, isinf($1::DATE), isinf($2::DATE)";
@@ -215,6 +216,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadInfinityTimestampWithParameters()
     {
         Command.CommandText = "SELECT $1::TIMESTAMP, $2::TIMESTAMP, isinf($1::TIMESTAMP), isinf($2::TIMESTAMP)";
@@ -238,6 +240,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadInfinityTimestampNsWithParameters()
     {
         Command.CommandText = "SELECT $1::TIMESTAMP_NS, $2::TIMESTAMP_NS, isinf($1::TIMESTAMP_NS), isinf($2::TIMESTAMP_NS)";
@@ -261,6 +264,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadInfinityTimestampMsWithParameters()
     {
         Command.CommandText = "SELECT $1::TIMESTAMP_MS, $2::TIMESTAMP_MS, isinf($1::TIMESTAMP_MS), isinf($2::TIMESTAMP_MS)";
@@ -284,6 +288,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadInfinityTimestampSWithParameters()
     {
         Command.CommandText = "SELECT $1::TIMESTAMP_S, $2::TIMESTAMP_S, isinf($1::TIMESTAMP_S), isinf($2::TIMESTAMP_S)";
@@ -307,6 +312,7 @@ public class DuckDBInfinityTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ReadInfinityTimestampTzWithParameters()
     {
         Command.CommandText = "SELECT $1::TIMESTAMPTZ, $2::TIMESTAMPTZ, isinf($1::TIMESTAMPTZ), isinf($2::TIMESTAMPTZ)";

@@ -121,6 +121,7 @@ public class ParameterDbTypeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ATimeSpanWithTheTimeDbTypeIsBoundAsATimeInAMergeSource()
     {
         Command.CommandText = "CREATE OR REPLACE TABLE parameter_dbtype_time (id INTEGER PRIMARY KEY, v TIME)";
@@ -139,6 +140,7 @@ public class ParameterDbTypeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ATimeSpanWithoutADbTypeIsStillBoundAsAnInterval()
     {
         Command.CommandText = "SELECT ?";

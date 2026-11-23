@@ -39,6 +39,7 @@ public class IntervalTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(-5_400_000_000L)]
     [InlineData(-1L)]
     [InlineData(-90_061_000_001L)]
+    [Trait("V2", "Ready")]
     public void InsertNegativeTimeSpanParameter(long micros)
     {
         var expected = TimeSpan.FromTicks(micros * 10);
@@ -86,6 +87,7 @@ public class IntervalTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(90_061_000_001L)]
     [InlineData(-90_061_000_001L)]
     [InlineData(5_400_000_000L)]
+    [Trait("V2", "Ready")]
     public void BindTimeSpanWithoutTargetType(long micros)
     {
         var expected = TimeSpan.FromTicks(micros * 10);
@@ -103,6 +105,7 @@ public class IntervalTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
     // A TimeSpan bound where DuckDB knows the parameter's type keeps its existing behavior.
     [Fact]
+    [Trait("V2", "Ready")]
     public void BindTimeSpanIntoTimeAndVarcharColumns()
     {
         Command.CommandText = "CREATE OR REPLACE TABLE TimeSpanTargets (t TIME, s VARCHAR);";
@@ -128,6 +131,7 @@ public class IntervalTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(0, 0, 0, 0)]
     [InlineData(13, 45, 30, 125)]
     [InlineData(23, 59, 59, 999)]
+    [Trait("V2", "Ready")]
     public void InsertSelectTimeSpanDeclaredTime(int hours, int minutes, int seconds, int milliseconds)
     {
         var value = new TimeSpan(0, hours, minutes, seconds, milliseconds);
@@ -145,6 +149,7 @@ public class IntervalTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void SelectTimeSpanDeclaredTime()
     {
         Command.CommandText = "SELECT ?::TIME::VARCHAR, ? UNION ALL SELECT '', TIME '01:00';";
@@ -161,6 +166,7 @@ public class IntervalTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Theory]
     [InlineData(1, 0)]
     [InlineData(0, -1)]
+    [Trait("V2", "Ready")]
     public void TimeSpanDeclaredTime_OutOfRange_Throws(int days, int seconds)
     {
         var value = new TimeSpan(days, 0, 0, seconds);

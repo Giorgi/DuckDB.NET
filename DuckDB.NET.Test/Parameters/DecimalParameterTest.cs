@@ -1,3 +1,4 @@
+using DuckDB.NET.Data.Execution;
 using System.Globalization;
 using DuckDB.NET.Data.PreparedStatement;
 
@@ -47,6 +48,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void InsertSelectValueTest()
     {
         DecimalTests([
@@ -96,6 +98,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
                 receivedValue.Should().Be(value);
 
                 reader.GetFieldType(0).Should().Be(typeof(decimal));
+                reader.Dispose();
 
                 Command.CommandText = "Delete from DecimalValuesTests";
                 Command.ExecuteNonQuery();
@@ -107,6 +110,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void InsertSelectValueTestWithCulture()
     {
         var defaultCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
@@ -138,6 +142,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
                 receivedValue.Should().Be(value);
 
                 reader.GetFieldType(0).Should().Be(typeof(decimal));
+                reader.Dispose();
 
                 Command.CommandText = "Delete from DecimalValuesTests";
                 Command.ExecuteNonQuery();
@@ -150,6 +155,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void BindParameterWithoutTable()
     {
         decimal[] values = [decimal.Zero, 0.00m, 123456789.987654321m, -123456789.987654321m, 1.230m, -1.23m,
@@ -229,6 +235,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void BindParameterInComparison()
     {
         var testCases = new (decimal value, bool expectedResult)[]
@@ -402,6 +409,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     // was stored in a DECIMAL(3,0) column. One that is too large only shows in typeof and in the type of a result.
     // So the width is the number of digits exactly.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ParameterHasTheWidthOfItsDigits()
     {
         var power = 1m;
@@ -443,6 +451,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ParameterWithMoreDigitsThanItsColumnIsRefused()
     {
         Command.CommandText = "CREATE OR REPLACE TABLE DecimalParameterRefused (value DECIMAL(3,0));";
@@ -471,21 +480,11 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     // The width and scale of the DECIMAL value the converter creates for a DECIMAL(width, scale) parameter.
-    private static (byte Width, byte Scale) SentDecimalType(decimal value, byte width, byte scale)
+    private (byte Width, byte Scale) SentDecimalType(decimal value, byte width, byte scale)
     {
-        using var parameterType = NativeMethods.LogicalType.DuckDBCreateDecimalType(width, scale);
-        using var duckDBValue = ((object)value).ToDuckDBValue(parameterType, DuckDBType.Decimal, DbType.Decimal);
-
-        // The value owns its type: mark the handle invalid so that it is not destroyed a second time.
-        var valueType = NativeMethods.Value.DuckDBGetValueType(duckDBValue);
-        try
-        {
-            return (NativeMethods.LogicalType.DuckDBDecimalWidth(valueType), NativeMethods.LogicalType.DuckDBDecimalScale(valueType));
-        }
-        finally
-        {
-            valueType.SetHandleAsInvalid();
-        }
+        var (_, sentWidth, sentScale) = Helpers.V2ConvertedValue.Convert(Connection, value, factory => DuckDBV2Types.FromText(factory, $"DECIMAL({width},{scale})"),
+                                                                       DuckDBType.Decimal, DbType.Decimal);
+        return (sentWidth, sentScale);
     }
 
     // A decimal that fits the parameter exactly goes with the parameter's width and scale, so that DuckDB does not bind
@@ -524,6 +523,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void NegativeZeroIsSentWithTheParametersWidthAndScale()
     {
         var negativeZero = new decimal(0, 0, 0, true, 2);
@@ -538,6 +538,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
     // A value that is too wide must still be refused, by DuckDB, after the extra zeros after its point are removed.
     [Fact]
+    [Trait("V2", "Ready")]
     public void DecimalTooWideAfterItsZerosIsRefused()
     {
         Command.CommandText = "CREATE OR REPLACE TABLE DecimalParameterTooWide (value DECIMAL(2,0));";
@@ -562,6 +563,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
     // The stored and compared values are the same whichever width and scale the value goes with.
     [Fact]
+    [Trait("V2", "Ready")]
     public void DecimalParameterKeepsItsValue()
     {
         Command.CommandText = "CREATE OR REPLACE TABLE DecimalParameterScale (value DECIMAL(18,4));";
@@ -617,6 +619,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [Theory]
     [InlineData(DbType.Decimal)]
     [InlineData(DbType.Currency)]
+    [Trait("V2", "Ready")]
     public void ExplicitDecimalDbTypeIsSentAsADecimalInAnyCulture(DbType dbType)
     {
         var defaultCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
@@ -650,6 +653,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
     // An integer with DbType.Decimal becomes a decimal.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ExplicitDecimalDbTypeWithAnIntegerValueIsStillSent()
     {
         Command.CommandText = "SELECT ?::DECIMAL(4,1)";
@@ -661,6 +665,7 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
     // An assigned DbType does not parse text. Without the DbType the text is sent whole, NUL characters included.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ExplicitDecimalDbTypeWithATextValueIsRefused()
     {
         Command.CommandText = "SELECT length(?)";

@@ -241,19 +241,16 @@ public class DuckDBCommand : DbCommand
                                             "with DuckDB's C API V2 (docs/V2-MIGRATION.md).");
         }
 
-        if (prepared || parameters.Count > 0)
-        {
-            throw new NotSupportedException("Parameters and prepared commands have not been migrated to DuckDB's C API V2 yet " +
-                                            "(docs/V2-MIGRATION.md, stage 3).");
-        }
+        var v2Connection = connection!.V2Connection;
 
-        return DuckDBV2Statements.Execute(connection!.V2Connection, CommandText);
+        return prepared
+            ? ExecutePrepared(v2Connection, parameters)
+            : DuckDBV2Statements.Execute(v2Connection, CommandText, parameters);
     }
 
-    // An iterator, like PrepareMultiple, so that an error (also from preparing again) is raised where the reader
-    // expects it: inside its constructor, which then closes the connection for CommandBehavior.CloseConnection.
-    private IEnumerable<StatementResult> ExecutePrepared(DuckDBNativeConnection nativeConnection, DuckDBParameterCollection parameterCollection,
-                                                         bool useStreamingMode)
+    // An iterator, like DuckDBV2Statements.Execute, so that an error (also from preparing again) is raised where the
+    // reader expects it: inside its constructor, which then closes the connection for CommandBehavior.CloseConnection.
+    private IEnumerable<DuckDBV2StatementResult> ExecutePrepared(DuckDBV2Connection v2Connection, DuckDBParameterCollection parameterCollection)
     {
         if (preparePending || preparedEntry is { IsStale: true })
         {
@@ -268,7 +265,7 @@ public class DuckDBCommand : DbCommand
         {
             // A command of several statements, or another execution is binding the shared statement (a command with
             // the same text on another thread).
-            foreach (var result in PreparedStatement.PreparedStatement.PrepareMultiple(nativeConnection, CommandText, parameterCollection, useStreamingMode))
+            foreach (var result in DuckDBV2Statements.Execute(v2Connection, CommandText, parameterCollection))
             {
                 yield return result;
             }
@@ -276,10 +273,10 @@ public class DuckDBCommand : DbCommand
             yield break;
         }
 
-        DuckDBResult queryResult;
+        DuckDBV2StatementResult queryResult;
         try
         {
-            queryResult = entry.Execute(parameterCollection, useStreamingMode, nativeConnection);
+            queryResult = entry.Execute(parameterCollection, v2Connection);
         }
         finally
         {
@@ -287,7 +284,7 @@ public class DuckDBCommand : DbCommand
             entry.Return();
         }
 
-        yield return new StatementResult(queryResult, entry.StatementType);
+        yield return queryResult;
     }
 
     protected override DbParameter CreateDbParameter() => new DuckDBParameter();

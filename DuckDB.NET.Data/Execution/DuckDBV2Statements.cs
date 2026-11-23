@@ -1,3 +1,4 @@
+using DuckDB.NET.Data.PreparedStatement;
 using DuckDB.NET.Native.V2;
 
 namespace DuckDB.NET.Data.Execution;
@@ -10,7 +11,7 @@ internal static unsafe class DuckDBV2Statements
     /// depend on an earlier one having run, so each runs only when the previous result is done. V2 allows one open
     /// result per connection, so the caller finishes or disposes each result before moving on.
     /// </summary>
-    public static IEnumerable<DuckDBV2StatementResult> Execute(DuckDBV2Connection connection, string sql)
+    public static IEnumerable<DuckDBV2StatementResult> Execute(DuckDBV2Connection connection, string sql, DuckDBParameterCollection parameters)
     {
         using var iterator = Parse(connection, sql);
 
@@ -23,7 +24,7 @@ internal static unsafe class DuckDBV2Statements
             DuckDBV2StatementResult result;
             using (statement)
             {
-                result = ExecuteStatement(connection, statement);
+                result = ExecuteStatement(connection, statement, parameters);
             }
 
             yield return result;
@@ -32,6 +33,61 @@ internal static unsafe class DuckDBV2Statements
         if (!any)
         {
             throw new DuckDBException("The command text holds no statement to execute");
+        }
+    }
+
+    /// <summary>
+    /// Prepares a command that holds exactly one statement, to be executed many times. A command of several
+    /// statements returns null: a later statement can depend on an earlier one having run, so each runs unprepared.
+    /// </summary>
+    public static PreparedStatementEntry? PrepareSingle(DuckDBV2Connection connection, string sql)
+    {
+        using var iterator = Parse(connection, sql);
+        using var statement = Next(iterator) ?? throw new DuckDBException("The command text holds no statement to prepare");
+
+        using (var another = Next(iterator))
+        {
+            if (another is not null)
+            {
+                return null;
+            }
+        }
+
+        using var connectionLease = connection.Acquire();
+        using var statementLease = statement.Acquire();
+
+        _duckdb_v2_error_info* error = null;
+        DUCKDB_V2_STATEMENT_TYPE statementType;
+        NativeMethodsV2.duckdb_v2_sql_statement_get_type(statementLease.Pointer, &statementType, &error).ThrowIfFailed(ref error);
+
+        ulong parameterCount;
+        NativeMethodsV2.duckdb_v2_sql_statement_get_parameter_count(statementLease.Pointer, &parameterCount, &error).ThrowIfFailed(ref error);
+
+        _duckdb_v2_prepared_statement* prepared;
+        var code = NativeMethodsV2.duckdb_v2_prepared_statement_create(connectionLease.Pointer, statementLease.Pointer, 0, &prepared, &error);
+
+        try
+        {
+            code.ThrowIfFailed(ref error, "Preparing the statement failed");
+        }
+        catch (DuckDBException exception) when (exception.NativeErrorCode == DuckDBErrorCode.ResourceInUse)
+        {
+            throw OpenReader(exception);
+        }
+
+        var handle = new DuckDBV2PreparedStatement(prepared);
+
+        try
+        {
+            // A statement DuckDB expands into several (a dynamic PIVOT) takes no parameters, and its shape is known only
+            // when it runs.
+            var parameters = parameterCount == 0 ? null : ReadParameters(connection, statement);
+            return new PreparedStatementEntry(handle, statementType.ToStatementType(), parameters);
+        }
+        catch
+        {
+            handle.Dispose();
+            throw;
         }
     }
 
@@ -65,34 +121,70 @@ internal static unsafe class DuckDBV2Statements
         return statement == null ? null : new DuckDBV2SqlStatement(statement);
     }
 
-    private static DuckDBV2StatementResult ExecuteStatement(DuckDBV2Connection connection, DuckDBV2SqlStatement statement)
+    private static DuckDBV2StatementResult ExecuteStatement(DuckDBV2Connection connection, DuckDBV2SqlStatement statement, DuckDBParameterCollection parameters)
     {
         using var connectionLease = connection.Acquire();
         using var statementLease = statement.Acquire();
+        var connectionPointer = connectionLease.Pointer;
+        var statementPointer = statementLease.Pointer;
 
         _duckdb_v2_error_info* error = null;
         DUCKDB_V2_STATEMENT_TYPE statementType;
-        NativeMethodsV2.duckdb_v2_sql_statement_get_type(statementLease.Pointer, &statementType, &error).ThrowIfFailed(ref error);
+        NativeMethodsV2.duckdb_v2_sql_statement_get_type(statementPointer, &statementType, &error).ThrowIfFailed(ref error);
+
+        // The parser counts the parameters; their types need a bind, which a statement without any does not pay for.
+        // Values for a statement that declares none are ignored, as with V1.
+        ulong parameterCount;
+        NativeMethodsV2.duckdb_v2_sql_statement_get_parameter_count(statementPointer, &parameterCount, &error).ThrowIfFailed(ref error);
 
         _duckdb_v2_result* result;
-        var code = NativeMethodsV2.duckdb_v2_statement_execute(connectionLease.Pointer, statementLease.Pointer, null, null, null, 0, &result, &error);
+        DUCKDB_V2_ERROR code;
 
+        if (parameterCount == 0)
+        {
+            code = NativeMethodsV2.duckdb_v2_statement_execute(connectionPointer, statementPointer, null, null, null, 0, &result, &error);
+        }
+        else
+        {
+            using var parameterInfo = ReadParameters(connection, statement);
+            code = parameterInfo.Execute(connection, parameters,
+                                         (names, lengths, values, count, output, executeError) =>
+                                             NativeMethodsV2.duckdb_v2_statement_execute(connectionPointer, statementPointer, names, lengths, values, count, output, executeError),
+                                         &result, &error);
+        }
+
+        return Wrap(code, result, ref error, statementType.ToStatementType());
+    }
+
+    private static DuckDBV2Parameters ReadParameters(DuckDBV2Connection connection, DuckDBV2SqlStatement statement)
+    {
+        try
+        {
+            return DuckDBV2Parameters.Read(connection, statement);
+        }
+        catch (DuckDBException exception) when (exception.NativeErrorCode == DuckDBErrorCode.ResourceInUse)
+        {
+            throw OpenReader(exception);
+        }
+    }
+
+    /// <summary>The result of an execution, or the exception for its failure.</summary>
+    internal static DuckDBV2StatementResult Wrap(DUCKDB_V2_ERROR code, _duckdb_v2_result* result, ref _duckdb_v2_error_info* error, DuckDBStatementType statementType)
+    {
         try
         {
             code.ThrowIfFailed(ref error, "Executing the statement failed");
         }
         catch (DuckDBException exception) when (exception.NativeErrorCode == DuckDBErrorCode.ResourceInUse)
         {
-            // V2 allows one open result per connection, and every result streams.
-            throw new InvalidOperationException("The connection has an open data reader. Read it to the end or close it before " +
-                                                "executing another command on the connection.", exception);
+            throw OpenReader(exception);
         }
 
         var handle = new DuckDBV2Result(result);
 
         try
         {
-            return new DuckDBV2StatementResult(handle, statementType.ToStatementType());
+            return new DuckDBV2StatementResult(handle, statementType);
         }
         catch
         {
@@ -100,4 +192,8 @@ internal static unsafe class DuckDBV2Statements
             throw;
         }
     }
+
+    // V2 allows one open result per connection, and every result streams.
+    internal static InvalidOperationException OpenReader(DuckDBException exception) =>
+        new("The connection has an open data reader. Read it to the end or close it before executing another command on the connection.", exception);
 }

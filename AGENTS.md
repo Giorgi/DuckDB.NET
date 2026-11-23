@@ -107,7 +107,8 @@ dotnet run -c Release -f net10.0 --project DuckDB.NET.Benchmarks -- --filter "*N
   `PreparedStatement.PrepareMultiple`, an iterator that extracts the statements and prepares and executes one
   statement per `MoveNext()`. After `Prepare()`, a single-statement command executes a `PreparedStatementEntry` that
   its connection keeps, keyed by text and shared by commands with that text, until `Close()`. Parameters are
-  converted by `DuckDBTypeMap` and `ClrToDuckDBConverter` (positional and named). **Before changing the execution
+  converted by `DuckDBTypeMap` and `ClrToDuckDBConverter` (positional and named). On `nightly-vnext` the unprepared
+  path is `DuckDBV2Statements.Execute` and `PreparedStatement.cs` is gone; `DESIGN.md` says what changed. **Before changing the execution
   path, the statement store or a parameter conversion, read `DESIGN.md` in `PreparedStatement`:** it describes both
   paths, the conversion order, what DuckDB 2.0 does with a prepared statement, and the rules that must hold
   (iterators, rent/return, clearing bindings, destroying statements before the database goes).

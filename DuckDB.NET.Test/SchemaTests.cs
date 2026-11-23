@@ -35,6 +35,7 @@ public class SchemaTests : DuckDBTestBase
     }
     
     [Fact]
+    [Trait("V2", "Ready")]
     public void MetaDataCollections()
     {
         var schema = Connection.GetSchema(DbMetaDataCollectionNames.MetaDataCollections);
@@ -114,6 +115,7 @@ public class SchemaTests : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void TablesWithRestrictions()
     {
         var schema = Connection.GetSchema("Tables", [null, null, "bar"]);
@@ -129,6 +131,7 @@ public class SchemaTests : DuckDBTestBase
     }
   
     [Fact]
+    [Trait("V2", "Ready")]
     public void ColumnsWithRestrictions()
     {
         var schema = Connection.GetSchema("Columns", [null, null, "foo", "foo_id"]);
@@ -138,6 +141,7 @@ public class SchemaTests : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ColumnsExposeDataType()
     {
         var schema = Connection.GetSchema("Columns", [null, null, "foo", "foo_id"]);
@@ -228,6 +232,7 @@ public class SchemaTests : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void ForeignKeysWithRestrictions()
     {
         var schema = Connection.GetSchema("ForeignKeys", [null, null, "bar", null]);
@@ -243,6 +248,7 @@ public class SchemaTests : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void NonUniqueIndex()
     {
         Command.CommandText = "CREATE INDEX bar_name_ix ON bar(name);";
@@ -256,6 +262,7 @@ public class SchemaTests : DuckDBTestBase
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void UniqueIndex()
     {
         Command.CommandText = "CREATE UNIQUE INDEX foo_name_uq ON foo(name);";

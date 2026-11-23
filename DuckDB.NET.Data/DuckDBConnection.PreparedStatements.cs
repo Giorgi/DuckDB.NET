@@ -1,3 +1,4 @@
+using DuckDB.NET.Data.Execution;
 using DuckDB.NET.Data.PreparedStatement;
 
 namespace DuckDB.NET.Data;
@@ -21,7 +22,7 @@ partial class DuckDBConnection
         PreparedStatementEntry? entry;
         try
         {
-            entry = PreparedStatement.PreparedStatement.PrepareSingle(NativeConnection, commandText);
+            entry = DuckDBV2Statements.PrepareSingle(V2Connection, commandText);
         }
         catch
         {

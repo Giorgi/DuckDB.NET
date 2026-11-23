@@ -277,6 +277,7 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void TimeNsParametersPreservePrecisionForTemporalTypes()
     {
         var time = new TimeOnly(12, 34, 56).Add(TimeSpan.FromTicks(1_234_567));
@@ -289,6 +290,7 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void TimeNsParametersPreserveTimeSpanTicksAndRejectOutOfRangeValues()
     {
         var timeSpan = TimeSpan.FromTicks(452_961_234_567);
@@ -451,6 +453,7 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // A parameter in "SELECT $1" has no type that DuckDB could report, so the DbType of the parameter picks the
     // conversion. DuckDB splits what it received.
     [Fact]
+    [Trait("V2", "Ready")]
     public void ParametersWithoutATargetTypeAreSplitByDuckDBIntoTheSameParts()
     {
         Command.CommandText = "SELECT $1";

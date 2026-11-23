@@ -18,6 +18,7 @@ public class DuckDBClientFactoryTests
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void UseFactory()
     {
         DbProviderFactories.RegisterFactory(DuckDBClientFactory.ProviderInvariantName, DuckDBClientFactory.Instance);

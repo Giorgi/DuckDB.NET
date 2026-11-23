@@ -74,6 +74,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     [InlineData(0)]
     [InlineData(byte.MinValue)]
     [InlineData(byte.MaxValue)]
+    [Trait("V2", "Ready")]
     public void ByteTest(byte value)
     {
         TestSimple<byte>("UTINYINT", value, r => r.GetByte(0));
@@ -84,6 +85,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     [InlineData(0)]
     [InlineData(sbyte.MinValue)]
     [InlineData(sbyte.MaxValue)]
+    [Trait("V2", "Ready")]
     public void SByteTest(sbyte value)
     {
         TestSimple<sbyte>("TINYINT", value, r => r.GetFieldValue<sbyte>(0));
@@ -94,6 +96,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     [InlineData(0)]
     [InlineData(ushort.MinValue)]
     [InlineData(ushort.MaxValue)]
+    [Trait("V2", "Ready")]
     public void UInt16Test(ushort value)
     {
         TestSimple<ushort>("USMALLINT", value, r => r.GetFieldValue<ushort>(0));
@@ -104,6 +107,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     [InlineData(0)]
     [InlineData(short.MinValue)]
     [InlineData(short.MaxValue)]
+    [Trait("V2", "Ready")]
     public void Int16Test(short value)
     {
         TestSimple<short>("SMALLINT", value, r => r.GetInt16(0));
@@ -114,6 +118,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     [InlineData(0)]
     [InlineData(uint.MinValue)]
     [InlineData(uint.MaxValue)]
+    [Trait("V2", "Ready")]
     public void UInt32Test(uint value)
     {
         TestSimple<uint>("UINTEGER", value, r => r.GetFieldValue<uint>(0));
@@ -124,6 +129,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     [InlineData(0)]
     [InlineData(int.MinValue)]
     [InlineData(int.MaxValue)]
+    [Trait("V2", "Ready")]
     public void Int32Test(int value)
     {
         TestSimple<int>("INTEGER", value, r => r.GetInt32(0));
@@ -136,6 +142,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     [InlineData(0)]
     [InlineData(ulong.MinValue)]
     [InlineData(ulong.MaxValue)]
+    [Trait("V2", "Ready")]
     public void UInt64Test(ulong value)
     {
         TestSimple<ulong>("UBIGINT", value, r => r.GetFieldValue<ulong>(0));
@@ -148,6 +155,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     [InlineData(0)]
     [InlineData(long.MinValue)]
     [InlineData(long.MaxValue)]
+    [Trait("V2", "Ready")]
     public void Int64Test(long value)
     {
         TestSimple<long>("BIGINT", value, r => r.GetInt64(0));
@@ -169,6 +177,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     [InlineData("170141183460469231731687303715884105728")]    // 2^127, one past HUGEINT
     [InlineData("1361129467683753853853498429727072845824")]   // 2^130
     [InlineData("-1361129467683753853853498429727072845824")]
+    [Trait("V2", "Ready")]
     public void VarintParameterBeyondHugeIntTest(string value)
     {
         var expectedValue = BigInteger.Parse(value);
@@ -200,6 +209,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     [InlineData("-72057594037927936")]
     [InlineData("1329227995784915872903807060280344576")]      // 2^120
     [InlineData("-1329227995784915872903807060280344577")]
+    [Trait("V2", "Ready")]
     public void VarintParameterAroundDuckDBCastBugTest(string value)
     {
         // DuckDB drops the top byte when it casts an integer to VARINT around 2^56 and 2^120
@@ -252,6 +262,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void BindParameterWithoutTable_Int32()
     {
         var value = Faker.Random.Int();
@@ -266,6 +277,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void BindParameterWithoutTable_Int64()
     {
         var value = Faker.Random.Long();
@@ -280,6 +292,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void BindParameterWithoutTable_Int16()
     {
         var value = Faker.Random.Short();
@@ -294,6 +307,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void BindParameterWithoutTable_SByte()
     {
         var value = Faker.Random.SByte();
@@ -308,6 +322,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void BindParameterWithoutTable_Byte()
     {
         var value = Faker.Random.Byte();
@@ -322,6 +337,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void BindParameterWithoutTable_UInt16()
     {
         var value = Faker.Random.UShort();
@@ -336,6 +352,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void BindParameterWithoutTable_UInt32()
     {
         var value = Faker.Random.UInt();
@@ -350,6 +367,7 @@ public class IntegerParametersTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void BindParameterWithoutTable_UInt64()
     {
         var value = Faker.Random.ULong();

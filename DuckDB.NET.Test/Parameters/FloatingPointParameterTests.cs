@@ -3,6 +3,7 @@ namespace DuckDB.NET.Test.Parameters;
 public class FloatingPointParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
+    [Trait("V2", "Ready")]
     public void BindParameterWithoutTable_Double()
     {
         var value = Faker.Random.Double(-1_000_000, 1_000_000);
@@ -13,6 +14,7 @@ public class FloatingPointParameterTests(DuckDBDatabaseFixture db) : DuckDBTestB
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void BindParameterWithoutTable_Float()
     {
         var value = Faker.Random.Float(-1_000_000, 1_000_000);
@@ -26,6 +28,7 @@ public class FloatingPointParameterTests(DuckDBDatabaseFixture db) : DuckDBTestB
     [InlineData(double.NaN)]
     [InlineData(double.PositiveInfinity)]
     [InlineData(double.NegativeInfinity)]
+    [Trait("V2", "Ready")]
     public void BindParameterWithoutTable_DoubleSpecial(double value)
     {
         Command.CommandText = "SELECT ?;";
@@ -46,6 +49,7 @@ public class FloatingPointParameterTests(DuckDBDatabaseFixture db) : DuckDBTestB
     [InlineData(float.NaN)]
     [InlineData(float.PositiveInfinity)]
     [InlineData(float.NegativeInfinity)]
+    [Trait("V2", "Ready")]
     public void BindParameterWithoutTable_FloatSpecial(float value)
     {
         Command.CommandText = "SELECT ?;";

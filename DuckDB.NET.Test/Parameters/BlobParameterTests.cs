@@ -173,6 +173,7 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void BindValueTest()
     {
         Command.CommandText = "CREATE TABLE BlobTests (key INTEGER, value Blob)";
@@ -203,6 +204,7 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
+    [Trait("V2", "Ready")]
     public void BindParameterWithoutTable()
     {
         var value = Faker.Random.Bytes(Faker.Random.Int(1, 100));
