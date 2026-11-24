@@ -624,6 +624,13 @@ between two runs.
 - **The column tests that are left:** one, `ColumnType == DuckDBType.TimestampTz` in
   `TimestampVectorDataWriter.AppendDateTimeOffset`, on the `DateTimeOffset` path only. The shared class tested for
   DATE on every `DateTime` and for TIMETZ and TIMESTAMPTZ on every `DateTimeOffset`.
+- **Measured** on the Azure VM (AMD EPYC 9V45, Linux, .NET 10, DuckDB 2.0.1), `DateAppenderBenchmark`, against the
+  build before (`ce7264b`), per-process medians of 4 launches: a `DateTime` into TIMESTAMP 1.00, into DATE 1.00, a
+  `DateOnly` into DATE 0.99, a `DateTimeOffset` into TIMESTAMPTZ 1.01, DATE and TIMESTAMP columns in turn
+  (`AppendDateTimeToDateAndTimestamp`, where the call to the writer now sees two classes) 1.00; the INTEGER and TIME
+  controls 1.00 and 0.99. The fix costs nothing measurable. The appends compile to 19 to 213 bytes with no calls
+  but `DateTime.Ticks`; the TIMETZ test is gone from the `DateTimeOffset` path. Results in
+  `azure/results/2.0-run/temporal-split`.
 - **Pinned by:** `TemporalWriteConversionTests` (`ADateIsRefusedInATimeTzOrTimestampColumn`,
   `ADateTimeIsRefusedInATimeTzColumn`, `ADateIsRefusedInATimestampColumnOfATableFunction`), and for what is still
   stored the conversion tests of decision 6 and `DuckDBManagedAppenderTests.TemporalValues`.
