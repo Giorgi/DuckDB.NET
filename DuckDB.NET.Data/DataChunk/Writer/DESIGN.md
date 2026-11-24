@@ -557,8 +557,8 @@ between two runs.
   check was a rule only these two integer types had.
 - **Any other column refuses them,** with the `InvalidOperationException` of the base class. This is not the rule of
   the other types, which write their bytes whatever the column (see "Behaviour"): 16 bytes do not fit the slot of a
-  narrower column and would overwrite the next value or run past the vector. A `BigInteger` still does that, and in a
-  VARINT column, which also gets `NumericVectorDataWriter`, writes a `DuckDBHugeInt` into a string slot.
+  narrower column and would overwrite the next value or run past the vector. A `BigInteger` is refused the same way.
+  Before 2.0 it was written as 16 bytes too, and in a VARINT column it wrote a `DuckDBHugeInt` into a string slot.
 - **Why the appender row lowers the priority of two overloads:** `AppendValue(UInt128?)` made every int or long
   constant argument ambiguous (CS0121): `AppendValue(1)` converts to `UInt128` through `byte`, and C# has no rule that
   prefers `sbyte` to `UInt128`. `[OverloadResolutionPriority(-1)]` on `AppendValue(UInt128?)` and
@@ -698,9 +698,6 @@ between two runs.
 - **The expression of a column of a table function is not evaluated when the query does not read the column**
   (decision 14). A table function registered with a method that takes an `object` is still called for every
   row, and decides itself what to write.
-- **A typed scalar function with no nullable parameter is called for a NULL in a column.** DuckDB answers a
-  constant NULL itself; for a column it passes every row. A value-type parameter then fails with "value is null"
-  and a `string` parameter gets `null`.
 
 ## Rules for changing this code
 
