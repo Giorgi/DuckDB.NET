@@ -43,6 +43,28 @@ public class DuckDBValueGetValueTests
         text.Invoking(v => v.GetValue<int>()).Should().Throw<InvalidCastException>();
     }
 
+    // DATE, TIME and TIME_NS read as the provider's own types in both forms, as they do as the .NET types.
+    [Fact]
+    public void ADateOrTimeReadsAsTheProviderTypeAndItsNullable()
+    {
+        var date = new DuckDBDateOnly(2024, 2, 29);
+        using var dateValue = NativeMethods.Value.DuckDBCreateDate(date.ToDuckDBDate());
+        dateValue.GetValue<DuckDBDateOnly>().Should().Be(date);
+        dateValue.GetValue<DuckDBDateOnly?>().Should().Be(date);
+        dateValue.GetValue<DateOnly?>().Should().Be(new DateOnly(2024, 2, 29));
+
+        var time = new DuckDBTimeOnly(13, 45, 30, 123456);
+        using var timeValue = NativeMethods.Value.DuckDBCreateTime(NativeMethods.DateTimeHelpers.DuckDBToTime(time));
+        using var timeNsValue = NativeMethods.Value.DuckDBCreateTimeNs(DuckDBTimeNs.FromTicks(time.Ticks));
+
+        foreach (var value in new[] { timeValue, timeNsValue })
+        {
+            value.GetValue<DuckDBTimeOnly>().Should().Be(time);
+            value.GetValue<DuckDBTimeOnly?>().Should().Be(time);
+            value.GetValue<TimeOnly?>().Should().Be(new TimeOnly(13, 45, 30).Add(TimeSpan.FromTicks(1_234_560)));
+        }
+    }
+
     // Every timestamp type reads as a DateTime, and as the instant at UTC when it is read as DateTimeOffset, as the
     // column reader gives it. Each getter takes the value in the unit of its type.
     [Fact]
