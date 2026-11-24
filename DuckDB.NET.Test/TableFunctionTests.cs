@@ -221,6 +221,21 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         data.Should().BeEquivalentTo(BigInteger.Parse("123456789876543210").ToByteArray().Select(b => TimeSpan.FromDays(1 + b)));
     }
 
+    // A HUGEINT parameter read as object is an Int128, as a HUGEINT column is.
+    [Fact]
+    public void AHugeIntParameterReadsAsInt128WhenReadAsObject()
+    {
+        Connection.RegisterTableFunction<Int128>("hugeint_parameter_as_object", parameters =>
+        {
+            var value = parameters[0].GetValue<object>();
+
+            return new TableFunction([new ColumnInfo("type", typeof(string))], new[] { value.GetType().Name });
+        }, (item, writers, rowIndex) => writers[0].WriteValue((string)item, rowIndex));
+
+        Command.CommandText = "SELECT * FROM hugeint_parameter_as_object('-170141183460469231731687303715884105728'::HUGEINT)";
+        Command.ExecuteScalar().Should().Be(nameof(Int128));
+    }
+
     [Fact]
     public void RegisterTableFunctionWithErrors()
     {

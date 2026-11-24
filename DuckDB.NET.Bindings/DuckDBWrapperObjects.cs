@@ -1,4 +1,6 @@
-﻿namespace DuckDB.NET.Native;
+﻿using System.Numerics;
+
+namespace DuckDB.NET.Native;
 
 public class DuckDBDatabase() : SafeHandleZeroOrMinusOneIsInvalid(true)
 {
@@ -171,11 +173,12 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
 
             DuckDBType.Uuid => Cast(new Guid(NativeMethods.Value.DuckDBGetVarchar(this))),
 
-            // An Int128 or a UInt128 is produced as itself; any other type gets the BigInteger.
-            DuckDBType.HugeInt when typeof(T) == typeof(Int128) => Cast(NativeMethods.Value.DuckDBGetHugeInt(this).ToInt128()),
-            DuckDBType.HugeInt => Cast(NativeMethods.Value.DuckDBGetHugeInt(this).ToBigInteger()),
-            DuckDBType.UnsignedHugeInt when typeof(T) == typeof(UInt128) => Cast(NativeMethods.Value.DuckDBGetUHugeInt(this).ToUInt128()),
-            DuckDBType.UnsignedHugeInt => Cast(NativeMethods.Value.DuckDBGetUHugeInt(this).ToBigInteger()),
+            // HUGEINT and UHUGEINT are produced as Int128 and UInt128, as the column readers give them, or as a
+            // BigInteger when one is asked for.
+            DuckDBType.HugeInt when Is<BigInteger>() => Cast(NativeMethods.Value.DuckDBGetHugeInt(this).ToBigInteger()),
+            DuckDBType.HugeInt => Cast(NativeMethods.Value.DuckDBGetHugeInt(this).ToInt128()),
+            DuckDBType.UnsignedHugeInt when Is<BigInteger>() => Cast(NativeMethods.Value.DuckDBGetUHugeInt(this).ToBigInteger()),
+            DuckDBType.UnsignedHugeInt => Cast(NativeMethods.Value.DuckDBGetUHugeInt(this).ToUInt128()),
 
             DuckDBType.Varchar => Cast(NativeMethods.Value.DuckDBGetVarchar(this)),
 
