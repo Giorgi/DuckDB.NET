@@ -533,7 +533,6 @@ public sealed class DuckDBDataReader : DbDataReader
     }
 
     [DoesNotReturn]
-    [MethodImpl(MethodImplOptions.NoInlining)]
     private static void ThrowNoRowRead()
     {
         throw new InvalidOperationException("No row has been read");

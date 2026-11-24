@@ -111,7 +111,6 @@ internal sealed partial class StructVectorDataReader
         public abstract void Set(object target, VectorDataReaderBase fieldReader, ulong offset);
 
         [DoesNotReturn]
-        [MethodImpl(MethodImplOptions.NoInlining)]
         protected void ThrowNotNullable() => throw new InvalidCastException($"Property '{Name}' is not nullable but struct contains null value");
     }
 

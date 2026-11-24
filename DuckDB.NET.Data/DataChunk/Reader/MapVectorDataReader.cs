@@ -97,13 +97,11 @@ internal sealed partial class MapVectorDataReader : VectorDataReaderBase
 
     // Used by the IDictionary path and by the builders. A child reader carries the name of the map column.
     [DoesNotReturn]
-    [MethodImpl(MethodImplOptions.NoInlining)]
     private static void ThrowNullValue(string columnName) => throw new InvalidCastException($"The Map in column {columnName} contains null value but dictionary does not allow null values");
 
     // Used by the IDictionary path and by the builders. SQL cannot make a NULL map key, but a map can also arrive
     // from Parquet, Arrow or the C API.
     [DoesNotReturn]
-    [MethodImpl(MethodImplOptions.NoInlining)]
     private static void ThrowNullKey(string columnName) => throw new InvalidCastException($"The Map in column {columnName} contains a null key");
 
     // Not inlined, so that GetValueCore does not set up a native-call frame on every row (Reader/DESIGN.md).

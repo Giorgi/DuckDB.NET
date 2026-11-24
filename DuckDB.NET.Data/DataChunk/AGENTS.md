@@ -19,7 +19,9 @@ directions together, so a round trip does not show a mistake; the tests that com
 - A test of a type parameter has the form `typeof(T) == typeof(X)`, or `typeof(T).IsValueType`, with no other
   condition. The JIT folds those. It does not fold a pattern test of a nullable value, which boxes it.
 - An exception is built in a helper such as `CannotCast` or `ThrowColumnOutOfRange`, never with an interpolated
-  string inline in a method that reads or writes.
+  string inline in a method that reads or writes. A helper that throws the exception itself has `[DoesNotReturn]`
+  and never `NoInlining`: the JIT finds out that a method does not return only when it looks at it for inlining,
+  and `NoInlining` stops it looking. The call then stays on the hot path as an ordinary call.
 - A conversion returns or stores what it did before, unless the change is meant to change it. Compare the build
   before with the build after on real values.
 

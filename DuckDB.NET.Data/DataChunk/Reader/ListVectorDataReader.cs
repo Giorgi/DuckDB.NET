@@ -117,7 +117,6 @@ internal sealed partial class ListVectorDataReader : VectorDataReaderBase
 
     // Used by FillBoxedList and by ValueListBuilder.
     [DoesNotReturn]
-    [MethodImpl(MethodImplOptions.NoInlining)]
     private static void ThrowListContainsNull() => throw new InvalidCastException("The list contains null value");
 
     // Not inlined, so that GetList does not set up a native-call frame on every row (Reader/DESIGN.md).
