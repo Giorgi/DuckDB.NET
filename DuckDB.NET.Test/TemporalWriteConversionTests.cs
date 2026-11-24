@@ -139,6 +139,46 @@ public class TemporalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
         AppendIsRefused($"{columnType}[]", row => row.AppendValue(new List<DuckDBDateOnly> { new(2024, 2, 29) }), "DuckDBDateOnly");
     }
 
+    // DATE has a writer of its own, so a date is refused in a TIMETZ or timestamp column, as a value and as a list item.
+    // It used to be written as a 4-byte DATE into the 8-byte vector: two rows to a slot, every value wrong, and the
+    // second half of each chunk left as it was in memory. The writer refuses the type in any row, so row 0 tests it.
+    [Theory]
+    [InlineData("TIMETZ")]
+    [InlineData("TIMESTAMP")]
+    [InlineData("TIMESTAMP_S")]
+    [InlineData("TIMESTAMP_MS")]
+    [InlineData("TIMESTAMP_NS")]
+    [InlineData("TIMESTAMPTZ")]
+    public void ADateIsRefusedInATimeTzOrTimestampColumn(string columnType)
+    {
+        AppendIsRefused(columnType, row => row.AppendValue((DateOnly?)new DateOnly(2024, 2, 29)), "DateOnly");
+        AppendIsRefused(columnType, row => row.AppendValue((DuckDBDateOnly?)new DuckDBDateOnly(2024, 2, 29)), "DuckDBDateOnly");
+        AppendIsRefused($"{columnType}[]", row => row.AppendValue(new List<DateOnly> { new(2024, 2, 29) }), "DateOnly");
+        AppendIsRefused($"{columnType}[]", row => row.AppendValue(new List<DuckDBDateOnly> { new(2024, 2, 29) }), "DuckDBDateOnly");
+    }
+
+    // TIMETZ has a writer of its own, which takes a DateTimeOffset. A DateTime has no offset; it used to be stored as a
+    // timestamp, whose bytes read back as a time and an offset that no one wrote.
+    [Fact]
+    public void ADateTimeIsRefusedInATimeTzColumn()
+    {
+        AppendIsRefused("TIMETZ", row => row.AppendValue((DateTime?)new DateTime(2024, 2, 29, 12, 0, 0)), "DateTime");
+        AppendIsRefused("TIMETZ[]", row => row.AppendValue(new List<DateTime> { new(2024, 2, 29, 12, 0, 0) }), "DateTime");
+    }
+
+    // A table function reaches the same writers, so a date is refused in its timestamp column too.
+    [Fact]
+    public void ADateIsRefusedInATimestampColumnOfATableFunction()
+    {
+        var name = $"date_into_timestamp_{Guid.NewGuid():N}";
+        Connection.RegisterTableFunction(name, () => new TableFunction([new ColumnInfo("t", typeof(DateTime))], new[] { 1 }),
+            (_, writers, rowIndex) => writers[0].WriteValue(new DateOnly(2024, 2, 29), rowIndex));
+
+        Command.CommandText = $"SELECT * FROM {name}()";
+        Command.Invoking(command => command.ExecuteScalar())
+            .Should().Throw<DuckDBException>().WithMessage("*Cannot write DateOnly to Timestamp column*");
+    }
+
     private void AppendIsRefused(string columnType, Action<IDuckDBAppenderRow> append, string typeName)
     {
         var table = $"refused_{Guid.NewGuid():N}";

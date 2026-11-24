@@ -580,9 +580,9 @@ between two runs.
   parameter (`DuckDBTime` or `DuckDBTimeNs`), the mirror of `TimeVectorDataReader<TStorage>`. It takes a
   `TimeOnly`, a `DuckDBTimeOnly` and a `DateTime` (its time of day), turns each into ticks from midnight, and
   `Store` is the one place where the units differ, a test of `TStorage` that the JIT folds. It replaced
-  `TimeNsVectorDataWriter` and took TIME out of `DateTimeVectorDataWriter`, which keeps DATE, TIMETZ and the
-  timestamps. A TIME goes through `DateTimeExtensions.ToDuckDBTime(long)`, as the three `ToDuckDBTime` extensions
-  that parameters use do, so the division by ten is written once.
+  `TimeNsVectorDataWriter` and took TIME out of `DateTimeVectorDataWriter`, which kept DATE, TIMETZ and the
+  timestamps (split in three by decision 19). A TIME goes through `DateTimeExtensions.ToDuckDBTime(long)`, as the
+  three `ToDuckDBTime` extensions that parameters use do, so the division by ten is written once.
 - **Why:** `DateTimeVectorDataWriter.AppendDateTime` tested the column for DATE and for TIME on every `DateTime`
   written to a timestamp column, and a TIME_NS had a class of its own while a TIME did not.
 - **What it refuses that used to be stored:** a `TimeOnly` or `DuckDBTimeOnly` in a DATE, TIMETZ or timestamp
@@ -602,6 +602,31 @@ between two runs.
 - **Pinned by:** `TemporalWriteConversionTests` (`ATimeIsRefusedInAColumnOfAnotherDateOrTimeType`,
   `ADateIsRefusedInATimeColumn`, `ATimeIsRefusedInADateColumnOfATableFunction`,
   `DateTimeAppendedToATimeIsItsTimeOfDay`).
+
+### 19. DATE, TIMETZ and the timestamps have a writer each
+
+- **What:** `DateTimeVectorDataWriter` is split in three, one for each way the values are stored.
+  `DateVectorDataWriter` (DATE, 4 bytes) takes a `DateOnly`, a `DuckDBDateOnly` and a `DateTime` (its date).
+  `TimeTzVectorDataWriter` (TIMETZ, 8 bytes) takes a `DateTimeOffset`. `TimestampVectorDataWriter` (TIMESTAMP,
+  TIMESTAMP_S, _MS, _NS and TIMESTAMPTZ, 8 bytes) takes a `DateTime`, and a `DateTimeOffset` in a TIMESTAMPTZ only.
+  Each method stores what the shared class stored for its column.
+- **Why:** the shared class wrote a `DateOnly` or `DuckDBDateOnly` as a 4-byte DATE whatever the column. In a TIMETZ
+  or timestamp column, row `r` went to byte `4r` of an 8-byte vector: two dates to a slot, every value wrong
+  (2024-01-01 in a TIMESTAMP read back as 1972-09-07 11:38:54.966027), and slots 1024 to 2047 of each chunk left
+  with whatever was in the memory, which was stored. A TIMETZ read back from it could fail in DuckDB with
+  `INTERNAL Error: FormatTwoDigits`. A `DateTime` in a TIMETZ column was stored as a timestamp, whose bytes read back
+  as a time and an offset no one wrote. Nothing was written past the vector, so none of it failed.
+- **Refused, as decision 18 refused a time:** a `DateOnly` or `DuckDBDateOnly` in a TIMETZ or timestamp column, and a
+  `DateTime` in a TIMETZ column, with the `InvalidOperationException` of the base class, in a row, as a list item and
+  in the output of a function. Not converted to midnight: in a TIMESTAMPTZ that needs a time zone, and nothing could
+  have used what was stored, so no code relies on it. The mapped appender already refused all of them when it was
+  created.
+- **The column tests that are left:** one, `ColumnType == DuckDBType.TimestampTz` in
+  `TimestampVectorDataWriter.AppendDateTimeOffset`, on the `DateTimeOffset` path only. The shared class tested for
+  DATE on every `DateTime` and for TIMETZ and TIMESTAMPTZ on every `DateTimeOffset`.
+- **Pinned by:** `TemporalWriteConversionTests` (`ADateIsRefusedInATimeTzOrTimestampColumn`,
+  `ADateTimeIsRefusedInATimeTzColumn`, `ADateIsRefusedInATimestampColumnOfATableFunction`), and for what is still
+  stored the conversion tests of decision 6 and `DuckDBManagedAppenderTests.TemporalValues`.
 
 ## Costs that are known and not yet removed
 
@@ -650,8 +675,10 @@ between two runs.
   into an INTEGER column stores garbage. The mapped appender checks types when it is created. A value of the right
   type that is out of range is another matter: a decimal is checked against the width of its column (decision 10).
   A writer refuses a type it has no method for, so since decision 18 a time is refused in a date or timestamp
-  column and a date in a TIME column. A `DateOnly` in a TIMETZ or timestamp column, and a `DateTime` in a TIMETZ
-  column, still store the bytes of the other type.
+  column and a date in a TIME column, and since decision 19 a date in a TIMETZ or timestamp column and a `DateTime`
+  in a TIMETZ column. An integer or floating-point number of up to 8 bytes still stores its bytes whatever the
+  width of the column, and one wider than the column runs past the vector (a `long` in an INTEGER column, from row
+  1024 on). `Int128` and `UInt128` (decision 17) and `BigInteger` are refused in a narrower column.
 - **A `DateTime` appended to a TIME or TIME_NS column stores its time of day,** as a TIME parameter does and as a
   TIME read as `DateTime` gives it back. Until 2.0 a TIME stored the microseconds of the whole timestamp, more
   than a day, which no one could have used.
