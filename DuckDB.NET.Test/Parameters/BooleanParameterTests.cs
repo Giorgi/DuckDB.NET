@@ -3,7 +3,6 @@ namespace DuckDB.NET.Test.Parameters;
 public class BooleanParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
-    [Trait("V2", "Ready")]
     public void BindParameterWithoutTable()
     {
         var value = Faker.Random.Bool();

@@ -4,7 +4,6 @@ using DuckDB.NET.Data.Extensions;
 namespace DuckDB.NET.Test.V2;
 
 // Arrow results on the C API V2 (statement_execute_arrow), for what the older Arrow tests do not reach.
-[Trait("V2", "Ready")]
 public class V2ArrowResultTests
 {
     [Fact]

@@ -16,7 +16,6 @@ public class SchemaTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void InvalidCollection()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => Connection.GetSchema("Invalid"));
@@ -28,14 +27,12 @@ public class SchemaTests : DuckDBTestBase
     [InlineData("DataTypes")]
     [InlineData("Restrictions")]
     [InlineData("ReservedWords")]
-    [Trait("V2", "Ready")]
     public void CollectionsWithoutRestrictionsRejectRestrictionValues(string collectionName)
     {
         Assert.Throws<ArgumentException>(() => Connection.GetSchema(collectionName, ["unexpected"]));
     }
     
     [Fact]
-    [Trait("V2", "Ready")]
     public void MetaDataCollections()
     {
         var schema = Connection.GetSchema(DbMetaDataCollectionNames.MetaDataCollections);
@@ -49,7 +46,6 @@ public class SchemaTests : DuckDBTestBase
     }
     
     [Fact]
-    [Trait("V2", "Ready")]
     public void NoParametersShouldBeEquivalentToMetaDataCollections()
     {
         var actualSchema = Connection.GetSchema();
@@ -68,7 +64,6 @@ public class SchemaTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void Restrictions()
     {
         var restrictions = Connection.GetSchema(DbMetaDataCollectionNames.Restrictions);
@@ -96,7 +91,6 @@ public class SchemaTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReservedWords()
     {
         var schema = Connection.GetSchema(DbMetaDataCollectionNames.ReservedWords);
@@ -105,7 +99,6 @@ public class SchemaTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void Tables()
     {
         var schema = Connection.GetSchema("Tables");
@@ -115,7 +108,6 @@ public class SchemaTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void TablesWithRestrictions()
     {
         var schema = Connection.GetSchema("Tables", [null, null, "bar"]);
@@ -124,14 +116,12 @@ public class SchemaTests : DuckDBTestBase
     }
  
     [Fact]
-    [Trait("V2", "Ready")]
     public void TablesTooManyRestrictions()
     {
         Assert.Throws<ArgumentException>(() => Connection.GetSchema("Tables", new string [5]));
     }
   
     [Fact]
-    [Trait("V2", "Ready")]
     public void ColumnsWithRestrictions()
     {
         var schema = Connection.GetSchema("Columns", [null, null, "foo", "foo_id"]);
@@ -141,7 +131,6 @@ public class SchemaTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ColumnsExposeDataType()
     {
         var schema = Connection.GetSchema("Columns", [null, null, "foo", "foo_id"]);
@@ -149,7 +138,6 @@ public class SchemaTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void DataSourceInformationSupportsProbing()
     {
         var schema = Connection.GetSchema(DbMetaDataCollectionNames.DataSourceInformation);
@@ -160,7 +148,6 @@ public class SchemaTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void DataTypesExposeStandardAdoNetMetadata()
     {
         var schema = Connection.GetSchema("DataTypes");
@@ -193,7 +180,6 @@ public class SchemaTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void DataTypesUseCanonicalNamesOnFreshConnection()
     {
         using var connection = new DuckDBConnection("DataSource=:memory:");
@@ -208,7 +194,6 @@ public class SchemaTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void DataTypesExposeEveryDuckDbType()
     {
         var schema = Connection.GetSchema("DataTypes");
@@ -225,14 +210,12 @@ public class SchemaTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ColumnsTooManyRestrictions()
     {
         Assert.Throws<ArgumentException>(() => Connection.GetSchema("Columns", new string [5]));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ForeignKeysWithRestrictions()
     {
         var schema = Connection.GetSchema("ForeignKeys", [null, null, "bar", null]);
@@ -241,14 +224,12 @@ public class SchemaTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ForeignKeysTooManyRestrictions()
     {
         Assert.Throws<ArgumentException>(() => Connection.GetSchema("ForeignKeys", new string [5]));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void NonUniqueIndex()
     {
         Command.CommandText = "CREATE INDEX bar_name_ix ON bar(name);";
@@ -262,7 +243,6 @@ public class SchemaTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void UniqueIndex()
     {
         Command.CommandText = "CREATE UNIQUE INDEX foo_name_uq ON foo(name);";
@@ -276,7 +256,6 @@ public class SchemaTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void IndexesTooManyRestrictions()
     {
         Assert.Throws<ArgumentException>(() => Connection.GetSchema("Indexes", new string [5]));

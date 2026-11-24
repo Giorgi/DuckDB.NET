@@ -5,7 +5,6 @@ namespace DuckDB.NET.Test.V2;
 // Stage 2, step 2 of docs/V2-MIGRATION.md: the readers that need more than the data of a vector. V2 has no getter per
 // kind, so DECIMAL's width and scale and an ENUM's names come from the type's parameters, and the storage of both
 // follows from them as V2 states in its contract. These cases sit on each storage boundary.
-[Trait("V2", "Ready")]
 public class V2TypeTests
 {
     private static DuckDBConnection Open()

@@ -3,7 +3,6 @@ namespace DuckDB.NET.Test.Parameters;
 public class ParameterDbTypeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
-    [Trait("V2", "Ready")]
     public void DbTypeSetBeforeTheValueIsKept()
     {
         var parameter = new DuckDBParameter { DbType = DbType.Time };
@@ -14,7 +13,6 @@ public class ParameterDbTypeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void DbTypeSetAfterTheValueIsKept()
     {
         var parameter = new DuckDBParameter { Value = new TimeSpan(13, 45, 30) };
@@ -26,7 +24,6 @@ public class ParameterDbTypeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void DbTypeIsInferredFromTheValueWhenNoneWasSet()
     {
         var parameter = new DuckDBParameter();
@@ -42,7 +39,6 @@ public class ParameterDbTypeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void AssigningTheSameValueDoesNotChangeItsDbType()
     {
         var parameter = new DuckDBParameter(5);
@@ -54,7 +50,6 @@ public class ParameterDbTypeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ResetDbTypeReturnsToInference()
     {
         var parameter = new DuckDBParameter { DbType = DbType.Time };
@@ -66,7 +61,6 @@ public class ParameterDbTypeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ANewParameterHasTheObjectDbType()
     {
         new DuckDBParameter().DbType.Should().Be(DbType.Object);
@@ -74,7 +68,6 @@ public class ParameterDbTypeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ResetDbTypeTakesTheTypeOfTheCurrentValue()
     {
         var parameter = new DuckDBParameter { Value = 5, DbType = DbType.Time };
@@ -85,7 +78,6 @@ public class ParameterDbTypeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ResetDbTypeWithoutAValueGivesObject()
     {
         var parameter = new DuckDBParameter { DbType = DbType.Time };
@@ -96,7 +88,6 @@ public class ParameterDbTypeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ResetDbTypeOnAParameterConstructedWithADbType()
     {
         var parameter = new DuckDBParameter(DbType.Int64, 5);
@@ -109,7 +100,6 @@ public class ParameterDbTypeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ConstructorsThatTakeAValueStillInferItsType()
     {
         new DuckDBParameter(5).DbType.Should().Be(DbType.Int32);
@@ -121,7 +111,6 @@ public class ParameterDbTypeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ATimeSpanWithTheTimeDbTypeIsBoundAsATimeInAMergeSource()
     {
         Command.CommandText = "CREATE OR REPLACE TABLE parameter_dbtype_time (id INTEGER PRIMARY KEY, v TIME)";
@@ -140,7 +129,6 @@ public class ParameterDbTypeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ATimeSpanWithoutADbTypeIsStillBoundAsAnInterval()
     {
         Command.CommandText = "SELECT ?";

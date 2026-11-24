@@ -39,7 +39,6 @@ public class DecimalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestB
     [InlineData("DECIMAL(4,0)", "0.00000000000000000001", "0")]
     [InlineData("DECIMAL(38,25)", "9999999999999")]
     [InlineData("DECIMAL(4,0)", "0.0000000000000000000000000001", "0")]
-    [Trait("V2", "Ready")]
     public void AValueThatFitsIsStoredAsDuckDBCastsIt(string columnType, string digits, string stored = null)
     {
         foreach (var text in new[] { digits, "-" + digits })
@@ -78,7 +77,6 @@ public class DecimalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestB
     // A short value whose scale is 20 or more away from the scale of the column.
     [InlineData("DECIMAL(38,38)", "1")]
     [InlineData("DECIMAL(38,25)", "10000000000000")]
-    [Trait("V2", "Ready")]
     public void AValueWithMoreDigitsThanItsColumnIsRefused(string columnType, string digits)
     {
         foreach (var text in new[] { digits, "-" + digits })
@@ -104,7 +102,6 @@ public class DecimalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestB
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void NegativeZeroIsStoredAsZero()
     {
         Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE decimalWriteZero (a DECIMAL(4,1), b DECIMAL(9,2), c DECIMAL(18,4), d DECIMAL(38,10), e DECIMAL(38,30))");
@@ -121,7 +118,6 @@ public class DecimalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestB
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void AListItemWithMoreDigitsThanItsColumnIsRefused()
     {
         Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE decimalWriteList (value DECIMAL(4,1)[])");
@@ -140,7 +136,6 @@ public class DecimalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestB
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void AMappedValueWithMoreDigitsThanItsColumnIsRefused()
     {
         Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE decimalWriteMapped (price DECIMAL(9,2))");
@@ -159,7 +154,6 @@ public class DecimalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestB
 
     // The result of a function is a DECIMAL(38,18): 20 digits in front of the point.
     [Fact]
-    [Trait("V2", "Ready")]
     public void AScalarFunctionResultWithMoreDigitsThanItsTypeIsRefused()
     {
         Connection.RegisterScalarFunction<int, decimal>("decimal_write_scalar", value => value == 0 ? 99999999999999999999m : 100000000000000000000m);
@@ -173,7 +167,6 @@ public class DecimalWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestB
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ATableFunctionValueWithMoreDigitsThanItsTypeIsRefused()
     {
         Connection.RegisterTableFunction("decimal_write_table",

@@ -4,7 +4,6 @@ namespace DuckDB.NET.Test.V2;
 
 // Stage 2, step 3 of docs/V2-MIGRATION.md: LIST, ARRAY, STRUCT and MAP through the C API V2. Their child types come
 // from the type's parameters and their child vectors from vector_get_child, after the parent is flattened.
-[Trait("V2", "Ready")]
 public class V2NestedTypeTests
 {
     private static DuckDBConnection Open()

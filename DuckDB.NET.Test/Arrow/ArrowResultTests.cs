@@ -8,7 +8,7 @@ namespace DuckDB.NET.Test.Arrow;
 public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Theory]
-    [InlineData(false)]
+    [InlineData(false, Skip = V2Skip.Materialized)]
     [InlineData(true)]
     public async Task ExecuteArrowBatches_ReturnsSchemaAndScalarValues(bool useStreamingMode)
     {
@@ -31,7 +31,7 @@ public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Theory]
-    [InlineData(false)]
+    [InlineData(false, Skip = V2Skip.Materialized)]
     [InlineData(true)]
     public async Task ExecuteArrowBatches_HandlesNullValues(bool useStreamingMode)
     {
@@ -50,7 +50,7 @@ public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Theory]
-    [InlineData(false)]
+    [InlineData(false, Skip = V2Skip.Materialized)]
     [InlineData(true)]
     public async Task ExecuteArrowBatches_StreamsMultipleChunks(bool useStreamingMode)
     {
@@ -81,7 +81,6 @@ public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public async Task ExecuteArrowStream_ThrowsWhenLaterStreamingChunkFails()
     {
         // The first chunks convert fine; the error is raised only while producing a later chunk.
@@ -107,7 +106,6 @@ public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ExecuteArrowStream_ExposesSchemaWithoutReading()
     {
         Command.CommandText = "select 1 as a, 'x' as b";
@@ -120,7 +118,6 @@ public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public async Task ExecuteArrowStream_ReadsBatchesUntilNull()
     {
         Command.CommandText = "select i from range(10) t(i)";
@@ -139,7 +136,7 @@ public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
     // Regression test for https://github.com/Giorgi/DuckDB.NET/issues/358
     [Theory]
-    [InlineData(false)]
+    [InlineData(false, Skip = V2Skip.Materialized)]
     [InlineData(true)]
     public async Task ExecuteArrowStream_ReadAfterEndReturnsNull(bool useStreamingMode)
     {
@@ -161,7 +158,6 @@ public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ExecuteArrowStream_ThrowsWhenNoResultSet()
     {
         Command.CommandText = "create table t_no_result (id integer)";
@@ -172,7 +168,6 @@ public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public async Task ReadNextRecordBatchAsync_WithCanceledToken_ReturnsCanceledTask()
     {
         Command.CommandText = "select i from range(10) t(i)";
@@ -185,7 +180,6 @@ public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public async Task ReadNextRecordBatchAsync_AfterDispose_Throws()
     {
         Command.CommandText = "select i from range(10) t(i)";
@@ -199,7 +193,6 @@ public class ArrowResultTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void Dispose_CalledTwice_IsNoOp()
     {
         Command.CommandText = "select i from range(10) t(i)";

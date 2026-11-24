@@ -7,7 +7,6 @@ namespace DuckDB.NET.Test.Parameters;
 public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimpleTest()
     {
         var values = new[]{0m, decimal.Zero, decimal.MinValue,
@@ -48,7 +47,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void InsertSelectValueTest()
     {
         DecimalTests([
@@ -110,7 +108,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void InsertSelectValueTestWithCulture()
     {
         var defaultCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
@@ -155,7 +152,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void BindParameterWithoutTable()
     {
         decimal[] values = [decimal.Zero, 0.00m, 123456789.987654321m, -123456789.987654321m, 1.230m, -1.23m,
@@ -178,7 +174,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [InlineData("SELECT -1.5::DECIMAL(38, 30)", -1.5)]
     [InlineData("SELECT 0.0::DECIMAL(38, 30)", 0.0)]
     [InlineData("SELECT 123.456::DECIMAL(38, 30)", 123.456)]
-    [Trait("V2", "Ready")]
     public void ReadHighScaleDecimal(string query, double expected)
     {
         // DuckDB DECIMAL(38, 30) uses HugeInt internal type with scale 30,
@@ -196,7 +191,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [InlineData("SELECT 12345678901234567890.12::DECIMAL(38, 2)", "12345678901234567890.12")]
     [InlineData("SELECT -99999999999999999999999999.999::DECIMAL(38, 3)", "-99999999999999999999999999.999")]
     [InlineData("SELECT 0.01::DECIMAL(38, 2)", "0.01")]
-    [Trait("V2", "Ready")]
     public void ReadWideDecimalLowScale(string query, string expected)
     {
         // DuckDB DECIMAL(38, 2) uses HugeInt internal type (width > 18)
@@ -222,7 +216,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [InlineData("SELECT -1.23456789012345678901234567891::DECIMAL(38, 29)", "-1.2345678901234567890123456789")]
     [InlineData("SELECT 0.00000000000000000000000000019::DECIMAL(38, 29)", "0.0000000000000000000000000001")]
     [InlineData("SELECT 0.00000000000000000000000000009::DECIMAL(38, 29)", "0")]
-    [Trait("V2", "Ready")]
     public void ReadDecimalAtScaleBoundary(string query, string expected)
     {
         Command.CommandText = query;
@@ -235,7 +228,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void BindParameterInComparison()
     {
         var testCases = new (decimal value, bool expectedResult)[]
@@ -276,7 +268,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [InlineData("SELECT 123.00::DECIMAL(38, 2)", "123")]
     [InlineData("SELECT -42.000::DECIMAL(9, 3)", "-42")]
     [InlineData("SELECT '0'::DECIMAL(38, 38)", "0")]
-    [Trait("V2", "Ready")]
     public void ReadDecimalAsBigInteger(string query, string expected)
     {
         Command.CommandText = query;
@@ -291,7 +282,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [Theory]
     [InlineData("SELECT 123.45::DECIMAL(38, 2)")]
     [InlineData("SELECT 1.5::DECIMAL(4, 2)")]
-    [Trait("V2", "Ready")]
     public void ReadDecimalWithFractionalPartAsBigIntegerThrows(string query)
     {
         Command.CommandText = query;
@@ -303,7 +293,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadWideDecimalAsDecimalThrowsOverflow()
     {
         Command.CommandText = "SELECT '99999999999999999999999999999999999999'::DECIMAL(38, 0)";
@@ -326,7 +315,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [InlineData("SELECT '-99999999999999999999999999999999999.999'::DECIMAL(38, 3)", 38, 3, "-99999999999999999999999999999999999999")]
     // Scale above decimal's 28-digit limit (bigIntRemainderShift regime)
     [InlineData("SELECT '-0.99999999999999999999999999999999999999'::DECIMAL(38, 38)", 38, 38, "-99999999999999999999999999999999999999")]
-    [Trait("V2", "Ready")]
     public void ReadDecimalAsDuckDBDecimal(string query, int width, int scale, string unscaledValue)
     {
         Command.CommandText = query;
@@ -345,7 +333,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadDecimalJustAboveDecimalMaxValueThrowsOverflow()
     {
         // Quotient is exactly decimal.MaxValue; adding the 0.5 fraction rounds up and overflows.
@@ -359,7 +346,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadMapOfDecimalValues()
     {
         Command.CommandText = "SELECT MAP {'a': 1.5::DECIMAL(4, 2), 'b': 2.25::DECIMAL(4, 2)}";
@@ -377,7 +363,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadListOfDecimalValues()
     {
         Command.CommandText = "SELECT [1.5::DECIMAL(4, 2), 2.25::DECIMAL(4, 2)]";
@@ -392,7 +377,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadNullDecimalAsBigIntegerAndDuckDBDecimal()
     {
         Command.CommandText = "SELECT NULL::DECIMAL(38, 0)";
@@ -409,7 +393,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     // was stored in a DECIMAL(3,0) column. One that is too large only shows in typeof and in the type of a result.
     // So the width is the number of digits exactly.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ParameterHasTheWidthOfItsDigits()
     {
         var power = 1m;
@@ -451,7 +434,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ParameterWithMoreDigitsThanItsColumnIsRefused()
     {
         Command.CommandText = "CREATE OR REPLACE TABLE DecimalParameterRefused (value DECIMAL(3,0));";
@@ -514,7 +496,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [InlineData("0.00", 18, 1, 18, 1)]          // zero with extra zeros after the point
     [InlineData("-79228162514264337593543950335", 38, 9, 38, 9)]     // decimal.MinValue
     [InlineData("-79228162514264337593543950335", 38, 10, 29, 0)]
-    [Trait("V2", "Ready")]
     public void DecimalIsSentWithTheParametersWidthAndScaleWhenItFits(string text, byte width, byte scale, byte sentWidth, byte sentScale)
     {
         var value = decimal.Parse(text, CultureInfo.InvariantCulture);
@@ -523,7 +504,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void NegativeZeroIsSentWithTheParametersWidthAndScale()
     {
         var negativeZero = new decimal(0, 0, 0, true, 2);
@@ -538,7 +518,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
     // A value that is too wide must still be refused, by DuckDB, after the extra zeros after its point are removed.
     [Fact]
-    [Trait("V2", "Ready")]
     public void DecimalTooWideAfterItsZerosIsRefused()
     {
         Command.CommandText = "CREATE OR REPLACE TABLE DecimalParameterTooWide (value DECIMAL(2,0));";
@@ -563,7 +542,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
     // The stored and compared values are the same whichever width and scale the value goes with.
     [Fact]
-    [Trait("V2", "Ready")]
     public void DecimalParameterKeepsItsValue()
     {
         Command.CommandText = "CREATE OR REPLACE TABLE DecimalParameterScale (value DECIMAL(18,4));";
@@ -608,7 +586,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
     // ADO.NET infers DbType.Decimal for a decimal value, and GetSchema("DataTypes") maps DECIMAL to System.Decimal.
     [Fact]
-    [Trait("V2", "Ready")]
     public void DecimalValueInfersDbTypeDecimal()
     {
         new DuckDBParameter(1.5m).DbType.Should().Be(DbType.Decimal);
@@ -619,7 +596,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [Theory]
     [InlineData(DbType.Decimal)]
     [InlineData(DbType.Currency)]
-    [Trait("V2", "Ready")]
     public void ExplicitDecimalDbTypeIsSentAsADecimalInAnyCulture(DbType dbType)
     {
         var defaultCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
@@ -653,7 +629,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
     // An integer with DbType.Decimal becomes a decimal.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ExplicitDecimalDbTypeWithAnIntegerValueIsStillSent()
     {
         Command.CommandText = "SELECT ?::DECIMAL(4,1)";
@@ -665,7 +640,6 @@ public class DecimalParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
     // An assigned DbType does not parse text. Without the DbType the text is sent whole, NUL characters included.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ExplicitDecimalDbTypeWithATextValueIsRefused()
     {
         Command.CommandText = "SELECT length(?)";

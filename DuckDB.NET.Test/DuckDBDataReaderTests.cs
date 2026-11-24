@@ -17,7 +17,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [InlineData("SELECT {'x': 1}")]
     [InlineData("SELECT [1, 2]")]
     [InlineData("SELECT MAP {'k': 1}")]
-    [Trait("V2", "Ready")]
     public void GetFieldValueOfObjectMatchesGetValue(string query)
     {
         Command.CommandText = query;
@@ -32,7 +31,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void GetFieldValueOfObjectReturnsDBNullForNull()
     {
         Command.CommandText = "SELECT NULL::INTEGER";
@@ -43,7 +41,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void GetOrdinalReturnsColumnIndex()
     {
         Command.CommandText = "CREATE TABLE GetOrdinalTests (key INTEGER, value TEXT, State Boolean)";
@@ -60,7 +57,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void GetOrdinalRepeatedColumnReturnsFirstIndex()
     {
         Command.CommandText = "CREATE TABLE GetOrdinalTests (key INTEGER, value TEXT, State Boolean)";
@@ -77,7 +73,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CloseConnectionClosesConnection()
     {
         Command.CommandText = "CREATE TABLE CloseConnectionTests (key INTEGER, value TEXT, State Boolean)";
@@ -92,7 +87,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CloseConnectionReleasesTheDatabaseBeforeTheConnectionReportsClosed()
     {
         // With CommandBehavior.CloseConnection the reader must release its statements before closing the
@@ -163,22 +157,15 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         }
     }
 
-    // The streaming cases, which V2 runs. The materialized ones are in
-    // FailedExecuteReaderClosesConnectionOnlyWithCloseConnection, for when materialized results come back.
     [Theory]
-    [InlineData("SELEC 1", CommandBehavior.CloseConnection, ConnectionState.Closed)]
-    [InlineData("SELEC 1", CommandBehavior.Default, ConnectionState.Open)]
-    [InlineData("SELECT CAST('not a number' AS INTEGER)", CommandBehavior.CloseConnection, ConnectionState.Closed)]
-    [InlineData("SELECT CAST('not a number' AS INTEGER)", CommandBehavior.Default, ConnectionState.Open)]
-    [Trait("V2", "Ready")]
-    public void FailedStreamingExecuteReaderClosesConnectionOnlyWithCloseConnection(string sql, CommandBehavior behavior, ConnectionState expectedState)
-        => FailedExecuteReaderClosesConnectionOnlyWithCloseConnection(sql, behavior, expectedState, useStreamingMode: true);
-
-    [Theory]
-    [InlineData("SELEC 1", CommandBehavior.CloseConnection, ConnectionState.Closed, false)]
-    [InlineData("SELEC 1", CommandBehavior.Default, ConnectionState.Open, false)]
-    [InlineData("SELECT CAST('not a number' AS INTEGER)", CommandBehavior.CloseConnection, ConnectionState.Closed, false)]
-    [InlineData("SELECT CAST('not a number' AS INTEGER)", CommandBehavior.Default, ConnectionState.Open, false)]
+    [InlineData("SELEC 1", CommandBehavior.CloseConnection, ConnectionState.Closed, false, Skip = V2Skip.Materialized)]
+    [InlineData("SELEC 1", CommandBehavior.Default, ConnectionState.Open, false, Skip = V2Skip.Materialized)]
+    [InlineData("SELECT CAST('not a number' AS INTEGER)", CommandBehavior.CloseConnection, ConnectionState.Closed, false, Skip = V2Skip.Materialized)]
+    [InlineData("SELECT CAST('not a number' AS INTEGER)", CommandBehavior.Default, ConnectionState.Open, false, Skip = V2Skip.Materialized)]
+    [InlineData("SELEC 1", CommandBehavior.CloseConnection, ConnectionState.Closed, true)]
+    [InlineData("SELEC 1", CommandBehavior.Default, ConnectionState.Open, true)]
+    [InlineData("SELECT CAST('not a number' AS INTEGER)", CommandBehavior.CloseConnection, ConnectionState.Closed, true)]
+    [InlineData("SELECT CAST('not a number' AS INTEGER)", CommandBehavior.Default, ConnectionState.Open, true)]
     public void FailedExecuteReaderClosesConnectionOnlyWithCloseConnection(string sql, CommandBehavior behavior, ConnectionState expectedState, bool useStreamingMode)
     {
         // Matches Npgsql: the caller handed the connection to a reader it never received.
@@ -194,7 +181,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void StreamingReadFailureClosesConnectionOnlyWhenReaderIsDisposed()
     {
         // Matches Npgsql: a failed Read() leaves the connection open, and disposing the reader closes it.
@@ -213,7 +199,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadValueBeforeReadThrowsException()
     {
         Command.CommandText = "select 24";
@@ -225,7 +210,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReaderValues()
     {
         Command.CommandText = "CREATE TABLE IndexerValuesTests (key INTEGER, value decimal, State Boolean, ErrorCode Integer, mean Float, stdev double)";
@@ -274,7 +258,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReaderEnumerator()
     {
         Command.CommandText = "select 7 union select 11 order by 1";
@@ -291,7 +274,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadIntervalValues()
     {
         Command.CommandText = "SELECT INTERVAL 1 YEAR;";
@@ -334,7 +316,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void LoadDataTable()
     {
         Command.CommandText = "select 1 as num, 'text' as str, TIMESTAMP '1992-09-20 20:38:40' as tme";
@@ -345,7 +326,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void MultipleStatementsQueryData()
     {
         Command.CommandText = "Select 1; Select 2";
@@ -365,7 +345,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void MultipleStatementsQueryDataFromAll()
     {
         Command.CommandText = "Select 1; Select 2 where 1=0; Select 3";
@@ -390,7 +369,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadManyRows()
     {
         var table = "CREATE TABLE TableForManyRows(foo INTEGER, bar VARCHAR);";
@@ -438,7 +416,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadDateAsDateTime()
     {
         Command.CommandText = "CREATE TABLE intdate(foo INTEGER, bar DATE);";
@@ -464,7 +441,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadPivotStatementResult()
     {
         Command.CommandText = "CREATE TABLE Cities(Country VARCHAR, Name VARCHAR, Year INT, Population INT);";
@@ -484,7 +460,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
     // Regression tests for https://github.com/Giorgi/DuckDB.NET/issues/358
     [Theory]
-    [InlineData(false)]
+    [InlineData(false, Skip = V2Skip.Materialized)]
     [InlineData(true)]
     public void ReadAfterEndOfResultReturnsFalse(bool useStreamingMode)
     {
@@ -505,7 +481,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Theory]
-    [InlineData(false)]
+    [InlineData(false, Skip = V2Skip.Materialized)]
     [InlineData(true)]
     public void ReadOnEmptyResultReturnsFalse(bool useStreamingMode)
     {
@@ -520,7 +496,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Theory]
-    [InlineData(false)]
+    [InlineData(false, Skip = V2Skip.Materialized)]
     [InlineData(true)]
     public void NextResultAfterReadingPastEndReturnsNextResultSet(bool useStreamingMode)
     {
@@ -540,7 +516,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void StreamingReadThrowsWhenLaterChunkFails()
     {
         // The first chunks convert fine; the error is raised only while producing a later chunk.
@@ -569,7 +544,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadInsertReturningClause()
     {
         Command.CommandText = "CREATE TABLE t2 (i INT, j INT);";
@@ -589,7 +563,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadNonQueryAsResult()
     {
         Command.CommandText = "CREATE TABLE IndexerValuesTests (key INTEGER, value decimal, State Boolean, ErrorCode Integer, mean Float, stdev double)";
@@ -600,7 +573,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadDecimalSchema()
     {
         Command.CommandText = "CREATE TABLE decimaltbl(foo decimal(10,2));";
@@ -619,7 +591,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
     [Theory]
     [InlineData(true)]
-    [InlineData(false)]
+    [InlineData(false, Skip = V2Skip.Materialized)]
     public void Repro332_SchemaTableAfterNextResult(bool streaming)
     {
         Command.CommandText = "SELECT 1 AS a, 2 AS b";
@@ -634,7 +606,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void Repro332_DataTableLoad()
     {
         Command.CommandText = "SELECT 1 AS a, 2 AS b";
@@ -648,7 +619,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadDecimalSchemaWithoutTableRow()
     {
         Command.CommandText = "CREATE TABLE decimaltbl_empty(foo decimal(10,2));";
@@ -664,14 +634,9 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         schemaTable.Rows[0]["NumericPrecision"].Should().Be(10);
     }
 
-    // The streaming case, which V2 runs; the materialized one stays below for when materialized results come back.
-    [Fact]
-    [Trait("V2", "Ready")]
-    public Task CancellingLongRunningStreamingQueryThrowsOperationCancelledException()
-        => CancellingLongRunningQueryThrowsOperationCancelledException(useStreamingMode: true);
-
     [Theory]
-    [InlineData(false)]
+    [InlineData(false, Skip = V2Skip.Materialized)]
+    [InlineData(true)]
     public async Task CancellingLongRunningQueryThrowsOperationCancelledException(bool useStreamingMode)
     {
         Command.CommandText = @"create table cnt as WITH RECURSIVE
@@ -688,14 +653,9 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         await Command.Invoking(async c => await c.ExecuteReaderAsync(source.Token)).Should().ThrowAsync<OperationCanceledException>();
     }
 
-    // The streaming case, which V2 runs; the materialized one stays below for when materialized results come back.
-    [Fact]
-    [Trait("V2", "Ready")]
-    public void CancellingLongRunningSyncStreamingQueryByTokenRegistrationThrowsOperationCanceledException()
-        => CancellingLongRunningSyncQueryByTokenRegistrationThrowsOperationCanceledException(useStreamingMode: true);
-
     [Theory]
-    [InlineData(false)]
+    [InlineData(false, Skip = V2Skip.Materialized)]
+    [InlineData(true)]
     public void CancellingLongRunningSyncQueryByTokenRegistrationThrowsOperationCanceledException(bool useStreamingMode)
     {
         Command.CommandText = @"create table cnt as WITH RECURSIVE
@@ -723,7 +683,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CancelDuringStreamingReadThrowsOperationCanceledException()
     {
         const long totalRows = 10_000_000;
@@ -750,7 +709,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadVarint()
     {
         Command.CommandText = "SELECT (-1234)::VARINT";
@@ -761,7 +719,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadBooleanAsObject()
     {
         Command.CommandText = "SELECT true, false, NULL::BOOLEAN, true";
@@ -783,7 +740,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
     // DuckDB keeps a string of up to 12 bytes inside the vector and points to a longer one.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadStringsOfDifferentLengths()
     {
         Command.CommandText = "SELECT '', 'a', repeat('x', 12), repeat('x', 13), repeat('y', 5000), 'ქართული 🦆', NULL::VARCHAR";
@@ -804,7 +760,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void GetCharsReadsLargeUtf8ValuesInUtf16Chunks()
     {
         var expected = string.Concat(Enumerable.Repeat("aéქართული😀𐐷", 2_000));
@@ -836,7 +791,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadHugeIntAsDuckDBHugeInt()
     {
         Command.CommandText = "SELECT 170141183460469231731687303715884105727::HUGEINT, (-170141183460469231731687303715884105728)::HUGEINT, (-5)::HUGEINT, " +
@@ -879,7 +833,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
     // An integer column can be read as another integer type when the value fits it.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadIntegerAsAnotherIntegerType()
     {
         Command.CommandText = "SELECT 5000000000::BIGINT AS big, (-1)::INTEGER AS negative, 300::SMALLINT AS small, 42::BIGINT AS fits";
@@ -909,7 +862,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     // lookup first. If it fails, a second case-insensitive search is made. GetOrdinal is kana-width insensitive. If the
     // index of the named field is not found, an IndexOutOfRangeException is thrown."
     [Fact]
-    [Trait("V2", "Ready")]
     public void GetOrdinalFallsBackToACaseInsensitiveMatch()
     {
         Command.CommandText = "SELECT 1 AS Id, 2 AS id, 3 AS \"Name\"";
@@ -922,7 +874,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void GetOrdinalThrowsIndexOutOfRangeForAnUnknownName()
     {
         Command.CommandText = "SELECT 1 AS Id";
@@ -935,7 +886,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     // into the buffer as an array, starting at the given buffer offset"; "If you pass a buffer that is null, GetBytes
     // returns the length of the row in bytes."
     [Fact]
-    [Trait("V2", "Ready")]
     public void GetBytesReadsABlobWholeOrInParts()
     {
         Command.CommandText = "SELECT '\\x01\\x02\\x03\\x04'::BLOB";
@@ -958,7 +908,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     // https://learn.microsoft.com/dotnet/api/system.data.idatarecord.getchars: "If you pass a buffer that is null,
     // GetChars returns the length of the field in characters."
     [Fact]
-    [Trait("V2", "Ready")]
     public void GetCharsReadsAStringWholeOrInParts()
     {
         Command.CommandText = "SELECT 'ab¢d'";
@@ -981,7 +930,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     // GetChars keeps the decoded value of its last call. Rows past 2048 are in another chunk, where the kept value
     // must not be used.
     [Fact]
-    [Trait("V2", "Ready")]
     public void GetCharsReadsEveryRowWholeInPartsAndAgain()
     {
         Command.CommandText = "SELECT CASE i % 4 WHEN 0 THEN 'row ' || i WHEN 1 THEN repeat('é', i % 50) " +
@@ -1019,7 +967,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void GetBytesAndGetCharsRejectOffsetsOutsideTheBuffer()
     {
         Command.CommandText = "SELECT '\\x01\\x02'::BLOB, 'ab'";
@@ -1038,7 +985,6 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     // Object array holds is copied to the array. You can also pass an Object array whose length is more than the
     // number of columns that are contained in the resulting row."
     [Fact]
-    [Trait("V2", "Ready")]
     public void GetValuesCopiesOnlyWhatTheArrayHolds()
     {
         Command.CommandText = "SELECT 1 AS a, 2 AS b, 3 AS c";

@@ -3,7 +3,6 @@ namespace DuckDB.NET.Test;
 public class UnnestTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
-    [Trait("V2", "Ready")]
     public void UnnestStringList()
     {
         var names = new List<string> { "Bob", "Sam" };
@@ -22,7 +21,6 @@ public class UnnestTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void UnnestStringListWithNull()
     {
         var names = new List<string> { "Bob", null, "Sam" };
@@ -41,7 +39,6 @@ public class UnnestTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void UnnestIntList()
     {
         var numbers = new List<int> { 1, 2, 3, 42 };
@@ -60,7 +57,6 @@ public class UnnestTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void UnnestLongList()
     {
         var numbers = new List<long> { 1L, 2L, long.MaxValue };
@@ -79,7 +75,6 @@ public class UnnestTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void UnnestDoubleList()
     {
         var numbers = new List<double> { 1.5, 2.5, 3.14 };
@@ -98,7 +93,6 @@ public class UnnestTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void UnnestDecimalList()
     {
         var numbers = new List<decimal> { 1.1m, 2.22m, 3.333m };
@@ -117,7 +111,6 @@ public class UnnestTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void UnnestNestedIntList()
     {
         var nested = new List<List<int>> { new() { 1, 2 }, new() { 3, 4, 5 } };

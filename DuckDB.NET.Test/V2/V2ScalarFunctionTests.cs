@@ -2,7 +2,6 @@ namespace DuckDB.NET.Test.V2;
 
 // What changed for scalar functions with the C API V2: overloads, and how a C# exception finds its command now that V2
 // has no connection id (docs/V2-MIGRATION.md, stage 5).
-[Trait("V2", "Ready")]
 public class V2ScalarFunctionTests
 {
     [Fact]

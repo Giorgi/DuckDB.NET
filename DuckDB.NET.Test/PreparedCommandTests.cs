@@ -9,7 +9,6 @@ namespace DuckDB.NET.Test;
 public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
-    [Trait("V2", "Ready")]
     public void PreparedCommandExecutesRepeatedlyWithNewValues()
     {
         using var command = Connection.CreateCommand();
@@ -25,7 +24,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void PreparedInsertAndUpdateReportAffectedRows()
     {
         Connection.ExecuteNonQuery("CREATE TABLE prepared_rows (id INTEGER, name VARCHAR)");
@@ -57,7 +55,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void PrepareReportsAnErrorInTheText()
     {
         using var command = Connection.CreateCommand();
@@ -70,7 +67,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     // and the bindings are cleared before each execution; without both, 1.5 would be converted to the BIGINT of the
     // previous value and come back as 2.
     [Fact]
-    [Trait("V2", "Ready")]
     public void UntypedParameterTakesEachValueAsItIs()
     {
         using var command = Connection.CreateCommand();
@@ -88,7 +84,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void TypedParameterConvertsEachValue()
     {
         using var command = Connection.CreateCommand();
@@ -106,7 +101,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void NamedParametersAreBoundOnEachExecution()
     {
         using var command = Connection.CreateCommand();
@@ -125,7 +119,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     // The bindings of the previous execution are cleared, so a parameter that no longer gets a value is reported,
     // instead of keeping the value it had.
     [Fact]
-    [Trait("V2", "Ready")]
     public void NamedParameterWithoutAValueIsReportedMissing()
     {
         using var command = Connection.CreateCommand();
@@ -141,7 +134,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void PrepareReportsTextWithoutAStatement()
     {
         using var command = Connection.CreateCommand();
@@ -153,7 +145,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     // A statement keeps the definitions it was prepared with; Prepare() again prepares it anew, and other commands with
     // the same text take the new statement too.
     [Fact]
-    [Trait("V2", "Ready")]
     public void PrepareAgainSeesANewViewDefinition()
     {
         Connection.ExecuteNonQuery("CREATE VIEW prepared_view AS SELECT 1 AS v");
@@ -176,7 +167,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
     // A failed Prepare() drops the kept statement, so neither command answers from a view that is gone.
     [Fact]
-    [Trait("V2", "Ready")]
     public void FailedPrepareAfterADropDoesNotKeepTheOldStatement()
     {
         Connection.ExecuteNonQuery("CREATE VIEW prepared_dropped AS SELECT 1 AS v");
@@ -199,7 +189,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     // statement again, once the other result is closed. On V2 a connection has one open result at a time, so the
     // Prepare() is refused before DuckDB is asked.
     [Fact]
-    [Trait("V2", "Ready")]
     public void PrepareThatFailsWhileAResultIsOpenIsRetried()
     {
         using var command = Connection.CreateCommand();
@@ -226,7 +215,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
     // A statement replaced while an execution holds it is destroyed when that execution gives it back.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReplacedStatementIsDestroyedWhenGivenBack()
     {
         using var command = Connection.CreateCommand();
@@ -246,7 +234,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
     // Closing the connection destroys a replaced statement that an execution still holds.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ClosingTheConnectionDestroysAReplacedStatementStillTaken()
     {
         using var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
@@ -268,7 +255,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     // Values are converted to the parameter types of the preparation, so a column altered to another type needs
     // Prepare() again; it then stores 1.75, not the 2 the old INTEGER type would give.
     [Fact]
-    [Trait("V2", "Ready")]
     public void PrepareAgainAfterAColumnChangesType()
     {
         Connection.ExecuteNonQuery("CREATE TABLE prepared_altered (v INTEGER)");
@@ -289,7 +275,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ChangingCommandTextUndoesThePreparation()
     {
         using var command = Connection.CreateCommand();
@@ -305,7 +290,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CommandsWithTheSameTextShareTheStatement()
     {
         using var first = Connection.CreateCommand();
@@ -324,7 +308,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ExecutingAgainWhileAReaderIsOpen()
     {
         using var command = Connection.CreateCommand();
@@ -346,7 +329,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void PreparedCommandInStreamingMode()
     {
         using var command = Connection.CreateCommand();
@@ -363,7 +345,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CommandOfSeveralStatementsIsPreparedOnEachExecution()
     {
         using var command = Connection.CreateCommand();
@@ -376,7 +357,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
     // DuckDB expands a dynamic PIVOT when it runs, so a prepared one still sees new values as new columns.
     [Fact]
-    [Trait("V2", "Ready")]
     public void PreparedDynamicPivotSeesNewColumns()
     {
         Connection.ExecuteNonQuery("CREATE TABLE prepared_sales (region VARCHAR, yr INTEGER, amount INTEGER); INSERT INTO prepared_sales VALUES ('a', 2020, 1), ('b', 2021, 2)");
@@ -399,7 +379,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void PreparedCommandIsPreparedAgainAfterTheConnectionReopens()
     {
         using var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
@@ -420,7 +399,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
     // CloseConnection closes the connection from the reader, which destroys the statement; the next open prepares it again.
     [Fact]
-    [Trait("V2", "Ready")]
     public void PreparedCommandWithCloseConnectionBehavior()
     {
         using var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
@@ -448,7 +426,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     // statement no longer keeps the database alive, so this passes there even without the release in Close(); it
     // stays to catch a DuckDB version where it does again.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ClosingTheConnectionReleasesTheDatabaseOfAPreparedStatement()
     {
         using var file = DisposableFile.GenerateInTemp("db");
@@ -480,7 +457,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void PreparedCommandMovedToAnotherConnection()
     {
         using var firstFile = DisposableFile.GenerateInTemp("db");
@@ -507,7 +483,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
     // A failed preparation after a reopen is raised inside the reader's constructor, which closes the connection.
     [Fact]
-    [Trait("V2", "Ready")]
     public void FailedPrepareAfterReopenStillClosesTheConnection()
     {
         using var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);
@@ -528,7 +503,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
     // While the shared statement is taken, a command with the same text prepares a statement of its own.
     [Fact]
-    [Trait("V2", "Ready")]
     public void TakenStatementFallsBackToPreparingAgain()
     {
         using var command = Connection.CreateCommand();
@@ -555,7 +529,6 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void PreparedCommandAsArrowStream()
     {
         using var command = Connection.CreateCommand();
@@ -583,7 +556,7 @@ public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
     // Two commands with the same text on two threads of one connection: one of them binds the shared statement, the
     // other prepares a statement of its own while it is taken.
-    [Fact]
+    [Fact(Skip = V2Skip.TwoThreadsOnOneConnection)]
     public void CommandsWithTheSameTextOnTwoThreads()
     {
         using var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString);

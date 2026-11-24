@@ -6,7 +6,6 @@ public class DateTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(1992, 09, 20)]
     [InlineData(2022, 05, 04)]
     [InlineData(2022, 04, 05)]
-    [Trait("V2", "Ready")]
     public void QueryScalarTest(int year, int mon, int day)
     {
         Command.CommandText = $"SELECT DATE '{year}-{mon}-{day}';";
@@ -26,7 +25,6 @@ public class DateTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(1992, 09, 20)]
     [InlineData(2022, 05, 04)]
     [InlineData(2022, 04, 05)]
-    [Trait("V2", "Ready")]
     public void BindWithCastTest(int year, int mon, int day)
     {
         var expectedValue = new DateTime(year, mon, day);
@@ -49,7 +47,6 @@ public class DateTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(1992, 09, 20)]
     [InlineData(2022, 05, 04)]
     [InlineData(2022, 04, 05)]
-    [Trait("V2", "Ready")]
     public void InsertAndQueryTest(int year, byte mon, byte day)
     {
         Command.CommandText = "CREATE TABLE DateOnlyTestTable (a INTEGER, b DATE not null, nullableDateColumn Date);";
@@ -100,7 +97,6 @@ public class DateTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(1992, 09, 20)]
     [InlineData(2022, 05, 04)]
     [InlineData(2022, 04, 05)]
-    [Trait("V2", "Ready")]
     public void BindDateOnly(int year, int mon, int day)
     {
         var expectedValue = new DateOnly(year, mon, day);
@@ -120,7 +116,6 @@ public class DateTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void BindParameterWithoutTable()
     {
         var value = Faker.Date.PastDateOnly();

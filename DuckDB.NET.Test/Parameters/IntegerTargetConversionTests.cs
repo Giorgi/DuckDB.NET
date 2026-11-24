@@ -102,7 +102,6 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // An integer value or an enum that fits is converted in .NET, so DuckDB gets the parameter's own type.
     [Theory]
     [MemberData(nameof(IntegerTargets))]
-    [Trait("V2", "Ready")]
     public void ValueThatFitsIsSentAsTheTypeOfTheParameter(Type parameterType, DuckDBType parameterDuckDBType)
     {
         foreach (var value in IntegerValues)
@@ -115,7 +114,6 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
     // Anything else goes as its own type.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ValueThatDoesNotFitIsSentAsItsOwnType()
     {
         SentType(300, typeof(sbyte), DuckDBType.TinyInt).Should().Be(DuckDBType.Integer);
@@ -127,7 +125,6 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // The limits of every integer type, one beyond them and the powers of two at the type boundaries, against every
     // integer parameter type: sent as the parameter's type exactly when the value is in its range.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ValueIsSentAsTheTypeOfTheParameterExactlyWhenItFits()
     {
         var values = new List<object>();
@@ -162,7 +159,6 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // Some function arguments take only the exact type, so a long is narrowed to the INTEGER that lpad reports. A
     // value that is not an integer goes as its own type, and such an argument does not bind with it.
     [Fact]
-    [Trait("V2", "Ready")]
     public void FunctionArgumentTakesAnIntegerThatFits()
     {
         Command.CommandText = "SELECT lpad('2', $1, '0');";
@@ -177,7 +173,6 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
     [Theory]
     [MemberData(nameof(IntegerColumns))]
-    [Trait("V2", "Ready")]
     public void EveryIntegerTypeIntoEveryIntegerColumn(string columnType)
     {
         foreach (var value in IntegerValues)
@@ -197,7 +192,6 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     [InlineData("UINTEGER", "0", "4294967295")]
     [InlineData("UBIGINT", "0", "18446744073709551615")]
     [InlineData("UHUGEINT", "0", "340282366920938463463374607431768211455")]
-    [Trait("V2", "Ready")]
     public void TheLimitsOfEachTypeFitAndOneBeyondIsRefused(string columnType, string minimum, string maximum)
     {
         var min = BigInteger.Parse(minimum);
@@ -212,7 +206,6 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // Beyond 128 bits a BigInteger goes as a BIGNUM. DuckDB 2.0.0 cast a BIGNUM to an integer type by its low bits, so
     // 2^128 + 1 was stored as 1; DuckDB 2.0.1 refuses it.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ValuesBeyond128BitsAreRefused()
     {
         var two128 = BigInteger.Pow(2, 128);
@@ -244,7 +237,6 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ValuesThatDoNotFitAreRefusedByDuckDB()
     {
         InsertFails("TINYINT", 300);
@@ -263,7 +255,6 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ValueThatDoesNotFitIsComparedAsItsOwnType()
     {
         Where("TINYINT", 300).Should().Be("none");
@@ -274,7 +265,6 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
     // A list item is converted with the type of the list's items, by the same rules.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListItemsFollowTheSameRules()
     {
         Command.CommandText = "CREATE OR REPLACE TABLE IntegerTargetListTests (v INTEGER[]);";
@@ -294,7 +284,6 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void FractionsAreCastByDuckDB()
     {
         Insert("INTEGER", 1.5d).Should().Be("2");
@@ -310,7 +299,6 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void FractionInAComparisonIsNotRounded()
     {
         Where("INTEGER", 1.5d).Should().Be("none");
@@ -320,7 +308,6 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void StringCharAndBooleanInAComparisonAreCastByDuckDB()
     {
         Where("INTEGER", "2").Should().Be("2");
@@ -332,7 +319,6 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void StringsAreParsedByDuckDB()
     {
         Insert("INTEGER", "42").Should().Be("42");
@@ -344,7 +330,6 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void BooleanIsCastByDuckDB()
     {
         Insert("INTEGER", true).Should().Be("1");
@@ -352,7 +337,6 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CharIsSentAsText()
     {
         Insert("INTEGER", '5').Should().Be("5");
@@ -361,7 +345,6 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void EnumIsSentAsItsNumber()
     {
         Insert("INTEGER", DayOfWeek.Friday).Should().Be("5");
@@ -371,7 +354,6 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void OtherTypesAreRefusedByDuckDB()
     {
         InsertFails("INTEGER", new DateTime(2026, 11, 5));
@@ -381,7 +363,6 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // A BigInteger is not sent as text any more; before, it went as text in the current culture, and sv-SE's "−5"
     // (U+2212) was refused. The text fallback itself is pinned by the next test.
     [Fact]
-    [Trait("V2", "Ready")]
     public void NegativeBigIntegerIsNotSentAsCultureText()
     {
         var previous = CultureInfo.CurrentCulture;
@@ -405,7 +386,6 @@ public class IntegerTargetConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     [Theory]
     [InlineData("de-DE")]
     [InlineData("sv-SE")]
-    [Trait("V2", "Ready")]
     public void TextFallbackDoesNotDependOnTheCurrentCulture(string culture)
     {
         var previous = CultureInfo.CurrentCulture;

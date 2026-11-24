@@ -3,7 +3,6 @@
 public class ExplicitCastTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
-    [Trait("V2", "Ready")]
     public void CastWithFunction()
     {
         using var command = Connection.CreateCommand();
@@ -15,7 +14,6 @@ public class ExplicitCastTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CastWithExplicitCastToTimestamp()
     {
         using var command = Connection.CreateCommand();
@@ -27,7 +25,6 @@ public class ExplicitCastTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CastWithExplicitCastFromInt()
     {
         using var command = Connection.CreateCommand();
@@ -40,7 +37,6 @@ public class ExplicitCastTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CastWithExplicitCastToInt()
     {
         using var command = Connection.CreateCommand();
@@ -53,7 +49,6 @@ public class ExplicitCastTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CastWithExplicitCastToIntWrong()
     {
         using var command = Connection.CreateCommand();

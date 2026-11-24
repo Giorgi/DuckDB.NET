@@ -3,7 +3,6 @@
 public class DuckDBCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
-    [Trait("V2", "Ready")]
     public void SetCommandText()
     {
         var cmd = new DuckDBCommand("Select 1");
@@ -11,7 +10,6 @@ public class DuckDBCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SetCommandTextAndConnection()
     {
         var cmd = new DuckDBCommand("Select 1", Connection);
@@ -22,7 +20,6 @@ public class DuckDBCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
     // https://learn.microsoft.com/dotnet/api/system.data.idbcommand.commandtype: "The default is Text."
     [Fact]
-    [Trait("V2", "Ready")]
     public void CommandTypeDefaultsToText()
     {
         new DuckDBCommand().CommandType.Should().Be(CommandType.Text);
@@ -31,7 +28,6 @@ public class DuckDBCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     // https://learn.microsoft.com/dotnet/api/system.data.idbcommand.prepare, Exceptions: InvalidOperationException,
     // "The Connection is not set. -or- The Connection is not Open()."
     [Fact]
-    [Trait("V2", "Ready")]
     public void PrepareThrowsWithoutAnOpenConnection()
     {
         new DuckDBCommand("SELECT 1").Invoking(c => c.Prepare()).Should().Throw<InvalidOperationException>();

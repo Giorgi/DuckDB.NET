@@ -20,7 +20,6 @@ public class EnumWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    [Trait("V2", "Ready")]
     public void AnEnumIsStoredAsThePositionOfAName(bool boxed)
     {
         StoresThreeNames(boxed, SByteEnum.First, SByteEnum.Second, SByteEnum.Third);
@@ -36,7 +35,6 @@ public class EnumWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    [Trait("V2", "Ready")]
     public void ANumberWithoutANameIsRefused(bool boxed)
     {
         IsRefused(boxed, SByteEnum.PastTheEnd, SByteEnum.Negative, SByteEnum.Max);
@@ -51,7 +49,6 @@ public class EnumWriteConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
 
     // An enum is written to an ENUM column only. The message names System.Enum, whichever enum it was.
     [Fact]
-    [Trait("V2", "Ready")]
     public void AnEnumIsRefusedByAColumnThatIsNotAnEnum()
     {
         Connection.ExecuteNonQuery("CREATE OR REPLACE TABLE enumIntoInteger (value INTEGER)");

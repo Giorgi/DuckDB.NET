@@ -8,7 +8,6 @@ namespace DuckDB.NET.Test.V2;
 // The writers on V2 vectors, before the appender and the functions use them: each test writes one column of a data
 // chunk created through V2 and reads it back with the V2 readers. A round trip cannot catch a constant that is wrong
 // in both directions; the writer tests that compare with DuckDB do that once the appender is on V2.
-[Trait("V2", "Ready")]
 public unsafe class V2WriterTests
 {
     [Fact]

@@ -10,7 +10,6 @@ namespace DuckDB.NET.Test.V2;
 // Stage 5 depends on a scalar function's bind callback running on the thread that executes the statement, so it can
 // find the executing connection in a [ThreadStatic] and hand its exception slot to the exec callbacks as bind data.
 // These tests check that with the raw V2 API before anything is built on it.
-[Trait("V2", "Ready")]
 public unsafe class V2ScalarBindProbeTests
 {
     private sealed class Slot

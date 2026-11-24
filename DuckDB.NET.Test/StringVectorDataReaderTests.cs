@@ -7,7 +7,6 @@ namespace DuckDB.NET.Test;
 public class StringVectorDataReaderTests
 {
     [Fact]
-    [Trait("V2", "Ready")]
     public void CountUtf16CharsCountsEveryScalarValue()
     {
         var all = new StringBuilder();
@@ -28,7 +27,6 @@ public class StringVectorDataReaderTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CountUtf16CharsCountsMixedTextOfEveryLengthAtEveryAlignment()
     {
         string[] pieces = ["a", "\u007f", "é", "߿", "ࠀ", "ქ", "￿", "\U00010000", "\U0001F986", "\U0010FFFF"];

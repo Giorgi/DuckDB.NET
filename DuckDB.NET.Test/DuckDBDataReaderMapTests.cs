@@ -3,7 +3,6 @@
 public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadMap()
     {
         Command.CommandText = "SELECT MAP { 'key1': 1, 'key2': 5, 'key3': 7 }";
@@ -20,7 +19,6 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadMapTwoRows()
     {
         Command.CommandText = "Select * from (SELECT MAP { 'key1': 1, 'key2': 5, 'key3': 7 } Union SELECT MAP { 'key2': 15, 'key24': 7 }) order by 1";
@@ -43,7 +41,6 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadMapStronglyTyped()
     {
         Command.CommandText = "SELECT MAP { 'key1': 1, 'key2': 5, 'key3': 7 }";
@@ -57,7 +54,6 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadMapAsObjectDictionaryIsNotSupported()
     {
         Command.CommandText = "SELECT MAP { 'key1': 1, 'key2': 5, 'key3': 7 }";
@@ -69,7 +65,6 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadMapOfTimestampsAsProviderSpecificValue()
     {
         Command.CommandText = "SELECT MAP { 'key1': TIMESTAMP '2024-05-05 12:00:30' }";
@@ -82,7 +77,6 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadMapWithNullInNullableDictionary()
     {
         Command.CommandText = "SELECT MAP { 'key1': 1, 'key2': NULL, 'key3': 7 }";
@@ -96,7 +90,6 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadMapWithNullInReferenceTypeDictionary()
     {
         Command.CommandText = "SELECT MAP { 'key1': 'abc', 'key2': NULL, 'key3': 'ghi' }";
@@ -110,7 +103,6 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadMapWithNullInNotNullableDictionaryThrowsException()
     {
         Command.CommandText = "SELECT MAP { 'key1': 1, 'key2': NULL, 'key3': 7 }";
@@ -121,7 +113,6 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadMapOfList()
     {
         Command.CommandText = "SELECT MAP { ['a', 'b']: [1.1, 2.2], ['c', 'd']: [3.3, 4.4] };";
@@ -144,7 +135,6 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadMapWrongTypeThrowsException()
     {
         Command.CommandText = "SELECT MAP { ['a', 'b']: [1.1, 2.2], ['c', 'd']: [3.3, 4.4] };";
@@ -156,7 +146,6 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadMapIntoATypeThatCannotHoldItIsRefused()
     {
         Command.CommandText = "SELECT MAP {'a': 1}";
@@ -177,7 +166,6 @@ public class DuckDBDataReaderMapTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void GetEmptyMapType()
     {
         Command.CommandText = "CREATE TABLE tbl (col MAP(INTEGER, DOUBLE));";

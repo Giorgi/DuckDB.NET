@@ -5,7 +5,6 @@ namespace DuckDB.NET.Test;
 public class ExecuteNonQueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
-    [Trait("V2", "Ready")]
     public void TableQueryTest()
     {
         Command.CommandText = "CREATE TABLE users (id INTEGER, name TEXT);";
@@ -21,7 +20,6 @@ public class ExecuteNonQueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ExecuteQueryWithUnicodeText()
     {
         var words = new List<string> { "张三", "李四", "王五", "გიორგი" };
@@ -53,7 +51,6 @@ public class ExecuteNonQueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData("SELECT 42")]
     [InlineData("CREATE TABLE minus_one (id INTEGER)")]
     [InlineData("SET threads = 1")]
-    [Trait("V2", "Ready")]
     public async Task NonDmlStatementsReturnMinusOne(string sql)
     {
         Command.CommandText = sql;
@@ -64,7 +61,6 @@ public class ExecuteNonQueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void DmlStatementsReturnTheirRowCountIncludingZero()
     {
         Command.CommandText = "CREATE TABLE counted (id INTEGER); INSERT INTO counted VALUES (1), (2), (3);";
@@ -78,7 +74,6 @@ public class ExecuteNonQueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void MergeReportsItsRowCount()
     {
         Command.CommandText = "CREATE TABLE merge_counted (id INTEGER, name VARCHAR); INSERT INTO merge_counted VALUES (1, 'old');";
@@ -89,7 +84,6 @@ public class ExecuteNonQueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CopyReportsItsRowCount()
     {
         using var file = DisposableFile.GenerateInTemp("csv");
@@ -101,7 +95,7 @@ public class ExecuteNonQueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Theory]
-    [InlineData(false)]
+    [InlineData(false, Skip = V2Skip.Materialized)]
     [InlineData(true)]
     public void ReturningReportsItsRowCount(bool useStreamingMode)
     {
@@ -127,7 +121,6 @@ public class ExecuteNonQueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     // https://learn.microsoft.com/dotnet/api/system.data.common.dbdatareader.recordsaffected:
     // "The number of rows changed, inserted, or deleted. -1 for SELECT statements; 0 if no rows were affected"
     [Fact]
-    [Trait("V2", "Ready")]
     public void RecordsAffectedCountsDmlRunThroughExecuteReader()
     {
         Command.CommandText = "CREATE TABLE through_reader (id INTEGER); INSERT INTO through_reader VALUES (1), (2);";

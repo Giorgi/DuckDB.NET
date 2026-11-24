@@ -9,7 +9,6 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(12, 15, 17, 350_300)]
     [InlineData(12, 17, 15, 450_500)]
     [InlineData(18, 15, 17, 125_700)]
-    [Trait("V2", "Ready")]
     public void QueryScalarTest(int hour, int minute, int second, int microsecond)
     {
         Command.CommandText = $"SELECT TIME '{hour}:{minute}:{second}.{microsecond:000000}';";
@@ -33,7 +32,6 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(12, 15, 17, 350_300)]
     [InlineData(12, 17, 15, 450_500)]
     [InlineData(18, 15, 17, 125_700)]
-    [Trait("V2", "Ready")]
     public void BindWithCastTest(int hour, int minute, int second, int microsecond)
     {
         var expectedValue = new DateTime(DateTime.MinValue.Year, DateTime.MinValue.Month, DateTime.MinValue.Day,
@@ -67,7 +65,6 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(12, 15, 17, 350_300)]
     [InlineData(12, 17, 15, 450_500)]
     [InlineData(18, 15, 17, 125_700)]
-    [Trait("V2", "Ready")]
     public void InsertAndQueryTest(byte hour, byte minute, byte second, int microsecond)
     {
         var expectedValue = new DateTime(DateTime.MinValue.Year, DateTime.MinValue.Month, DateTime.MinValue.Day,
@@ -124,7 +121,6 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(12, 15, 17, 350_300, 0, 30)]
     [InlineData(12, 17, 15, 450_500, 2, 45)]
     [InlineData(18, 15, 17, 125_700, 4, 30)]
-    [Trait("V2", "Ready")]
     public void QueryTimeTzScalarTest(int hour, int minute, int second, int microsecond, int offsetHours, int offsetMinutes)
     {
         Command.CommandText = $"SELECT TIMETZ '{hour}:{minute}:{second}.{microsecond:000000}{offsetHours:00+##;00-##;}:{offsetMinutes:00}';";
@@ -152,7 +148,6 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(12, 15, 17, 350_300, 0, 30)]
     [InlineData(12, 17, 15, 450_500, 2, 45)]
     [InlineData(18, 15, 17, 125_700, 4, 30)]
-    [Trait("V2", "Ready")]
     public void QueryTimeTzReaderTest(int hour, int minute, int second, int microsecond, int offsetHours, int offsetMinutes)
     {
         Command.CommandText = $"SELECT TIMETZ '{hour}:{minute}:{second}.{microsecond:000000}{offsetHours:00+##;00-##;}:{offsetMinutes:00}';";
@@ -192,7 +187,6 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(12, 15, 17, 350_300)]
     [InlineData(12, 17, 15, 450_500)]
     [InlineData(18, 15, 17, 125_700)]
-    [Trait("V2", "Ready")]
     public void BindTimeOnly(int hour, int minute, int second, int microsecond)
     {
         var expectedValue = new TimeOnly(hour, minute, second,0).Add(TimeSpan.FromMicroseconds(microsecond));
@@ -214,7 +208,6 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void BindParameterWithoutTable()
     {
         var value = TimestampTests.Trim(Faker.Date.RecentTimeOnly(), TimeSpan.FromTicks(100).Ticks);
@@ -234,7 +227,6 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Theory]
     [InlineData(24, 0, 0, 0, "24:00:00", 86_400)]
     [InlineData(0, 0, 0, 300_000_000, "00:05:00", 300)]
-    [Trait("V2", "Ready")]
     public void DuckDBTimeOnlyPartsAreAddedUpForATimeParameter(byte hour, byte minute, byte second, int microsecond, string expected, int expectedSeconds)
     {
         var value = new DuckDBTimeOnly(hour, minute, second, microsecond);
@@ -269,7 +261,6 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     // An hour above 127, which no time has, stays positive here; DuckDB's duckdb_to_time would read it as a negative
     // int8_t. Kept as it adds up: 200 hours.
     [Fact]
-    [Trait("V2", "Ready")]
     public void DuckDBTimeOnlyHourAbove127IsAddedUpAsItIs()
     {
         Command.CommandText = "SELECT ?::TIME";
@@ -292,7 +283,6 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData("12:00:00-14", 12, 0, -14, 0)]
     [InlineData("23:59:00-01", 23, 59, -1, 0)]
     [InlineData("12:00:00+05:30", 12, 0, 5, 30)]
-    [Trait("V2", "Ready")]
     public void TimeWithATimeZoneIsReadOnTheSecondDay(string value, int hour, int minute, int offsetHours, int offsetMinutes)
     {
         Command.CommandText = $"SELECT '{value}'::TIMETZ, ['{value}'::TIMETZ]";
@@ -315,7 +305,6 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
     // The latest time DuckDB has is the end of the day, which is the start of the third day.
     [Fact]
-    [Trait("V2", "Ready")]
     public void TimeWithATimeZoneAtTheEndOfTheDay()
     {
         Command.CommandText = "SELECT '24:00:00+00'::TIMETZ";
@@ -329,7 +318,6 @@ public class TimeTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData("12:00:00+14:01", typeof(ArgumentOutOfRangeException), 50460)]
     [InlineData("12:00:00+00:00:30", typeof(ArgumentException), 30)]
     [InlineData("12:00:00-15:59:59", typeof(ArgumentException), -57599)]
-    [Trait("V2", "Ready")]
     public void TimeWithAnOffsetThatDateTimeOffsetDoesNotHave(string value, Type exception, int offsetSeconds)
     {
         Command.CommandText = $"SELECT '{value}'::TIMETZ";

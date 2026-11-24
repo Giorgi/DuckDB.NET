@@ -7,7 +7,6 @@ namespace DuckDB.NET.Test;
 // GetFieldValue<T>, a NULL item is null in a list of a nullable type and refused in the others, and a List<T> is
 // created at its size. The queries have 3,000 rows, so that the second chunk is read too, and each row also
 // selects the two items as columns, to compare a list item with the read of a column.
-[Trait("V2", "Ready")]
 public class ListReadAllElementTypesTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     private const int Rows = 3000;
@@ -66,7 +65,6 @@ public class ListReadAllElementTypesTests(DuckDBDatabaseFixture db) : DuckDBTest
     [Fact] public void BitStringsAsString() => ReadsReferenceLists<string>("BIT", "('1' || ({0} % 2)::VARCHAR || '01')::BIT", value => value);
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void Enums()
     {
         Command.CommandText = "CREATE TYPE fruit AS ENUM ('Apple', 'Pear', 'Plum')";
@@ -84,7 +82,6 @@ public class ListReadAllElementTypesTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CapacityIsTheNumberOfItems()
     {
         Command.CommandText = "SELECT range(17)::INTEGER[], range(17)::BIGINT[], [CAST(i AS VARCHAR) FOR i IN range(17)], range(17)::INTEGER[17] AS fixed_size";
@@ -107,7 +104,6 @@ public class ListReadAllElementTypesTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void NestedLists()
     {
         Command.CommandText = $"SELECT [[i, NULL], NULL, [i + 1]]::INTEGER[][] AS l, [['a' || i], [NULL]] AS s FROM range({Rows}) t(i) ORDER BY i";
@@ -137,7 +133,6 @@ public class ListReadAllElementTypesTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ClassesDerivedFromList()
     {
         Command.CommandText = $"SELECT [i, NULL, i + 1]::INTEGER[] AS l, ['a' || i, NULL] AS s FROM range({Rows}) t(i) ORDER BY i";
@@ -168,7 +163,6 @@ public class ListReadAllElementTypesTests(DuckDBDatabaseFixture db) : DuckDBTest
 
     // Reads that the object path refused and the typed path, the one of GetFieldValue<T> on a column, allows.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ItemsConvertAsAColumnDoes()
     {
         Command.CommandText = "CREATE TYPE fruit_index AS ENUM ('Apple', 'Pear', 'Plum')";
@@ -189,7 +183,6 @@ public class ListReadAllElementTypesTests(DuckDBDatabaseFixture db) : DuckDBTest
     // An item of a type that the column cannot be read as throws InvalidCastException, as a column does. The object
     // path added the wrong value to the list, which threw ArgumentException.
     [Fact]
-    [Trait("V2", "Ready")]
     public void AnItemOfTheWrongTypeThrowsInvalidCastException()
     {
         Command.CommandText = "SELECT ['a']::VARCHAR[], [true]::BOOLEAN[], [DATE '2000-01-01'], [1.5]::DECIMAL(18,1)[], [INTERVAL 1 DAY], [1, 2]::HUGEINT[]";

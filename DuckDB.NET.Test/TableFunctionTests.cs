@@ -7,7 +7,6 @@ namespace DuckDB.NET.Test;
 public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterTableFunctionWithNoParameters()
     {
         Connection.RegisterTableFunction("answer", () =>
@@ -26,7 +25,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterTableFunctionWithOneParameter()
     {
         Connection.RegisterTableFunction<int>("demo", parameters =>
@@ -47,7 +45,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterTableFunctionWithTwoParameterTwoColumns()
     {
         var count = 50;
@@ -76,7 +73,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterTableFunctionWithThreeParameters()
     {
         var count = 30;
@@ -106,7 +102,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterTableFunctionWithFourParameters()
     {
         var guid = Guid.NewGuid();
@@ -136,7 +131,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterTableFunctionWithDecimalCultureInvariantParameters()
     {
         var currentCulture = Thread.CurrentThread.CurrentCulture;
@@ -173,7 +167,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterTableFunctionWithEmptyResult()
     {
         Connection.RegisterTableFunction<sbyte, ushort, uint, ulong, float>("demo5", parameters =>
@@ -205,7 +198,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterTableFunctionWithBigInteger()
     {
         Connection.RegisterTableFunction<BigInteger, TimeSpan>("demo6", parameters =>
@@ -230,7 +222,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterTableFunctionWithErrors()
     {
         Connection.RegisterTableFunction<string>("bind_err", _ => throw new Exception("bind_err_msg"), (_, _, _) =>
@@ -248,7 +239,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterTableFunctionWithNullParameter()
     {
         Connection.RegisterTableFunction<int>("nullParam", parameters =>
@@ -270,7 +260,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterTableFunctionWithNullableParameterType()
     {
         Connection.RegisterTableFunction<int?>("nullableParam", parameters =>
@@ -293,7 +282,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterFunctionWithDateOnlyTimeOnlyParameters()
     {
         Connection.RegisterTableFunction<DateOnly, TimeOnly>("demo7", parameters =>
@@ -318,7 +306,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterFunctionWithDuckDBDateOnlyTimeOnlyParametersAndColumns()
     {
         Connection.RegisterTableFunction<DuckDBDateOnly, DuckDBTimeOnly>("duckdb_date_time_rows", parameters =>
@@ -354,7 +341,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterTableFunctionWithExplicitTimestampTypes()
     {
         Connection.RegisterTableFunction("demo_explicit_timestamps",
@@ -408,7 +394,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterTableFunctionWithTimeTzParameter()
     {
         Connection.RegisterTableFunction("demo_timetz",
@@ -442,7 +427,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void TableFunctionBindError_PreservesInnerException()
     {
         var originalException = new InvalidOperationException("custom bind error");
@@ -459,7 +443,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void TableFunctionMapError_PreservesInnerException()
     {
         var originalException = new NotSupportedException("custom map error");
@@ -481,7 +464,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Theory]
     [InlineData(100, false, "card_estimated")]
     [InlineData(50, true, "card_exact")]
-    [Trait("V2", "Ready")]
     public void RegisterTableFunctionWithCardinality(int count, bool isExact, string funcName)
     {
         var expectedData = Enumerable.Range(0, count).ToList();
@@ -504,7 +486,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Theory]
     [InlineData(42, false, "plan_estimated")]
     [InlineData(50, true, "plan_exact")]
-    [Trait("V2", "Ready")]
     public void RegisterTableFunctionWithCardinality_AppearsInQueryPlan(int cardinality, bool isExact, string funcName)
     {
         Connection.RegisterTableFunction(funcName, _ =>
@@ -531,7 +512,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     // A function that gives no number of rows: for a collection DuckDB is told its count, as an estimate. A number
     // that the function gives itself is passed on as it is.
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterTableFunctionOverACollection_CountAppearsInQueryPlan()
     {
         var rows = Enumerable.Range(0, 1234).ToArray();
@@ -617,7 +597,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterTableFunctionWithListColumn()
     {
         var sourceData = new List<List<int>>
@@ -659,7 +638,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterTableFunctionWithListColumn_ListHasAny()
     {
         var sourceData = new List<List<int>>
@@ -686,7 +664,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterTableFunctionWithNestedListColumn()
     {
         var sourceData = new List<List<List<int?>>>
@@ -732,7 +709,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     ];
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ProjectionPushdown_LegacyData_PrunedColumn()
     {
         Connection.RegisterTableFunction("pp_legacy_prune", () =>
@@ -755,7 +731,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ProjectionPushdown_LegacyData_Reordered()
     {
         Connection.RegisterTableFunction("pp_legacy_reorder", () =>
@@ -793,7 +768,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ProjectionPushdown_LegacyData_CountStar()
     {
         Connection.RegisterTableFunction("pp_legacy_count", () =>
@@ -814,7 +788,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ProjectionPushdown_Factory_Identity()
     {
         IReadOnlyList<ProjectedColumn> captured = null;
@@ -848,7 +821,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ProjectionPushdown_Factory_Pruned()
     {
         IReadOnlyList<ProjectedColumn> captured = null;
@@ -883,7 +855,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ProjectionPushdown_Factory_Reordered()
     {
         IReadOnlyList<ProjectedColumn> captured = null;
@@ -918,7 +889,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ProjectionPushdown_Factory_CountStar()
     {
         IReadOnlyList<ProjectedColumn> captured = null;
@@ -949,7 +919,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ProjectionPushdown_Factory_ThrowsInInit_PreservesInnerException()
     {
         var originalException = new InvalidOperationException("custom factory error");
@@ -969,7 +938,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ProjectionPushdown_Probe_DuplicateSelection()
     {
         IReadOnlyList<ProjectedColumn> captured = null;
@@ -1018,7 +986,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData("pp_probe_c", "SELECT salary, id, name FROM pp_probe_c();",         new[] { 2, 0, 1 })]
     [InlineData("pp_probe_d", "SELECT name, id FROM pp_probe_d();",                 new[] { 1, 0 })]
     [InlineData("pp_probe_e", "SELECT salary FROM pp_probe_e();",                   new[] { 2 })]
-    [Trait("V2", "Ready")]
     public void ProjectionPushdown_Probe_IndicesReflectSelectOrder(string funcName, string query, int[] expectedIndices)
     {
         IReadOnlyList<ProjectedColumn> captured = null;
@@ -1052,7 +1019,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ProjectionPushdown_LegacyData_ListColumnPruned()
     {
         var callCount = 0;
@@ -1083,7 +1049,6 @@ public class TableFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterTableFunctionReadsATimestampTzParameterAsDateTimeOffset()
     {
         Connection.RegisterTableFunction("instant_low_level", parameters =>

@@ -3,7 +3,6 @@ namespace DuckDB.NET.Test;
 public class QueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
-    [Trait("V2", "Ready")]
     public void QueryTest()
     {
         var result = NativeMethods.Startup.DuckDBOpen((string)null, out var database);
@@ -64,7 +63,6 @@ public class QueryTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public unsafe void ChunkTest()
     {
         var result = NativeMethods.Startup.DuckDBOpen((string)null, out var database);

@@ -15,7 +15,6 @@ public class DuckDBDataReaderEnumTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SelectEnumValues()
     {
         Command.CommandText = "Select * from person order by name desc";
@@ -39,7 +38,6 @@ public class DuckDBDataReaderEnumTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SelectEnumList()
     {
         Command.CommandText = "Select ['happy'::mood, 'ok'::mood]";
@@ -51,7 +49,6 @@ public class DuckDBDataReaderEnumTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SelectEnumValuesAsNullable()
     {
         Command.CommandText = "Select * from person order by name desc";
@@ -73,7 +70,6 @@ public class DuckDBDataReaderEnumTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SelectEnumValuesAsString()
     {
         Command.CommandText = "Select * from person order by name desc";
@@ -92,7 +88,6 @@ public class DuckDBDataReaderEnumTests : DuckDBTestBase
     // stored value then read past it: a decimal or a Guid was made of whatever lay next to the value in memory,
     // and a reference type such as byte[] ended the process.
     [Fact]
-    [Trait("V2", "Ready")]
     public void EnumReadsAsACSharpEnumOfAnySize()
     {
         Command.CommandText = "SELECT 'happy'::mood, 'sad'::mood";
@@ -111,7 +106,6 @@ public class DuckDBDataReaderEnumTests : DuckDBTestBase
 
     // An integer type gives the position of the value in the list of names of the enum, counted from zero.
     [Fact]
-    [Trait("V2", "Ready")]
     public void EnumReadsAsItsPositionForAnIntegerType()
     {
         Command.CommandText = "SELECT 'happy'::mood, 'sad'::mood";
@@ -132,7 +126,6 @@ public class DuckDBDataReaderEnumTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void EnumPositionThatDoesNotFitTheIntegerTypeThrows()
     {
         var names = string.Join(", ", Enumerable.Range(0, 300).Select(i => $"'v{i}'"));
@@ -152,7 +145,6 @@ public class DuckDBDataReaderEnumTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void EnumReadAsAnUnsupportedTypeThrows()
     {
         Command.CommandText = "SELECT 'happy'::mood AS c";

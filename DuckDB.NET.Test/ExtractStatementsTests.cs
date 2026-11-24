@@ -3,7 +3,6 @@
 public class ExtractStatementsTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
-    [Trait("V2", "Ready")]
     public void MultipleInsertsIntoTable()
     {
         Command.CommandText = "CREATE TABLE Test(foo INTEGER, bar INTEGER);";
@@ -25,7 +24,6 @@ public class ExtractStatementsTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void WrongCommandThrowsException()
     {
         Command.CommandText = "SELECT FROM";
@@ -36,7 +34,6 @@ public class ExtractStatementsTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void NotExistingTableThrowsException()
     {
         Command.CommandText = "Select 2; Select 1 from dummy";
@@ -46,7 +43,6 @@ public class ExtractStatementsTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void MissingParametersThrowsException()
     {
         Command.CommandText = "Select ?1::integer; Select ?1::integer, ?2::integer";

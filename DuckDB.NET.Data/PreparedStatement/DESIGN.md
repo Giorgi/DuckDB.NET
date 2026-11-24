@@ -48,7 +48,7 @@ rent, retire and return), but the native calls they name are V1's. What is diffe
   `InvalidOperationException`, as for any other command. So is executing on two threads of one connection at once:
   whichever comes second while the other's result is open is refused. With V1 both ran. The rent and the fallback to
   an unprepared execution are kept, but a command can no longer reach the fallback, because the second execution is
-  refused first; `CommandsWithTheSameTextOnTwoThreads` fails for that reason and is not marked V2-ready.
+  refused first; `CommandsWithTheSameTextOnTwoThreads` fails for that reason and is skipped (`V2Skip.TwoThreadsOnOneConnection`).
 
 ## How a command executes
 

@@ -9,7 +9,7 @@ public class MemoryTestsCollection;
 [Collection(nameof(MemoryTestsCollection))]
 public class DuckDBDataReaderMemoryTests
 {
-    [Fact]
+    [Fact(Skip = V2Skip.Materialized)]
     public void NextResultReleasesPreviousResult()
     {
         // Each skipped result holds 2,000,000 BIGINT rows (about 16 MB), so a leak grows the process by

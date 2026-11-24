@@ -5,7 +5,6 @@ namespace DuckDB.NET.Test;
 public class DuckDBBitStringReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadBitString()
     {
         Command.CommandText = "SELECT bitstring('0101011', 12)";
@@ -22,7 +21,6 @@ public class DuckDBBitStringReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadBitStringAsBitArray()
     {
         Command.CommandText = "SELECT bitstring('0101011', 12)";
@@ -38,7 +36,6 @@ public class DuckDBBitStringReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
 
     // Each of these reads used to call itself until the stack overflowed, which ends the process.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadBitStringAsUnsupportedTypeThrows()
     {
         Command.CommandText = "SELECT '101'::BIT";

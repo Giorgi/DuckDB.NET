@@ -9,7 +9,6 @@ public class DuckDBDataReaderNestedListTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadNestedListOfIntegers()
     {
         Command.CommandText = "SELECT [[1,2,3], [4,5], [6]];";
@@ -20,7 +19,6 @@ public class DuckDBDataReaderNestedListTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadNestedListOfIntegersAsValue()
     {
         Command.CommandText = "SELECT [[1,2,3], [4,5], [6]];";
@@ -31,7 +29,6 @@ public class DuckDBDataReaderNestedListTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadNestedListOfIntegersWithNulls()
     {
         Command.CommandText = "SELECT [[1,2,3], [4, NULL, 5], [6], NULL];";
@@ -42,7 +39,6 @@ public class DuckDBDataReaderNestedListTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadNestedListOfEnums()
     {
         Command.CommandText = "SELECT [['happy'::mood, 'ok'::mood], NULL, ['ok'::mood, NULL::mood, 'happy'::mood]] order by 1";
@@ -59,7 +55,6 @@ public class DuckDBDataReaderNestedListTests : DuckDBTestBase
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadNestedListOfEnumsAsValue()
     {
         Command.CommandText = "SELECT [['happy'::mood, 'ok'::mood], NULL, ['ok'::mood, NULL::mood, 'happy'::mood]] order by 1";

@@ -159,15 +159,10 @@ jobs:
 
     # nightly-vnext is being migrated to DuckDB's C API V2 (docs/V2-MIGRATION.md). Until the migration is done it runs
     # only the tests that the finished stages have enabled, marked [Trait("V2", "Ready")].
-    - name: Select the tests the V2 migration has enabled
-      if: github.ref_name == 'nightly-vnext' || github.head_ref == 'nightly-vnext'
-      shell: bash
-      run: echo "V2TestFilter=V2=Ready" >> "$GITHUB_ENV"
-
-    - name: Run tests (DuckDB ${{ env.DuckDBVersion }}, connection stress tests ${{ env.TestFilter && 'skipped' || 'included' }}${{ env.V2TestFilter && ', V2-ready tests only' || '' }})
+    - name: Run tests (DuckDB ${{ env.DuckDBVersion }}, connection stress tests ${{ env.TestFilter && 'skipped' || 'included' }})
       env:
         CoverletOutputFormat: lcov
-      run: dotnet test --configuration Release --verbosity normal --logger "GitHubActions;summary-include-passed=false;summary-include-skipped=false" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:BuildType=Full /p:DoesNotReturnAttribute="DoesNotReturnAttribute" ${{ (env.TestFilter || env.V2TestFilter) && format('--filter "{0}{1}{2}"', env.TestFilter, (env.TestFilter && env.V2TestFilter) && '&' || '', env.V2TestFilter) || '' }}
+      run: dotnet test --configuration Release --verbosity normal --logger "GitHubActions;summary-include-passed=false;summary-include-skipped=false" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:BuildType=Full /p:DoesNotReturnAttribute="DoesNotReturnAttribute" ${{ env.TestFilter && format('--filter "{0}"', env.TestFilter) || '' }}
 
     - name: Upload coverage reports to Coveralls Parallel
       uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8

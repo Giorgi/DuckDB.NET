@@ -3,7 +3,6 @@ namespace DuckDB.NET.Test;
 public class TransactionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimpleTransactionTest()
     {
         Command.CommandText = "CREATE TABLE transactionUsers (id INTEGER, name TEXT);";
@@ -44,7 +43,6 @@ public class TransactionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ParallelTransactionsTest()
     {
         using (Connection.BeginTransaction())
@@ -56,7 +54,6 @@ public class TransactionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CommitTransactionTwiceTest()
     {
         using (var transaction = Connection.BeginTransaction())
@@ -68,7 +65,6 @@ public class TransactionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RollbackAndCommitTransactionTest()
     {
         using (var transaction = Connection.BeginTransaction())
@@ -80,7 +76,6 @@ public class TransactionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RollbackTransactionTwiceTest()
     {
         using (var transaction = Connection.BeginTransaction())
@@ -92,7 +87,6 @@ public class TransactionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public async Task SavepointsAreNotSupportedTest()
     {
         using var transaction = Connection.BeginTransaction();
@@ -113,7 +107,6 @@ public class TransactionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CommitAndRollbackTransactionTest()
     {
         using (var transaction = Connection.BeginTransaction())
@@ -125,7 +118,6 @@ public class TransactionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void TransactionInvalidStateTest()
     {
         Connection.Close();

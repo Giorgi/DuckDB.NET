@@ -22,7 +22,6 @@ public class ConnectionStringTests
     [InlineData("datasource=:memory:")]
     [InlineData("data source=:memory:")]
     [InlineData("daTa source=:memory:")]
-    [Trait("V2", "Ready")]
     public void ExplicitConnectionStringTest(string connectionString)
     {
         using var connection = new DuckDBConnection(connectionString);
@@ -36,7 +35,6 @@ public class ConnectionStringTests
     [InlineData("Source=:memory:")]
     [InlineData("Data=:memory:")]
     [InlineData("DataSource = :memory:;Something=else")]
-    [Trait("V2", "Ready")]
     public void InvalidConnectionStringTests(string connectionString)
     {
         using var connection = new DuckDBConnection(connectionString);
@@ -45,7 +43,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ConnectionStringBuilderDataSourceTest()
     {
         var builder = new DuckDBConnectionStringBuilder
@@ -60,7 +57,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ConnectionStringPropertiesTest()
     {
         var builder = new DuckDBConnectionStringBuilder
@@ -81,7 +77,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ConnectionStringBuilderSetPropertiesTest()
     {
         var builder = new DuckDBConnectionStringBuilder
@@ -95,7 +90,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ConnectionStringBuilderSetNotExistingProperty()
     {
         var builder = new DuckDBConnectionStringBuilder
@@ -107,7 +101,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ConnectionStringBuilderGetPropertiesTest()
     {
         var builder = new DuckDBConnectionStringBuilder
@@ -121,7 +114,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void TypedPropertiesWriteTheDuckDBOptionNames()
     {
         var builder = new DuckDBConnectionStringBuilder
@@ -140,7 +132,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void TypedPropertiesReadBackFromConnectionString()
     {
         var builder = new DuckDBConnectionStringBuilder
@@ -160,7 +151,6 @@ public class ConnectionStringTests
     [Theory]
     [InlineData(-1)]
     [InlineData(0)]
-    [Trait("V2", "Ready")]
     public void ThreadsRejectsValuesDuckDBWouldRefuse(int value)
     {
         var builder = new DuckDBConnectionStringBuilder();
@@ -173,7 +163,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ExternalThreadsAllowsZeroButNotNegative()
     {
         var builder = new DuckDBConnectionStringBuilder { DataSource = DuckDBConnectionStringBuilder.InMemoryDataSource };
@@ -189,7 +178,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ThreadCountGettersStayLenient()
     {
         // A connection string written elsewhere may hold a value the setter would reject. Reading it must not throw;
@@ -203,7 +191,6 @@ public class ConnectionStringTests
     [InlineData("DataSource")]
     [InlineData("Data Source")]
     [InlineData("data source")]
-    [Trait("V2", "Ready")]
     public void EveryDataSourceSpellingIsStoredUnderOneKeyword(string keyword)
     {
         var builder = new DuckDBConnectionStringBuilder { ConnectionString = $"{keyword}=first.db;threads=4" };
@@ -228,7 +215,6 @@ public class ConnectionStringTests
     [InlineData("DataSource")]
     [InlineData("Data Source")]
     [InlineData("data source")]
-    [Trait("V2", "Ready")]
     public void EveryDataSourceSpellingWorksAcrossTheDictionaryMembers(string keyword)
     {
         // Values are stored under one keyword, so every read path has to translate the alias too. A setter that
@@ -250,7 +236,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void UnsetTypedPropertiesAreNullOrEmpty()
     {
         var builder = new DuckDBConnectionStringBuilder { DataSource = DuckDBConnectionStringBuilder.InMemoryDataSource };
@@ -264,7 +249,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SettingTypedPropertyToNullRemovesTheKey()
     {
         var builder = new DuckDBConnectionStringBuilder
@@ -298,7 +282,6 @@ public class ConnectionStringTests
     [InlineData("no", false)]
     [InlineData("f", false)]
     [InlineData("n", false)]
-    [Trait("V2", "Ready")]
     public void BooleanPropertiesAcceptTheFormsDuckDBAccepts(string value, bool expected)
     {
         // Every spelling here opens a connection successfully, so reading it back must not throw.
@@ -324,7 +307,6 @@ public class ConnectionStringTests
     [InlineData("NULLS_FIRST_ON_ASC_LAST_ON_DESC", DuckDBNullOrder.NullsFirstOnAscLastOnDesc)]
     [InlineData("postgres", DuckDBNullOrder.NullsLastOnAscFirstOnDesc)]
     [InlineData("NULLS_LAST_ON_ASC_FIRST_ON_DESC", DuckDBNullOrder.NullsLastOnAscFirstOnDesc)]
-    [Trait("V2", "Ready")]
     public void DefaultNullOrderAcceptsEverySpellingDuckDBAccepts(string value, DuckDBNullOrder expected)
     {
         using (var connection = new DuckDBConnection($"DataSource=:memory:;default_null_order={value}"))
@@ -342,7 +324,6 @@ public class ConnectionStringTests
     [InlineData(DuckDBNullOrder.NullsLast, "NULLS_LAST")]
     [InlineData(DuckDBNullOrder.NullsFirstOnAscLastOnDesc, "NULLS_FIRST_ON_ASC_LAST_ON_DESC")]
     [InlineData(DuckDBNullOrder.NullsLastOnAscFirstOnDesc, "NULLS_LAST_ON_ASC_FIRST_ON_DESC")]
-    [Trait("V2", "Ready")]
     public void DefaultNullOrderWritesValuesDuckDBAccepts(DuckDBNullOrder order, string expected)
     {
         var builder = new DuckDBConnectionStringBuilder
@@ -362,7 +343,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void TypedPropertiesThrowOnMalformedValues()
     {
         var builder = new DuckDBConnectionStringBuilder { ConnectionString = "DataSource=:memory:;threads=lots;access_mode=sideways" };
@@ -380,7 +360,6 @@ public class ConnectionStringTests
 
     [Theory]
     [MemberData(nameof(TypedPropertyNames))]
-    [Trait("V2", "Ready")]
     public void EveryTypedPropertyRoundTripsAndClears(string propertyName)
     {
         var property = typeof(DuckDBConnectionStringBuilder).GetProperty(propertyName)!;
@@ -431,7 +410,6 @@ public class ConnectionStringTests
     [InlineData("ASCENDING", DuckDBSortOrder.Ascending)]
     [InlineData("desc", DuckDBSortOrder.Descending)]
     [InlineData("Descending", DuckDBSortOrder.Descending)]
-    [Trait("V2", "Ready")]
     public void DefaultOrderAcceptsEverySpellingDuckDBAccepts(string value, DuckDBSortOrder expected)
     {
         var builder = new DuckDBConnectionStringBuilder { ConnectionString = $"DataSource=:memory:;default_order={value}" };
@@ -440,7 +418,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SortOrderPropertiesThrowOnMalformedValues()
     {
         var builder = new DuckDBConnectionStringBuilder { ConnectionString = "DataSource=:memory:;default_order=sideways;default_null_order=middle" };
@@ -450,7 +427,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void EnumPropertiesRejectUndefinedValues()
     {
         var builder = new DuckDBConnectionStringBuilder();
@@ -461,7 +437,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void EmptyNumberAndBooleanOptionsReadAsNotSet()
     {
         var builder = new DuckDBConnectionStringBuilder { DataSource = DuckDBConnectionStringBuilder.InMemoryDataSource };
@@ -474,7 +449,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void TypedPropertiesProduceAConnectionStringDuckDBAccepts()
     {
         var builder = new DuckDBConnectionStringBuilder
@@ -515,7 +489,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void TypedPropertiesAreDiscoverableThroughTypeDescriptor()
     {
         var properties = TypeDescriptor.GetProperties(new DuckDBConnectionStringBuilder());
@@ -540,7 +513,6 @@ public class ConnectionStringTests
     [InlineData("DataSource")]
     [InlineData("Data Source")]
     [InlineData("data source")]
-    [Trait("V2", "Ready")]
     public void SetOptionsAreNotDescribedTwice(string dataSourceKeyword)
     {
         // DbConnectionStringBuilder synthesizes an undescribed descriptor for every keyword present in the connection
@@ -561,7 +533,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void EveryConfigurationOptionIsDiscoverableThroughTypeDescriptor()
     {
         var properties = TypeDescriptor.GetProperties(new DuckDBConnectionStringBuilder());
@@ -597,7 +568,6 @@ public class ConnectionStringTests
     [InlineData("null_order", "Query")]
     [InlineData("search_path", "Query")]
     [InlineData("home_directory", "General")]
-    [Trait("V2", "Ready")]
     public void ConfigurationOptionsAreGroupedByName(string option, string expectedCategory)
     {
         var properties = TypeDescriptor.GetProperties(new DuckDBConnectionStringBuilder());
@@ -608,7 +578,6 @@ public class ConnectionStringTests
     // The allocator segment wins over the block segment. DuckDB 2.0 calls such an option block_allocator_memory; DuckDB's
     // main branch replaced it with enable_block_allocator (duckdb/duckdb#27520), so the test takes whichever exists.
     [Fact]
-    [Trait("V2", "Ready")]
     public void AllocatorWinsOverTheBlockSegment()
     {
         var properties = TypeDescriptor.GetProperties(new DuckDBConnectionStringBuilder());
@@ -620,7 +589,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void OptionsAreNotGroupedBySubstringAccident()
     {
         var properties = TypeDescriptor.GetProperties(new DuckDBConnectionStringBuilder());
@@ -630,7 +598,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ConfigurationOptionDescriptorsCarryTypesFromDuckDBSettings()
     {
         var properties = TypeDescriptor.GetProperties(new DuckDBConnectionStringBuilder());
@@ -650,7 +617,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ConfigurationOptionDescriptorsReadAndWriteTheConnectionString()
     {
         var builder = new DuckDBConnectionStringBuilder { DataSource = DuckDBConnectionStringBuilder.InMemoryDataSource };
@@ -671,7 +637,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void BooleanOptionDescriptorsWriteValuesDuckDBAccepts()
     {
         var builder = new DuckDBConnectionStringBuilder { DataSource = DuckDBConnectionStringBuilder.InMemoryDataSource };
@@ -688,7 +653,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ConfigurationOptionDescriptorsDescribeTheBuilder()
     {
         var builder = new DuckDBConnectionStringBuilder { DataSource = DuckDBConnectionStringBuilder.InMemoryDataSource };
@@ -718,7 +682,6 @@ public class ConnectionStringTests
     [InlineData("index_scan_percentage", "0.001", 0.001)]
     [InlineData("index_scan_percentage", "abc", null)]
     [InlineData("default_secret_storage", "local_file", "local_file")]
-    [Trait("V2", "Ready")]
     public void ConfigurationOptionDescriptorsConvertTextToTheOptionType(string optionName, string text, object expected)
     {
         var builder = new DuckDBConnectionStringBuilder { DataSource = DuckDBConnectionStringBuilder.InMemoryDataSource };
@@ -732,7 +695,6 @@ public class ConnectionStringTests
     [Theory]
     [InlineData("default_secret_storage", "")]
     [InlineData("zstd_min_string_length", null)]
-    [Trait("V2", "Ready")]
     public void ConfigurationOptionDescriptorsReadEmptyTextAsEmptyOrNull(string optionName, string expected)
     {
         var builder = new DuckDBConnectionStringBuilder { DataSource = DuckDBConnectionStringBuilder.InMemoryDataSource };
@@ -745,7 +707,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ConfigurationOptionDescriptorsWriteInvariantText()
     {
         var builder = new DuckDBConnectionStringBuilder { DataSource = DuckDBConnectionStringBuilder.InMemoryDataSource };
@@ -781,7 +742,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void OptionsThatCannotBeAppliedAtOpenAreNotOffered()
     {
         var properties = TypeDescriptor.GetProperties(new DuckDBConnectionStringBuilder());
@@ -794,7 +754,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void DebugOptionsAreHiddenButReachable()
     {
         var properties = TypeDescriptor.GetProperties(new DuckDBConnectionStringBuilder());
@@ -806,7 +765,6 @@ public class ConnectionStringTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void TypedPropertiesAreNotReplacedByGeneratedDescriptors()
     {
         var properties = TypeDescriptor.GetProperties(new DuckDBConnectionStringBuilder());

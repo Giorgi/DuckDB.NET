@@ -56,7 +56,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // GetValue must return the value in the .NET type that ColumnClrTypes gives for the column type.
     [Theory]
     [MemberData(nameof(Cases))]
-    [Trait("V2", "Ready")]
     public void ReadNumericColumnAsEveryNumericType(string column, string literal)
     {
         Command.CommandText = $"SELECT TRY_CAST({literal} AS {column}) AS c";
@@ -123,7 +122,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SmallestAndLargestValueOfEachIntegerType()
     {
         Command.CommandText = """
@@ -182,7 +180,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void OverflowingIntegerReadNamesBothTypesAndTheColumn()
     {
         Command.CommandText = "SELECT 300::SMALLINT AS small, 5000000000::BIGINT AS big, (-1)::INTEGER AS negative";
@@ -221,7 +218,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
     [Theory]
     [MemberData(nameof(InexactCases))]
-    [Trait("V2", "Ready")]
     public void IntegerReadAsFloatDoubleOrDecimalRoundsLikeTheCSharpCast(string column, string literal, float asFloat, double asDouble, decimal asDecimal)
     {
         Command.CommandText = $"SELECT {literal}::{column} AS c";
@@ -242,7 +238,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void FloatingPointColumnsKeepTheirFraction()
     {
         Command.CommandText = "SELECT 1.5::FLOAT, 1.5::DOUBLE, 2.5::DOUBLE";
@@ -270,7 +265,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void FloatReadAsDoubleIsAPlainWidening()
     {
         Command.CommandText = """
@@ -314,7 +308,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // The C# cast, with no check: digits beyond what a float holds are lost, and a value too large for a float
     // reads as infinity. Npgsql does the same.
     [Fact]
-    [Trait("V2", "Ready")]
     public void DoubleReadAsFloatIsAPlainNarrowing()
     {
         Command.CommandText = """
@@ -365,7 +358,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     [Theory]
     [InlineData("FLOAT", "Single")]
     [InlineData("DOUBLE", "Double")]
-    [Trait("V2", "Ready")]
     public void FloatingPointColumnReadAsInteger(string column, string clrName)
     {
         Command.CommandText = $"""
@@ -432,7 +424,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // Each target type has its own range, so a read as one integer type must not go through another. A whole value
     // reads up to the limit of the type and is refused one past it; a fraction is refused before the range is checked.
     [Fact]
-    [Trait("V2", "Ready")]
     public void DoubleReadAsIntegerIsCheckedAgainstTheRangeOfTheRequestedType()
     {
         Command.CommandText = """
@@ -508,7 +499,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     [Theory]
     [InlineData("FLOAT", "Single")]
     [InlineData("DOUBLE", "Double")]
-    [Trait("V2", "Ready")]
     public void FloatingPointColumnReadAsDecimal(string column, string clrName)
     {
         Command.CommandText = $"""
@@ -554,7 +544,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     [InlineData("huge", "HugeInt")]
     [InlineData("unsigned", "UnsignedHugeInt")]
     [InlineData("big", "VarInt")]
-    [Trait("V2", "Ready")]
     public void OverflowingHugeIntReadNamesTheColumnTypeAndTheColumn(string name, string columnType)
     {
         Command.CommandText = "SELECT 10000000000000000000000::HUGEINT AS huge, 10000000000000000000000::UHUGEINT AS unsigned, " +
@@ -572,7 +561,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
     // The values just inside and just outside what long and ulong hold, where a range check goes wrong first.
     [Fact]
-    [Trait("V2", "Ready")]
     public void HugeIntAtTheLimitsOfLongAndULong()
     {
         Command.CommandText = """
@@ -630,7 +618,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void VarIntReadsAsIntegersAndBigIntegerOnly()
     {
         Command.CommandText = "SELECT 42::VARINT, (-5)::VARINT, 99999999999999999999::VARINT";
@@ -659,7 +646,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // its column, and every other integer column, VARINT and a whole DECIMAL when the value fits. They are also the
     // default types of the two columns (2.0; BigInteger before), which still read as BigInteger.
     [Fact]
-    [Trait("V2", "Ready")]
     public void Int128AndUInt128ReadTheWholeRangeOfHugeIntAndUHugeInt()
     {
         Command.CommandText = """
@@ -739,7 +725,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // The default types reach what is built on GetFieldType and GetValue: the schema table, a DataTable and
     // ExecuteScalar. sum() of an integer column is a HUGEINT, so its result is an Int128 now (a BigInteger before 2.0).
     [Fact]
-    [Trait("V2", "Ready")]
     public void Int128AndUInt128AreTheTypesOfTheSchemaTableADataTableAndExecuteScalar()
     {
         Command.CommandText = "SELECT '-170141183460469231731687303715884105728'::HUGEINT AS huge, '340282366920938463463374607431768211455'::UHUGEINT AS unsigned, 42::VARINT AS big";
@@ -771,7 +756,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // Values read as objects inside a struct, a map and a list of structs, and the input of a scalar function read as
     // an object, have the default types too.
     [Fact]
-    [Trait("V2", "Ready")]
     public void NestedHugeIntsReadAsObjectsAreInt128AndUInt128()
     {
         Command.CommandText = """
@@ -808,7 +792,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void VarIntReadsAsInt128AndUInt128WhenItFits()
     {
         Command.CommandText = """
@@ -841,7 +824,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // As a HUGEINT is refused as float and double, FLOAT and DOUBLE are refused as Int128 and UInt128, whatever the
     // value, also a whole one.
     [Fact]
-    [Trait("V2", "Ready")]
     public void FloatAndDoubleAreNotReadAsInt128OrUInt128()
     {
         Command.CommandText = "SELECT 42::DOUBLE AS d, 42::FLOAT AS f";
@@ -862,7 +844,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     [InlineData("DECIMAL(9,2)")]
     [InlineData("DECIMAL(18,3)")]
     [InlineData("DECIMAL(38,4)")]
-    [Trait("V2", "Ready")]
     public void DecimalReadsAsInt128AndUInt128WhenItIsWhole(string type)
     {
         Command.CommandText = $"SELECT 42::{type} AS whole, (-42)::{type} AS minus_whole, 1.5::{type} AS fraction, (-0.5)::{type} AS minus_half";
@@ -884,7 +865,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
     // The widest DECIMAL is beyond the range of decimal, and within that of Int128.
     [Fact]
-    [Trait("V2", "Ready")]
     public void WidestDecimalReadsAsInt128()
     {
         Command.CommandText = "SELECT '99999999999999999999999999999999999999'::DECIMAL(38,0), '-99999999999999999999999999999999999999'::DECIMAL(38,0)";
@@ -902,7 +882,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // are, so it keeps the scale of its column: 1.5000 from a DECIMAL(38,4) as from a DECIMAL(18,4). Before 2.0 it was
     // divided, which dropped the trailing zeros. A value beyond 96 bits, or a scale above 28, is still divided.
     [Fact]
-    [Trait("V2", "Ready")]
     public void AWideDecimalKeepsTheScaleOfItsColumn()
     {
         Command.CommandText = """
@@ -934,7 +913,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
     // A list item, a map key or value and a struct field read as Int128 or UInt128, as a column does.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListsMapsAndStructsOfHugeIntsReadAsInt128AndUInt128()
     {
         Command.CommandText = """
@@ -991,7 +969,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     [InlineData("DECIMAL(9,2)")]
     [InlineData("DECIMAL(18,2)")]
     [InlineData("DECIMAL(38,2)")]
-    [Trait("V2", "Ready")]
     public void DecimalReadAsIntegerNeedsAWholeValue(string type)
     {
         Command.CommandText = $"SELECT 42::{type} AS whole, (-42)::{type} AS minus_whole, (-0.0)::{type} AS minus_zero, " +
@@ -1037,7 +1014,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // one past it. A DECIMAL(38) beyond the range of decimal reads as an integer type that holds it, because the value
     // is never made a decimal on the way.
     [Fact]
-    [Trait("V2", "Ready")]
     public void DecimalReadAsIntegerIsCheckedAgainstTheRangeOfTheRequestedType()
     {
         Command.CommandText = """
@@ -1093,7 +1069,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
     // The items of a list come from the same readers as a column of that type. The six tests below read lists.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListOfIntegersReadsAsListsOfOtherNumericTypes()
     {
         Command.CommandText = "SELECT [1,2,3]::INTEGER[], [1,2]::BIGINT[]";
@@ -1112,7 +1087,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListWithANullItemReadsOnlyAsAListOfNullableItems()
     {
         Command.CommandText = "SELECT [1,NULL,3]::INTEGER[]";
@@ -1125,7 +1099,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListWithAnItemThatDoesNotFitTheRequestedTypeThrows()
     {
         Command.CommandText = "SELECT [300,2]::INTEGER[]";
@@ -1137,7 +1110,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListOfFloatingPointNumbersReadsAsFloatDoubleAndDecimal()
     {
         Command.CommandText = "SELECT [1.5,2.5]::DOUBLE[], [1.5,2.5]::FLOAT[]";
@@ -1154,7 +1126,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListsOfBooleansAndHugeInts()
     {
         Command.CommandText = "SELECT [true,false]::BOOLEAN[], [1,2]::HUGEINT[]";
@@ -1168,7 +1139,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void NestedListOfIntegers()
     {
         Command.CommandText = "SELECT [[1,2],[3]]::INTEGER[][]";
@@ -1183,7 +1153,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void MapsAndStructsOfNumbers()
     {
         Command.CommandText = "SELECT MAP {1::INTEGER: 10::BIGINT}, {'a': 1::INTEGER, 'b': 2::BIGINT}";
@@ -1202,7 +1171,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // The values of a map and the fields of a struct are read with the target type known only at run time. They
     // convert as a column does; NumericReadPathAgreementTests pins that for every numeric pair.
     [Fact]
-    [Trait("V2", "Ready")]
     public void MapsAndStructsConvertFloatingPointLikeColumns()
     {
         Command.CommandText = "SELECT MAP {1::INTEGER: 1.5::DOUBLE} AS doubles, MAP {1::INTEGER: 2.5::FLOAT} AS floats, " +
@@ -1237,7 +1205,6 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
     // A UNION column has no reader. The query runs, and every read of a non-null value says so.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ColumnTypeWithoutAReaderThrows()
     {
         Command.CommandText = "SELECT union_value(a := 1) AS c";
@@ -1259,7 +1226,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // chunk the address of the previous one, and a reader that was not moved to the new chunk then still reads
     // the right values. A streaming result was not seen to do that.
     [Theory]
-    [InlineData(false)]
+    [InlineData(false, Skip = V2Skip.Materialized)]
     [InlineData(true)]
     public void IntegerAndFloatReadersKeepConvertingAcrossChunks(bool useStreamingMode)
     {
@@ -1329,7 +1296,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
 
     // A DECIMAL(38,10) column, a list of it and a struct that holds it.
     [Theory]
-    [InlineData(false)]
+    [InlineData(false, Skip = V2Skip.Materialized)]
     [InlineData(true)]
     public void DecimalReadersKeepConvertingAcrossChunks(bool useStreamingMode)
     {
@@ -1397,7 +1364,7 @@ public class NumericReaderConversionTests(DuckDBDatabaseFixture db) : DuckDBTest
     // Int128. Int128 and UInt128 are read through the fast path of ReadValidValue (StorageType), which must follow
     // the vector of each new chunk.
     [Theory]
-    [InlineData(false)]
+    [InlineData(false, Skip = V2Skip.Materialized)]
     [InlineData(true)]
     public void HugeIntAndVarIntReadersKeepConvertingAcrossChunks(bool useStreamingMode)
     {

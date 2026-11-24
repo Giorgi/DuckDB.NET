@@ -3,7 +3,6 @@ namespace DuckDB.NET.Test;
 public class QueryScalarTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimpleQueryTest()
     {
         var queries = new Dictionary<string, object>
@@ -24,7 +23,6 @@ public class QueryScalarTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void TableQueryTest()
     {
         Command.CommandText = "CREATE TABLE scalarUsers (id INTEGER, name TEXT);";

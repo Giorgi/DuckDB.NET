@@ -4,7 +4,6 @@ namespace DuckDB.NET.Test.V2;
 
 // Stage 2 of docs/V2-MIGRATION.md: queries through the C API V2, where every result streams, a connection has one
 // open result, and a statement runs while its result is read.
-[Trait("V2", "Ready")]
 public class V2QueryTests
 {
     private static DuckDBConnection Open()

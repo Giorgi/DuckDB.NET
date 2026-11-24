@@ -14,7 +14,6 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     private const long MicrosecondsAtDateTimeMaxValue = 253_402_300_799_999_999;
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void EveryDateThatDateTimeHoldsIsReadAsDuckDBSplitsIt()
     {
         var dayCount = DateOnly.MaxValue.DayNumber + 1;
@@ -45,7 +44,6 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void DatesAreReadAsDuckDBPrintsThem()
     {
         Command.CommandText = "SELECT d, strftime(d, '%Y-%m-%d'), [d] FROM (SELECT DATE '0001-01-01' + (i * 997)::INTEGER d FROM range(3663) t(i))";
@@ -75,7 +73,6 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     [InlineData("TimestampTz", "make_timestamp(v)::TIMESTAMPTZ", "epoch_us(c)", 1)]
     [InlineData("TimestampMs", "make_timestamp(v * 1000)::TIMESTAMP_MS", "epoch_us(c::TIMESTAMP)", 1_000)]
     [InlineData("TimestampS", "make_timestamp(v * 1000000)::TIMESTAMP_S", "epoch_us(c::TIMESTAMP)", 1_000_000)]
-    [Trait("V2", "Ready")]
     public void TimestampsAreReadAsDuckDBSplitsThem(string type, string expression, string microseconds, long microsecondsPerUnit)
     {
         // A day inside both ends, so that a TIMESTAMPTZ stays in range whatever the time zone of the session is.
@@ -138,7 +135,6 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void TimestampsAreReadAsDuckDBPrintsThem()
     {
         Command.CommandText = "SELECT ts, strftime(ts, '%Y-%m-%d %H:%M:%S.%f'), epoch_us(ts) FROM (" +
@@ -180,7 +176,6 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     // The whole range of a TIMESTAMP_NS is inside the range of a DateTime: 1677-09-22 to 2262-04-11 23:47:16.854775806.
     [InlineData(long.MaxValue - 1, 92_233_720_368_547_758)]
     [InlineData(-9_223_286_400_000_000_000, -92_232_864_000_000_000)]
-    [Trait("V2", "Ready")]
     public void TimestampNsKeepsTheTicksAndDropsWhatIsBelowATick(long nanoseconds, long ticksFromEpoch)
     {
         Command.CommandText = $"SELECT make_timestamp_ns({nanoseconds})";
@@ -198,7 +193,6 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     // The rule above over the whole range, against the nanoseconds DuckDB stores rather than against its cast, which
     // dropped the digits toward zero up to DuckDB 1.5.
     [Fact]
-    [Trait("V2", "Ready")]
     public void TimestampNsDropsWhatIsBelowATickTowardMinusInfinity()
     {
         Command.CommandText = "SELECT ns, epoch_ns(ns) FROM (SELECT make_timestamp_ns((i - 1844) * 5000000000000037) ns FROM range(3689) t(i))";
@@ -231,7 +225,6 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     [InlineData("make_timestamp(-62135596801000000)::TIMESTAMP_S", 0)]
     [InlineData("TIMESTAMP '294247-01-10 04:00:54.775806'", 294247)]
     [InlineData("TIMESTAMP '290309-12-22 (BC) 00:00:00'", -290308)]
-    [Trait("V2", "Ready")]
     public void TimestampOutsideTheRangeOfDateTimeIsRefused(string expression, int year)
     {
         Command.CommandText = $"SELECT {expression} AS moment";
@@ -250,7 +243,6 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     [InlineData("DATE '0001-01-01' - 1", 0)]
     [InlineData("DATE '5881580-07-10'", 5881580)]
     [InlineData("DATE '5877642-06-25 (BC)'", -5877641)]
-    [Trait("V2", "Ready")]
     public void DateOutsideTheRangeOfDateTimeIsRefused(string expression, int year)
     {
         Command.CommandText = $"SELECT {expression} AS day";
@@ -265,7 +257,6 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void TheLimitsOfDateTimeAreRead()
     {
         Command.CommandText = "SELECT make_timestamp(253402300799999999), make_timestamp(-62135596800000000), " +
@@ -293,7 +284,6 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     [InlineData("TIMESTAMP_S")]
     [InlineData("TIMESTAMP_MS")]
     [InlineData("TIMESTAMP_NS")]
-    [Trait("V2", "Ready")]
     public void InfiniteTimestampIsNotAnOrdinaryValue(string type)
     {
         Command.CommandText = $"SELECT 'infinity'::{type}, '-infinity'::{type}, ['infinity'::{type}]";
@@ -316,7 +306,6 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void InfiniteDateIsNotAnOrdinaryValue()
     {
         Command.CommandText = "SELECT 'infinity'::DATE, '-infinity'::DATE, ['infinity'::DATE]";
@@ -341,7 +330,6 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     // DuckDB stores a timestamp below its own minimum when make_timestamp is given one, and cannot split it into
     // year, month and day. The message does not send the caller to the read as DuckDBTimestamp, which fails in DuckDB.
     [Fact]
-    [Trait("V2", "Ready")]
     public void TimestampBelowTheMinimumOfDuckDBIsRefusedWithoutAdvice()
     {
         Command.CommandText = "SELECT make_timestamp(-9223372022400000001) AS moment";
@@ -354,7 +342,6 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
 
     // The reader of an argument of a function has no column name.
     [Fact]
-    [Trait("V2", "Ready")]
     public void OutOfRangeArgumentOfAFunctionIsRefusedWithoutAColumnName()
     {
         Connection.RegisterScalarFunction<DateTime, long>("temporal_ticks", (readers, writer, rowCount) =>
@@ -375,7 +362,6 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     // Every second of the day, each with a different fraction. The hour, the minute and the microseconds within the
     // minute are DuckDB's own; the read as DuckDBTimeOnly has DuckDB split the value.
     [Fact]
-    [Trait("V2", "Ready")]
     public void EverySecondOfTheDayIsReadAsDuckDBSplitsIt()
     {
         Command.CommandText = "SELECT t, hour(t), minute(t), microsecond(t), [t] FROM (" +
@@ -408,7 +394,6 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
 
     // DuckDB has the end of the day as a time; a TimeOnly stops one tick before it.
     [Fact]
-    [Trait("V2", "Ready")]
     public void TheEndOfTheDayIsNotATimeOnly()
     {
         Command.CommandText = "SELECT TIME '24:00:00', [TIME '24:00:00']";
@@ -429,7 +414,6 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void TimeNsIsReadWithTimeOnlyPrecision()
     {
         Command.CommandText = "SELECT TIME_NS '12:34:56.123456789', [TIME_NS '12:34:56.123456789'], TIME_NS '24:00:00', [TIME_NS '24:00:00']";
@@ -465,7 +449,6 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     // A struct field and a map key and value are read by a child reader, which has to be a TIME_NS reader too, and
     // has to see a NULL in it.
     [Fact]
-    [Trait("V2", "Ready")]
     public void TimeNsIsReadInAStructAndAMap()
     {
         Command.CommandText = "SELECT {'t': TIME_NS '12:34:56.123456789', 'n': NULL::TIME_NS}, " +
@@ -487,7 +470,6 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void TimeNsDuckDBValueIsReadWithTimeOnlyPrecision()
     {
         using var value = NativeMethods.Value.DuckDBCreateTimeNs(new DuckDBTimeNs { Nanos = 45_296_123_456_789 });
@@ -505,7 +487,6 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
     // Each time with each offset. What is expected comes from the text given to DuckDB, and the read as DuckDBTimeTz
     // has DuckDB take the stored value apart.
     [Fact]
-    [Trait("V2", "Ready")]
     public void TimeWithATimeZoneIsReadAsDuckDBSplitsIt()
     {
         (string Text, long Ticks)[] times =

@@ -5,217 +5,186 @@ namespace DuckDB.NET.Test;
 public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesBool()
     {
         ListValuesInternal("Bool", faker => faker.Random.Bool());
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesBoolNullable()
     {
         ListValuesInternal("Bool", faker => faker.Random.Bool().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesSByte()
     {
         ListValuesInternal("TinyInt", faker => faker.Random.SByte());
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesSByteNullable()
     {
         ListValuesInternal("TinyInt", faker => faker.Random.SByte().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesShort()
     {
         ListValuesInternal("SmallInt", faker => faker.Random.Short());
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesShortNullable()
     {
         ListValuesInternal("SmallInt", faker => faker.Random.Short().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesInt()
     {
         ListValuesInternal("Integer", faker => faker.Random.Int());
     }
     
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesIntNullable()
     {
         ListValuesInternal("Integer", faker => faker.Random.Int().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesLong()
     {
         ListValuesInternal("BigInt", faker => faker.Random.Long());
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesLongNullable()
     {
         ListValuesInternal("BigInt", faker => faker.Random.Long().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesHugeInt()
     {
         ListValuesInternal("HugeInt", faker => BigInteger.Subtract(DuckDBHugeInt.HugeIntMaxValue, faker.Random.Int(min: 0)));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesByte()
     {
         ListValuesInternal("UTinyInt", faker => faker.Random.Byte());
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesByteNullable()
     {
         ListValuesInternal("UTinyInt", faker => faker.Random.Byte().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesUShort()
     {
         ListValuesInternal("USmallInt", faker => faker.Random.UShort());
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesUShortNullable()
     {
         ListValuesInternal("USmallInt", faker => faker.Random.UShort().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesUInt()
     {
         ListValuesInternal("UInteger", faker => faker.Random.UInt());
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesUIntNullable()
     {
         ListValuesInternal("UInteger", faker => faker.Random.UInt().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesULong()
     {
         ListValuesInternal("UBigInt", faker => faker.Random.ULong());
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesULongNullable()
     {
         ListValuesInternal("UBigInt", faker => faker.Random.ULong().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesUHugeInt()
     {
         ListValuesInternal("UHugeInt", faker => BigInteger.Subtract(DuckDBHugeInt.HugeIntMaxValue, faker.Random.Int(min: 0)));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesDecimal()
     {
         ListValuesInternal("Decimal(38,28)", faker => faker.Random.Decimal());
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesDecimalNullable()
     {
         ListValuesInternal("Decimal(38,28)", faker => faker.Random.Decimal().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesFloat()
     {
         ListValuesInternal("Float", faker => faker.Random.Float());
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesFloatNullable()
     {
         ListValuesInternal("Float", faker => faker.Random.Float().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesDouble()
     {
         ListValuesInternal("Double", faker => faker.Random.Double());
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesDoubleNullable()
     {
         ListValuesInternal("Double", faker => faker.Random.Double().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesGuid()
     {
         ListValuesInternal("UUID", faker => faker.Random.Guid());
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesGuidNullable()
     {
         ListValuesInternal("UUID", faker => faker.Random.Guid().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesDate()
     {
         ListValuesInternal("Date", faker => faker.Date.Past().Date);
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesString()
     {
         ListValuesInternal("Varchar", faker => faker.Random.Utf16String());
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesInterval()
     {
         ListValuesInternal("Interval", faker =>
@@ -227,7 +196,6 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ArrayValuesInt()
     {
         ListValuesInternal("Integer", faker => faker.Random.Int(), 5);
@@ -238,7 +206,6 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     // happened wherever an ARRAY was involved, at any nesting level.
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ArrayValuesAfterNullArrayStayAligned()
     {
         VerifyArrayRowsAfterNull("managedAppenderArrayAfterNull", "INTEGER[2]",
@@ -246,7 +213,6 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void VarcharArrayValuesAfterNullArrayStayAligned()
     {
         VerifyArrayRowsAfterNull("managedAppenderVarcharArrayAfterNull", "VARCHAR[2]",
@@ -254,7 +220,6 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListOfArraysAfterNullArrayStayAligned()
     {
         VerifyArrayRowsAfterNull<List<int>>("managedAppenderListOfArraysAfterNull", "INTEGER[2][]",
@@ -265,7 +230,6 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     // headers under the NULL row stay unmarked and DuckDB reads them, but that fails only when the
     // leftover memory is bad, so a pass without the override proves nothing.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ArrayOfListsAfterNullArrayStayAligned()
     {
         VerifyArrayRowsAfterNull<List<int>>("managedAppenderArrayOfListsAfterNull", "INTEGER[][2]",
@@ -273,7 +237,6 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ArrayOfArraysAfterNullArrayStayAligned()
     {
         VerifyArrayRowsAfterNull<List<int>>("managedAppenderArrayOfArraysAfterNull", "INTEGER[2][2]",
@@ -281,7 +244,6 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ArrayValuesWithNullItemsAfterNullArrayStayAligned()
     {
         VerifyArrayRowsAfterNull<int?>("managedAppenderArrayNullItemsAfterNull", "INTEGER[2]",
@@ -289,7 +251,6 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void VarcharArrayValuesWithNullItemsAfterNullArrayStayAligned()
     {
         VerifyArrayRowsAfterNull<string>("managedAppenderVarcharArrayNullItemsAfterNull", "VARCHAR[2]",
@@ -301,7 +262,6 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     // batch, so a shift would show before the boundary; the last row of the first batch and the first
     // row of the next are NULL too.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ArrayValuesAroundNullArraysAtBatchBoundaryStayAligned()
     {
         var batchSize = (int)DuckDBGlobalData.VectorSize;
@@ -318,7 +278,6 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     // array's own item writer kept writing to the old one, and every array written after the list
     // grew was lost, along with any NULL written into it.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListOfArraysKeepValuesAfterListGrows()
     {
         var batchSize = (int)DuckDBGlobalData.VectorSize;
@@ -337,7 +296,6 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     // With arrays nested in arrays, DuckDB moves every array level below the list when it grows, so the
     // refresh has to carry on through each of them.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListOfNestedArraysKeepValuesAfterListGrows()
     {
         var batchSize = (int)DuckDBGlobalData.VectorSize;
@@ -361,7 +319,6 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     // With a list inside the array, the outer list growing moves the inner lists' entries but not their
     // items, so the refresh has to stop at the inner list. The inner lists also grow on their own here.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListOfArraysOfListsKeepValuesAfterListGrows()
     {
         var batchSize = (int)DuckDBGlobalData.VectorSize;
@@ -427,7 +384,6 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListValuesEnum()
     {
         Command.CommandText = "CREATE TYPE test_enum AS ENUM('test1','test2','test3');";
@@ -438,7 +394,6 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListStringAndGuid()
     {
         Command.CommandText = " CREATE TABLE test01(id uuid primary key, list text[]);";
@@ -466,7 +421,6 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListGuidAndGuid()
     {
         Command.CommandText = " CREATE TABLE test02(id uuid primary key, list uuid[]);";
@@ -494,7 +448,6 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListDecimalAndGuid()
     {
         Command.CommandText = " CREATE TABLE test03(id uuid primary key, list decimal[]);";
@@ -590,7 +543,6 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     // A list that fails part way has already written some of its items, a NULL among them. The value appended in
     // its place puts a number where that NULL was, and the item has to stop being NULL.
     [Fact]
-    [Trait("V2", "Ready")]
     public void NullableItemsAppendedAfterAFailedListReplaceItsNulls()
     {
         Command.CommandText = "CREATE TABLE list_retry_nullable (l INTEGER[])";
@@ -614,7 +566,6 @@ public class DuckDBManagedAppenderListTests(DuckDBDatabaseFixture db) : DuckDBTe
     // A List<T> and an array are written as a span, and every other collection through its enumerator. The same
     // items have to be stored whichever way they come.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ItemsAreTheSameFromAListAnArrayAndAnotherCollection()
     {
         Command.CommandText = "CREATE TABLE list_kinds (i INTEGER[], n INTEGER[], s VARCHAR[], fixed INTEGER[3], nested INTEGER[][])";

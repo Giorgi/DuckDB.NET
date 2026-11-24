@@ -3,7 +3,6 @@ namespace DuckDB.NET.Test.Parameters;
 public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimpleTest()
     {
         Command.CommandText = "SELECT 'ABCD'::BLOB;";
@@ -51,7 +50,6 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void GetFieldValueByteArrayReadsBlob()
     {
         Command.CommandText = "SELECT '\\x01\\x02\\x03\\x04'::BLOB;";
@@ -68,7 +66,6 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     // A BLOB used to come back from GetValue as a stream over the chunk's memory, which ExecuteScalar returned after
     // closing its reader: once later results reused that memory, the stream read their bytes.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ExecuteScalarBlobKeepsItsBytesAfterTheReaderIsClosed()
     {
         Command.CommandText = "SELECT repeat('x', 5000)::BLOB";
@@ -86,7 +83,6 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void GetFieldValueByteArrayReadsEmptyBlob()
     {
         Command.CommandText = "SELECT ''::BLOB;";
@@ -98,7 +94,6 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void GetFieldValueByteArrayReadsBlobInAStruct()
     {
         Command.CommandText = "SELECT {'value': '\\x01\\x02\\x03'::BLOB};";
@@ -110,7 +105,6 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void GetFieldValueByteArrayReadsBlobInAMap()
     {
         Command.CommandText = "SELECT MAP {'value': '\\x04\\x05'::BLOB};";
@@ -122,7 +116,6 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void GetFieldValueByteArrayReadsBlobInAList()
     {
         Command.CommandText = "SELECT ['\\x06\\x07'::BLOB, '\\x08'::BLOB];";
@@ -134,7 +127,6 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SeekTest()
     {
         var blobValue = "ABCDEFGHIJKLMNOPQR";
@@ -173,7 +165,6 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void BindValueTest()
     {
         Command.CommandText = "CREATE TABLE BlobTests (key INTEGER, value Blob)";
@@ -204,7 +195,6 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void BindParameterWithoutTable()
     {
         var value = Faker.Random.Bytes(Faker.Random.Int(1, 100));
@@ -219,7 +209,6 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void GetValueOfABlobListIsAListOfByteArrays()
     {
         Command.CommandText = "SELECT ['\\x01'::BLOB, NULL, '\\x02\\x03'::BLOB], ['\\x04'::BLOB, '\\x05'::BLOB]::BLOB[2];";
@@ -233,7 +222,6 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SchemaTableAndDataTableHaveByteArrayForABlobColumn()
     {
         Command.CommandText = "SELECT b FROM (VALUES ('\\x01\\x02'::BLOB, 1), (NULL, 2)) t(b, i) ORDER BY i;";
@@ -255,7 +243,6 @@ public class BlobParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void DapperReadsABlobAsByteArray()
     {
         Connection.Query<byte[]>("SELECT '\\x01\\x02'::BLOB").Single().Should().Equal(1, 2);

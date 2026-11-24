@@ -251,8 +251,9 @@ Rules for every new or changed test (both have caused tests that passed locally 
 - **Run a new test at least 5 times before committing.** One pass proves nothing.
 
 **What CI runs:**
-- **On `nightly-vnext`** (the V2 migration, `docs/V2-MIGRATION.md`) only tests marked `[Trait("V2", "Ready")]` run.
-  Tag a test once it passes on V2; `dotnet test DuckDB.NET.Test/Test.csproj --filter V2=Ready` runs the same set.
+- **On `nightly-vnext`** (the V2 migration, `docs/V2-MIGRATION.md`) every test runs; one that cannot pass on V2 yet
+  is skipped with a reason from `DuckDB.NET.Test/V2/V2Skip.cs` (on a theory, only its failing `InlineData` rows).
+  Remove the skip once what it names is migrated.
 - **The connection stress tests** (`MultiThreadedStress`, `ConnectionSpeed`, trait `Stress=Connection`) took most of
   the test time on Windows. CI leaves them out unless the change touches the code that opens, shares or closes the
   native database: `Connection/`, `DuckDBConnection.cs`, `DuckDBDataReader.cs`, `DuckDBCommand.cs`,

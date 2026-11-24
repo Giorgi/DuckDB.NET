@@ -3,7 +3,6 @@ namespace DuckDB.NET.Test.Parameters;
 public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimpleTest()
     {
         Command.CommandText = "SELECT 125::HUGEINT;";
@@ -28,7 +27,6 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void BindValueTest()
     {
         Command.CommandText = "CREATE TABLE HugeIntTests (key INTEGER, value HugeInt)";
@@ -50,7 +48,6 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimpleNegativeHugeIntTest()
     {
         // The parentheses matter: a cast binds tighter than the minus sign, and 2^127 itself is not a HUGEINT.
@@ -67,7 +64,6 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void BindNegativeHugeIntValueTest()
     {
         Command.CommandText = "CREATE TABLE NegativeHugeIntTests (key INTEGER, value HugeInt)";
@@ -89,7 +85,6 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void HugeIntMinimumAndMaximumRoundTrip()
     {
         // HUGEINT is a 128-bit two's complement integer: -2^127 to 2^127 - 1.
@@ -130,7 +125,6 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void BindParameterWithoutTable_HugeInt()
     {
         // Generate a value larger than long.MaxValue to ensure it is treated as HUGEINT
@@ -154,7 +148,6 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
     [Theory]
     [MemberData(nameof(UnsignedHugeIntValues))]
-    [Trait("V2", "Ready")]
     public void BindBigIntegerToUnsignedHugeIntColumn(BigInteger value)
     {
         Command.CommandText = "CREATE OR REPLACE TABLE UHugeIntParameterTests (value UHUGEINT);";
@@ -171,7 +164,6 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void BindOutOfRangeBigIntegerToUnsignedHugeIntColumnThrows()
     {
         Command.CommandText = "CREATE OR REPLACE TABLE UHugeIntParameterRangeTests (value UHUGEINT);";
@@ -193,7 +185,6 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [Theory]
     [InlineData("SELECT ($1::UHUGEINT)::VARCHAR, $1::VARCHAR;")]
     [InlineData("SELECT $1::VARCHAR;")]
-    [Trait("V2", "Ready")]
     public void BindBigIntegerAboveHugeIntRangeWithoutColumn(string query)
     {
         var value = BigInteger.Pow(2, 127) + 42;
@@ -211,7 +202,6 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [InlineData("340282366920938463463374607431768211455", "UHUGEINT")]
     [InlineData("340282366920938463463374607431768211456", "BIGNUM")]
     [InlineData("-170141183460469231731687303715884105729", "BIGNUM")]
-    [Trait("V2", "Ready")]
     public void BigIntegerWithoutColumnPicksTheSmallestTypeThatFits(string text, string expectedType)
     {
         var value = BigInteger.Parse(text);
@@ -247,7 +237,6 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
     [Theory]
     [MemberData(nameof(Int128Values))]
-    [Trait("V2", "Ready")]
     public void Int128IsSentAsAHugeInt(Int128 value, string text)
     {
         var parameter = new DuckDBParameter(value);
@@ -266,7 +255,6 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
     [Theory]
     [MemberData(nameof(UInt128Values))]
-    [Trait("V2", "Ready")]
     public void UInt128IsSentAsAUHugeInt(UInt128 value, string text)
     {
         var parameter = new DuckDBParameter(value);
@@ -285,7 +273,6 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
 
     // A column of another type: DuckDB casts the value, and refuses one that does not fit.
     [Fact]
-    [Trait("V2", "Ready")]
     public void Int128AndUInt128AreCastToTheTypeOfTheColumn()
     {
         Command.CommandText = "CREATE OR REPLACE TABLE Int128ParameterTargets (signed HUGEINT, unsigned UHUGEINT, i INTEGER, d DECIMAL(38,0), v VARCHAR);";
@@ -323,7 +310,6 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void NullInt128IsSentAsNull()
     {
         Command.CommandText = "SELECT $1 IS NULL;";
@@ -332,7 +318,6 @@ public class HugeIntParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListsOfInt128AndUInt128()
     {
         Command.CommandText = "CREATE OR REPLACE TABLE Int128ListParameters (signed HUGEINT[], unsigned UHUGEINT[]);";

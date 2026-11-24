@@ -3,7 +3,6 @@ namespace DuckDB.NET.Test.Parameters;
 public class GuidParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadGuid()
     {
         var guids = new[] { Guid.NewGuid(), Guid.Empty };
@@ -26,7 +25,6 @@ public class GuidParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ReadGuidNullable()
     {
         Command.CommandText = "SELECT ?::uuid;";
@@ -42,7 +40,6 @@ public class GuidParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void InsertGuidSelect()
     {
         Command.CommandText = "CREATE TABLE uuid_test (a uuid);";
@@ -63,7 +60,6 @@ public class GuidParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void BindValueTest()
     {
         var guids = new[] { Guid.NewGuid(), Guid.Empty };
@@ -87,7 +83,6 @@ public class GuidParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void BindParameterWithoutTable()
     {
         var value = Guid.NewGuid();

@@ -3,7 +3,6 @@ namespace DuckDB.NET.Test;
 public class DuckDBTimeOnlyTests
 {
     [Fact]
-    [Trait("V2", "Ready")]
     public void TimeOnlyAsDateTimeIsTheTimeOnTheFirstDay()
     {
         new DuckDBTimeOnly(0, 0, 0).ToDateTime().Should().Be(DateTime.MinValue);
@@ -20,7 +19,6 @@ public class DuckDBTimeOnlyTests
     [InlineData(1, 2, 3, int.MaxValue)]
     [InlineData(23, 59, 59, -300_000_000)]
     [InlineData(0, 0, 0, int.MinValue)]
-    [Trait("V2", "Ready")]
     public void TicksAgreeWithDuckDBForLargeMicroseconds(byte hour, byte minute, byte second, int microsecond)
     {
         var time = new DuckDBTimeOnly(hour, minute, second, microsecond);
@@ -29,7 +27,6 @@ public class DuckDBTimeOnlyTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void TimesWithATimeZoneAreEqualWhenTimeAndOffsetAre()
     {
         var time = new DuckDBTimeTz { Time = new DuckDBTimeOnly(13, 14, 15, 16), Offset = 3600 };

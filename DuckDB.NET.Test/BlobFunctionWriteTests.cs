@@ -17,7 +17,6 @@ public class BlobFunctionWriteTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     ];
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void AScalarFunctionReturnsAByteArray()
     {
         Connection.RegisterScalarFunction("make_blob", () => new byte[] { 1, 2, 3 });
@@ -33,7 +32,6 @@ public class BlobFunctionWriteTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void AScalarFunctionReturnsEmptyNullAndLongByteArrays()
     {
         Connection.RegisterScalarFunction<int, byte[]>("blob_at", index => Values[index]);
@@ -43,7 +41,6 @@ public class BlobFunctionWriteTests(DuckDBDatabaseFixture db) : DuckDBTestBase(d
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ATableFunctionWritesAByteArrayColumn()
     {
         Connection.RegisterTableFunction("blob_rows",

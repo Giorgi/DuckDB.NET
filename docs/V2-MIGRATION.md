@@ -43,10 +43,11 @@ that take none of those handles keep working next to V2, for example `duckdb_con
   `IntPtr`.
 - The V1 declarations stay: they are public API of the Bindings package. Whether to remove them is decided at the
   end. A public V2 API in Bindings, if wanted, is written once V2 is stable.
-- Each stage names the tests that must pass before the next one starts. A test that passes on V2 gets
-  `[Trait("V2", "Ready")]`, and CI on `nightly-vnext` runs only those (`--filter V2=Ready`), so the run stays green
-  while the rest of Data is broken. Locally: `dotnet test DuckDB.NET.Test/Test.csproj --filter V2=Ready`. When the
-  migration is done, the traits and the filter go.
+- Each stage names the tests that must pass before the next one starts. Until stage 7, a test that passed on V2 got
+  `[Trait("V2", "Ready")]` and CI on `nightly-vnext` ran only those (the counts of "marked V2-ready" below are from
+  then). Since then the whole suite runs, and a test that cannot pass yet is skipped with a reason from
+  `DuckDB.NET.Test/V2/V2Skip.cs`: the Arrow appender, materialized results (a skipped `InlineData(false)` row of
+  a `useStreamingMode` theory), and two threads on one connection. A skip goes when what it names is done.
 - Code that is not migrated yet still compiles against V1, and fails when it runs: `DuckDBConnection.NativeConnection`,
   the V1 handle every unmigrated path goes through, throws `NotSupportedException`.
 

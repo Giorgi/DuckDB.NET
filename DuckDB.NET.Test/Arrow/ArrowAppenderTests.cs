@@ -7,7 +7,7 @@ namespace DuckDB.NET.Test.Arrow;
 
 public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
-    [Fact]
+    [Fact(Skip = V2Skip.ArrowAppender)]
     public void AppendBatch_WritesValuesAndNulls()
     {
         Connection.ExecuteNonQuery("CREATE TABLE arrow_values(i INTEGER, s VARCHAR, d DOUBLE, b BOOLEAN, ts TIMESTAMP, m DECIMAL(18, 3))");
@@ -47,7 +47,7 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             (3, null, 3.5, null, timestamp.AddSeconds(1).UtcDateTime, null));
     }
 
-    [Theory]
+    [Theory(Skip = V2Skip.ArrowAppender)]
     [InlineData(2048)]
     [InlineData(2049)]
     [InlineData(5000)]
@@ -83,7 +83,7 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         result.Should().Be((rowCount, expectedSum, expectedSum, 0L));
     }
 
-    [Fact]
+    [Fact(Skip = V2Skip.ArrowAppender)]
     public void AppendBatch_ReadsSlicedBatchFromItsOffset()
     {
         Connection.ExecuteNonQuery("CREATE TABLE arrow_sliced(i INTEGER, s VARCHAR, l INTEGER[])");
@@ -120,7 +120,7 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         rows.Should().Equal((10, "s10", 11), (11, "s11", 12), (null, "s12", 13), (13, "s13", 14), (14, "s14", 15));
     }
 
-    [Fact]
+    [Fact(Skip = V2Skip.ArrowAppender)]
     public void AppendBatch_WritesStructAndDictionaryColumns()
     {
         Connection.ExecuteNonQuery("CREATE TABLE arrow_nested(st STRUCT(a INTEGER, b VARCHAR), category VARCHAR)");
@@ -156,7 +156,7 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         rows.Should().Equal((1, "x", "green"), (2, "y", "red"));
     }
 
-    [Fact]
+    [Fact(Skip = V2Skip.ArrowAppender)]
     public void AppendBatch_ConvertsAgainWhenSchemaChanges()
     {
         Connection.ExecuteNonQuery("CREATE TABLE arrow_schema_change(v BIGINT)");
@@ -174,7 +174,7 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Connection.Query<long>("SELECT v FROM arrow_schema_change ORDER BY rowid").Should().Equal(1L, long.MaxValue, 3L);
     }
 
-    [Fact]
+    [Fact(Skip = V2Skip.ArrowAppender)]
     public void AppendBatch_EmptyBatchAppendsNothing()
     {
         Connection.ExecuteNonQuery("CREATE TABLE arrow_empty(i INTEGER)");
@@ -190,7 +190,7 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Connection.Query<int>("SELECT i FROM arrow_empty").Should().Equal(7);
     }
 
-    [Fact]
+    [Fact(Skip = V2Skip.ArrowAppender)]
     public void AppendBatch_WrongColumnCountThrowsAndKeepsAppenderUsable()
     {
         Connection.ExecuteNonQuery("CREATE TABLE arrow_column_count(i INTEGER)");
@@ -213,7 +213,7 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Connection.Query<int>("SELECT i FROM arrow_column_count").Should().Equal(5);
     }
 
-    [Fact]
+    [Fact(Skip = V2Skip.ArrowAppender)]
     public void AppendBatch_FailedCastFaultsAppenderAndKeepsEarlierRows()
     {
         Connection.ExecuteNonQuery("CREATE TABLE arrow_failed_cast(i INTEGER)");
@@ -236,7 +236,7 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Connection.Query<int>("SELECT i FROM arrow_failed_cast ORDER BY rowid").Should().Equal(1, 2);
     }
 
-    [Fact]
+    [Fact(Skip = V2Skip.ArrowAppender)]
     public void Clear_DropsAppendedBatches()
     {
         Connection.ExecuteNonQuery("CREATE TABLE arrow_clear(i INTEGER)");
@@ -253,7 +253,7 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Connection.Query<int>("SELECT i FROM arrow_clear").Should().Equal(2);
     }
 
-    [Fact]
+    [Fact(Skip = V2Skip.ArrowAppender)]
     public void ClosedAppenderRejectsCalls()
     {
         Connection.ExecuteNonQuery("CREATE TABLE arrow_closed(i INTEGER)");
@@ -269,7 +269,7 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         appender.Invoking(a => a.Dispose()).Should().NotThrow();
     }
 
-    [Fact]
+    [Fact(Skip = V2Skip.ArrowAppender)]
     public void CreateArrowAppender_ReportsMissingTableAndClosedConnection()
     {
         Connection.Invoking(c => c.CreateArrowAppender("arrow_missing_table")).Should().Throw<DuckDBException>();
@@ -279,7 +279,7 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
             .WithMessage("CreateArrowAppender requires an open connection");
     }
 
-    [Fact]
+    [Fact(Skip = V2Skip.ArrowAppender)]
     public void CreateArrowAppender_UsesSchemaName()
     {
         Connection.ExecuteNonQuery("CREATE SCHEMA IF NOT EXISTS arrow_schema");
@@ -295,7 +295,7 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Connection.Query<int>("SELECT i FROM arrow_schema.target").Should().Equal(9);
     }
 
-    [Theory]
+    [Theory(Skip = V2Skip.ArrowAppender)]
     [InlineData(false)]
     [InlineData(true)]
     public async Task AppendStream_CopiesQueryResultFromAnotherDatabase(bool useAsync)
@@ -329,7 +329,7 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         result.Should().Be((rowCount, (long)rowCount * (rowCount - 1) / 2, (long)(rowCount + 6) / 7, 0L));
     }
 
-    [Fact]
+    [Fact(Skip = V2Skip.ArrowAppender)]
     public async Task AppendStreamAsync_StopsWhenCancelledAndKeepsEarlierBatches()
     {
         Connection.ExecuteNonQuery("CREATE TABLE arrow_cancel(i INTEGER)");
@@ -353,7 +353,7 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Connection.Query<int>("SELECT i FROM arrow_cancel").Should().Equal(1);
     }
 
-    [Theory]
+    [Theory(Skip = V2Skip.ArrowAppender)]
     [InlineData(false)]
     [InlineData(true)]
     public void AppendBatch_ColumnShorterThanBatchThrows(bool strings)
@@ -377,7 +377,7 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Connection.QuerySingle<long>($"SELECT count(*) FROM arrow_short_{strings}").Should().Be(1);
     }
 
-    [Fact]
+    [Fact(Skip = V2Skip.ArrowAppender)]
     public void AppendBatch_LongMixedBatchFromOffset()
     {
         // Strings, booleans and NULLs across 2048-row vector boundaries, with a cast, from a batch that starts at an
@@ -421,7 +421,7 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         mismatches.Should().Be((rowCount, 0L));
     }
 
-    [Fact]
+    [Fact(Skip = V2Skip.ArrowAppender)]
     public void AppendBatch_FailingLongBatchAppendsNothingOfIt()
     {
         // The batch goes to DuckDB as one chunk, so a value that fails to cast after the first 2048 rows leaves none
@@ -446,7 +446,7 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Connection.Query<int>("SELECT i FROM arrow_partial ORDER BY rowid").Should().Equal(-1, -2);
     }
 
-    [Fact]
+    [Fact(Skip = V2Skip.ArrowAppender)]
     public void AppendBatch_ConstraintFailureAtFlushDropsEarlierBatches()
     {
         // Constraints are checked when the appender flushes. A batch over the flush threshold (204,800 rows) makes
@@ -474,7 +474,7 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Connection.QuerySingle<long>("SELECT count(*) FROM arrow_not_null").Should().Be(0);
     }
 
-    [Fact]
+    [Fact(Skip = V2Skip.ArrowAppender)]
     public void Dispose_ConstraintFailureDropsUnflushedBatches()
     {
         // Below the flush threshold nothing is checked until the appender is closed: both batches append, and the
@@ -493,7 +493,7 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Connection.QuerySingle<long>("SELECT count(*) FROM arrow_primary_key").Should().Be(0);
     }
 
-    [Fact]
+    [Fact(Skip = V2Skip.ArrowAppender)]
     public void AppendStream_ReadsArrowStreamReader()
     {
         // An ArrowStreamReader is read with its synchronous ReadNextRecordBatch.

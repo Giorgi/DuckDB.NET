@@ -6,7 +6,6 @@ namespace DuckDB.NET.Test;
 public class DuckDBValueGetValueTests
 {
     [Fact]
-    [Trait("V2", "Ready")]
     public void AValueReadsAsItsOwnType()
     {
         using var integer = NativeMethods.Value.DuckDBCreateInt32(42);
@@ -21,7 +20,6 @@ public class DuckDBValueGetValueTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void AValueReadsAsObjectNullableAndInterface()
     {
         using var integer = NativeMethods.Value.DuckDBCreateInt32(42);
@@ -34,7 +32,6 @@ public class DuckDBValueGetValueTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void AValueIsRefusedAsAnotherType()
     {
         using var integer = NativeMethods.Value.DuckDBCreateInt32(42);
@@ -49,7 +46,6 @@ public class DuckDBValueGetValueTests
     // Every timestamp type reads as a DateTime, and as the instant at UTC when it is read as DateTimeOffset, as the
     // column reader gives it. Each getter takes the value in the unit of its type.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ATimestampReadsAsDateTimeAndAsDateTimeOffsetAtUtc()
     {
         var expected = new DateTime(2024, 2, 29, 13, 45, 30);

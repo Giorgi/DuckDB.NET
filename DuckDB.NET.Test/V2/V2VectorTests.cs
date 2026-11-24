@@ -6,7 +6,6 @@ namespace DuckDB.NET.Test.V2;
 
 // The readers flatten a vector that is not flat before they read it. DuckDB hands query results out flat, so no
 // query reaches that path; these tests build a constant vector through V2 and read it the way the reader does.
-[Trait("V2", "Ready")]
 public unsafe class V2VectorTests
 {
     [Fact]

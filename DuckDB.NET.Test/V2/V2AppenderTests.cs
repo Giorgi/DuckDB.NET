@@ -4,7 +4,6 @@ namespace DuckDB.NET.Test.V2;
 
 // The appender on the C API V2 buffers rows in a column data collection and inserts them when it flushes
 // (docs/V2-MIGRATION.md, "The appender"). These tests pin what that design has to keep.
-[Trait("V2", "Ready")]
 public class V2AppenderTests
 {
     [Fact]

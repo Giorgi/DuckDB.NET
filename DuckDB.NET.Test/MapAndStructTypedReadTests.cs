@@ -9,7 +9,6 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     private const int Rows = 3000;
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void MapsOfSeveralKeyAndValueTypesOverMoreThanOneChunk()
     {
         Command.CommandText = $$"""
@@ -59,7 +58,6 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void MapsWithUuidKeysAndBooleanTimestampAndUuidValues()
     {
         Command.CommandText = $$"""
@@ -99,7 +97,6 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void MapWithANullValueIntoADictionaryOfAValueTypeIsRefused()
     {
         Command.CommandText = "SELECT MAP {1: 10, 2: NULL} AS m";
@@ -116,7 +113,6 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void MapValueThatDoesNotFitIsRefused()
     {
         Command.CommandText = "SELECT MAP {'k': 300} AS m";
@@ -128,7 +124,6 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void MapOfTheWrongTypeIsRefusedWithInvalidCastException()
     {
         Command.CommandText = "SELECT MAP {'k': 'text'} AS m";
@@ -141,7 +136,6 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void MapReadsThatTheObjectPathRefused()
     {
         Command.CommandText = "SELECT MAP {'k': 5} AS i, MAP {'k': 5::HUGEINT} AS h, MAP {'k': 'b'::ENUM('a', 'b')} AS e";
@@ -155,7 +149,6 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void MapIntoAClassDerivedFromDictionary()
     {
         Command.CommandText = $"SELECT MAP {{'key' || i: i::INTEGER, 'null' || i: NULL}} AS m FROM range({Rows}) t(i) ORDER BY i";
@@ -183,7 +176,6 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void MapIntoAClassDerivedFromDictionaryIsReadByItsBase()
     {
         Command.CommandText = $"SELECT MAP {{'key' || i: i::INTEGER, 'null' || i: NULL}} AS m FROM range({Rows}) t(i) ORDER BY i";
@@ -209,7 +201,6 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     // A nullable key type has no builder, so this class is read through IDictionary, with the key and value types of
     // its base class.
     [Fact]
-    [Trait("V2", "Ready")]
     public void MapIntoADerivedClassThroughIDictionaryIsReadByItsBase()
     {
         Command.CommandText = $"SELECT MAP {{i::INTEGER: i::BIGINT, (i + 100000)::INTEGER: NULL}} AS m FROM range({Rows}) t(i) ORDER BY i";
@@ -232,7 +223,6 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void MapIntoTypesThatAreNotADictionaryOfConcreteTypes()
     {
         Command.CommandText = "SELECT MAP {2: 'b', 1: 'a', 3: NULL} AS m";
@@ -248,7 +238,6 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void StructIntoClassWithOtherNumericTypes()
     {
         Command.CommandText = $$"""
@@ -277,7 +266,6 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void StructFieldThatDoesNotFitIsRefused()
     {
         Command.CommandText = "SELECT {'a': 300} AS s";
@@ -288,7 +276,6 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void StructIntoClassWithNullableProperties()
     {
         Command.CommandText = $$"""
@@ -318,7 +305,6 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void StructWithNullIntoNonNullablePropertyIsRefused()
     {
         Command.CommandText = "SELECT {'a': 1, 'b': NULL::INTEGER} AS s";
@@ -330,7 +316,6 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void StructWithMissingAndExtraProperties()
     {
         Command.CommandText = "SELECT {'A': 1, 'extra': 'ignored', 'NAME': 'n'} AS s";
@@ -348,7 +333,6 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void StructWithInheritedPrivateAndInitSetters()
     {
         Command.CommandText = "SELECT {'base': 1, 'private': 2, 'init': 3} AS s";
@@ -363,7 +347,6 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void StructWithNestedStructListAndMapFields()
     {
         Command.CommandText = $$"""
@@ -409,7 +392,6 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void StructIntoACSharpStruct()
     {
         Command.CommandText = $$"""
@@ -448,7 +430,6 @@ public class MapAndStructTypedReadTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void AnExceptionOfASetterIsNotWrapped()
     {
         Command.CommandText = "SELECT {'a': 1} AS s";

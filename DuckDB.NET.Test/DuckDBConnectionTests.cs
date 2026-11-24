@@ -8,7 +8,6 @@ public class DuckDBConnectionTests
     [Fact]
     [Trait("Category", "Long Running")]
     [Trait("Stress", "Connection")]
-    [Trait("V2", "Ready")]
     public async Task ConnectionSpeed()
     {
         const int taskCount = 5;
@@ -58,7 +57,6 @@ public class DuckDBConnectionTests
     // "An application can call Close or CloseAsync more than one time. No exception is generated."
     [Fact]
     [Trait("Category", "Baseline")]
-    [Trait("V2", "Ready")]
     public async Task CloseCanBeCalledMoreThanOnce()
     {
         using var dbInfo = DisposableFile.GenerateInTemp("db");
@@ -77,7 +75,6 @@ public class DuckDBConnectionTests
 
     [Fact]
     [Trait("Category", "Baseline")]
-    [Trait("V2", "Ready")]
     public async Task CloseNeverOpenedConnectionDoesNotThrow()
     {
         await using var duckDBConnection = new DuckDBConnection("DataSource=:memory:");
@@ -93,7 +90,6 @@ public class DuckDBConnectionTests
 
     [Fact]
     [Trait("Category", "Baseline")]
-    [Trait("V2", "Ready")]
     public async Task CloseAfterDisposeDoesNotThrow()
     {
         using var dbInfo = DisposableFile.GenerateInTemp("db");
@@ -113,7 +109,6 @@ public class DuckDBConnectionTests
     [Fact]
     [Trait("Category", "Long Running")]
     [Trait("Stress", "Connection")]
-    [Trait("V2", "Ready")]
     public async Task MultiThreadedStress()
     {
         //with 1 task per file, should be good mix of reusing connections
@@ -188,7 +183,6 @@ public class DuckDBConnectionTests
 
     [Fact]
     [Trait("Category", "Baseline")]
-    [Trait("V2", "Ready")]
     public async Task NoExceptionOnDoubleDispose()
     {
         using var dbInfo = DisposableFile.GenerateInTemp("db");
@@ -204,7 +198,6 @@ public class DuckDBConnectionTests
 
     [Fact]
     [Trait("Category", "Baseline")]
-    [Trait("V2", "Ready")]
     public async Task NoExceptionCloseThenDispose()
     {
         using var dbInfo = DisposableFile.GenerateInTemp("db");
@@ -220,7 +213,6 @@ public class DuckDBConnectionTests
 
     [Fact]
     [Trait("Category", "Baseline")]
-    [Trait("V2", "Ready")]
     public async Task SingleThreadedOpenAndCloseOfSameFile()
     {
         using var db1 = DisposableFile.GenerateInTemp("db", 1);
@@ -261,7 +253,6 @@ public class DuckDBConnectionTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void QueryAgainstClosedConnection()
     {
         var connection = new DuckDBConnection("DataSource=:memory:");
@@ -283,7 +274,6 @@ public class DuckDBConnectionTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void OpenConnectionTwiceError()
     {
         var connection = new DuckDBConnection("DataSource=:memory:");
@@ -293,7 +283,6 @@ public class DuckDBConnectionTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void MultipleInMemoryConnectionsSeparateDatabases()
     {
         var tableCount = 0;
@@ -339,7 +328,6 @@ public class DuckDBConnectionTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void MultipleInMemoryConnectionsSharedDatabases()
     {
         var tableCount = 0;
@@ -401,7 +389,6 @@ public class DuckDBConnectionTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void DuplicateNotInMemoryConnectionError()
     {
         using var db1 = DisposableFile.GenerateInTemp("db", 1);
@@ -414,7 +401,6 @@ public class DuckDBConnectionTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void DuplicateInMemoryNotOpenedConnectionError()
     {
         using var duckDBConnection = new DuckDBConnection("DataSource =:memory:");
@@ -423,7 +409,6 @@ public class DuckDBConnectionTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void DuplicateInMemoryConnection()
     {
         var tableCount = 0;
@@ -475,7 +460,6 @@ public class DuckDBConnectionTests
     [InlineData("Threads", 100)]
     [InlineData("Threads", 0)]
     [InlineData("threads", -100)]
-    [Trait("V2", "Ready")]
     public void ConnectionStringSetThreadsOption(string optionName, int threads)
     {
         using var connection = new DuckDBConnection($"DataSource=:memory:;{optionName}={threads}");
@@ -497,7 +481,6 @@ public class DuckDBConnectionTests
     [InlineData("automatic")]
     [InlineData("AUTOMATIC")]
     [InlineData("READ_WRITE")]
-    [Trait("V2", "Ready")]
     public void ConnectionStringSetAccessModeOption(string accessMode)
     {
         using var connection = new DuckDBConnection($"DataSource=:memory:;access_mode={accessMode}");
@@ -514,7 +497,6 @@ public class DuckDBConnectionTests
     [InlineData("automatic", 2)]
     [InlineData("AUTOMATIC", 8)]
     [InlineData("READ_WRITE", 100)]
-    [Trait("V2", "Ready")]
     public void ConnectionStringSetThreadsAndAccessModeOption(string accessMode, int threads)
     {
         using var connection = new DuckDBConnection($"DataSource=:memory:;Access_Mode={accessMode};Threads={threads}");
@@ -532,7 +514,6 @@ public class DuckDBConnectionTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ConnectionStateHandlerIsCalledOnOpen()
     {
         using var dbInfo = DisposableFile.GenerateInTemp("db");
@@ -554,7 +535,6 @@ public class DuckDBConnectionTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public async Task ConnectionStateHandlerIsCalledOnClose()
     {
         using var dbInfo = DisposableFile.GenerateInTemp("db");
@@ -576,7 +556,6 @@ public class DuckDBConnectionTests
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ConnectionSetsDuckDBApiConfigOption()
     {
         using (var connection = new DuckDBConnection(DuckDBConnectionStringBuilder.InMemoryConnectionString))

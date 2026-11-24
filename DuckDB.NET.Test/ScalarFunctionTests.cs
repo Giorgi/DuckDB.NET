@@ -6,7 +6,6 @@ namespace DuckDB.NET.Test;
 public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterScalarFunctionWithVarargs()
     {
         var values = new List<long>();
@@ -55,7 +54,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterScalarFunctionWithoutParameters()
     {
         var values = new List<long>();
@@ -79,7 +77,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterScalarFunctionWithOneParameter()
     {
         var values = new List<long>();
@@ -103,7 +100,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterScalarFunctionCallbackThrows()
     {
         const string functionName = "throwing_scalar";
@@ -116,7 +112,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterScalarFunctionCallbackThrowsInLaterStreamingChunk()
     {
         using var connection = OpenConnectionForLateStreamingErrors();
@@ -153,7 +148,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterScalarFunctionWithDuckDBDateOnlyAndTimeOnly()
     {
         Connection.RegisterScalarFunction<DuckDBDateOnly, DuckDBDateOnly>("same_duckdb_date", date => date);
@@ -175,7 +169,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterScalarFunctionIsPrime()
     {
         Connection.RegisterScalarFunction<int, bool>("is_prime", (readers, writer, rowCount) =>
@@ -203,7 +196,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterScalarFunction()
     {
         var minValue = long.MaxValue;
@@ -227,7 +219,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void RegisterScalarFunctionWithAny()
     {
         Connection.RegisterScalarFunction<object, string, string>("to_string", (readers, writer, rowCount) =>
@@ -281,7 +272,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionZeroParams()
     {
         Connection.RegisterScalarFunction("the_answer", () => 42);
@@ -292,7 +282,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionOneParam()
     {
         Connection.RegisterScalarFunction<int, bool>("is_prime_simple", IsPrime);
@@ -302,7 +291,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionTwoParams()
     {
         Connection.RegisterScalarFunction<long, long, long>("add_simple", (a, b) => a + b);
@@ -313,7 +301,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionThreeParams()
     {
         Connection.RegisterScalarFunction<int, int, int, int>("clamp_simple", (value, min, max) => Math.Clamp(value, min, max));
@@ -323,7 +310,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionNullPropagation()
     {
         Connection.RegisterScalarFunction<int, int>("double_it", x => x * 2);
@@ -334,7 +320,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionNullPropagationMultipleParams()
     {
         Connection.RegisterScalarFunction<int, int, int>("add_ints", (a, b) => a + b);
@@ -349,7 +334,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionStringReturn()
     {
         Connection.RegisterScalarFunction<int, string>("to_words", n => n switch
@@ -365,7 +349,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionNullableValueTypeReturn()
     {
         Connection.RegisterScalarFunction<int, int?>("maybe_double", n => n > 3 ? n * 2 : null);
@@ -375,7 +358,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionVarargsSum()
     {
         Connection.RegisterScalarFunction("hi_sum", (long[] args) => args.Sum());
@@ -386,7 +368,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionVarargsConcat()
     {
         Connection.RegisterScalarFunction("hi_concat", (string[] parts) => string.Join(", ", parts));
@@ -396,7 +377,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionVarargsMethodGroup()
     {
         Connection.RegisterScalarFunction<long, long>("hi_max", Max);
@@ -407,7 +387,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionVarargsBranchOnCount()
     {
         var values = new List<long>();
@@ -445,7 +424,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionVarargsLargeChunk()
     {
         Connection.RegisterScalarFunction("hi_sum_large", (long[] args) => args.Sum());
@@ -458,7 +436,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionAnyOneParam()
     {
         Connection.RegisterScalarFunction<object, string>("net_type_name", value => value.GetType().Name);
@@ -470,7 +447,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionAnyTwoParams()
     {
         Connection.RegisterScalarFunction("format_net",
@@ -484,7 +460,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionAnyThreeParams()
     {
         Connection.RegisterScalarFunction("format_net_culture",
@@ -500,7 +475,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionVarargsAny()
     {
         Connection.RegisterScalarFunction("concat_any", (object[] args) => string.Join(", ", args));
@@ -512,7 +486,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ScalarFunctionHandlesNulls_LowLevel()
     {
         Connection.RegisterScalarFunction<int, string>("null_or_val", (readers, writer, rowCount) =>
@@ -536,7 +509,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ScalarFunctionHandlesNulls_LowLevel_StringNullWithGetValue()
     {
         Connection.RegisterScalarFunction<string, string>("echo_nullable", (readers, writer, rowCount) =>
@@ -558,7 +530,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionHandlesNulls_NullableParam()
     {
         Connection.RegisterScalarFunction<int?, string>("describe_val", x => x.HasValue ? x.Value.ToString() : "nothing");
@@ -569,7 +540,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionHandlesNulls_MixedParams()
     {
         Connection.RegisterScalarFunction<int?, int, string>("coalesce_add",
@@ -581,7 +551,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionHandlesNulls_AllNonNullable_DefaultPropagation()
     {
         Connection.RegisterScalarFunction("non_nullable",
@@ -597,7 +566,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     // with a NULL argument gets NULL and the function is not called for it, as for a constant. 5000 rows span three
     // chunks.
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionNonNullableParamsGiveNullForANullInAColumn()
     {
         var calls = 0;
@@ -614,7 +582,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     // A reference type parameter that is not declared nullable is not called with null either. (Nullable reference
     // types are off in this project, so the parameter is not declared nullable.)
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionNonNullableStringParamIsNotCalledForANullInAColumn()
     {
         Connection.RegisterScalarFunction<string, string>("upper_col", s => s.ToUpperInvariant());
@@ -627,7 +594,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
     // A list result after a NULL row must still have the right offsets. 5000 rows span three chunks.
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionNonNullableListParamGivesNullForANullListInAColumn()
     {
         Connection.RegisterScalarFunction<List<int>, List<int>>("twice_col", list => [.. list, .. list]);
@@ -640,7 +606,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionNonNullableParamsGiveNullForANullInAnyColumn()
     {
         Connection.RegisterScalarFunction<int, int, int>("add_col", (a, b) => a + b);
@@ -655,7 +620,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionHandlesNulls_NonNullableReceivesNull_Throws()
     {
         Connection.RegisterScalarFunction<int?, int, string>("bad_mix",
@@ -668,7 +632,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
 #nullable enable
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionHandlesNulls_NullableStringParam()
     {
         Connection.RegisterScalarFunction<string?, string>("echo_or_default",
@@ -684,7 +647,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionHandlesNulls_NonNullableStringParam_DefaultPropagation()
     {
         Connection.RegisterScalarFunction<string, string>("echo_non_null",
@@ -703,7 +665,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData("allow_null")]
     [InlineData("maybe_null")]
     [InlineData("plain")]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionHandlesNulls_AllowNullAndMaybeNullStringParams(string kind)
     {
         var name = $"echo_{kind}";
@@ -735,7 +696,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionHandlesNulls_Varargs()
     {
         Connection.RegisterScalarFunction<int?, string>("sum_or_null",
@@ -756,7 +716,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
 #nullable enable
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionHandlesNulls_NullableStringVarargs()
     {
         Connection.RegisterScalarFunction<string?, string>("coalesce_join",
@@ -773,7 +732,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 #nullable restore
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionHandlesNulls_NonNullableObjectReceivesNull_Throws()
     {
         Connection.RegisterScalarFunction<object, int?, string>("obj_mix", (obj, n) => $"{obj},{n}");
@@ -784,7 +742,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void ScalarFunctionError_PreservesInnerException()
     {
         var originalException = new InvalidOperationException("custom scalar error");
@@ -804,7 +761,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     // VectorDataWriterBase.WriteNullable. Every type that has a line is here, with a value and a NULL, over more
     // rows than one chunk holds.
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionReturnsNullableOfEveryType()
     {
         ReturnsNullable<bool>(true);
@@ -859,7 +815,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Theory]
     [InlineData("where", "SELECT i FROM range(5) t(i) WHERE {0}(i) > 0")]
     [InlineData("having", "SELECT i FROM range(5) t(i) GROUP BY i HAVING {0}(i) > 0")]
-    [Trait("V2", "Ready")]
     public void ScalarFunctionError_PreservesInnerExceptionInAFilter(string place, string sql)
     {
         var originalException = new InvalidOperationException("custom filter error");
@@ -878,7 +833,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     // The typed forms each have their own loop over the rows. The tests below give every parameter a type of its
     // own and more rows than one chunk holds, so that a loop that reads the wrong column or the wrong row shows.
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionOneParamOverSeveralChunks()
     {
         Connection.RegisterScalarFunction<int, long>("chunks_one", value => value * 3L + 1);
@@ -890,7 +844,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionTwoParamsOverSeveralChunks()
     {
         Connection.RegisterScalarFunction<int, string, string>("chunks_two", (number, text) => $"{number}:{text}");
@@ -902,7 +855,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionThreeParamsOfDifferentTypes()
     {
         Connection.RegisterScalarFunction<int, long?, double, string>("three_mixed",
@@ -923,7 +875,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionFourParams()
     {
         Connection.RegisterScalarFunction<int, long, string, double, string>("four_mixed",
@@ -941,7 +892,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionFourParamsWithNulls()
     {
         Connection.RegisterScalarFunction<int?, long, double?, short, string>("four_nulls",
@@ -967,7 +917,6 @@ public class ScalarFunctionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     // A function with parameters gives the same result for the same arguments, as far as DuckDB is told, and one
     // without parameters does not. DuckDB calls the first kind once for a constant argument.
     [Fact]
-    [Trait("V2", "Ready")]
     public void SimplifiedScalarFunctionsWithParametersArePure()
     {
         Connection.RegisterScalarFunction("stable_zero", () => 1);

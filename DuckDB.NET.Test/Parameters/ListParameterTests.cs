@@ -40,112 +40,96 @@ public class ListParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CanBindBoolList()
     {
         TestInsertSelect("bool", faker => faker.Random.Bool().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CanBindSByteList()
     {
         TestInsertSelect("tinyint", faker => faker.Random.SByte().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CanBindShortList()
     {
         TestInsertSelect("SmallInt", faker => faker.Random.Short().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CanBindIntegerList()
     {
         TestInsertSelect("int", faker => faker.Random.Int().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CanBindLongList()
     {
         TestInsertSelect("BigInt", faker => faker.Random.Long().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CanBindHugeIntList()
     {
         TestInsertSelect("HugeInt", faker => BigInteger.Subtract(DuckDBHugeInt.HugeIntMaxValue, faker.Random.Int(min: 0)).OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CanBindByteList()
     {
         TestInsertSelect("UTinyInt", faker => faker.Random.Byte().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CanBindUShortList()
     {
         TestInsertSelect("USmallInt", faker => faker.Random.UShort().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CanBindUIntList()
     {
         TestInsertSelect("UInteger", faker => faker.Random.UInt().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CanBindULongList()
     {
         TestInsertSelect("UBigInt", faker => faker.Random.ULong().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CanBindFloatList()
     {
         TestInsertSelect("Float", faker => faker.Random.Float().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CanBindDoubleList()
     {
         TestInsertSelect("Double", faker => faker.Random.Double().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CanBindDecimalList()
     {
         TestInsertSelect("Decimal(38, 28)", faker => faker.Random.Decimal().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CanBindGuidList()
     {
         TestInsertSelect("UUID", faker => faker.Random.Uuid().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CanBindDateTimeList()
     {
         TestInsertSelect("Date", faker => faker.Date.Past().Date);
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CanBindDateTimeOffsetList()
     {
         TestInsertSelect("TimeTZ", faker =>
@@ -164,14 +148,12 @@ public class ListParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CanBindStringList()
     {
         TestInsertSelect("String", faker => faker.Random.Utf16String().OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CanBindIntervalList()
     {
         TestInsertSelect("Interval", faker =>
@@ -183,7 +165,6 @@ public class ListParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CanBindDuckDBDateOnlyList()
     {
         TestInsertSelect("Date", faker => ((DuckDBDateOnly)faker.Date.Past().Date).OrNull(faker));
@@ -192,7 +173,6 @@ public class ListParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     // DuckDB gives no value for a list with an item it cannot convert to the type of the items. Binding that
     // crashed the process with an access violation.
     [Fact]
-    [Trait("V2", "Ready")]
     public void ListWithAnItemThatDoesNotFitTheColumnIsRefused()
     {
         Command.CommandText = "CREATE OR REPLACE TABLE ParameterListRefused (wide DECIMAL(38,10)[], nested DECIMAL(9,2)[][], fixed DECIMAL(9,2)[2], narrow DECIMAL(3,0)[]);";
@@ -226,21 +206,18 @@ public class ListParameterTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CanBindDuckDBTimeOnlyList()
     {
         TestInsertSelect("Time", faker => ((DuckDBTimeOnly)faker.Date.Past()).OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CanBindDateOnlyList()
     {
         TestInsertSelect("Date", faker => DateOnly.FromDateTime(faker.Date.Past().Date).OrNull(faker));
     }
 
     [Fact]
-    [Trait("V2", "Ready")]
     public void CanBindTimeOnlyList()
     {
         TestInsertSelect("Time", faker =>
