@@ -221,7 +221,7 @@ public static class DuckDBConnectionScalarFunctionExtensions
             if (!reader.IsValid(index))
             {
                 if (isNullable) return default!;
-                ThrowNullReceivedByNonNullableParam<T>();
+                throw NullReceivedByNonNullableParam<T>();
             }
 
             return typeof(T) == typeof(object) ? (T)reader.GetValue(index) : reader.GetValue<T>(index);
@@ -240,10 +240,10 @@ public static class DuckDBConnectionScalarFunctionExtensions
         return true;
     }
 
-    [DoesNotReturn]
-    private static void ThrowNullReceivedByNonNullableParam<T>()
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static InvalidOperationException NullReceivedByNonNullableParam<T>()
     {
-        throw new InvalidOperationException(
+        return new InvalidOperationException(
             $"Scalar function parameter of type '{typeof(T).Name}' received NULL. " +
             $"Use '{typeof(T).Name}?' to handle NULL values.");
     }

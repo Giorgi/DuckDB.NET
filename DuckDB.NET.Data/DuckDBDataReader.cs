@@ -528,13 +528,13 @@ public sealed class DuckDBDataReader : DbDataReader
     {
         if (rowsReadFromCurrentChunk <= 0)
         {
-            ThrowNoRowRead();
+            throw NoRowRead();
         }
     }
 
-    [DoesNotReturn]
-    private static void ThrowNoRowRead()
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static InvalidOperationException NoRowRead()
     {
-        throw new InvalidOperationException("No row has been read");
+        return new InvalidOperationException("No row has been read");
     }
 }

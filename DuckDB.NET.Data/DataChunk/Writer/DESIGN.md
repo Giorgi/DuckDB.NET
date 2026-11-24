@@ -51,7 +51,8 @@ everything here avoids" in `../Reader/DESIGN.md`.
 ### 2. The appender row checks the column and gets the writer in one step
 
 - **What:** `DuckDBAppenderRow.GetCurrentWriter()` compares the column index with the number of writers,
-  unsigned, and returns the writer. The message and the throw are in `ThrowColumnOutOfRange()`. (`241a35c`)
+  unsigned, and returns the writer. The message is built in `ColumnOutOfRange()`, which returns the exception for
+  the check to throw. (`241a35c`; the helper threw the exception itself until the throw helpers were unified)
 - **Why:** the check was a method of its own with the interpolated message in it, so it was a call for every
   value, and the array access after it had a second bounds check.
 - **Measured:** `AppendValueInternalStruct<int>` 94 bytes of code instead of 119, with no call for the check;
@@ -707,7 +708,8 @@ between two runs.
    through an interface in a loop.
 2. Test a type parameter as `typeof(T) == typeof(X)`, or `typeof(T).IsValueType`, with nothing else in the
    condition. The JIT folds those; it does not fold a pattern test of a nullable value, which boxes it.
-3. Put a message and its `throw` in a method of their own, as `ThrowColumnOutOfRange` is.
+3. Build a message in a method of its own that returns the exception, as `ColumnOutOfRange` does, and throw it
+   where the check is: `throw ColumnOutOfRange();`.
 4. A conversion must store what it stored before. Compare the build before with the build after on real values,
    and keep the tests that compare with DuckDB.
 5. Measure against the previous build in the same run, with a case that must not change as the control, and on

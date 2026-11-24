@@ -85,7 +85,7 @@ internal sealed partial class ListVectorDataReader
 
                 if (!itemReader.IsValid(childOffset))
                 {
-                    ThrowListContainsNull();
+                    throw ListContainsNull();
                 }
 
                 result.Add(itemReader.ReadValidValue<T>(childOffset));
