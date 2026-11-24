@@ -482,6 +482,96 @@ internal static unsafe partial class NativeMethodsV2
     public static extern DUCKDB_V2_ERROR duckdb_v2_schema_destroy([NativeTypeName("duckdb_v2_schema_handle *")] _duckdb_v2_schema** schema);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_secret_function_create([NativeTypeName("duckdb_v2_factory_handle")] _duckdb_v2_factory* factory, [NativeTypeName("duckdb_v2_secret_function_handle *")] _duckdb_v2_secret_function** function, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_secret_function_set_type([NativeTypeName("duckdb_v2_secret_function_handle")] _duckdb_v2_secret_function* function, [NativeTypeName("const char *")] sbyte* type, [NativeTypeName("idx_t")] ulong type_length, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_secret_function_set_provider([NativeTypeName("duckdb_v2_secret_function_handle")] _duckdb_v2_secret_function* function, [NativeTypeName("const char *")] sbyte* provider, [NativeTypeName("idx_t")] ulong provider_length, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_secret_function_set_default([NativeTypeName("duckdb_v2_secret_function_handle")] _duckdb_v2_secret_function* function, [NativeTypeName("bool")] byte is_default, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_secret_function_add_named_parameter([NativeTypeName("duckdb_v2_secret_function_handle")] _duckdb_v2_secret_function* function, [NativeTypeName("const char *")] sbyte* name, [NativeTypeName("idx_t")] ulong name_length, [NativeTypeName("duckdb_v2_logical_type_handle")] _duckdb_v2_logical_type* type, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_secret_function_set_create_callback([NativeTypeName("duckdb_v2_secret_function_handle")] _duckdb_v2_secret_function* function, [NativeTypeName("duckdb_v2_secret_create_callback_fn")] delegate* unmanaged[Cdecl]<_duckdb_v2_secret*, _duckdb_v2_secret*, void*, _duckdb_v2_context*, _duckdb_v2_error_info**, void> callback, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_secret_function_set_user_data([NativeTypeName("duckdb_v2_secret_function_handle")] _duckdb_v2_secret_function* function, duckdb_v2_opaque* data, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_connection_register_secret_function([NativeTypeName("duckdb_v2_connection_handle")] _duckdb_v2_connection* conn, [NativeTypeName("duckdb_v2_secret_function_handle")] _duckdb_v2_secret_function* function, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_extension_register_secret_function([NativeTypeName("duckdb_v2_extension_handle")] _duckdb_extension_info* extension, [NativeTypeName("duckdb_v2_secret_function_handle")] _duckdb_v2_secret_function* function, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_secret_function_destroy([NativeTypeName("duckdb_v2_secret_function_handle *")] _duckdb_v2_secret_function** function);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_secret_create([NativeTypeName("duckdb_v2_factory_handle")] _duckdb_v2_factory* factory, [NativeTypeName("duckdb_v2_secret_handle *")] _duckdb_v2_secret** secret, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_secret_set_property([NativeTypeName("duckdb_v2_secret_handle")] _duckdb_v2_secret* secret, DUCKDB_V2_SECRET_PROPERTY property, [NativeTypeName("const char *")] sbyte* value, [NativeTypeName("idx_t")] ulong value_length, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_secret_add_scope([NativeTypeName("duckdb_v2_secret_handle")] _duckdb_v2_secret* secret, [NativeTypeName("const char *")] sbyte* scope, [NativeTypeName("idx_t")] ulong scope_length, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_secret_clear_scope([NativeTypeName("duckdb_v2_secret_handle")] _duckdb_v2_secret* secret, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_secret_set_value([NativeTypeName("duckdb_v2_secret_handle")] _duckdb_v2_secret* secret, [NativeTypeName("const char *")] sbyte* key, [NativeTypeName("idx_t")] ulong key_length, [NativeTypeName("duckdb_v2_value_handle")] _duckdb_v2_value* value, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_secret_add_redacted_key([NativeTypeName("duckdb_v2_secret_handle")] _duckdb_v2_secret* secret, [NativeTypeName("const char *")] sbyte* key, [NativeTypeName("idx_t")] ulong key_length, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_secret_destroy([NativeTypeName("duckdb_v2_secret_handle *")] _duckdb_v2_secret** secret);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_secret_get_property([NativeTypeName("duckdb_v2_secret_handle")] _duckdb_v2_secret* secret, DUCKDB_V2_SECRET_PROPERTY property, [NativeTypeName("const char **")] sbyte** value, [NativeTypeName("idx_t *")] ulong* value_length, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_secret_get_scope_count([NativeTypeName("duckdb_v2_secret_handle")] _duckdb_v2_secret* secret, [NativeTypeName("idx_t *")] ulong* count, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_secret_get_scope([NativeTypeName("duckdb_v2_secret_handle")] _duckdb_v2_secret* secret, [NativeTypeName("idx_t")] ulong index, [NativeTypeName("const char **")] sbyte** scope, [NativeTypeName("idx_t *")] ulong* scope_length, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_secret_get_key_count([NativeTypeName("duckdb_v2_secret_handle")] _duckdb_v2_secret* secret, [NativeTypeName("idx_t *")] ulong* count, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_secret_get_key([NativeTypeName("duckdb_v2_secret_handle")] _duckdb_v2_secret* secret, [NativeTypeName("idx_t")] ulong index, [NativeTypeName("const char **")] sbyte** key, [NativeTypeName("idx_t *")] ulong* key_length, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_secret_get_value([NativeTypeName("duckdb_v2_secret_handle")] _duckdb_v2_secret* secret, [NativeTypeName("const char *")] sbyte* key, [NativeTypeName("idx_t")] ulong key_length, [NativeTypeName("duckdb_v2_value_handle *")] _duckdb_v2_value** value, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_secret_is_key_redacted([NativeTypeName("duckdb_v2_secret_handle")] _duckdb_v2_secret* secret, [NativeTypeName("const char *")] sbyte* key, [NativeTypeName("idx_t")] ulong key_length, bool* redacted, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_context_lookup_secret([NativeTypeName("duckdb_v2_context_handle")] _duckdb_v2_context* ctx, [NativeTypeName("const char *")] sbyte* path, [NativeTypeName("idx_t")] ulong path_length, [NativeTypeName("const char *")] sbyte* type, [NativeTypeName("idx_t")] ulong type_length, [NativeTypeName("duckdb_v2_secret_handle *")] _duckdb_v2_secret** secret, [NativeTypeName("int64_t *")] long* score, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_context_get_secret_by_name([NativeTypeName("duckdb_v2_context_handle")] _duckdb_v2_context* ctx, [NativeTypeName("const char *")] sbyte* name, [NativeTypeName("idx_t")] ulong name_length, [NativeTypeName("duckdb_v2_secret_handle *")] _duckdb_v2_secret** secret, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_context_create_secret([NativeTypeName("duckdb_v2_context_handle")] _duckdb_v2_context* ctx, [NativeTypeName("duckdb_v2_secret_handle")] _duckdb_v2_secret* secret, DUCKDB_V2_SECRET_ON_CONFLICT on_conflict, [NativeTypeName("duckdb_v2_secret_handle *")] _duckdb_v2_secret** created, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_connection_lookup_secret([NativeTypeName("duckdb_v2_connection_handle")] _duckdb_v2_connection* conn, [NativeTypeName("const char *")] sbyte* path, [NativeTypeName("idx_t")] ulong path_length, [NativeTypeName("const char *")] sbyte* type, [NativeTypeName("idx_t")] ulong type_length, [NativeTypeName("duckdb_v2_secret_handle *")] _duckdb_v2_secret** secret, [NativeTypeName("int64_t *")] long* score, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_connection_get_secret_by_name([NativeTypeName("duckdb_v2_connection_handle")] _duckdb_v2_connection* conn, [NativeTypeName("const char *")] sbyte* name, [NativeTypeName("idx_t")] ulong name_length, [NativeTypeName("duckdb_v2_secret_handle *")] _duckdb_v2_secret** secret, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_connection_create_secret([NativeTypeName("duckdb_v2_connection_handle")] _duckdb_v2_connection* conn, [NativeTypeName("duckdb_v2_secret_handle")] _duckdb_v2_secret* secret, DUCKDB_V2_SECRET_ON_CONFLICT on_conflict, [NativeTypeName("duckdb_v2_secret_handle *")] _duckdb_v2_secret** created, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
     public static extern DUCKDB_V2_ERROR duckdb_v2_stats_can_have_null([NativeTypeName("duckdb_v2_stats_handle")] _duckdb_v2_stats* stats, bool* @out, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
