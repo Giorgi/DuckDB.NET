@@ -140,8 +140,9 @@ internal sealed unsafe class DuckDBV2ValueReader : IDuckDBValueReader, IDisposab
     {
         _duckdb_v2_error_info* error = null;
         duckdb_v2_hugeint_t scaled;
-        byte width, scale;
-        NativeMethodsV2.duckdb_v2_value_get_decimal(pointer, &scaled, &width, &scale, &error).ThrowIfFailed(ref error);
+        uint width, scale32;
+        NativeMethodsV2.duckdb_v2_value_get_decimal(pointer, &scaled, &width, &scale32, &error).ThrowIfFailed(ref error);
+        var scale = (int)scale32;
 
         // The digits of the scaled integer with the point put back, parsed as V1 parsed the text of the value.
         var digits = BigInteger.Abs(new DuckDBHugeInt(scaled.lower, scaled.upper).ToBigInteger()).ToString(CultureInfo.InvariantCulture).PadLeft(scale + 1, '0');
