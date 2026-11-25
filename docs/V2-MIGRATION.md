@@ -422,8 +422,9 @@ was read in DuckDB's source (`src/main/capi/v2`, fork commit f09095c, the header
   `vector_get_data_mutable`, `vector_flat_get_validity_mutable`, `vector_get_arena` and the `value_create_*` functions.
 - Safe functions called only per bind, statement or registration are left out: they would gain nothing.
 - Measured on .NET 10, Linux x64, 20 million calls of `logical_type_get_id`: 2.85 ns to 2.10 ns a direct call. Through
-  a `delegate* managed` pointer to the P/Invoke, as `DuckDBV2ValueReader` calls its getters, 6.8 ns to 3.8 ns: the
-  attribute takes effect there too. A `delegate* unmanaged[Cdecl]` pointer to the export costs as much as a direct call.
+  a `delegate* managed` pointer to the P/Invoke, as `DuckDBV2ValueReader` called its getters, 6.8 ns to 3.8 ns: the
+  attribute takes effect there too, but the call goes through the P/Invoke's stub, so the reader now calls each getter
+  directly. A `delegate* unmanaged[Cdecl]` pointer to the export costs as much as a direct call.
 
 ## Named parameters and defaults
 
