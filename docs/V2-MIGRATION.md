@@ -46,10 +46,9 @@ that take none of those handles keep working next to V2, for example `duckdb_con
 - Each stage names the tests that must pass before the next one starts. Until stage 7, a test that passed on V2 got
   `[Trait("V2", "Ready")]` and CI on `nightly-vnext` ran only those (the counts of "marked V2-ready" below are from
   then). Since then the whole suite runs, and a test that cannot pass yet is skipped with a reason from
-  `DuckDB.NET.Test/V2/V2Skip.cs`: the Arrow appender, materialized results (a skipped `InlineData(false)` row of
-  a `useStreamingMode` theory), and two threads on one connection. A skip goes when what it names is done.
-- Code that is not migrated yet throws `NotSupportedException`: `CreateArrowAppender`, and `UseStreamingMode =
-  false`.
+  `DuckDB.NET.Test/V2/V2Skip.cs`: materialized results (a skipped `InlineData(false)` row of a `useStreamingMode`
+  theory) and two threads on one connection. A skip goes when what it names is done.
+- Code that is not migrated yet throws `NotSupportedException`: `UseStreamingMode = false`.
 
 ## Stage 0: groundwork
 
@@ -269,8 +268,7 @@ V2 has no appender. `DuckDBAppender` keeps its API and writes its rows into `Exe
 - Not handled: a table with generated columns (`SELECT *` includes them, an INSERT cannot write them), and
   `preserve_insertion_order = false`, under which the INSERT need not keep the order of the buffer.
 - `V2AppenderTests` pins the default patterns over chunk boundaries, a row of only defaults, the flush at 204,800
-  rows, a failed flush, an open reader, quoted names and a missing table. `DuckDBArrowAppender` is not migrated: see
-  stage 7. 4292 test cases are marked V2-ready.
+  rows, a failed flush, an open reader, quoted names and a missing table. `DuckDBArrowAppender`: see stage 7. 4292 test cases are marked V2-ready.
 
 ## Later stages
 
@@ -338,10 +336,34 @@ V2 has no appender. `DuckDBAppender` keeps its API and writes its rows into `Exe
      `DuckDBException` with DuckDB's error type, and a C# function's exception as the inner exception
      (`V2ArrowResultTests`); the C stream that `arrow_result_to_arrow_c_stream` makes would report only EIO.
      `UseStreamingMode = false` throws, as for readers. `UdfExceptionStore` and the V1 result extensions are gone.
-   - **`DuckDBArrowAppender`:** V2's Arrow importer needs a context with an active transaction, which only callbacks
-     have, so it has no direct path. Until its design is decided, `CreateArrowAppender` throws `NotSupportedException`
-     on an open connection and the class is a shell whose members throw; its V1 code is gone (it is on `develop`).
-     `ArrowAppenderBenchmark.NativeCalls`, which made its V1 calls directly, went with it.
+   - **`DuckDBArrowAppender` (done):** V2 has no appender for Arrow data, and its Arrow importer
+     (`arrow_importer_create`) needs a context with an active transaction, which only callbacks are given. So each
+     batch is one `INSERT INTO table SELECT * FROM __duckdbnet_arrow_append($1)`, prepared once per appender, with the
+     appender's id as the parameter (`Execution/DuckDBV2ArrowAppend.cs`):
+     - The bind callback creates the importer, once per appender and `Schema` object (as V1 converted the schema
+       again for another `Schema`), with a batch size of 2048, the output chunk's capacity, and declares the columns
+       from it. Within one connection the context stays the same, so the importer serves every later INSERT.
+     - The exec callback appends the batch with `consume` (DuckDB takes the exported array) and `flush`, and
+       references each chunk's vectors into the output (`vector_reference`): nothing is copied before DuckDB writes the
+       table. DuckDB releases the array before the INSERT returns, so a batch can be disposed then.
+     - The function is registered in the `init` callback of `instance_open_shared`, once for every instance DuckDB
+       creates, before another open can share it. Registered later, it would be refused the second time ("function
+       already exists"), be part of the user's transaction (invisible to other connections until it commits, undone by
+       a rollback) and collide with another connection's registration ("Catalog write-write conflict"). A failed
+       registration does not fail the open; only the Arrow appender then fails. An id that is no appender's is refused,
+       so SQL cannot make the function read memory.
+     - Checked on v2.1.0-alpha57486 with a probe: bind runs once per execution, not at `Prepare`, and sees the
+       parameter; a 3000-row batch comes out as two chunks; int32 is cast to a BIGINT column; registering in `init`
+       costs nothing measurable next to the 14 ms an in-memory instance takes to open.
+     - **What changed from V1:** a batch is in the table when `AppendBatch` returns, with no flush; a batch that fails,
+       a constraint included, is thrown by its own `AppendBatch`, drops only itself and faults the appender, where V1
+       checked constraints at a flush and dropped everything since the last one; `Clear` does nothing. `AppendStream`
+       and `AppendStreamAsync` insert batch by batch, as before. Changed tests: `Clear_KeepsAppendedBatches`,
+       `AppendBatch_ConstraintFailureKeepsEarlierBatches` and `AppendBatch_ConstraintFailureFailsTheBatchThatBreaksIt`
+       (were `Clear_DropsAppendedBatches`, `AppendBatch_ConstraintFailureAtFlushDropsEarlierBatches` and
+       `Dispose_ConstraintFailureDropsUnflushedBatches`). `V2ArrowAppenderTests` pins the rest.
+     - `ArrowAppenderBenchmark.NativeCalls`, which made V1's calls directly, is gone; the other two benchmarks measure
+       the V2 appender. Not measured yet against V1.
 8. Cleanup: the connection string builder enumerates the options through V2, Data stops using V1, the fate of the V1
    declarations in Bindings is decided, and CI runs the whole test suite again.
 

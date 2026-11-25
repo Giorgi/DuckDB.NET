@@ -32,15 +32,11 @@ partial class DuckDBConnection
     /// <summary>
     /// Creates an appender that appends Apache Arrow record batches to <paramref name="table"/>.
     /// </summary>
-    /// <remarks>
-    /// Not available on this branch: always throws <see cref="NotSupportedException"/> on an open connection, until the
-    /// Arrow appender is rebuilt on DuckDB's C API V2 (docs/V2-MIGRATION.md).
-    /// </remarks>
     public DuckDBArrowAppender CreateArrowAppender(string? catalog, string? schema, string table)
     {
         EnsureConnectionOpen();
 
-        throw new NotSupportedException(DuckDBArrowAppender.NotMigrated);
+        return new DuckDBArrowAppender(this, catalog, schema, table);
     }
 
     /// <summary>

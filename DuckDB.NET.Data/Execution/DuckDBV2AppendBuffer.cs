@@ -398,7 +398,7 @@ internal sealed unsafe class DuckDBV2AppendBuffer : IDisposable
     }
 
     // The table's columns, from binding SELECT * FROM it: their names and types.
-    private static (string[] Names, DuckDBV2LogicalType[] Types) ReadColumns(DuckDBV2Connection connection, string qualifiedTable)
+    internal static (string[] Names, DuckDBV2LogicalType[] Types) ReadColumns(DuckDBV2Connection connection, string qualifiedTable)
     {
         using var iterator = DuckDBV2Statements.Parse(connection, $"SELECT * FROM {qualifiedTable}");
         using var statement = DuckDBV2Statements.Next(iterator)!;
@@ -444,7 +444,7 @@ internal sealed unsafe class DuckDBV2AppendBuffer : IDisposable
         return (IntPtr)factory;
     }
 
-    private static string Quote(string? identifier) => "\"" + identifier!.Replace("\"", "\"\"") + "\"";
+    internal static string Quote(string? identifier) => "\"" + identifier!.Replace("\"", "\"\"") + "\"";
 
     public void Dispose()
     {

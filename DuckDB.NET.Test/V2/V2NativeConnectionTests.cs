@@ -37,15 +37,4 @@ public unsafe class V2NativeConnectionTests
         connection.Close();
         connection.Invoking(c => c.NativeConnection).Should().Throw<InvalidOperationException>("the connection is closed");
     }
-
-    [Fact]
-    public void TheArrowAppenderIsNotAvailableYet()
-    {
-        using var connection = new DuckDBConnection("DataSource=:memory:");
-        connection.Invoking(c => c.CreateArrowAppender("t")).Should().Throw<InvalidOperationException>("the connection is closed");
-
-        connection.Open();
-        connection.ExecuteNonQuery("CREATE TABLE t (i INTEGER)");
-        connection.Invoking(c => c.CreateArrowAppender("t")).Should().Throw<NotSupportedException>().WithMessage("*not been migrated*");
-    }
 }

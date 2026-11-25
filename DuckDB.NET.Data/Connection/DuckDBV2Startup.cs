@@ -40,7 +40,7 @@ internal static unsafe class DuckDBV2Startup
 
                 return CreateInstance(options, (names, nameLengths, values, valueLengths, count, instance, error) =>
                     NativeMethodsV2.duckdb_v2_instance_open_shared(environment, pathBytes, pathLength, names, nameLengths, values, valueLengths, count,
-                                                                   null, null, instance, error), $"Opening '{path ?? InMemoryPath}' failed");
+                                                                   &InitializeInstance, null, instance, error), $"Opening '{path ?? InMemoryPath}' failed");
             }
         }
         // A database open with other options is refused for their combination, not for one of them.
@@ -48,6 +48,14 @@ internal static unsafe class DuckDBV2Startup
         {
             throw NameTheRefusedOption(options, exception, code);
         }
+    }
+
+    // Called once for every instance that OpenInstance creates, before another open can share it: the functions DuckDB.NET
+    // itself uses are registered here, once per database and outside any transaction.
+    [System.Runtime.InteropServices.UnmanagedCallersOnly(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    private static void InitializeInstance(_duckdb_v2_instance* instance, void* userData, _duckdb_v2_error_info** err)
+    {
+        Execution.DuckDBV2ArrowAppend.Register(instance);
     }
 
     public static DuckDBV2Connection Connect(DuckDBV2Instance instance)
