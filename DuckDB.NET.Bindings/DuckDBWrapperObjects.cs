@@ -16,11 +16,6 @@ public class DuckDBNativeConnection() : SafeHandleZeroOrMinusOneIsInvalid(true)
         NativeMethods.Startup.DuckDBDisconnect(ref handle);
         return true;
     }
-
-    public void Interrupt()
-    {
-        NativeMethods.Startup.DuckDBInterrupt(this);
-    }
 }
 
 public class DuckDBPreparedStatement() : SafeHandleZeroOrMinusOneIsInvalid(true)
@@ -32,48 +27,11 @@ public class DuckDBPreparedStatement() : SafeHandleZeroOrMinusOneIsInvalid(true)
     }
 }
 
-public class DuckDBConfig() : SafeHandleZeroOrMinusOneIsInvalid(true)
-{
-    protected override bool ReleaseHandle()
-    {
-        NativeMethods.Configuration.DuckDBDestroyConfig(ref handle);
-        return true;
-    }
-}
-
 public class DuckDBAppender() : SafeHandleZeroOrMinusOneIsInvalid(true)
 {
     protected override bool ReleaseHandle()
     {
         return NativeMethods.Appender.DuckDBDestroyAppender(ref handle).IsSuccess();
-    }
-}
-
-public class DuckDBExtractedStatements() : SafeHandleZeroOrMinusOneIsInvalid(true)
-{
-    protected override bool ReleaseHandle()
-    {
-        NativeMethods.ExtractStatements.DuckDBDestroyExtracted(ref handle);
-
-        return true;
-    }
-}
-
-public class DuckDBLogicalType() : SafeHandleZeroOrMinusOneIsInvalid(true)
-{
-    protected override bool ReleaseHandle()
-    {
-        NativeMethods.LogicalType.DuckDBDestroyLogicalType(ref handle);
-        return true;
-    }
-}
-
-public class DuckDBArrowOptions() : SafeHandleZeroOrMinusOneIsInvalid(true)
-{
-    protected override bool ReleaseHandle()
-    {
-        NativeMethods.Arrow.DuckDBDestroyArrowOptions(ref handle);
-        return true;
     }
 }
 
@@ -117,13 +75,3 @@ public class DuckDBDataChunk : SafeHandleZeroOrMinusOneIsInvalid
     }
 }
 
-public class DuckDBClientContext() : SafeHandleZeroOrMinusOneIsInvalid(true)
-{
-    protected override bool ReleaseHandle()
-    {
-        NativeMethods.Startup.DuckDBDestroyClientContext(ref handle);
-        return true;
-    }
-
-    public ulong ConnectionId => NativeMethods.Startup.DuckDBClientContextGetConnectionId(this);
-}

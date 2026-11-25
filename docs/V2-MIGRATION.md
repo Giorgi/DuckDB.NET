@@ -317,7 +317,8 @@ V2 has no appender. `DuckDBAppender` keeps its API and writes its rows into `Exe
    - **Exceptions:** through the bind data, as for scalar functions; the bind callback is ours, so the connection
      goes next to the function's data.
    - **Parameter values:** V2 hands values (`function_bind_get_arg_value`), read by `DuckDBV2ValueReader`, which has
-     the conversions of `DuckDBValue.GetValue<T>` case for case. A LIST parameter cannot be read, as with V1.
+     the conversions V1's `DuckDBValue.GetValue<T>` had, case for case (`DuckDBValue` is gone, see "V1 code that is
+     gone"). A LIST parameter cannot be read, as with V1.
    - **Named parameters** are registered `NAMED_ONLY`, with the default from `[Named(Default = ...)]`, cast at
      registration; positional ones `POSITIONAL_ONLY`. Changed tests: `RegisterTableFunctionNamedParameter` and
      `...MultipleNamedParameters` declare `Default = null`; `...NonNullableThrows` expects DuckDB's "Required parameter
@@ -337,6 +338,32 @@ V2 has no appender. `DuckDBAppender` keeps its API and writes its rows into `Exe
      have, so it has no direct path.
 8. Cleanup: the connection string builder enumerates the options through V2, Data stops using V1, the fate of the V1
    declarations in Bindings is decided, and CI runs the whole test suite again.
+
+## V1 code that is gone
+
+Everything of the V1 C API that nothing outside the tests used is removed from the bindings: 249 of the 293
+`NativeMethods` declarations, `DuckDBValue`, `DuckDBLogicalType`, `DuckDBConfig`, `DuckDBExtractedStatements`,
+`DuckDBArrowOptions`, `DuckDBClientContext`, `DuckDBBignum`, `DuckDBBlob`, `DuckDBResultType` and
+`DuckDBNativeConnection.Interrupt`. They were public in `DuckDB.NET.Bindings`, so this is a breaking change of that
+package for the release notes. Tests that tested the removed code went with it: `AppenderTests` and `QueryTests` (the
+V1 appender and query API), `DuckDBValueGetValueTests`, and `TimeNsDuckDBValueIsReadWithTimeOnlyPrecision`
+(`DuckDBValue`); `V2ValueReaderTests` pins the parameter conversions on V2.
+
+What is left, and why:
+
+- **The V1 Arrow appender** (`DuckDBArrowAppender`, not migrated yet): the appender functions it calls, the Arrow
+  conversions, `duckdb_destroy_data_chunk`, the error data, and the handles `DuckDBNativeConnection`,
+  `DuckDBAppender`, `DuckDBDataChunk`, `DuckDBArrowConvertedSchema` and `DuckDBErrorData`.
+- **The configuration options** for the connection string builder (`duckdb_config_count`, `duckdb_get_config_flag`;
+  V2's list misses the extension settings, see the gaps below).
+- **The date and timestamp conversions** of `DuckDBDateOnly` and `DuckDBTimestamp`, which the readers, writers and
+  parameters use (`duckdb_from_date`, `duckdb_to_date`, `duckdb_from_timestamp`, `duckdb_to_timestamp`), and
+  `duckdb_free` for the string marshaller.
+- **The low-level sample** in `DuckDB.NET.Samples` (`duckdb_open`, `duckdb_connect`, `duckdb_query`, `duckdb_prepare`,
+  `duckdb_bind_int32`, ...).
+- **References for tests:** `duckdb_to_time`, `duckdb_create_time_tz`, the five `duckdb_is_finite_*` functions and
+  `duckdb_library_version`, which the tests check the provider's conversions, infinity values and version against.
+  Only the tests use them; V2 has no equivalent but `library_version`.
 
 ## Named parameters and defaults
 

@@ -8,7 +8,7 @@ namespace DuckDB.NET.Data.Execution;
 
 /// <summary>
 /// A parameter of a table function as the function's bind callback reads it: a V2 value, read with the conversions
-/// of V1's <see cref="DuckDBValue.GetValue{T}"/>, case for case. A value is produced as its own .NET type and refused as
+/// that V1's <c>DuckDBValue.GetValue&lt;T&gt;</c> had, case for case. A value is produced as its own .NET type and refused as
 /// any other, except <c>object</c>, a nullable or an interface of it; HUGEINT and UHUGEINT are <see cref="Int128"/> and
 /// <see cref="UInt128"/>, and also <see cref="BigInteger"/>; a timestamp is also a <see cref="DateTimeOffset"/> at UTC; DATE and
 /// TIME are also the provider's own types.

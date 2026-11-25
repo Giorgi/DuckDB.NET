@@ -138,7 +138,7 @@ The loops index the typed collection instead of using `foreach` or LINQ, which a
 
 ## Converting a value: `ClrToDuckDBConverter`
 
-`ToDuckDBValue(value, logicalType, duckDBType, dbType, parameter)` turns a .NET value into a `DuckDBValue`. Its
+`ToDuckDBValue(value, logicalType, duckDBType, dbType, parameter)` turns a .NET value into a `DuckDBV2Value`. Its
 inputs:
 
 - **The target type**, the logical type and type id DuckDB reports for the parameter. When DuckDB cannot infer one

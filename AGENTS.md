@@ -72,12 +72,13 @@ dotnet run -c Release -f net10.0 --project DuckDB.NET.Benchmarks -- --filter "*N
 ### Bindings (`DuckDB.NET.Bindings`)
 
 - **`NativeMethods`:** a partial class split into one file per C API area under `NativeMethods/` (Appender, Arrow,
-  DataChunks, PreparedStatements, Query, ScalarFunction, StreamingResult, TableFunction, Value, Vectors, ...). Each
-  declaration is a `LibraryImport` with an explicit `EntryPoint` and the `DuckDbLibrary` constant; some hot paths
-  use `[SuppressGCTransition]`.
-- **Lifetimes:** native objects are `SafeHandle`s in `DuckDBWrapperObjects.cs` (database, connection, prepared
-  statement, data chunk, logical type, value, ...). The exception is **`DuckDBResult`**, a plain struct in
-  `DuckDBNativeObjects.cs` with no finalizer. Every result must be `Close()`d exactly once, or it leaks permanently.
+  DataChunks, PreparedStatements, Query, ...). Each declaration is a `LibraryImport` with an explicit `EntryPoint`
+  and the `DuckDbLibrary` constant; some hot paths use `[SuppressGCTransition]`. On `nightly-vnext` only the V1
+  functions that something outside the tests uses are left, plus a few the tests check the provider against ("V1
+  code that is gone" in `docs/V2-MIGRATION.md`).
+- **Lifetimes:** native objects are `SafeHandle`s in `DuckDBWrapperObjects.cs` (database, connection, appender,
+  data chunk, ...). The exception is **`DuckDBResult`**, a plain struct in `DuckDBNativeObjects.cs` with no
+  finalizer. Every result must be `Close()`d exactly once, or it leaks permanently.
 - **Strings:** returned strings use the marshallers in `DuckDBStringMarshallers.cs`. Use
   `DuckDBOwnedStringMarshaller` when DuckDB owns the memory, and `DuckDBCallerOwnedStringMarshaller` when the caller
   must `duckdb_free` it.

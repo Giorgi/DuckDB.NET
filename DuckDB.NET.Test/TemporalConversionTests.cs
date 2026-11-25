@@ -469,21 +469,6 @@ public class TemporalConversionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(
         });
     }
 
-    [Fact]
-    public void TimeNsDuckDBValueIsReadWithTimeOnlyPrecision()
-    {
-        using var value = NativeMethods.Value.DuckDBCreateTimeNs(new DuckDBTimeNs { Nanos = 45_296_123_456_789 });
-
-        var expectedTicks = new TimeOnly(12, 34, 56).Ticks + 1_234_567;
-        value.GetValue<TimeOnly>().Should().Be(new TimeOnly(expectedTicks));
-        value.GetValue<DuckDBTimeOnly>().Should().Be(new DuckDBTimeOnly(12, 34, 56, 123_456));
-
-        using var endOfDay = NativeMethods.Value.DuckDBCreateTimeNs(new DuckDBTimeNs { Nanos = 86_400_000_000_000 });
-
-        endOfDay.Invoking(v => v.GetValue<TimeOnly>()).Should().Throw<ArgumentOutOfRangeException>();
-        endOfDay.GetValue<DuckDBTimeOnly>().Hour.Should().Be(24);
-    }
-
     // Each time with each offset. What is expected comes from the text given to DuckDB, and the read as DuckDBTimeTz
     // has DuckDB take the stored value apart.
     [Fact]

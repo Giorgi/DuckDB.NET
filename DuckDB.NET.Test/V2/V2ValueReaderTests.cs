@@ -2,8 +2,8 @@ using System.Numerics;
 
 namespace DuckDB.NET.Test.V2;
 
-// A parameter of a table function is read by DuckDBV2ValueReader, with the conversions of V1's DuckDBValue.GetValue,
-// which DuckDBValueGetValueTests pins. These tests pin the same ones through a table function.
+// A parameter of a table function is read by DuckDBV2ValueReader, with the conversions V1's DuckDBValue.GetValue had.
+// These tests pin them through a table function.
 public class V2ValueReaderTests
 {
     [Fact]

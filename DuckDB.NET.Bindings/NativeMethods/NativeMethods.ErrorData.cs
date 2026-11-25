@@ -16,7 +16,6 @@ public partial class NativeMethods
         [return: MarshalUsing(typeof(DuckDBOwnedStringMarshaller))]
         public static partial string DuckDBErrorDataMessage(DuckDBErrorData errorData);
 
-
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_error_data_error_type")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBErrorType DuckDBErrorDataErrorType(DuckDBErrorData errorData);

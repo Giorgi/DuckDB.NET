@@ -206,19 +206,6 @@ public struct DuckDBTimestampStruct
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public readonly struct DuckDBBlob : IDisposable
-{
-    public IntPtr Data { get; }
-
-    public long Size { get; }
-
-    public void Dispose()
-    {
-        NativeMethods.Helpers.DuckDBFree(Data);
-    }
-}
-
-[StructLayout(LayoutKind.Sequential)]
 public readonly struct DuckDBListEntry(ulong offset, ulong length)
 {
     public ulong Offset { get; } = offset;

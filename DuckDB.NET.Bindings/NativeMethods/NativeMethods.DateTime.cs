@@ -15,20 +15,11 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBDate DuckDBToDate(DuckDBDateOnly dateStruct);
 
-        [SuppressGCTransition]
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_from_time")]
-        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial DuckDBTimeOnly DuckDBFromTime(DuckDBTime time);
-
+        // Only the tests use this and DuckDBToTime: they check the provider's own time conversions against DuckDB's.
         [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_time_tz")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBTimeTzStruct DuckDBCreateTimeTz(long micros, int offset);
-
-        [SuppressGCTransition]
-        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_from_time_tz")]
-        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial DuckDBTimeTz DuckDBFromTimeTz(DuckDBTimeTzStruct micros);
 
         [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_to_time")]
@@ -45,8 +36,7 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBTimestampStruct DuckDBToTimestamp(DuckDBTimestamp dateStruct);
 
-        // NOTE: for boolean return values, MarshalAs(UnmanagedType.I1) is used because the default is to use 4-byte Win32 BOOLs
-        // https://learn.microsoft.com/en-us/dotnet/standard/native-interop/customize-struct-marshalling#customizing-boolean-field-marshalling
+        // Only the tests use the five functions below: they check the provider's infinity values against DuckDB's.
         [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_is_finite_date")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
