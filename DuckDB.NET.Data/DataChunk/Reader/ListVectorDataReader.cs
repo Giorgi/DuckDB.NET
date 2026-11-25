@@ -1,5 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using DuckDB.NET.Data.Execution;
 using DuckDB.NET.Native.V2;
 
@@ -110,7 +109,7 @@ internal sealed partial class ListVectorDataReader : VectorDataReaderBase
             {
                 if (!plan.AllowNulls)
                 {
-                    ThrowListContainsNull();
+                    throw ListContainsNull();
                 }
 
                 result.Add(null);
@@ -121,9 +120,8 @@ internal sealed partial class ListVectorDataReader : VectorDataReaderBase
     }
 
     // Used by FillBoxedList and by ValueListBuilder.
-    [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void ThrowListContainsNull() => throw new InvalidCastException("The list contains null value");
+    private static InvalidCastException ListContainsNull() => new("The list contains null value");
 
     // Not inlined, so that GetList does not set up a native-call frame on every row (Reader/DESIGN.md).
     [MethodImpl(MethodImplOptions.NoInlining)]

@@ -1,7 +1,7 @@
 using DuckDB.NET.Data.DataChunk.Writer;
 using DuckDB.NET.Native.V2;
 
-namespace DuckDB.NET.Data.Connection;
+namespace DuckDB.NET.Data.Functions;
 
 class TableFunctionInfo(Func<IReadOnlyList<IDuckDBValueReader>, IReadOnlyDictionary<string, IDuckDBValueReader>, TableFunction> bind, TableFunctionScanFactory createScan, int positionalCount, string[] namedParameterNames)
 {

@@ -204,6 +204,24 @@ public class DateTimeReaderBenchmark
     [Benchmark]
     public long ReadTimeNsAsDuckDBTimeOnly() => SumDuckDBTimeOnly("tn");
 
+    // DATE and TIMESTAMP columns in turn: since DATE and the timestamps have readers of their own, the call that reads
+    // a DateTime sees two classes in one row instead of one.
+    [Benchmark]
+    public long ReadDatesAndTimestampsAsDateTime()
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT d1, ts1, d2, ts2 FROM times";
+        using var reader = command.ExecuteReader();
+
+        var sum = 0L;
+        while (reader.Read())
+        {
+            sum += reader.GetDateTime(0).Ticks + reader.GetDateTime(1).Ticks + reader.GetDateTime(2).Ticks + reader.GetDateTime(3).Ticks;
+        }
+
+        return sum;
+    }
+
     // A control: an INTEGER column is read by a reader that no change to the date and time readers touches.
     [Benchmark]
     public long ReadIntegersControl()

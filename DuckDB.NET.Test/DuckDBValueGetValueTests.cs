@@ -43,6 +43,49 @@ public class DuckDBValueGetValueTests
         text.Invoking(v => v.GetValue<int>()).Should().Throw<InvalidCastException>();
     }
 
+    // HUGEINT and UHUGEINT read as Int128 and UInt128, as the column readers give them, and as a BigInteger when one is
+    // asked for. Each form also reads as its nullable.
+    [Fact]
+    public void AHugeIntReadsAsInt128AndAsBigIntegerWhenAskedFor()
+    {
+        using var huge = NativeMethods.Value.DuckDBCreateHugeInt(new DuckDBHugeInt(Int128.MinValue));
+        huge.GetValue<object>().Should().Be(Int128.MinValue);
+        huge.GetValue<Int128>().Should().Be(Int128.MinValue);
+        huge.GetValue<Int128?>().Should().Be(Int128.MinValue);
+        huge.GetValue<IComparable<Int128>>().CompareTo(Int128.MinValue).Should().Be(0);
+        huge.GetValue<BigInteger>().Should().Be((BigInteger)Int128.MinValue);
+        huge.GetValue<BigInteger?>().Should().Be((BigInteger)Int128.MinValue);
+
+        using var unsigned = NativeMethods.Value.DuckDBCreateUHugeInt(new DuckDBUHugeInt(UInt128.MaxValue));
+        unsigned.GetValue<object>().Should().Be(UInt128.MaxValue);
+        unsigned.GetValue<UInt128>().Should().Be(UInt128.MaxValue);
+        unsigned.GetValue<UInt128?>().Should().Be(UInt128.MaxValue);
+        unsigned.GetValue<BigInteger>().Should().Be((BigInteger)UInt128.MaxValue);
+        unsigned.GetValue<BigInteger?>().Should().Be((BigInteger)UInt128.MaxValue);
+    }
+
+    // DATE, TIME and TIME_NS read as the provider's own types in both forms, as they do as the .NET types.
+    [Fact]
+    public void ADateOrTimeReadsAsTheProviderTypeAndItsNullable()
+    {
+        var date = new DuckDBDateOnly(2024, 2, 29);
+        using var dateValue = NativeMethods.Value.DuckDBCreateDate(date.ToDuckDBDate());
+        dateValue.GetValue<DuckDBDateOnly>().Should().Be(date);
+        dateValue.GetValue<DuckDBDateOnly?>().Should().Be(date);
+        dateValue.GetValue<DateOnly?>().Should().Be(new DateOnly(2024, 2, 29));
+
+        var time = new DuckDBTimeOnly(13, 45, 30, 123456);
+        using var timeValue = NativeMethods.Value.DuckDBCreateTime(NativeMethods.DateTimeHelpers.DuckDBToTime(time));
+        using var timeNsValue = NativeMethods.Value.DuckDBCreateTimeNs(DuckDBTimeNs.FromTicks(time.Ticks));
+
+        foreach (var value in new[] { timeValue, timeNsValue })
+        {
+            value.GetValue<DuckDBTimeOnly>().Should().Be(time);
+            value.GetValue<DuckDBTimeOnly?>().Should().Be(time);
+            value.GetValue<TimeOnly?>().Should().Be(new TimeOnly(13, 45, 30).Add(TimeSpan.FromTicks(1_234_560)));
+        }
+    }
+
     // Every timestamp type reads as a DateTime, and as the instant at UTC when it is read as DateTimeOffset, as the
     // column reader gives it. Each getter takes the value in the unit of its type.
     [Fact]

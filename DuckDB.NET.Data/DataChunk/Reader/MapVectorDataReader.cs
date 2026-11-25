@@ -1,5 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using DuckDB.NET.Data.Execution;
 using DuckDB.NET.Native.V2;
 
@@ -76,7 +75,7 @@ internal sealed partial class MapVectorDataReader : VectorDataReaderBase
 
             if (!keyReader.IsValid(childOffset))
             {
-                ThrowNullKey(ColumnName);
+                throw MapContainsNullKey(ColumnName);
             }
 
             var key = keyReader.GetValue(childOffset, plan.KeyType);
@@ -88,7 +87,7 @@ internal sealed partial class MapVectorDataReader : VectorDataReaderBase
             }
             else
             {
-                ThrowNullValue(ColumnName);
+                throw MapContainsNullValue(ColumnName);
             }
         }
 
@@ -96,15 +95,13 @@ internal sealed partial class MapVectorDataReader : VectorDataReaderBase
     }
 
     // Used by the IDictionary path and by the builders. A child reader carries the name of the map column.
-    [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void ThrowNullValue(string columnName) => throw new InvalidCastException($"The Map in column {columnName} contains null value but dictionary does not allow null values");
+    private static InvalidCastException MapContainsNullValue(string columnName) => new($"The Map in column {columnName} contains null value but dictionary does not allow null values");
 
     // Used by the IDictionary path and by the builders. SQL cannot make a NULL map key, but a map can also arrive
     // from Parquet, Arrow or the C API.
-    [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void ThrowNullKey(string columnName) => throw new InvalidCastException($"The Map in column {columnName} contains a null key");
+    private static InvalidCastException MapContainsNullKey(string columnName) => new($"The Map in column {columnName} contains a null key");
 
     // Not inlined, so that GetValueCore does not set up a native-call frame on every row (Reader/DESIGN.md).
     [MethodImpl(MethodImplOptions.NoInlining)]

@@ -313,7 +313,8 @@ not use profile data to guess the target as it does for a plain virtual call.
 
 ### 8. A DATE, a TIME and a timestamp are converted by arithmetic
 
-- **What:** `DateTimeVectorDataReader` converts a DATE read as `DateTime` or `DateOnly`, and a TIMESTAMP,
+- **What:** `DateTimeVectorDataReader` (since split into a reader for DATE, one for TIMETZ and one for the
+  timestamps, see "Smaller decisions") converts a DATE read as `DateTime` or `DateOnly`, and a TIMESTAMP,
   TIMESTAMP_S, _MS, _NS or TIMESTAMPTZ read as `DateTime` or `DateTimeOffset`, itself. DuckDB stores a DATE as days
   and a timestamp as a count in the unit of the column, both from 1970-01-01. A `DateTime` counts ticks of 100 ns
   from 0001-01-01. So the read is one multiplication, one addition and one comparison for the range. Both paths do
@@ -536,14 +537,41 @@ not use profile data to guess the target as it does for a plain virtual call.
     48, but no call on the timestamp path. TIMESTAMP as `DateTime` 0.95, TIMESTAMP_NS 0.95, through `GetValue` 0.84.
     DATE 1.00 to 1.01 (`GetValidValue<DateOnly>` 203 bytes instead of 279), TIMETZ 1.00, TIMESTAMPTZ as
     `DateTimeOffset` 1.02.
+- **DATE, TIMETZ and the timestamps have a reader each,** `DateVectorDataReader`, `TimeTzVectorDataReader` and
+  `TimestampVectorDataReader`, which replace `DateTimeVectorDataReader`. They mirror the writers of the three
+  (`Writer/DESIGN.md`, decision 19). A read has no test of the column type: the shared `GetValidValue<T>` tested for
+  DATE and for TIMETZ before every timestamp read, and held the branches of all seven column types in one frame
+  (see "Costs" below). The timestamp reader keeps its unit in a field, as before: TIMESTAMP, TIMESTAMP_S, _MS, _NS and
+  TIMESTAMPTZ share the rules, and the unit is one multiplication. The message for a value outside the range of the
+  .NET type is built by `OutOfRange` in the base class, used by the DATE and timestamp readers. Each reader overrides
+  the typed `Read...` methods of the types it gives (DATE: `DateTime`, `DateOnly`; TIMETZ: `DateTimeOffset`;
+  timestamps: `DateTime`, `DateTimeOffset`); the shared class also overrode `ReadTimeOnly`, which only ever threw.
+  Every read of the seven columns (47 values, infinities, the ends of each range and NULL among them) as 16 target
+  types, in a column, a list and a struct, and through `GetValue`, `GetProviderSpecificValue` and `GetDateTime`, gave
+  the same value or the same exception and message before and after: 2,544 reads.
+  - **Measured** on the Azure VM (AMD EPYC 9V45, Linux, .NET 10, DuckDB 2.0.1), `DateTimeReaderBenchmark`, against
+    the build before (`ce7264b`), per-process medians of 4 launches, the INTEGER and TIME controls at 1.01 and 0.99:
+    TIMESTAMP as `DateTime` 0.85, TIMESTAMP_NS 0.83, TIMESTAMP through `GetValue` 0.98, DATE as `DateTime` 0.95, as
+    `DateOnly` 0.93, TIMESTAMPTZ as `DateTimeOffset` 0.99, TIMETZ 0.98. Results in
+    `azure/results/2.0-run/temporal-split`.
+  - **The code (Tier 1, same VM):** the shared `ReadDateTime` was 433 bytes with a 16-byte frame and
+    `GetValidValue<DateTime>` 469 bytes with a 48-byte frame and a stack store; the timestamp `ReadDateTime` is 219
+    bytes and the DATE one 87, with no frame. DATE `ReadDateOnly` 164 bytes with a frame, now 51 without. A
+    `DateTimeOffset` keeps the constructor call and its frame (see "Costs"), so those reads barely moved.
+  - **What it costs: a row of DATE and TIMESTAMP columns read as `DateTime` takes 1.05** (four processes 1.04 to
+    1.16, `ReadDatesAndTimestampsAsDateTime`). `DuckDBDataReader.GetDateTime` makes one virtual call to the column's
+    reader, and dynamic PGO keeps one class profile for it, whichever column the call reads. With the shared class
+    every column inlined it behind one type test that always passed. Now the profile is half DATE and half TIMESTAMP;
+    the JIT guards for the DATE reader in every column, so each TIMESTAMP column fails the test and makes the virtual
+    call, not inlined (read in the Tier 1 code of a loop over `d, ts, d, ts`). Kept by the maintainer (2026-11-24):
+    a column of one type is the common case, and each gains more than the mixed row loses.
 
 ### Costs that are known and not yet removed
 
-- **`DateTimeVectorDataReader.GetValidValue<T>` clears part of its stack frame on every call:** 40 bytes for
-  `TimeOnly` and `DateOnly`, 24 for `DateTime` (.NET 10), measured when it also served TIME and TIME_NS. The method
-  holds the branches of every column type it serves, and the ones that return a DuckDB struct need stack slots
-  (decision 4). TIME and TIME_NS have moved to a reader of their own (see "Smaller decisions"), which made TIME reads
-  0.86 to 0.95. DATE, TIMETZ and the timestamps keep one stack store each in a 48- or 64-byte frame.
+- **A row that reads columns of two of the date and time readers as the same type,** a DATE and a TIMESTAMP as
+  `DateTime`, makes a virtual call for one of the two (see the split above, 1.05). The shared reader that avoided it
+  tested the column type on every read and cleared part of its stack frame on every call (40 bytes for `TimeOnly`
+  and `DateOnly`, 24 for `DateTime`, .NET 10, measured when it also served TIME and TIME_NS).
 - **A TIMESTAMPTZ or TIMETZ read as `DateTimeOffset` keeps about 15 ns per value** where a `DateTime` takes 5: the
   constructor of `DateTimeOffset` is a call that validates the offset. That is the cost of the type.
 - **A read as `DuckDBTimestamp`, `DuckDBDateOnly`, `DuckDBTimeOnly` or `DuckDBTimeTz` calls DuckDB,** by design

@@ -108,9 +108,8 @@ internal sealed partial class StructVectorDataReader
 
         public abstract void Set(object target, VectorDataReaderBase fieldReader, ulong offset);
 
-        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
-        protected void ThrowNotNullable() => throw new InvalidCastException($"Property '{Name}' is not nullable but struct contains null value");
+        protected InvalidCastException PropertyNotNullable() => new($"Property '{Name}' is not nullable but struct contains null value");
     }
 
     // The set method of a C# struct's property, taking the struct by reference: it is given the one inside the box.
@@ -129,7 +128,7 @@ internal sealed partial class StructVectorDataReader
             }
             else if (typeof(TProperty).IsValueType)
             {
-                ThrowNotNullable();
+                throw PropertyNotNullable();
             }
         }
     }
@@ -161,7 +160,7 @@ internal sealed partial class StructVectorDataReader
             }
             else if (typeof(TProperty).IsValueType)
             {
-                ThrowNotNullable();
+                throw PropertyNotNullable();
             }
         }
     }
@@ -192,7 +191,7 @@ internal sealed partial class StructVectorDataReader
             }
             else if (!nullable)
             {
-                ThrowNotNullable();
+                throw PropertyNotNullable();
             }
         }
     }

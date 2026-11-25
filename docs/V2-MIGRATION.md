@@ -271,7 +271,8 @@ V2 has no appender. `DuckDBAppender` keeps its API and writes its rows into `Exe
 ## Later stages
 
 5. Scalar functions (done): `connection_register_scalar_function`, errors through the callback's `err` slot.
-   - **Registration** (`DuckDBConnection.ScalarFunction.cs`): positional-only parameters named `arg0`, `arg1`, ...
+   - **Registration** (`Functions/ScalarFunctionRegistration.cs`, since develop moved the registration into
+     `Functions/`; the public methods pass `V2Connection` on): positional-only parameters named `arg0`, `arg1`, ...
      (invisible to SQL, but they may not share a name), or one `POSITIONAL_VARIADIC` parameter for `params`. Volatile
      and special NULL handling are the properties `STABILITY_VOLATILE` and `NULL_HANDLING_SPECIAL`; fallibility keeps
      V2's default, `FALLIBLE`. The action and the types are the function's user data, which DuckDB destroys with it.
@@ -280,7 +281,9 @@ V2 has no appender. `DuckDBAppender` keeps its API and writes its rows into `Exe
    - **Arguments and result:** the stage 2 readers read the arguments (`exec_get_arg`) as the parameter types,
      which DuckDB casts them to; an argument of an ANY parameter (`object`) is read as the type its vector has. The
      stage 4 writers write the result (`exec_get_result`).
-   - The types come from `DuckDBV2Types.ForClrType`, so `RegisterScalarMethod` takes CLR types.
+   - The types come from `DuckDBV2Types.ForClrType`, so `ScalarFunctionRegistration.Register` takes CLR types.
+   - The bind callback and the exception slot are in `Connection/UdfErrors.cs`, which develop introduced for
+     ExtensionKit: on V2 it uses `DuckDBV2CallbackScope` instead of `UdfExceptionStore`.
    - Named parameters are not registered yet: V1 scalar functions had none. When they are added, they follow
      "Named parameters and defaults" below, as table functions do.
    - Not measured against V1 yet: the readers are made per chunk, as with V1, now from V2 types.
@@ -303,7 +306,7 @@ V2 has no appender. `DuckDBAppender` keeps its API and writes its rows into `Exe
      on another of the same database, a swallowed error, and every execution of a prepared statement.
    - 3990 test cases are marked V2-ready. The scalar function tests left out need the appender or materialized
      results.
-6. Table functions (done). Named parameters follow "Named parameters and defaults" below. The rest maps one to one:
+6. Table functions (done), registered in `Functions/TableFunctionRegistration.cs`. Named parameters follow "Named parameters and defaults" below. The rest maps one to one:
    - **Scan:** V2 scans on one thread and keeps insertion order by default, as V1 does; the data enumerator is not
      thread-safe, so both stay. It is still created per scan init (the global init callback), not per bind, for
      recursive CTEs.

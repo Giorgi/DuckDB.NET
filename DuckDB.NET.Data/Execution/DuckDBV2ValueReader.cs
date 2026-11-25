@@ -9,8 +9,8 @@ namespace DuckDB.NET.Data.Execution;
 /// <summary>
 /// A parameter of a table function as the function's bind callback reads it: a V2 value, read with the conversions
 /// of V1's <see cref="DuckDBValue.GetValue{T}"/>, case for case. A value is produced as its own .NET type and refused as
-/// any other, except <c>object</c>, a nullable or an interface of it; HUGEINT and UHUGEINT are also
-/// <see cref="Int128"/> and <see cref="UInt128"/>; a timestamp is also a <see cref="DateTimeOffset"/> at UTC; DATE and
+/// any other, except <c>object</c>, a nullable or an interface of it; HUGEINT and UHUGEINT are <see cref="Int128"/> and
+/// <see cref="UInt128"/>, and also <see cref="BigInteger"/>; a timestamp is also a <see cref="DateTimeOffset"/> at UTC; DATE and
 /// TIME are also the provider's own types.
 /// </summary>
 internal sealed unsafe class DuckDBV2ValueReader : IDuckDBValueReader, IDisposable
@@ -66,20 +66,21 @@ internal sealed unsafe class DuckDBV2ValueReader : IDuckDBValueReader, IDisposab
 
             DUCKDB_V2_LOGICAL_TYPE_ID.UUID => Cast<T, Guid>(GetHugeInt(pointer, &NativeMethodsV2.duckdb_v2_value_get_uuid).ConvertToGuid()),
 
-            // An Int128 or a UInt128 is produced as itself; any other type gets the BigInteger.
-            DUCKDB_V2_LOGICAL_TYPE_ID.HUGEINT when typeof(T) == typeof(Int128) => Cast<T, Int128>(GetHugeInt(pointer, &NativeMethodsV2.duckdb_v2_value_get_hugeint).ToInt128()),
-            DUCKDB_V2_LOGICAL_TYPE_ID.HUGEINT => Cast<T, BigInteger>(GetHugeInt(pointer, &NativeMethodsV2.duckdb_v2_value_get_hugeint).ToBigInteger()),
-            DUCKDB_V2_LOGICAL_TYPE_ID.UHUGEINT when typeof(T) == typeof(UInt128) => Cast<T, UInt128>(GetUHugeInt(pointer).ToUInt128()),
-            DUCKDB_V2_LOGICAL_TYPE_ID.UHUGEINT => Cast<T, BigInteger>(GetUHugeInt(pointer).ToBigInteger()),
+            // HUGEINT and UHUGEINT are produced as Int128 and UInt128, as the column readers give them, or as a
+            // BigInteger when one is asked for.
+            DUCKDB_V2_LOGICAL_TYPE_ID.HUGEINT when Is<T, BigInteger>() => Cast<T, BigInteger>(GetHugeInt(pointer, &NativeMethodsV2.duckdb_v2_value_get_hugeint).ToBigInteger()),
+            DUCKDB_V2_LOGICAL_TYPE_ID.HUGEINT => Cast<T, Int128>(GetHugeInt(pointer, &NativeMethodsV2.duckdb_v2_value_get_hugeint).ToInt128()),
+            DUCKDB_V2_LOGICAL_TYPE_ID.UHUGEINT when Is<T, BigInteger>() => Cast<T, BigInteger>(GetUHugeInt(pointer).ToBigInteger()),
+            DUCKDB_V2_LOGICAL_TYPE_ID.UHUGEINT => Cast<T, UInt128>(GetUHugeInt(pointer).ToUInt128()),
 
             DUCKDB_V2_LOGICAL_TYPE_ID.VARCHAR => Cast<T, string>(GetVarchar(pointer)),
 
             // DATE and TIME can be read as the .NET types or as the provider's own types.
-            DUCKDB_V2_LOGICAL_TYPE_ID.DATE when typeof(T) == typeof(DuckDBDateOnly) => Cast<T, DuckDBDateOnly>(GetDate(pointer)),
+            DUCKDB_V2_LOGICAL_TYPE_ID.DATE when Is<T, DuckDBDateOnly>() => Cast<T, DuckDBDateOnly>(GetDate(pointer)),
             DUCKDB_V2_LOGICAL_TYPE_ID.DATE => Cast<T, DateOnly>((DateOnly)GetDate(pointer)),
-            DUCKDB_V2_LOGICAL_TYPE_ID.TIME when typeof(T) == typeof(DuckDBTimeOnly) => Cast<T, DuckDBTimeOnly>(GetTime(pointer)),
+            DUCKDB_V2_LOGICAL_TYPE_ID.TIME when Is<T, DuckDBTimeOnly>() => Cast<T, DuckDBTimeOnly>(GetTime(pointer)),
             DUCKDB_V2_LOGICAL_TYPE_ID.TIME => Cast<T, TimeOnly>((TimeOnly)GetTime(pointer)),
-            DUCKDB_V2_LOGICAL_TYPE_ID.TIME_NS when typeof(T) == typeof(DuckDBTimeOnly) => Cast<T, DuckDBTimeOnly>(GetTimeNs(pointer).ToDuckDBTimeOnly()),
+            DUCKDB_V2_LOGICAL_TYPE_ID.TIME_NS when Is<T, DuckDBTimeOnly>() => Cast<T, DuckDBTimeOnly>(GetTimeNs(pointer).ToDuckDBTimeOnly()),
             DUCKDB_V2_LOGICAL_TYPE_ID.TIME_NS => Cast<T, TimeOnly>(new TimeOnly(GetTimeNs(pointer).Ticks)),
             DUCKDB_V2_LOGICAL_TYPE_ID.TIME_TZ => Cast<T, DateTimeOffset>(GetTimeTz(pointer)),
             DUCKDB_V2_LOGICAL_TYPE_ID.INTERVAL => Cast<T, TimeSpan>((TimeSpan)GetInterval(pointer)),
@@ -102,9 +103,14 @@ internal sealed unsafe class DuckDBV2ValueReader : IDuckDBValueReader, IDisposab
 
     // A timestamp is a DateTime, or the instant at UTC when it is read as DateTimeOffset, as the column reader gives it.
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static T CastTimestamp<T>(DateTime timestamp) => typeof(T) == typeof(DateTimeOffset) || typeof(T) == typeof(DateTimeOffset?)
+    private static T CastTimestamp<T>(DateTime timestamp) => Is<T, DateTimeOffset>()
         ? Cast<T, DateTimeOffset>(new DateTimeOffset(timestamp, TimeSpan.Zero))
         : Cast<T, DateTime>(timestamp);
+
+    // Whether T is TTarget or its nullable, so that an alternative type can be asked for in either form. The JIT folds
+    // it to a constant for each T.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool Is<T, TTarget>() where TTarget : struct => typeof(T) == typeof(TTarget) || typeof(T) == typeof(TTarget?);
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static InvalidCastException CannotCast(Type from, Type to) => new($"Cannot read a value of type {from.Name} as {to.Name}.");

@@ -1,0 +1,465 @@
+using DuckDB.NET.Data.DataChunk.Writer;
+using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Reflection;
+
+namespace DuckDB.NET.Data.Functions;
+
+// The typed table functions, registered by the public methods of DuckDBConnectionTableFunctionExtensions.
+// DuckDB.ExtensionKit compiles this folder too (see AGENTS.md here).
+internal static class TypedTableFunctions
+{
+    private record TableFunctionParameter(string? NamedAs, int? PositionalIndex, Type Type, bool IsProjection = false, bool HasDefault = false, object? Default = null)
+    {
+        public bool IsNamed => NamedAs is not null;
+    }
+
+    private static bool IsProjectionParameter(Type type) => type == typeof(IReadOnlyList<ProjectedColumn>);
+
+    // The count of a typed function's data when it is known without enumerating it: any ICollection<T>,
+    // including a HashSet<int> that the binder cannot count through IEnumerable, and LINQ results whose count is
+    // cheap. The count is an estimate, as a collection can be longer when it is read. An array gets no hint here:
+    // the binder passes its length as exact.
+    private static CardinalityHint? GetCardinalityHint<TData>(IEnumerable<TData> data)
+    {
+        if (data is not TData[] && data.TryGetNonEnumeratedCount(out var count))
+        {
+            return new CardinalityHint((ulong)count);
+        }
+
+        return null;
+    }
+
+    public static void Register<TData, TProjection>(
+        DuckDBV2Connection connection,
+        string name,
+        Func<IEnumerable<TData>> dataFunc,
+        Expression<Func<TData, TProjection>> projection)
+    {
+        var (columns, createScan) = ParseProjection(projection);
+        TableFunctionRegistration.Register(connection, name,
+            (_, _) =>
+            {
+                var data = dataFunc();
+                return new TableFunction(columns, data, GetCardinalityHint(data));
+            },
+            createScan, [], []);
+    }
+
+    // High-level table function registration flow (1–4 param overloads):
+    //
+    // Example: connection.RegisterTableFunction("my_func",
+    //     (int count, [Named] string? prefix) => GetEmployees(count).Select(e => ...),
+    //     e => new { e.Id, e.Name });
+    //
+    // 1. AnalyzeParameters inspects the lambda's parameters:
+    //      parameters[0] = (NamedAs: null,     PositionalIndex: 0, Type: int)    — positional
+    //      parameters[1] = (NamedAs: "prefix", PositionalIndex: null, Type: string) — named
+    //
+    // 2. CompileValueReader builds a Func<IDuckDBValueReader, T> per parameter —
+    //    handles null-checking and type conversion (what to do with the value):
+    //      read1: reader → reader.GetValue<int>()         (throws if NULL)
+    //      read2: reader → reader.IsNull() ? null : reader.GetValue<string>()
+    //
+    // 3. Resolve picks the right IDuckDBValueReader from the positional list or
+    //    named dictionary (where to find the value):
+    //      Resolve(p[0], positional, named) → positional[0]
+    //      Resolve(p[1], positional, named) → named["prefix"]
+    //
+    // 4. The bind lambda wires them together (called once per query):
+    //      (positional, named) => {
+    //          int count      = read1(Resolve(p[0], positional, named));
+    //          string? prefix = read2(Resolve(p[1], positional, named));
+    //          var data       = dataFunc(count, prefix);
+    //          return new TableFunction(columns, data, GetCardinalityHint(data));
+    //      }
+    //
+    // 5. RegisterInternal registers with DuckDB:
+    //      1 positional parameter (INTEGER)
+    //      1 named parameter ("prefix", VARCHAR)
+    //
+    // Projection-aware variant: when parameters[0].Type is IReadOnlyList<ProjectedColumn>,
+    // step 2 is skipped for that slot, step 4 returns the DataFactory form of TableFunction
+    // (deferring dataFunc invocation to init time with the projected column list supplied),
+    // and step 5 omits the slot from DuckDB's parameter list entirely.
+
+    public static void Register<T1, TData, TProjection>(
+        DuckDBV2Connection connection,
+        string name,
+        Func<T1, IEnumerable<TData>> dataFunc,
+        Expression<Func<TData, TProjection>> projection)
+    {
+        var (columns, createScan) = ParseProjection(projection);
+        var parameters = AnalyzeParameters(dataFunc.Method.GetParameters());
+
+        if (parameters[0].IsProjection)
+        {
+            RegisterInternal(connection, name, parameters,
+                (positional, named) => new TableFunction(columns, projected =>
+                    dataFunc((T1)(object)projected)),
+                createScan);
+            return;
+        }
+
+        var read1 = CompileValueReader<T1>(parameters[0], name);
+
+        RegisterInternal(connection, name, parameters,
+            (positional, named) =>
+            {
+                var data = dataFunc(
+                    read1(Resolve(parameters[0], positional, named)));
+                return new TableFunction(columns, data, GetCardinalityHint(data));
+            },
+            createScan);
+    }
+
+    public static void Register<T1, T2, TData, TProjection>(
+        DuckDBV2Connection connection,
+        string name,
+        Func<T1, T2, IEnumerable<TData>> dataFunc,
+        Expression<Func<TData, TProjection>> projection)
+    {
+        var (columns, createScan) = ParseProjection(projection);
+        var parameters = AnalyzeParameters(dataFunc.Method.GetParameters());
+
+        if (parameters[0].IsProjection)
+        {
+            var read2 = CompileValueReader<T2>(parameters[1], name);
+            RegisterInternal(connection, name, parameters,
+                (positional, named) =>
+                {
+                    var arg2 = read2(Resolve(parameters[1], positional, named));
+                    return new TableFunction(columns, projected =>
+                        dataFunc((T1)(object)projected, arg2));
+                },
+                createScan);
+            return;
+        }
+
+        var readA = CompileValueReader<T1>(parameters[0], name);
+        var readB = CompileValueReader<T2>(parameters[1], name);
+
+        RegisterInternal(connection, name, parameters,
+            (positional, named) =>
+            {
+                var data = dataFunc(
+                    readA(Resolve(parameters[0], positional, named)),
+                    readB(Resolve(parameters[1], positional, named)));
+                return new TableFunction(columns, data, GetCardinalityHint(data));
+            },
+            createScan);
+    }
+
+    public static void Register<T1, T2, T3, TData, TProjection>(
+        DuckDBV2Connection connection,
+        string name,
+        Func<T1, T2, T3, IEnumerable<TData>> dataFunc,
+        Expression<Func<TData, TProjection>> projection)
+    {
+        var (columns, createScan) = ParseProjection(projection);
+        var parameters = AnalyzeParameters(dataFunc.Method.GetParameters());
+
+        if (parameters[0].IsProjection)
+        {
+            var read2 = CompileValueReader<T2>(parameters[1], name);
+            var read3 = CompileValueReader<T3>(parameters[2], name);
+            RegisterInternal(connection, name, parameters,
+                (positional, named) =>
+                {
+                    var arg2 = read2(Resolve(parameters[1], positional, named));
+                    var arg3 = read3(Resolve(parameters[2], positional, named));
+                    return new TableFunction(columns, projected =>
+                        dataFunc((T1)(object)projected, arg2, arg3));
+                },
+                createScan);
+            return;
+        }
+
+        var readA = CompileValueReader<T1>(parameters[0], name);
+        var readB = CompileValueReader<T2>(parameters[1], name);
+        var readC = CompileValueReader<T3>(parameters[2], name);
+
+        RegisterInternal(connection, name, parameters,
+            (positional, named) =>
+            {
+                var data = dataFunc(
+                    readA(Resolve(parameters[0], positional, named)),
+                    readB(Resolve(parameters[1], positional, named)),
+                    readC(Resolve(parameters[2], positional, named)));
+                return new TableFunction(columns, data, GetCardinalityHint(data));
+            },
+            createScan);
+    }
+
+    public static void Register<T1, T2, T3, T4, TData, TProjection>(
+        DuckDBV2Connection connection,
+        string name,
+        Func<T1, T2, T3, T4, IEnumerable<TData>> dataFunc,
+        Expression<Func<TData, TProjection>> projection)
+    {
+        var (columns, createScan) = ParseProjection(projection);
+        var parameters = AnalyzeParameters(dataFunc.Method.GetParameters());
+
+        if (parameters[0].IsProjection)
+        {
+            var read2 = CompileValueReader<T2>(parameters[1], name);
+            var read3 = CompileValueReader<T3>(parameters[2], name);
+            var read4 = CompileValueReader<T4>(parameters[3], name);
+            RegisterInternal(connection, name, parameters,
+                (positional, named) =>
+                {
+                    var arg2 = read2(Resolve(parameters[1], positional, named));
+                    var arg3 = read3(Resolve(parameters[2], positional, named));
+                    var arg4 = read4(Resolve(parameters[3], positional, named));
+                    return new TableFunction(columns, projected =>
+                        dataFunc((T1)(object)projected, arg2, arg3, arg4));
+                },
+                createScan);
+            return;
+        }
+
+        var readA = CompileValueReader<T1>(parameters[0], name);
+        var readB = CompileValueReader<T2>(parameters[1], name);
+        var readC = CompileValueReader<T3>(parameters[2], name);
+        var readD = CompileValueReader<T4>(parameters[3], name);
+
+        RegisterInternal(connection, name, parameters,
+            (positional, named) =>
+            {
+                var data = dataFunc(
+                    readA(Resolve(parameters[0], positional, named)),
+                    readB(Resolve(parameters[1], positional, named)),
+                    readC(Resolve(parameters[2], positional, named)),
+                    readD(Resolve(parameters[3], positional, named)));
+                return new TableFunction(columns, data, GetCardinalityHint(data));
+            },
+            createScan);
+    }
+
+    private static readonly MethodInfo GetValueMethod = typeof(IDuckDBValueReader).GetMethod(nameof(IDuckDBValueReader.GetValue))!;
+    private static readonly MethodInfo WriteValueMethod = typeof(VectorDataWriterBase).GetMethod(nameof(VectorDataWriterBase.WriteValue))!;
+
+    // Keeps the operator methods of decimal (op_Addition, op_LessThan, ...) through Native AOT trimming, which
+    // DuckDB.ExtensionKit uses. For decimal arithmetic or a comparison in a projection, such as
+    // r => new { total = r.Price * 2m }, the C# compiler emits Expression.Multiply (Add, LessThan, ...) without the
+    // operator method, and System.Linq.Expressions looks it up on decimal by reflection while the tree is built.
+    // Nothing else references those methods, so without this the trimmer removes them, and building the tree fails
+    // with "The binary operator Multiply is not defined for the types 'System.Decimal' and 'System.Decimal'".
+    // Every typed table function comes here.
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicMethods, typeof(decimal))]
+    private static (ColumnInfo[] columns, TableFunctionScanFactory createScan) ParseProjection<TData, TProjection>(Expression<Func<TData, TProjection>> projection)
+    {
+        var (names, types, accessors) = projection.Body switch
+        {
+            // Only the "new" of an anonymous type says which member each argument becomes. A constructor call such as
+            // "new Row(e.Id, e.Name)" has arguments and no names for them.
+            NewExpression { Members: null } => throw new ArgumentException(
+                "Projection cannot be a constructor call, because its arguments have no column names. " +
+                "Use an anonymous type (e => new { e.Id, e.Name }) or an object initializer (e => new Row { Id = e.Id })."),
+            NewExpression newExpr => ParseNewExpression(newExpr),
+            MemberInitExpression initExpr => ParseMemberInitExpression(initExpr),
+            MemberExpression memberExpr => ([memberExpr.Member.Name], [memberExpr.Type], [memberExpr]),
+            _ => throw new ArgumentException("Projection must be a new expression, object initializer, or single property access.")
+        };
+
+        var columns = new ColumnInfo[names.Length];
+        for (int i = 0; i < names.Length; i++)
+        {
+            columns[i] = new ColumnInfo(names[i], types[i]);
+        }
+
+        // The code that writes a row is compiled for the columns that a query reads, when a scan starts, and kept:
+        // a query that is run again, or a scan that DuckDB starts again, finds it by its columns.
+        var parameter = projection.Parameters[0];
+        var writers = new ConcurrentDictionary<string, Action<TData, VectorDataWriterBase[], ulong>>();
+
+        // The data of the function is what its data callback returned, an IEnumerable<TData>.
+        return (columns, (data, projected, _) =>
+        {
+            var writeRow = writers.GetOrAdd(string.Join(',', projected), _ => CompileRowWriter<TData>(projected, types, accessors, parameter));
+
+            return TableFunctionScan.Create((IEnumerable<TData>)data, writeRow);
+        });
+    }
+
+    private static (string[] names, Type[] types, Expression[] accessors) ParseNewExpression(NewExpression newExpr)
+    {
+        var count = newExpr.Arguments.Count;
+        var names = new string[count];
+        var types = new Type[count];
+        var accessors = new Expression[count];
+
+        for (int i = 0; i < count; i++)
+        {
+            names[i] = newExpr.Members![i].Name;
+            types[i] = newExpr.Arguments[i].Type;
+            accessors[i] = newExpr.Arguments[i];
+        }
+
+        return (names, types, accessors);
+    }
+
+    private static (string[] names, Type[] types, Expression[] accessors) ParseMemberInitExpression(MemberInitExpression initExpr)
+    {
+        var count = initExpr.Bindings.Count;
+        var names = new string[count];
+        var types = new Type[count];
+        var accessors = new Expression[count];
+
+        for (int i = 0; i < count; i++)
+        {
+            var binding = (MemberAssignment)initExpr.Bindings[i];
+            names[i] = binding.Member.Name;
+            types[i] = binding.Expression.Type;
+            accessors[i] = binding.Expression;
+        }
+
+        return (names, types, accessors);
+    }
+
+    private static Func<IDuckDBValueReader, T> CompileValueReader<T>(TableFunctionParameter param, string functionName)
+    {
+        var nullableUnderlyingType = Nullable.GetUnderlyingType(typeof(T));
+
+        if (nullableUnderlyingType is not null)
+        {
+            var readNullable = CompileNullableReader<T>(nullableUnderlyingType);
+            return reader => reader.IsNull() ? default! : readNullable(reader);
+        }
+
+        var errorContext = param.IsNamed
+            ? $"named parameter '{param.NamedAs}'"
+            : $"argument {param.PositionalIndex!.Value + 1}";
+
+        return reader =>
+        {
+            if (reader.IsNull())
+            {
+                if (default(T) is null) return default!;
+                throw new InvalidOperationException(
+                    $"Table function '{functionName}' {errorContext} is NULL, "
+                    + $"but parameter type '{typeof(T).Name}' is non-nullable.");
+            }
+            return reader.GetValue<T>();
+        };
+    }
+
+    private static Func<IDuckDBValueReader, T> CompileNullableReader<T>(Type underlyingType)
+    {
+        var readerParam = Expression.Parameter(typeof(IDuckDBValueReader), "reader");
+
+        var getValue = Expression.Call(readerParam, GetValueMethod.MakeGenericMethod(underlyingType));
+        var convert = Expression.Convert(getValue, typeof(T));
+
+        return Expression.Lambda<Func<IDuckDBValueReader, T>>(convert, readerParam).Compile();
+    }
+
+    private static IDuckDBValueReader Resolve(TableFunctionParameter param, IReadOnlyList<IDuckDBValueReader> positional, IReadOnlyDictionary<string, IDuckDBValueReader> named)
+        => param.IsNamed ? named[param.NamedAs!] : positional[param.PositionalIndex!.Value];
+
+    private static void RegisterInternal(DuckDBV2Connection connection, string name, TableFunctionParameter[] parameters,
+                                         Func<IReadOnlyList<IDuckDBValueReader>, IReadOnlyDictionary<string, IDuckDBValueReader>, TableFunction> bind,
+                                         TableFunctionScanFactory createScan)
+    {
+        var positionalTypes = new List<Type>();
+        var namedDefinitions = new List<NamedParameterDefinition>();
+
+        foreach (var param in parameters)
+        {
+            if (param.IsProjection)
+                continue;
+            if (param.IsNamed)
+                namedDefinitions.Add(new(param.NamedAs!, param.Type, param.HasDefault, param.Default));
+            else
+                positionalTypes.Add(param.Type);
+        }
+
+        TableFunctionRegistration.Register(connection, name, bind, createScan, TableFunctionRegistration.ForClrTypes(positionalTypes), namedDefinitions.ToArray());
+    }
+
+    private static TableFunctionParameter[] AnalyzeParameters(ParameterInfo[] methodParams)
+    {
+        var result = new TableFunctionParameter[methodParams.Length];
+        int nextPositional = 0;
+
+        for (int parameterIndex = 0; parameterIndex < methodParams.Length; parameterIndex++)
+        {
+            if (IsProjectionParameter(methodParams[parameterIndex].ParameterType))
+            {
+                if (parameterIndex != 0)
+                {
+                    throw new InvalidOperationException("ProjectedColumn parameter must be the first parameter of the data callback.");
+                }
+                
+                if (methodParams[parameterIndex].GetCustomAttribute<NamedAttribute>() is not null)
+                {
+                    throw new InvalidOperationException("[Named] cannot be applied to a ProjectedColumn parameter.");
+                }
+                result[0] = new TableFunctionParameter(null, null, methodParams[0].ParameterType, IsProjection: true);
+                continue;
+            }
+
+            var attr = methodParams[parameterIndex].GetCustomAttribute<NamedAttribute>();
+
+            // A C# default on the lambda is warning CS9099 and would be ignored, so it is refused: the default of a
+            // named parameter is NamedAttribute.Default (docs/V2-MIGRATION.md, "Named parameters and defaults").
+            if (attr is not null && methodParams[parameterIndex].HasDefaultValue)
+            {
+                throw new InvalidOperationException(
+                    $"Named parameter '{attr.Name ?? methodParams[parameterIndex].Name}' has a C# default value. Give the default as [Named(Default = ...)] instead.");
+            }
+
+            result[parameterIndex] = attr is not null
+                ? new(attr.Name ?? methodParams[parameterIndex].Name!, null, methodParams[parameterIndex].ParameterType, HasDefault: attr.HasDefault, Default: attr.Default)
+                : new(null, nextPositional++, methodParams[parameterIndex].ParameterType);
+        }
+
+        return result;
+    }
+
+    // Compiles (data, writers, rowIndex) => { writers[0].WriteValue(data.Id, rowIndex); writers[1].WriteValue(...); }
+    // for the columns that a query reads: writers[k] is the writer of the k-th of them, and projected[k] says which
+    // column of the function that is. A column that the query does not read has no writer and no code here, so
+    // its value is not worked out at all.
+    //
+    // WriteValue<T> is called on the class. Called through IDuckDBDataWriter it is a generic method of an
+    // interface, which is looked up at run time for every column of every row.
+    //
+    // DuckDB asks for at least one column today, even for count(*), but its C API does not promise it, and
+    // Expression.Block throws on an empty list.
+    [SuppressMessage("Reliability", "S2583", Justification = "DuckDB's C API does not promise at least one projected column.")]
+    private static Action<TData, VectorDataWriterBase[], ulong> CompileRowWriter<TData>(int[] projected, Type[] types, Expression[] accessors, ParameterExpression originalParam)
+    {
+        var dataParam = Expression.Parameter(typeof(TData), "data");
+        var writersParam = Expression.Parameter(typeof(VectorDataWriterBase[]), "writers");
+        var rowIndexParam = Expression.Parameter(typeof(ulong), "rowIndex");
+
+        var replacer = new ParameterReplacer(originalParam, dataParam);
+        var writeCalls = new Expression[projected.Length];
+
+        for (int i = 0; i < projected.Length; i++)
+        {
+            var column = projected[i];
+            var reboundAccessor = replacer.Visit(accessors[column]);
+            var writerAccess = Expression.ArrayIndex(writersParam, Expression.Constant(i));
+
+            writeCalls[i] = Expression.Call(writerAccess, WriteValueMethod.MakeGenericMethod(types[column]), reboundAccessor, rowIndexParam);
+        }
+
+        Expression body = writeCalls.Length == 0 ? Expression.Empty() : Expression.Block(writeCalls);
+        return Expression.Lambda<Action<TData, VectorDataWriterBase[], ulong>>(body, dataParam, writersParam, rowIndexParam).Compile();
+    }
+
+    // Rebinds parameter references when embedding sub-expressions from the user's projection lambda
+    // into a new lambda with a different parameter. E.g. given (Employee e) => new { e.Id }, the
+    // accessor "e.Id" references the original parameter "e". When we compile the combined writer
+    // (data, writers, rowIndex) => { write data.Id with writers[0]; ... } (see CompileRowWriter),
+    // we must replace "e" with "data".
+    private sealed class ParameterReplacer(ParameterExpression oldParam, ParameterExpression newParam) : ExpressionVisitor
+    {
+        protected override Expression VisitParameter(ParameterExpression node)
+            => node == oldParam ? newParam : base.VisitParameter(node);
+    }
+}

@@ -256,6 +256,15 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
     [MethodImpl(MethodImplOptions.NoInlining)]
     private protected InvalidCastException CannotCastFraction(Type to) => new($"Cannot cast a value with a non-zero fractional part to {to.Name} in column {ColumnName}");
 
+    // A DATE or timestamp outside the range of the .NET type it is read as. The reader of an argument of a
+    // user-defined function has no column name.
+    private protected ArgumentOutOfRangeException OutOfRange(Type targetType, string advice)
+    {
+        var value = ColumnName.Length == 0 ? "Value" : $"Value in column {ColumnName}";
+
+        return new ArgumentOutOfRangeException($"{value} is outside the range of System.{targetType.Name}. {advice}".TrimEnd(), (Exception?)null);
+    }
+
     /// <summary>
     /// Points the reader at a V2 vector of a new chunk. A V2 vector need not be flat (V1 flattened every result
     /// vector): a constant or dictionary vector is flattened first, so the reader indexes the data by row as before.

@@ -105,7 +105,7 @@ public class DecimalParameterBenchmark
         }
     }
 
-    // The same INSERTs after Prepare(): the command keeps one prepared statement and only binds and executes it.
+    // The same INSERTs after Prepare(): the command keeps one prepared statement, so they skip parsing and preparing.
     [Benchmark]
     public void InsertDecimalsPrepared()
     {

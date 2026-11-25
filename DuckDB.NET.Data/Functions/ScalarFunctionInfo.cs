@@ -3,7 +3,7 @@ using DuckDB.NET.Data.DataChunk.Writer;
 using DuckDB.NET.Data.Execution;
 using DuckDB.NET.Native.V2;
 
-namespace DuckDB.NET.Data.Connection;
+namespace DuckDB.NET.Data.Functions;
 
 // What the callbacks of a registered scalar function need: the action, and the types to read its arguments as and
 // write its result as. DuckDB keeps it as the function's user data and disposes it with the function.

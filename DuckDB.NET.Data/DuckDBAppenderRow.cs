@@ -230,7 +230,7 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
 
     // Returns the writer of the column the next value goes to, or throws when the row already has a value for
     // every column. The unsigned comparison on locals lets the JIT drop its own bounds check on the array, and
-    // the throw lives in a separate method so that this one is small enough to be inlined.
+    // the message is built in a separate method so that this one is small enough to be inlined.
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private VectorDataWriterBase GetCurrentWriter()
     {
@@ -239,16 +239,16 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
 
         if ((uint)index >= (uint)writers.Length)
         {
-            ThrowColumnOutOfRange();
+            throw ColumnOutOfRange();
         }
 
         return writers[index];
     }
 
-    [DoesNotReturn]
-    private void ThrowColumnOutOfRange()
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private IndexOutOfRangeException ColumnOutOfRange()
     {
-        throw new IndexOutOfRangeException($"The table {qualifiedTableName} has {vectorWriters.Length} columns but you are trying to append value for column {ValueCount + 1}");
+        return new IndexOutOfRangeException($"The table {qualifiedTableName} has {vectorWriters.Length} columns but you are trying to append value for column {ValueCount + 1}");
     }
 }
 
