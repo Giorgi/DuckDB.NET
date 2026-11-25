@@ -153,7 +153,7 @@ between two runs.
 
 ### 8. The loop of a typed function calls the reader and the writer as classes
 
-- **What:** `RegisterScalarMethod` takes an action over `VectorDataReaderBase[]` and `VectorDataWriterBase`. A
+- **What:** `ScalarFunctionRegistration.Register` takes an action over `VectorDataReaderBase[]` and `VectorDataWriterBase`. A
   typed registration, `RegisterScalarFunction<int, int>("f", x => x + 1)`, has a loop of its own for its number
   of parameters and calls `GetValue<T>` and `WriteValue<T>` on the classes. The public overloads that take a
   callback over the interfaces pass it on unchanged: an action over the interfaces is an action over the classes.
@@ -505,7 +505,7 @@ between two runs.
 
 ### 16. A typed function writes a nullable result as the type under it
 
-- **What:** the loops of the typed scalar functions (`DuckDBConnection.ScalarFunction.Extensions.cs`) write a
+- **What:** the loops of the typed scalar functions (`Functions/TypedScalarFunctions.cs`) write a
   nullable result through `WriteResult<TResult>`: one line per nullable type, `(int?)(object?)result`, then
   `WriteValue<int>` of the value or `WriteNull`. Any other result goes straight to `WriteValue`, as before. The 21
   lines are the value types a function can return, the value types of `TypeExtensions.ClrToDuckDBTypeMap` and the

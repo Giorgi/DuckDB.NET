@@ -1,6 +1,6 @@
 using DuckDB.NET.Data.DataChunk.Writer;
 
-namespace DuckDB.NET.Data.Connection;
+namespace DuckDB.NET.Data.Functions;
 
 class TableFunctionInfo(Func<IReadOnlyList<IDuckDBValueReader>, IReadOnlyDictionary<string, IDuckDBValueReader>, TableFunction> bind, TableFunctionScanFactory createScan, string[] namedParameterNames)
 {

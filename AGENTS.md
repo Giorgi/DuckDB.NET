@@ -169,10 +169,12 @@ dotnet run -c Release -f net10.0 --project DuckDB.NET.Benchmarks -- --filter "*N
     longer than 2048 rows, and `AppendBatch_CastsColumnsInLongBatches` fails on it. On such an engine the appender
     would have to append batches in `RecordBatch.Slice` pieces of 2048 rows, as the commit "Append Arrow record
     batches with DuckDBArrowAppender" did; that cost 1.20x on 65536-row batches.
-- **UDFs:** scalar functions (`DuckDBConnection.ScalarFunction*.cs`) and table functions
-  (`DuckDBConnection.TableFunction*.cs`) are registered through generic overloads for different parameter counts.
-  Callbacks are pinned with `GCHandle`. A table function creates its data enumerator per scan init, not per bind,
-  because DuckDB re-initializes scans without re-binding, for example in recursive CTEs.
+- **UDFs:** scalar and table functions are registered through generic overloads for different parameter counts.
+  The public methods (`DuckDBConnection.ScalarFunction*.cs`, `DuckDBConnection.TableFunction*.cs`) only pass the
+  native connection on to the registration in `Functions/`, which DuckDB.ExtensionKit compiles as well. **Before
+  changing anything in `Functions/`, read `AGENTS.md` in that folder.** Callbacks are pinned with `GCHandle`. A table
+  function creates its data enumerator per scan init, not per bind, because DuckDB re-initializes scans without
+  re-binding, for example in recursive CTEs.
 
 ### Conversion rules: where to find what converts to what
 
