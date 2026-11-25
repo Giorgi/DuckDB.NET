@@ -12,7 +12,6 @@ namespace DuckDB.NET.Benchmarks;
 // Arrow path itself. The batches are built once in GlobalSetup, so building them is not measured.
 // - AppendBatches: DuckDBArrowAppender into INTEGER columns, the types match exactly.
 // - AppendBatchesWithCast: the same int32 data into BIGINT columns, so DuckDB casts every column.
-// Batches longer than 2048 rows with a cast need an engine with duckdb/duckdb#27664; DuckDB v2.0.0 fails them.
 // Only builds that have DuckDBArrowAppender can run it (ARROW_APPENDER, set in the project file), so every job of a
 // run must be such a build. The default config of Program.cs adds the 1.5.6 package as a baseline job, which does
 // not have it: until the baseline is such a version, run it with jobs that all are (azure/vm-2.0.sh with

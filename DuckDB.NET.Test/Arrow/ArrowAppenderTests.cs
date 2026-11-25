@@ -53,8 +53,7 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(5000)]
     public void AppendBatch_CastsColumnsInLongBatches(int rowCount)
     {
-        // An int32 column into BIGINT needs a cast. DuckDB 2.0.0 cannot cast a chunk longer than 2048 rows
-        // (duckdb/duckdb#27664), and the appender sends the whole batch as one chunk, so this needs a fixed engine.
+        // An int32 column into BIGINT needs a cast, for a batch of one chunk (2048 rows) and of more.
         var table = $"arrow_cast_{rowCount}";
         Connection.ExecuteNonQuery($"CREATE TABLE {table}(exact INTEGER, widened BIGINT)");
 
@@ -359,7 +358,7 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [InlineData(true)]
     public void AppendBatch_ColumnShorterThanBatchThrows(bool strings)
     {
-        // DuckDB 2.0.0 reads such a column past its end: garbage for integers, a crash for strings.
+        // The appender refuses such a batch before DuckDB reads it, naming the column, and stays usable.
         Connection.ExecuteNonQuery($"CREATE TABLE arrow_short_{strings}(v {(strings ? "VARCHAR" : "INTEGER")})");
 
         var type = strings ? (IArrowType)StringType.Default : Int32Type.Default;
@@ -450,8 +449,8 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
     [Fact]
     public void AppendBatch_ConstraintFailureKeepsEarlierBatches()
     {
-        // Each batch is its own INSERT: the batch with the NULL fails, over the 204,800 rows of V1's flush threshold
-        // too, and the earlier, valid batch stays.
+        // Each batch is its own INSERT: the batch with the NULL fails, however long it is, and the earlier, valid batch
+        // stays.
         Connection.ExecuteNonQuery("CREATE TABLE arrow_not_null(i INTEGER NOT NULL)");
 
         var schema = new Schema.Builder().Field(f => f.Name("i").DataType(Int32Type.Default)).Build();

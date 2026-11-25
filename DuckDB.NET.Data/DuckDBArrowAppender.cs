@@ -173,8 +173,9 @@ public sealed class DuckDBArrowAppender : IDisposable
             throw new ArgumentException($"The batch has {batch.ColumnCount} columns but the table has {columnCount}. Columns are matched by position.", nameof(batch));
         }
 
-        // RecordBatch does not check that its columns are as long as the batch. DuckDB's importer refuses such a batch
-        // too, but the check here names the column.
+        // RecordBatch does not check that its columns are as long as the batch. DuckDB's importer refuses such a batch as
+        // well, but inside the INSERT, which faults the appender, and without naming the column. Checked here, the batch
+        // is refused before anything runs and the appender stays usable.
         for (var index = 0; index < batch.ColumnCount; index++)
         {
             var length = batch.Column(index).Length;

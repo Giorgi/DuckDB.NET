@@ -167,28 +167,21 @@ dotnet run -c Release -f net10.0 --project DuckDB.NET.Benchmarks -- --filter "*N
 - **`DuckDBMappedAppender<T, TMap>`:** the type-checked alternative (`CreateAppender<T, TMap>(table)`). A
   `DuckDBAppenderMap<T>` subclass declares the columns with `Map`, `DefaultValue` and `NullValue`, and type
   mismatches are reported when the appender is created. See `AppenderMap-Usage.md`.
-- **`DuckDBArrowAppender`** (on `nightly-vnext` each batch is one INSERT through an internal table function, see
-  stage 7 in `docs/V2-MIGRATION.md`; what follows is develop's V1 design): appends Apache Arrow record batches and
-  streams (`CreateArrowAppender(table)`, then
-  `AppendBatch`, `AppendStream` or `AppendStreamAsync`) through `duckdb_schema_from_arrow`,
-  `duckdb_data_chunk_from_arrow` and `duckdb_append_data_chunk`. It does not use the vector writers. It is a separate
-  type on purpose, so rows and batches cannot be mixed on one appender. Columns are matched by position, and DuckDB
-  casts each Arrow column to the column type, so unlike `DuckDBAppender` this path is type-checked. A failure after
-  the schema is converted faults the appender.
-  - **Ownership:** DuckDB takes ownership of the exported `ArrowArray` (it sets `release` to NULL), and destroying the
-    chunk releases it and unpins the managed buffers. Always free the `CArrowArray` in a `finally`.
-  - **Shape:** v2.0.0 does not check the array's shape, and `RecordBatch` does not check that its columns are as long
-    as the batch. A shorter column is read past its end (garbage, or a crash for strings), so the appender checks
-    every column's length before exporting. v2.0.1 validates the shape in `duckdb_data_chunk_from_arrow` (read in
-    its source, not run against it). Keep the check anyway.
-  - **One chunk per batch:** a batch goes to DuckDB as one chunk of any length, so a batch that fails to convert or
-    cast appends nothing. Constraints are different: DuckDB checks them only when the appender flushes (every
-    204,800 rows, and on close), and a failed flush drops every batch since the last flush. The XML docs say so,
-    pinned by the two `..._ConstraintFailure...` tests.
-  - **Engine:** one chunk per batch needs duckdb/duckdb#27664, which is in v2.0.1: DuckDB v2.0.0 cannot cast a chunk
-    longer than 2048 rows, and `AppendBatch_CastsColumnsInLongBatches` fails on it. On such an engine the appender
-    would have to append batches in `RecordBatch.Slice` pieces of 2048 rows, as the commit "Append Arrow record
-    batches with DuckDBArrowAppender" did; that cost 1.20x on 65536-row batches.
+- **`DuckDBArrowAppender`:** appends Apache Arrow record batches and streams (`CreateArrowAppender(table)`, then
+  `AppendBatch`, `AppendStream` or `AppendStreamAsync`). It does not use the vector writers. It is a separate type on
+  purpose, so rows and batches cannot be mixed on one appender. Columns are matched by position, and DuckDB casts each
+  Arrow column to the column type, so unlike `DuckDBAppender` this path is type-checked.
+  - **One INSERT per batch:** each batch is a prepared `INSERT INTO table SELECT * FROM __duckdbnet_arrow_append($1)`
+    (`Execution/DuckDBV2ArrowAppend.cs`). The internal table function converts the batch with V2's Arrow importer,
+    which needs a context and so runs in its callbacks. A batch is in the table when `AppendBatch` returns; a batch
+    that fails, a constraint included, appends nothing and faults the appender, and the earlier batches stay.
+  - **Ownership:** the batch is exported and appended to the importer consumed: DuckDB takes the `ArrowArray` (it sets
+    `release` to NULL), the chunks reference the managed buffers, and DuckDB releases the array before the INSERT
+    returns. Always free the `CArrowArray` in a `finally`.
+  - **Registration:** the function is registered in the `init` callback of `instance_open_shared`, once per instance.
+    Registered later, a second registration is refused and the first is part of the user's transaction.
+  - **Shape:** `RecordBatch` does not check that its columns are as long as the batch. The importer refuses such a
+    batch, but the appender checks first, to name the column and stay usable.
 - **UDFs:** scalar and table functions are registered through generic overloads for different parameter counts.
   The public methods (`DuckDBConnection.ScalarFunction*.cs`, `DuckDBConnection.TableFunction*.cs`) only pass the
   native connection on to the registration in `Functions/`, which DuckDB.ExtensionKit compiles as well (on

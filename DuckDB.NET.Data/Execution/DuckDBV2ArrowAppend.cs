@@ -50,7 +50,7 @@ internal static unsafe class DuckDBV2ArrowAppend
         private _duckdb_v2_data_chunk* pending;
 
         // Bind: the importer for the batch's schema. Batches of one stream share a Schema instance, so a stream
-        // creates one importer; a batch with another Schema object gets a new one, as V1 converted the schema again.
+        // creates one importer; a batch with another Schema object gets a new one.
         public void Bind(_duckdb_v2_context* context, _duckdb_v2_table_function_bind_info* result)
         {
             var batch = Batch ?? throw new InvalidOperationException("The Arrow appender has no batch to insert.");
@@ -348,7 +348,13 @@ internal static unsafe class DuckDBV2ArrowAppend
             connection.CallbackException = exception;
         }
 
-        using var text = DuckDBV2Utf8.FromManaged(exception.Message);
+        // DuckDB puts the error type before the text it is given, so a DuckDB error passed on keeps its type only once.
+        const string inputError = "Invalid Input Error: ";
+        var message = exception is DuckDBException && exception.Message.StartsWith(inputError, StringComparison.Ordinal)
+            ? exception.Message[inputError.Length..]
+            : exception.Message;
+
+        using var text = DuckDBV2Utf8.FromManaged(message);
 
         fixed (byte* pointer = text.Bytes)
         {
