@@ -27,8 +27,6 @@ internal sealed unsafe class PreparedStatementEntry : IDisposable
 
     public DuckDBStatementType StatementType { get; }
 
-    public long ParameterCount => parameters?.Count ?? 0;
-
     public bool IsDisposed => Volatile.Read(ref disposed) != 0;
 
     /// <summary>

@@ -128,26 +128,25 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
         // is recognized in any letter case, as ':memory:' always was here, and the shared form of the documentation
         // too, so that its spellings keep sharing one database. A file is opened by its path.
         string? instancePath;
-        bool inMemory, isShared;
 
         if (dataSource.Equals(InMemoryDataSource, StringComparison.OrdinalIgnoreCase))
         {
-            (instancePath, inMemory, isShared) = (null, true, false);
+            instancePath = null;
         }
         else if (dataSource.Equals(InMemorySharedDataSource, StringComparison.OrdinalIgnoreCase))
         {
-            (instancePath, inMemory, isShared) = (InMemorySharedDataSource, true, true);
+            instancePath = InMemorySharedDataSource;
         }
         else if (dataSource.StartsWith(InMemoryDataSource, StringComparison.OrdinalIgnoreCase))
         {
-            (instancePath, inMemory, isShared) = (InMemoryDataSource + dataSource[InMemoryDataSource.Length..], true, true);
+            instancePath = InMemoryDataSource + dataSource[InMemoryDataSource.Length..];
         }
         else
         {
-            (instancePath, inMemory, isShared) = (dataSource, false, false);
+            instancePath = dataSource;
         }
 
-        return new DuckDBConnectionString(dataSource, inMemory, isShared, configurations, instancePath);
+        return new DuckDBConnectionString(dataSource, configurations, instancePath);
     }
 
     [AllowNull]
