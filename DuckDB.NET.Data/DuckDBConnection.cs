@@ -11,7 +11,6 @@ public partial class DuckDBConnection : DbConnection
     private ConnectionState connectionState = ConnectionState.Closed;
     private DuckDBConnectionString? parsedConnection;
     private ConnectionReference? connectionReference;
-    private bool inMemoryDuplication = false;
 
     private static readonly StateChangeEventArgs FromClosedToOpenEventArgs = new(ConnectionState.Closed, ConnectionState.Open);
     private static readonly StateChangeEventArgs FromOpenToClosedEventArgs = new(ConnectionState.Open, ConnectionState.Closed);
@@ -121,9 +120,7 @@ public partial class DuckDBConnection : DbConnection
             throw new InvalidOperationException("Connection is already open.");
         }
 
-        //In case of inMemoryDuplication, we can safely take the hypothesis that connectionReference is already assigned
-        connectionReference = inMemoryDuplication ? connectionManager.DuplicateConnectionReference(connectionReference!)
-                                                  : connectionManager.GetConnectionReference(ParsedConnection);
+        connectionReference = connectionManager.GetConnectionReference(ParsedConnection);
 
         connectionState = ConnectionState.Open;
         OnStateChange(FromClosedToOpenEventArgs);
@@ -187,24 +184,19 @@ public partial class DuckDBConnection : DbConnection
         }
     }
 
+    /// <summary>
+    /// No longer supported: always throws <see cref="NotSupportedException"/>.
+    /// </summary>
+    /// <remarks>
+    /// To open several connections to one in-memory database, give the database a name: every connection with the
+    /// data source <c>:memory:&lt;name&gt;</c> reaches the same database.
+    /// </remarks>
+    [Obsolete("Duplicate is no longer supported and always throws NotSupportedException. To share an in-memory database, " +
+              "open every connection with the data source ':memory:<name>'.")]
     public DuckDBConnection Duplicate()
     {
-        EnsureConnectionOpen();
-
-        // We're sure that the connectionString is not null because we previously checked the connection was open
-        if (!ParsedConnection!.InMemory)
-        {
-            throw new NotSupportedException("Duplication of the connection is only supported for in-memory connections.");
-        }
-
-        var duplicatedConnection = new DuckDBConnection(ConnectionString)
-        {
-            parsedConnection = ParsedConnection,
-            inMemoryDuplication = true,
-            connectionReference = connectionReference,
-        };
-
-        return duplicatedConnection;
+        throw new NotSupportedException("Duplicate is no longer supported. To share an in-memory database, open every connection " +
+                                        "with the data source ':memory:<name>'.");
     }
 
     public override DataTable GetSchema() =>

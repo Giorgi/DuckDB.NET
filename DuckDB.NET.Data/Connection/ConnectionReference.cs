@@ -1,12 +1,13 @@
 ﻿namespace DuckDB.NET.Data.Connection;
 
 /// <summary>
-/// Just makes it easier to pass/receive this data from the ConnectionManager
+/// The native objects of an open <see cref="DuckDBConnection"/>: the instance handle it opened and its connection.
 /// </summary>
-internal class ConnectionReference(FileReference fileReferenceCounter, DuckDBV2Connection nativeConnection)
+internal class ConnectionReference(string dataSource, DuckDBV2Instance instance, DuckDBV2Connection nativeConnection)
 {
-    public FileReference FileReferenceCounter { get; } = fileReferenceCounter;
+    public string DataSource { get; } = dataSource;
+    public DuckDBV2Instance Instance { get; } = instance;
     public DuckDBV2Connection NativeConnection { get; } = nativeConnection;
 
-    public override string? ToString() => FileReferenceCounter?.ToString();
+    public override string ToString() => DataSource;
 }

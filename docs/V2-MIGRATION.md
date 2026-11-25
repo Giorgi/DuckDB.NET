@@ -82,9 +82,15 @@ No behaviour change.
   database file with a different configuration than existing connections"), names are case-sensitive on Linux, and a
   named in-memory database is gone after its last connection. The refused-option search (`NameTheRefusedOption`)
   stays, and is skipped for that refusal, which is about the combination. No test changed; the connection stress
-  tests pass. `duckdb_connect` became `connection_create`, for both
-  `GetConnectionReference` and `DuplicateConnectionReference`. `FileReference` holds a `DuckDBV2Instance` and
-  `ConnectionReference` a `DuckDBV2Connection`.
+  tests pass. `duckdb_connect` became `connection_create`. `ConnectionReference` holds the `DuckDBV2Instance` an open
+  created and its `DuckDBV2Connection`, and closing destroys both: with no duplicates, no handle is shared, so
+  `FileReference` and its count are gone.
+- `Duplicate()` is `[Obsolete]` and throws `NotSupportedException`. It existed to reach a private `:memory:` database
+  from a second connection; V2 has no way to get an instance back from a connection, and a named in-memory database
+  (`:memory:<name>`) does the same job. Its tests (`DuplicateInMemoryConnection`,
+  `DuplicateInMemoryNotOpenedConnectionError`, `DuplicateUsesTheSameInstance` and the duplicate theory of
+  `V2SharedInstanceTests`) were removed; `DuplicateNotInMemoryConnectionError` still passes. Its removal belongs in
+  the release notes.
 - `ServerVersion` uses `library_version`, and `GetQueryProgress` uses `connection_progress_get`.
 - `DuckDBConnection.NativeConnection` (public, a V1 handle) throws `NotSupportedException` on an open connection:
   a V2 connection has no V1 handle. Whether it goes, or what replaces it, is decided in stage 8.

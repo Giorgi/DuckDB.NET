@@ -93,8 +93,9 @@ dotnet run -c Release -f net10.0 --project DuckDB.NET.Benchmarks -- --filter "*N
   `nightly-vnext` DuckDB shares the instances (`instance_open_shared` in `DuckDBV2Startup.OpenInstance`): one per
   database file, matched by the path as DuckDB resolves it, and one per named in-memory database. A file being closed
   is waited for before it is opened again, so two instances never hold one file. A database already open with other
-  startup options is refused (`ResourceInUse`). Each open gets an instance handle of its own; `Duplicate()` shares the
-  handle of the connection it copies, counted in `FileReference` and destroyed with its last connection.
+  startup options is refused (`ResourceInUse`). Each open gets an instance handle of its own, destroyed with its
+  connection, so nothing is counted. `Duplicate()` is obsolete and throws `NotSupportedException`: a second connection
+  to an in-memory database opens `:memory:<name>` instead.
 - **Data sources:**
   - `:memory:` (any letter case) gives every connection its own private database;
   - `:memory:<name>` is DuckDB's named in-memory database, shared by every connection with that name; names are

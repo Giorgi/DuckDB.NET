@@ -121,25 +121,6 @@ public class V2SharedInstanceTests
         lower.ExecuteNonQuery($"DROP MACRO {macro}");
     }
 
-    [Theory]
-    [InlineData(":memory:")]
-    [InlineData(":memory:duplicated")]
-    public void ADuplicateReachesTheSameDatabase(string dataSource)
-    {
-        var source = dataSource == ":memory:" ? dataSource : $"{dataSource}_{Guid.NewGuid():N}";
-
-        using var connection = Open($"DataSource={source}");
-        connection.ExecuteNonQuery("CREATE TABLE t AS SELECT 7 AS v");
-
-        using var duplicate = connection.Duplicate();
-        duplicate.Open();
-        Scalar(duplicate, "SELECT v FROM t").Should().Be(7);
-
-        // The database outlives the connection it was duplicated from.
-        connection.Close();
-        Scalar(duplicate, "SELECT v FROM t").Should().Be(7);
-    }
-
     private static DuckDBConnection Open(string connectionString)
     {
         var connection = new DuckDBConnection(connectionString);

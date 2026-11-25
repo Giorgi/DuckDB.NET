@@ -286,8 +286,7 @@ statement that reads a table.
   count, each parameter's logical type and type id (read before any value is bound), and a cache of name-to-index
   lookups (a name the statement does not declare is cached as 0).
 
-Commands with the same text on one connection share one entry. Another connection, or `Duplicate()`, has its own
-store.
+Commands with the same text on one connection share one entry. Another connection has its own store.
 
 ### Lifecycle
 
