@@ -229,28 +229,9 @@ public class ArrowAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 
             var good = new RecordBatch(intSchema, [new Int32Array.Builder().Append(3).Build()], 1);
             appender.Invoking(a => a.AppendBatch(good)).Should().Throw<InvalidOperationException>().WithMessage("*batch failed*");
-            appender.Invoking(a => a.Clear()).Should().Throw<InvalidOperationException>();
         }
 
         Connection.Query<int>("SELECT i FROM arrow_failed_cast ORDER BY rowid").Should().Equal(1, 2);
-    }
-
-    [Fact]
-    public void Clear_KeepsAppendedBatches()
-    {
-        // Each batch is inserted when it is appended, so Clear has nothing to drop.
-        Connection.ExecuteNonQuery("CREATE TABLE arrow_clear(i INTEGER)");
-
-        var schema = new Schema.Builder().Field(f => f.Name("i").DataType(Int32Type.Default)).Build();
-
-        using (var appender = Connection.CreateArrowAppender("arrow_clear"))
-        {
-            appender.AppendBatch(new RecordBatch(schema, [new Int32Array.Builder().Append(1).Build()], 1));
-            appender.Clear();
-            appender.AppendBatch(new RecordBatch(schema, [new Int32Array.Builder().Append(2).Build()], 1));
-        }
-
-        Connection.Query<int>("SELECT i FROM arrow_clear ORDER BY rowid").Should().Equal(1, 2);
     }
 
     [Fact]

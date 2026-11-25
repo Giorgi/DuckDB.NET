@@ -26,22 +26,6 @@ public class V2ArrowAppenderTests
     }
 
     [Fact]
-    public void ClearDoesNothing()
-    {
-        using var connection = Open();
-        connection.ExecuteNonQuery("CREATE TABLE t (i INTEGER)");
-
-        using (var appender = connection.CreateArrowAppender("t"))
-        {
-            appender.AppendBatch(Batch(1));
-            appender.Clear();
-            appender.AppendBatch(Batch(2));
-        }
-
-        Values(connection).Should().Equal(1, 2);
-    }
-
-    [Fact]
     public void TheRowsAreInTheTableWhenAppendBatchReturns()
     {
         using var connection = Open();

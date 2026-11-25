@@ -359,10 +359,12 @@ V2 has no appender. `DuckDBAppender` keeps its API and writes its rows into `Exe
        a constraint included, is thrown by its own `AppendBatch`, drops only itself and faults the appender, where V1
        checked constraints at a flush and dropped everything since the last one; `Clear` does nothing, and is
        `[Obsolete]`. `AppendStream`
-       and `AppendStreamAsync` insert batch by batch, as before. Changed tests: `Clear_KeepsAppendedBatches`,
+       and `AppendStreamAsync` insert batch by batch, as before. Changed tests:
        `AppendBatch_ConstraintFailureKeepsEarlierBatches` and `AppendBatch_ConstraintFailureFailsTheBatchThatBreaksIt`
-       (were `Clear_DropsAppendedBatches`, `AppendBatch_ConstraintFailureAtFlushDropsEarlierBatches` and
-       `Dispose_ConstraintFailureDropsUnflushedBatches`). `V2ArrowAppenderTests` pins the rest.
+       (were `AppendBatch_ConstraintFailureAtFlushDropsEarlierBatches` and
+       `Dispose_ConstraintFailureDropsUnflushedBatches`); `Clear_DropsAppendedBatches` and the `Clear` line of
+       `AppendBatch_FailedCastFaultsAppenderAndKeepsEarlierRows` are removed with `Clear`. `V2ArrowAppenderTests` pins
+       the rest.
      - `ArrowAppenderBenchmark.NativeCalls`, which made V1's calls directly, is gone; the other two benchmarks measure
        the V2 appender. Not measured yet against V1.
 8. Cleanup: the connection string builder enumerates the options through V2, Data stops using V1, the fate of the V1
