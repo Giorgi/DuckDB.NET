@@ -18,31 +18,35 @@ internal static unsafe class DuckDBV2Startup
     internal static DuckDBV2Environment Environment => SharedEnvironment.Value;
 
     /// <summary>
-    /// Creates an instance with the connection string's configuration as startup options, and attaches the database
-    /// at <paramref name="path"/> (in memory when null) as its default database.
+    /// Opens the database at <paramref name="path"/> (a new private in-memory database when null) with the connection
+    /// string's configuration as startup options, through <c>instance_open_shared</c>: the environment shares one
+    /// instance per database file, as DuckDB resolves its path, and per named in-memory database (<c>:memory:name</c>).
+    /// Each call returns a new handle; the instance closes once its last handle and its last connection are destroyed,
+    /// and a call for the same database meanwhile waits for it to close. A database already open with other startup
+    /// options is refused with <see cref="DuckDBErrorCode.ResourceInUse"/>.
     /// </summary>
     public static DuckDBV2Instance OpenInstance(string? path, IReadOnlyDictionary<string, string> options)
     {
-        DuckDBV2Instance instance;
+        using var pathBuffer = DuckDBV2Utf8.FromManaged(path ?? InMemoryPath);
+        using var lease = Environment.Acquire();
 
         try
         {
-            instance = CreateInstance(options);
+            fixed (byte* pathPointer = pathBuffer.Bytes)
+            {
+                var environment = lease.Pointer;
+                var pathBytes = (sbyte*)pathPointer;
+                var pathLength = (ulong)pathBuffer.Length;
+
+                return CreateInstance(options, (names, nameLengths, values, valueLengths, count, instance, error) =>
+                    NativeMethodsV2.duckdb_v2_instance_open_shared(environment, pathBytes, pathLength, names, nameLengths, values, valueLengths, count,
+                                                                   null, null, instance, error), $"Opening '{path ?? InMemoryPath}' failed");
+            }
         }
-        catch (DuckDBException exception) when (exception.NativeErrorCode is { } code)
+        // A database open with other options is refused for their combination, not for one of them.
+        catch (DuckDBException exception) when (exception.NativeErrorCode is { } code && code != DuckDBErrorCode.ResourceInUse)
         {
             throw NameTheRefusedOption(options, exception, code);
-        }
-
-        try
-        {
-            Attach(instance, path ?? InMemoryPath);
-            return instance;
-        }
-        catch
-        {
-            instance.Dispose();
-            throw;
         }
     }
 
@@ -102,7 +106,22 @@ internal static unsafe class DuckDBV2Startup
         return new DuckDBV2Environment(environment);
     }
 
+    private delegate DUCKDB_V2_ERROR CreateFunction(sbyte** names, ulong* nameLengths, sbyte** values, ulong* valueLengths, ulong count,
+                                                    _duckdb_v2_instance** instance, _duckdb_v2_error_info** error);
+
+    // An instance with no database, for finding the option DuckDB refuses (NameTheRefusedOption).
     private static DuckDBV2Instance CreateInstance(IReadOnlyDictionary<string, string> options)
+    {
+        using var lease = Environment.Acquire();
+        var environment = lease.Pointer;
+
+        return CreateInstance(options, (names, nameLengths, values, valueLengths, count, instance, error) =>
+            NativeMethodsV2.duckdb_v2_instance_create_with_options(environment, names, nameLengths, values, valueLengths, count, instance, error),
+            "Opening the database failed");
+    }
+
+    // Passes the startup options to create as two parallel arrays of UTF-8 names and values.
+    private static DuckDBV2Instance CreateInstance(IReadOnlyDictionary<string, string> options, CreateFunction create, string fallbackMessage)
     {
         var count = options.Count;
 
@@ -137,8 +156,6 @@ internal static unsafe class DuckDBV2Startup
         var nameLengths = new ulong[count];
         var valueLengths = new ulong[count];
 
-        using var lease = Environment.Acquire();
-
         fixed (byte* buffer = bytes)
         fixed (IntPtr* namePointers = names)
         fixed (IntPtr* valuePointers = values)
@@ -155,10 +172,8 @@ internal static unsafe class DuckDBV2Startup
 
             _duckdb_v2_error_info* error = null;
             _duckdb_v2_instance* instance;
-            NativeMethodsV2.duckdb_v2_instance_create_with_options(lease.Pointer,
-                                                                  (sbyte**)namePointers, nameLengthPointer,
-                                                                  (sbyte**)valuePointers, valueLengthPointer, (ulong)count,
-                                                                  &instance, &error).ThrowIfFailed(ref error, "Opening the database failed");
+            create((sbyte**)namePointers, nameLengthPointer, (sbyte**)valuePointers, valueLengthPointer, (ulong)count, &instance, &error)
+                .ThrowIfFailed(ref error, fallbackMessage);
 
             return new DuckDBV2Instance(instance);
         }
@@ -183,18 +198,5 @@ internal static unsafe class DuckDBV2Startup
 
         // Each option is accepted on its own, so it is their combination that DuckDB refuses.
         return exception;
-    }
-
-    private static void Attach(DuckDBV2Instance instance, string path)
-    {
-        using var pathBuffer = DuckDBV2Utf8.FromManaged(path);
-        using var lease = instance.Acquire();
-
-        fixed (byte* pathPointer = pathBuffer.Bytes)
-        {
-            _duckdb_v2_error_info* error = null;
-            NativeMethodsV2.duckdb_v2_instance_attach(lease.Pointer, null, 0, (sbyte*)pathPointer, (ulong)pathBuffer.Length,
-                                                      null, 1, &error).ThrowIfFailed(ref error, $"Opening '{path}' failed");
-        }
     }
 }

@@ -89,17 +89,22 @@ dotnet run -c Release -f net10.0 --project DuckDB.NET.Benchmarks -- --filter "*N
 
 ### Connections (`DuckDB.NET.Data/Connection`)
 
-- **Pooling:** `DuckDBConnection` gets its native connection from the static `ConnectionManager`. It caches one
-  `FileReference` (native database plus a reference count) per file. Returning the last connection disposes the
-  database and removes the cache entry.
+- **Sharing databases:** `DuckDBConnection` gets its native connection from the static `ConnectionManager`. On
+  `nightly-vnext` DuckDB shares the instances (`instance_open_shared` in `DuckDBV2Startup.OpenInstance`): one per
+  database file, matched by the path as DuckDB resolves it, and one per named in-memory database. A file being closed
+  is waited for before it is opened again, so two instances never hold one file. A database already open with other
+  startup options is refused (`ResourceInUse`). Each open gets an instance handle of its own; `Duplicate()` shares the
+  handle of the connection it copies, counted in `FileReference` and destroyed with its last connection.
 - **Data sources:**
-  - `:memory:` gives every connection its own private database;
-  - `:memory:?cache=shared` shares one;
-  - `md:<db>?motherduck_token=...` connects to MotherDuck.
+  - `:memory:` (any letter case) gives every connection its own private database;
+  - `:memory:<name>` is DuckDB's named in-memory database, shared by every connection with that name; names are
+    case-sensitive on Linux. `:memory:?cache=shared` is one such name, matched in any letter case as before;
+  - `md:<db>?motherduck_token=...` connects to MotherDuck (not tested on V2: it needs a token).
 - **Configuration:** `DuckDBConnectionStringBuilder` normalizes `Data Source`/`DataSource` and exposes DuckDB
   configuration options as typed properties.
-- **Why not DuckDB's own instance cache:** `duckdb_get_or_create_from_cache` fails under concurrent opens of the same
-  path (duckdb/duckdb#22277), so `ConnectionManager` does the pooling itself.
+- **History:** before V2, `ConnectionManager` cached one `FileReference` per data source itself, because V1's
+  `duckdb_get_or_create_from_cache` failed under concurrent opens of the same path (duckdb/duckdb#22277, fixed in
+  v2.0.1). `instance_open_shared` replaces both.
 
 ### Commands and results
 

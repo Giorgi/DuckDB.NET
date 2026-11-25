@@ -70,10 +70,19 @@ No behaviour change.
 
 - One environment for the process (`Connection/DuckDBV2Startup.cs`), created on first use and never destroyed:
   `environment_destroy` refuses while an instance is alive anyway.
-- `ConnectionManager` keeps its cache and reference counting, because it also covers `:memory:?cache=shared`, which
-  `instance_open_shared` never shares. `duckdb_create_config`, `duckdb_set_config` and `duckdb_open_ext` became
-  `instance_create_with_options` (the connection string's options, `duckdb_api` among them) followed by
-  `instance_attach(path or ":memory:", make_default: true)`. `duckdb_connect` became `connection_create`, for both
+- `duckdb_create_config`, `duckdb_set_config` and `duckdb_open_ext` became `instance_create_with_options` (the
+  connection string's options, `duckdb_api` among them) followed by `instance_attach(path or ":memory:",
+  make_default: true)`; `ConnectionManager` kept its own cache, on the belief that `instance_open_shared` never shares
+  `:memory:?cache=shared`. That was wrong: to DuckDB every `:memory:` followed by a name is a named in-memory database,
+  shared like a file. Since then `OpenInstance` calls `instance_open_shared` (path, startup options) and
+  `ConnectionManager` has no cache: DuckDB shares one instance per file, as it resolves the path, and per named
+  in-memory database, waits for a closing instance before opening its file again, and refuses a database open with
+  other startup options. Checked on v2.1.0-alpha57331: two spellings of one path share, `threads=3` matches
+  `THREADS=03`, `access_mode=read_only` against an open read-write file is refused ("Can't open a connection to same
+  database file with a different configuration than existing connections"), names are case-sensitive on Linux, and a
+  named in-memory database is gone after its last connection. The refused-option search (`NameTheRefusedOption`)
+  stays, and is skipped for that refusal, which is about the combination. No test changed; the connection stress
+  tests pass. `duckdb_connect` became `connection_create`, for both
   `GetConnectionReference` and `DuplicateConnectionReference`. `FileReference` holds a `DuckDBV2Instance` and
   `ConnectionReference` a `DuckDBV2Connection`.
 - `ServerVersion` uses `library_version`, and `GetQueryProgress` uses `connection_progress_get`.

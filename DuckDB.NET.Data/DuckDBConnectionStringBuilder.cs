@@ -123,15 +123,31 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
             throw new InvalidOperationException($"Connection string '{connectionString}' is not valid, missing data source information.");
         }
 
-        var inMemory = dataSource.Equals(InMemoryDataSource, StringComparison.OrdinalIgnoreCase);
+        // As DuckDB reads a path: ':memory:' is a new private in-memory database, and ':memory:' followed by a name is a
+        // named one, which every connection with that name shares (':memory:?cache=shared' is one such name). The prefix
+        // is recognized in any letter case, as ':memory:' always was here, and the shared form of the documentation
+        // too, so that its spellings keep sharing one database. A file is opened by its path.
+        string? instancePath;
+        bool inMemory, isShared;
 
-        var isShared = dataSource.Equals(InMemorySharedDataSource, StringComparison.OrdinalIgnoreCase);
-        if (isShared)
+        if (dataSource.Equals(InMemoryDataSource, StringComparison.OrdinalIgnoreCase))
         {
-            inMemory = true;
+            (instancePath, inMemory, isShared) = (null, true, false);
+        }
+        else if (dataSource.Equals(InMemorySharedDataSource, StringComparison.OrdinalIgnoreCase))
+        {
+            (instancePath, inMemory, isShared) = (InMemorySharedDataSource, true, true);
+        }
+        else if (dataSource.StartsWith(InMemoryDataSource, StringComparison.OrdinalIgnoreCase))
+        {
+            (instancePath, inMemory, isShared) = (InMemoryDataSource + dataSource[InMemoryDataSource.Length..], true, true);
+        }
+        else
+        {
+            (instancePath, inMemory, isShared) = (dataSource, false, false);
         }
 
-        return new DuckDBConnectionString(dataSource, inMemory, isShared, configurations);
+        return new DuckDBConnectionString(dataSource, inMemory, isShared, configurations, instancePath);
     }
 
     [AllowNull]
