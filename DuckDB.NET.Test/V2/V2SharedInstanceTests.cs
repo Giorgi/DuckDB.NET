@@ -108,16 +108,17 @@ public class V2SharedInstanceTests
     [Fact]
     public void TheSharedInMemoryFormIsMatchedInAnyLetterCase()
     {
-        // The shared in-memory database is the whole test run's, so the table gets a name of its own.
-        var table = $"t_{Guid.NewGuid():N}";
+        // The shared in-memory database is the whole test run's, and MultipleInMemoryConnectionsSharedDatabases
+        // counts its tables while other classes run, so this test creates a macro of its own instead of a table.
+        var macro = $"m_{Guid.NewGuid():N}";
 
         using var lower = Open("DataSource=:memory:?cache=shared");
-        lower.ExecuteNonQuery($"CREATE TABLE {table} AS SELECT 7 AS v");
+        lower.ExecuteNonQuery($"CREATE MACRO {macro}() AS 7");
 
         using var upper = Open("DataSource=:MEMORY:?CACHE=SHARED");
-        Scalar(upper, $"SELECT v FROM {table}").Should().Be(7);
+        Scalar(upper, $"SELECT {macro}()").Should().Be(7);
 
-        lower.ExecuteNonQuery($"DROP TABLE {table}");
+        lower.ExecuteNonQuery($"DROP MACRO {macro}");
     }
 
     [Theory]
