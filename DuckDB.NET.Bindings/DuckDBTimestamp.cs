@@ -57,7 +57,7 @@ public readonly struct DuckDBTimestamp(DuckDBDateOnly date, DuckDBTimeOnly time)
         if (timestampStruct.IsNegativeInfinity)
             return NegativeInfinity;
 
-        return NativeMethods.DateTimeHelpers.DuckDBFromTimestamp(timestampStruct);
+        return DuckDBTimeConversions.FromTimestamp(timestampStruct.Micros);
     }
 
     /// <summary>
@@ -70,7 +70,7 @@ public readonly struct DuckDBTimestamp(DuckDBDateOnly date, DuckDBTimeOnly time)
         if (IsNegativeInfinity)
             return DuckDBTimestampStruct.NegativeInfinity;
 
-        return NativeMethods.DateTimeHelpers.DuckDBToTimestamp(this);
+        return new DuckDBTimestampStruct { Micros = DuckDBTimeConversions.ToTimestamp(this) };
     }
 
     public bool Equals(DuckDBTimestamp other) => Date.Equals(other.Date) && Time.Equals(other.Time);

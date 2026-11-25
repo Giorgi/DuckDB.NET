@@ -62,7 +62,7 @@ public readonly struct DuckDBDateOnly(int year, byte month, byte day) : IEquatab
         if (date.IsNegativeInfinity)
             return NegativeInfinity;
 
-        return NativeMethods.DateTimeHelpers.DuckDBFromDate(date);
+        return DuckDBTimeConversions.FromDate(date.Days);
     }
 
     /// <summary>
@@ -75,7 +75,7 @@ public readonly struct DuckDBDateOnly(int year, byte month, byte day) : IEquatab
         if (IsNegativeInfinity)
             return DuckDBDate.NegativeInfinity;
 
-        return NativeMethods.DateTimeHelpers.DuckDBToDate(this);
+        return new DuckDBDate { Days = DuckDBTimeConversions.ToDate(this) };
     }
 
     // Without these, Equals is ValueType.Equals(object), which boxes and, because of the padding between the

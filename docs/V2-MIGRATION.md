@@ -387,14 +387,20 @@ What is left, and why:
 
 - **The configuration options** for the connection string builder (`duckdb_config_count`, `duckdb_get_config_flag`;
   V2's list misses the extension settings, see the gaps below).
-- **The date and timestamp conversions** of `DuckDBDateOnly` and `DuckDBTimestamp`, which the readers, writers and
-  parameters use (`duckdb_from_date`, `duckdb_to_date`, `duckdb_from_timestamp`, `duckdb_to_timestamp`).
 - **The low-level sample** in `DuckDB.NET.Samples` (`duckdb_open`, `duckdb_connect`, `duckdb_query`, `duckdb_prepare`,
   `duckdb_bind_int32`, ...), with the handles `DuckDBDatabase`, `DuckDBNativeConnection` and
   `DuckDBPreparedStatement`.
-- **References for tests:** `duckdb_to_time`, `duckdb_create_time_tz`, the five `duckdb_is_finite_*` functions and
-  `duckdb_library_version`, which the tests check the provider's conversions, infinity values and version against.
+- **References for tests:** `duckdb_to_time`, `duckdb_create_time_tz`, the five `duckdb_is_finite_*` functions,
+  `duckdb_library_version`, and `duckdb_from_date`, `duckdb_to_date`, `duckdb_from_timestamp` and
+  `duckdb_to_timestamp`, which the tests check the provider's conversions, infinity values and version against.
   Only the tests use them; V2 has no equivalent but `library_version`.
+
+The date and timestamp conversions of `DuckDBDateOnly` and `DuckDBTimestamp` used the last four. They are C#
+arithmetic now (`DuckDBTimeConversions`: Howard Hinnant's `civil_from_days` and `days_from_civil`), with V1's results
+for what does not exist or does not fit, checked against it on v2.1.0-alpha57631: a date that does not exist (a
+30 February, a 29 February outside a leap year, a month 13) or is outside the range of a DATE gives day 0, and a
+timestamp gives 0 for such a date and for a sum that does not fit or is one of the two infinities, while the time of
+day is not checked. `DuckDBDateConversionTests` pins them against V1's functions.
 
 ## Named parameters and defaults
 
