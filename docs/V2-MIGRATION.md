@@ -89,8 +89,8 @@ No behaviour change.
   from a second connection; V2 has no way to get an instance back from a connection, and a named in-memory database
   (`:memory:<name>`) does the same job. Its tests (`DuplicateInMemoryConnection`,
   `DuplicateInMemoryNotOpenedConnectionError`, `DuplicateUsesTheSameInstance` and the duplicate theory of
-  `V2SharedInstanceTests`) were removed; `DuplicateNotInMemoryConnectionError` still passes. Its removal belongs in
-  the release notes.
+  `V2SharedInstanceTests`, and `DuplicateNotInMemoryConnectionError`) were removed. Its removal belongs in the
+  release notes.
 - `ServerVersion` uses `library_version`, and `GetQueryProgress` uses `connection_progress_get`.
 - `DuckDBConnection.NativeConnection` (public, a V1 handle) throws `NotSupportedException` on an open connection:
   a V2 connection has no V1 handle. Whether it goes, or what replaces it, is decided in stage 8.

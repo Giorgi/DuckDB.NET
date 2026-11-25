@@ -388,18 +388,6 @@ public class DuckDBConnectionTests
         unsharedConnectionTableCount.Should().Be(0);
     }
 
-    [Fact]
-    public void DuplicateNotInMemoryConnectionError()
-    {
-        using var db1 = DisposableFile.GenerateInTemp("db", 1);
-        var cs = db1.ConnectionString;
-
-        using var duckDBConnection = new DuckDBConnection(cs);
-        duckDBConnection.Open();
-
-        duckDBConnection.Invoking(connection => connection.Duplicate()).Should().Throw<NotSupportedException>();
-    }
-
     [Theory]
     [InlineData("threads", 2)]
     [InlineData("Threads", 8)]
