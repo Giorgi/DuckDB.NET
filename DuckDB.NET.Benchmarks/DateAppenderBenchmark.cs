@@ -59,6 +59,14 @@ public class DateAppenderBenchmark
     [IterationSetup(Target = nameof(AppendIntegersControl))]
     public void IntegerSetup() => CreateTable("INTEGER");
 
+    [IterationSetup(Target = nameof(AppendDateTimeToDateAndTimestamp))]
+    public void DateAndTimestampSetup()
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "DROP TABLE IF EXISTS bench; CREATE TABLE bench (a DATE, b TIMESTAMP, c DATE, d TIMESTAMP);";
+        command.ExecuteNonQuery();
+    }
+
     [Benchmark]
     public void AppendDateTimeToTimestamp()
     {
@@ -176,6 +184,22 @@ public class DateAppenderBenchmark
 
     [Benchmark]
     public void AppendDateTimeToTimeNs()
+    {
+        using var appender = connection.CreateAppender("bench");
+
+        for (var i = 0; i < RowCount; i++)
+        {
+            appender.AppendRow((DateTime?)Start.AddSeconds(i), static (row, value) =>
+            {
+                row.AppendValue(value).AppendValue(value).AppendValue(value).AppendValue(value);
+            });
+        }
+    }
+
+    // DATE and TIMESTAMP columns in turn: since DATE and the timestamps have writers of their own, the call that
+    // appends a DateTime sees two classes in one row instead of one.
+    [Benchmark]
+    public void AppendDateTimeToDateAndTimestamp()
     {
         using var appender = connection.CreateAppender("bench");
 

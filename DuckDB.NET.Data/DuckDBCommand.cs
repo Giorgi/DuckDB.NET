@@ -202,12 +202,11 @@ public class DuckDBCommand : DbCommand
     }
 
     /// <summary>
-    /// Prepares the statement of the command, so later executions only bind the parameters and execute: they skip
-    /// splitting the text into statements, parsing and preparing. The connection keeps the statement until it closes,
-    /// and commands with the same text on that connection share it. Each call prepares the statement anew, and the
-    /// other commands with that text then use the new one. After the connection is closed and opened again, the next
-    /// execution prepares it again. Changing <see cref="CommandText"/> or <see cref="Connection"/> undoes the
-    /// preparation.
+    /// Prepares the statement of the command, so later executions skip splitting the text into statements, parsing
+    /// and preparing. The connection keeps the statement until it closes, and the prepared commands with the same text
+    /// on that connection share it. Each call prepares the statement anew, and the other prepared commands with that
+    /// text then use the new one. After the connection is closed and opened again, the next execution prepares it
+    /// again. Changing <see cref="CommandText"/> or <see cref="Connection"/> undoes the preparation.
     /// </summary>
     /// <remarks>
     /// A command of several statements is not prepared: a later statement can depend on an earlier one having run,

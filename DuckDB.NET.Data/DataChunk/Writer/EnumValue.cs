@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 
 namespace DuckDB.NET.Data.DataChunk.Writer;
@@ -24,7 +23,7 @@ internal static class EnumValue<TEnum>
         TypeCode.Int32 => (ulong)Unsafe.As<TEnum, int>(ref value),
         TypeCode.UInt32 => Unsafe.As<TEnum, uint>(ref value),
         TypeCode.Int64 or TypeCode.UInt64 => Unsafe.As<TEnum, ulong>(ref value),
-        _ => EnumValue.CannotConvert(value)
+        _ => throw EnumValue.CannotConvert(value)
     };
 }
 
@@ -41,12 +40,12 @@ internal static class EnumValue
         TypeCode.UInt32 => Convert.ToUInt32(value),
         TypeCode.Int64 => (ulong)Convert.ToInt64(value),
         TypeCode.UInt64 => Convert.ToUInt64(value),
-        _ => CannotConvert(value)
+        _ => throw CannotConvert(value)
     };
 
-    [DoesNotReturn]
-    internal static ulong CannotConvert(object? value)
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static InvalidOperationException CannotConvert(object? value)
     {
-        throw new InvalidOperationException($"Failed to convert the enum value {value} to ulong.");
+        return new InvalidOperationException($"Failed to convert the enum value {value} to ulong.");
     }
 }

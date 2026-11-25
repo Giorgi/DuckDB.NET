@@ -5,7 +5,7 @@ using DuckDB.NET.Test.Helpers;
 
 namespace DuckDB.NET.Test;
 
-// DuckDBCommand.Prepare() keeps the statement on the connection, and later executions only bind and execute.
+// DuckDBCommand.Prepare() keeps the statement on the connection, and later executions skip parsing and preparing it.
 public class PreparedCommandTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
     [Fact]

@@ -5,52 +5,37 @@
     <PackageReleaseNotes>
 - Updated to DuckDB v2.0.1
 
-Breaking changes:
-- DuckDB.NET.Data 2.0 needs DuckDB.NET.Bindings 2.0: upgrade both packages together
-- HUGEINT and UHUGEINT are read as Int128 and UInt128 by default (GetValue, ExecuteScalar, GetFieldType, the schema tables, DataTable and values nested in lists, maps and structs), instead of BigInteger. sum() of an integer column is a HUGEINT, so (BigInteger)command.ExecuteScalar() after a SUM throws: cast to Int128, or read it with GetFieldValue&lt;BigInteger&gt;. VARINT stays BigInteger. A DataTable with such a column is written by WriteXml but not read back by ReadXml unless Int128 and UInt128 are added to the DataSet type allow-list
-- IDuckDBAppenderRow has new members AppendValue(Int128?), AppendValue(UInt128?), AppendValue(DateOnly?) and AppendValue(TimeOnly?): a class that implements the interface must add them. With C# 12 (the default for net8.0 projects) an integer constant passed to AppendValue is ambiguous; give it the type of its column, for example (int?)1
-- DuckDBDateOnly and DuckDBTimeOnly convert to DateOnly and TimeOnly only explicitly. dateOnly.Equals(duckDBDateOnly) now returns false and dateOnly.CompareTo(duckDBDateOnly) throws: cast the DuckDB value first. Assignments and comparisons that relied on the implicit conversion need a cast, and assemblies built against 1.x that call it need a rebuild
-- A typed scalar function with no nullable parameter returns NULL for a NULL argument without being called, for a column as for a constant. In projects without nullable reference types this includes string and object parameters, which were called with null: declare the parameter string? or mark it [AllowNull] to be called. A function closed over string? in a generic method is treated as not nullable
-- A FLOAT, DOUBLE or DECIMAL value with a fractional part, read as an integer type, throws InvalidCastException instead of being rounded: cast in SQL (x::INTEGER) or read it as double or decimal and round
-- A list item, map key or value or struct field read as a type it cannot be read as throws InvalidCastException instead of ArgumentException or OverflowException. Reads that the column allowed and these paths refused now give the value: an integer as BigInteger, a HUGEINT, UHUGEINT or VARINT as a smaller integer type when it fits, an ENUM as any integer type
-- A LIST or MAP read into a type that cannot hold it throws InvalidCastException: an interface or abstract class (IEnumerable&lt;int&gt;, IList&lt;int&gt;, IDictionary&lt;K, V&gt;, IReadOnlyDictionary&lt;K, V&gt;) instead of MissingMethodException, a type that is not an IList (HashSet&lt;int&gt;) instead of ArgumentException, and one that is not an IDictionary (string, List&lt;KeyValuePair&lt;K, V&gt;&gt;) instead of MissingMethodException or InvalidOperationException
-- A STRUCT read into a C# struct gives the values of its fields; under JIT every property was left at its default
-- A BLOB read with GetValue, ExecuteScalar, GetProviderSpecificValue or as object is a byte[] instead of a Stream, and GetFieldType and the schema tables report byte[]. GetStream and GetFieldValue&lt;Stream&gt; still return a stream. The stream pointed into the reader's memory, so one returned by ExecuteScalar read freed memory
-- A DECIMAL of more than 18 digits that fits a decimal keeps the scale of its column: 1.5 from a DECIMAL(38,4) reads as 1.5000, as it does from a DECIMAL(18,4). Equality and arithmetic are unchanged; ToString and serialization show the trailing zeros
-- A string with NUL characters is stored in full by the appender, the mapped appender, the results of scalar and table functions, and parameters; it was cut at the first NUL
-- A BigInteger appended to a column other than HUGEINT or UHUGEINT throws InvalidOperationException, as an Int128 does; its 16 bytes overwrote neighbouring values
-- A table function parameter read with GetValue&lt;T&gt; as a type other than its own, object, a nullable or an interface of it throws InvalidCastException; the bytes were reinterpreted as T
-- An Int128 or UInt128 parameter is sent as a HUGEINT or UHUGEINT value instead of text, with DbType VarNumeric
-- A DateTime appended to a TIME column stores its time of day; it stored the microseconds of the whole timestamp, more than a day
-- A TimeOnly or DuckDBTimeOnly written to a DATE, TIMETZ or timestamp column, and a DateOnly or DuckDBDateOnly written to a TIME column, by the appender or a table function, throw InvalidOperationException instead of storing the bytes of the other type
-- A DATE, TIMESTAMP, TIME, TIMETZ or INTERVAL value read into an object property of a class or struct, or with GetValue&lt;object&gt; in a function, is a DateOnly, DateTime, TimeOnly, DateTimeOffset or TimeSpan, the column's own .NET type, instead of the DuckDB struct. Numbers, HUGEINT, ENUM, STRUCT, LIST and MAP values read into object follow the same rule; they threw or gave an empty object
-- A class derived from Dictionary&lt;string, object&gt; is refused as a MAP target, as Dictionary&lt;string, object&gt; already was
-- Parameters: a DbType assigned to a parameter is kept when Value is assigned afterwards (#369, by Alaric Dailey), and it now decides the value: the value is converted to the DbType's .NET type when nothing is lost, and refused with an InvalidCastException that names the parameter otherwise. DbType.Int32 with 2.5 or "42", DbType.String with 42 and DbType.Boolean with 1 are refused; DbType.Int64 with an int, DbType.Decimal with an int or 0.1, DbType.Date with a DateTime (its date) and DbType.Time with a TimeSpan work. Call ResetDbType() to send a value as its own type. With Dapper, DynamicParameters.Add(name, 2.5, DbType.Int32) is refused, and an enum, which Dapper gives DbType.Int32, goes as its number: a VARCHAR column gets "2" where it got "Tuesday"
-- Parameters: a new parameter's DbType is Object (was String), ResetDbType() returns to the type of the current value, and a decimal infers DbType.Decimal (was Currency, #382 by Alaric Dailey)
-- Parameters: DbType.Time with a TimeSpan that is negative or a day or more throws InvalidCastException (was ArgumentOutOfRangeException), except for an INTERVAL parameter, which takes it as it is
-- Parameters: for an integer parameter, a decimal x.5 rounds half away from zero (2.5m gives 3, was 2), a char is text ('5' gives 5, 'A' is refused; were 53 and 65), a fraction in a comparison is not rounded first (WHERE i = $1 with 1.5 matches nothing), and a value that does not fit is refused by DuckDB with its range message
-- Parameters: a double, float, decimal or bool bound to a function argument that DuckDB types as an integer fails to bind: substring('abcdef', $1, 2) with 3.0 gives "No function matches". A string ("3") still works
-- Parameters: values sent as text never depend on the current culture, and list items without a DbType go as their own type: a DateTime in a VARCHAR[] is 2026-11-19 13:45:30 instead of the culture's format. A DateTimeOffset item comes out in UTC where a single value is cast in the session's time zone
-- ExecuteNonQuery and RecordsAffected return -1 for statements other than INSERT, UPDATE, DELETE, MERGE and COPY, and the reader counts the rows of these statements (#374)
-- DbCommand.CommandType defaults to Text and DbParameter.Direction to Input; both started at 0, which is not a valid value (#372)
-- GetOrdinal falls back to a case-insensitive search, and throws IndexOutOfRangeException for a missing column (#375)
-- Prepare() requires an open connection (#378)
-- Unsupported savepoint operations fail the same way on every method (#380)
-- CardinalityHint: IsExact means what its name says, as DuckDB 2.0 corrected it. With DuckDB 1.5, false made the number the most rows the function can return and true only an estimate; now false is an estimate, and true is an exact count that DuckDB also takes as a maximum. A table function that passed true for a guess and returns more rows can get a wrong sum or a LIMIT that is not applied: pass false
+Upgrading from 1.x: https://duckdb.net/docs/upgrade-to-2.0.html
+All changes: https://duckdb.net/docs/release-notes/2.0.html
 
 New features:
-- Int128 and UInt128 (#370): read HUGEINT and UHUGEINT as Int128 and UInt128, and every other integer column, VARINT, a whole DECIMAL and ENUM when the value fits; append them with AppendValue and the mapped appender; use them as scalar and table function types; Int128 and UInt128 parameters are sent as HUGEINT and UHUGEINT values
-- DuckDBCommand.Prepare() prepares the statement once and keeps it on the connection, shared by commands with the same text, until the connection closes; later executions only bind and execute. A command of several statements is not prepared. After a schema change that alters a parameter's type, call Prepare() again
-- TIME_NS columns can be read and written as TimeOnly, TimeSpan, DateTime and DuckDBTimeOnly, in columns, lists, maps, structs and DuckDBValue (#386, #387)
-- Typed reads of LIST, MAP and STRUCT columns: a List&lt;T&gt; of any element type, a Dictionary&lt;TKey, TValue&gt; and a class or struct are filled without boxing, and lists and dictionaries are created at their size. Classes derived from List&lt;T&gt; or Dictionary&lt;TKey, TValue&gt;, generic or not, are read through their base. The common element, key and value types also work under Native AOT, where lists of most element types threw MissingMethodException
-- [AllowNull] on a scalar function parameter makes it nullable, as string? and [MaybeNull] do
-- GetFieldValue&lt;byte[]&gt; reads a BLOB, also as a list item, map value or struct field (#384)
-- GetBytes and GetChars read part of a BLOB or a string into a buffer, and return the length for a null buffer (#377)
-- GetSchema("DataTypes") and the ADO.NET metadata collections describe DuckDB's types (#364)
-- GetValues copies only as many values as the array holds (#376), and Close() can be called more than once (#373)
-- A table function over a collection tells DuckDB how many rows it has, for the query plan: the length of an array as exact, the count of a List&lt;T&gt; and other collections as an estimate
-- DuckDBArrowAppender appends Apache Arrow record batches and streams to a table: connection.CreateArrowAppender(table), then AppendBatch, AppendStream or AppendStreamAsync. Columns are matched by position, DuckDB casts each Arrow column to the column type, and each batch goes to DuckDB as one chunk
-- Parameters: an integer or decimal parameter is sent with the parameter's exact type when the value fits, so DuckDB does not bind the statement again on every execution. DbType.Decimal and DbType.DateTime2 are sent as DECIMAL and TIMESTAMP in any culture (#382, by Alaric Dailey). DbType.Int32 with an Int128 that fits works, and a List&lt;Int128&gt; for a BOOLEAN[] column is cast by DuckDB
+- Int128 and UInt128 for HUGEINT and UHUGEINT, in reads, the appenders, functions and parameters (#370)
+- DuckDBCommand.Prepare() prepares the statement and keeps it on the connection
+- DuckDBArrowAppender appends Apache Arrow record batches and streams to a table
+- TIME_NS columns (#386, #387)
+- LIST, MAP and STRUCT columns are read without boxing, and the common element types work under Native AOT
+- GetBytes and GetChars (#377), GetSchema("DataTypes") (#364)
+- A table function over an array or a collection tells DuckDB its row count
+- A timestamp table function parameter can be read as DateTimeOffset (#397)
+
+Breaking changes:
+- HUGEINT and UHUGEINT are read as Int128 and UInt128 instead of BigInteger. sum() of an integer column is a HUGEINT, so cast its result to Int128
+- A BLOB is read as byte[] instead of Stream. GetStream still returns a stream
+- A FLOAT, DOUBLE or DECIMAL value with a fractional part, read as an integer type, throws InvalidCastException instead of being rounded
+- A DbType set on a parameter is kept when Value is assigned afterwards (#369), and decides the value. A value that doesn't fit the DbType, such as 2.5 with DbType.Int32, throws InvalidCastException
+- IDuckDBAppenderRow has new AppendValue overloads for Int128, UInt128, DateOnly and TimeOnly. With C# 12 an integer constant passed to AppendValue is ambiguous, so give it the type of its column, for example (int?)1
+- DuckDBDateOnly and DuckDBTimeOnly convert to DateOnly and TimeOnly only explicitly
+- A typed scalar function with no nullable parameter returns NULL for a NULL argument without being called. Declare the parameter string? or mark it [AllowNull] to be called
+- ExecuteNonQuery returns -1 for statements other than INSERT, UPDATE, DELETE, MERGE and COPY (#374)
+- CardinalityHint.IsExact = false is now an estimate, and true an exact count that DuckDB also takes as a maximum
+- Parameter values, list items, map entries and struct fields are converted more strictly. See the upgrade guide
+
+Fixes:
+- A string with NUL characters is stored in full. It was cut at the first NUL
+- A BigInteger appended to a column other than HUGEINT or UHUGEINT throws. Its 16 bytes overwrote the values next to it
+- A date written to a TIME, TIMETZ or timestamp column, a time written to a DATE, TIMETZ or timestamp column, and a DateTime written to a TIMETZ column throw instead of storing wrong values. A DateTime appended to a TIME column stores its time of day
+- A STRUCT read into a C# struct gets the values of its fields
+- A byte[] returned by a scalar or table function is written to a BLOB column (#395)
 
 Thanks to Alaric Dailey (@alaricd) for his pull requests that brought DuckDB.NET's ADO.NET behaviour in line with the documented contracts, and to Michał Rusinek (@Mr444-dev) for TIME_NS support.
     </PackageReleaseNotes>

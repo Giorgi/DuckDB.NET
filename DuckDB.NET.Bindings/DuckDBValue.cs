@@ -1,3 +1,5 @@
+using System.Numerics;
+
 namespace DuckDB.NET.Native;
 
 public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBValueReader
@@ -54,20 +56,21 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
 
             DuckDBType.Uuid => Cast(new Guid(NativeMethods.Value.DuckDBGetVarchar(this))),
 
-            // An Int128 or a UInt128 is produced as itself; any other type gets the BigInteger.
-            DuckDBType.HugeInt when typeof(T) == typeof(Int128) => Cast(NativeMethods.Value.DuckDBGetHugeInt(this).ToInt128()),
-            DuckDBType.HugeInt => Cast(NativeMethods.Value.DuckDBGetHugeInt(this).ToBigInteger()),
-            DuckDBType.UnsignedHugeInt when typeof(T) == typeof(UInt128) => Cast(NativeMethods.Value.DuckDBGetUHugeInt(this).ToUInt128()),
-            DuckDBType.UnsignedHugeInt => Cast(NativeMethods.Value.DuckDBGetUHugeInt(this).ToBigInteger()),
+            // HUGEINT and UHUGEINT are produced as Int128 and UInt128, as the column readers give them, or as a
+            // BigInteger when one is asked for.
+            DuckDBType.HugeInt when Is<BigInteger>() => Cast(NativeMethods.Value.DuckDBGetHugeInt(this).ToBigInteger()),
+            DuckDBType.HugeInt => Cast(NativeMethods.Value.DuckDBGetHugeInt(this).ToInt128()),
+            DuckDBType.UnsignedHugeInt when Is<BigInteger>() => Cast(NativeMethods.Value.DuckDBGetUHugeInt(this).ToBigInteger()),
+            DuckDBType.UnsignedHugeInt => Cast(NativeMethods.Value.DuckDBGetUHugeInt(this).ToUInt128()),
 
             DuckDBType.Varchar => Cast(NativeMethods.Value.DuckDBGetVarchar(this)),
 
             // DATE and TIME can be read as the .NET types or as the provider's own types.
-            DuckDBType.Date when typeof(T) == typeof(DuckDBDateOnly) => Cast(DuckDBDateOnly.FromDuckDBDate(NativeMethods.Value.DuckDBGetDate(this))),
+            DuckDBType.Date when Is<DuckDBDateOnly>() => Cast(DuckDBDateOnly.FromDuckDBDate(NativeMethods.Value.DuckDBGetDate(this))),
             DuckDBType.Date => Cast((DateOnly)DuckDBDateOnly.FromDuckDBDate(NativeMethods.Value.DuckDBGetDate(this))),
-            DuckDBType.Time when typeof(T) == typeof(DuckDBTimeOnly) => Cast(NativeMethods.DateTimeHelpers.DuckDBFromTime(NativeMethods.Value.DuckDBGetTime(this))),
+            DuckDBType.Time when Is<DuckDBTimeOnly>() => Cast(NativeMethods.DateTimeHelpers.DuckDBFromTime(NativeMethods.Value.DuckDBGetTime(this))),
             DuckDBType.Time => Cast((TimeOnly)NativeMethods.DateTimeHelpers.DuckDBFromTime(NativeMethods.Value.DuckDBGetTime(this))),
-            DuckDBType.TimeNs when typeof(T) == typeof(DuckDBTimeOnly) => Cast(NativeMethods.Value.DuckDBGetTimeNs(this).ToDuckDBTimeOnly()),
+            DuckDBType.TimeNs when Is<DuckDBTimeOnly>() => Cast(NativeMethods.Value.DuckDBGetTimeNs(this).ToDuckDBTimeOnly()),
             DuckDBType.TimeNs => Cast(new TimeOnly(NativeMethods.Value.DuckDBGetTimeNs(this).Ticks)),
             DuckDBType.TimeTz => Cast(GetTimeTzValue()),
             DuckDBType.Interval => Cast((TimeSpan)NativeMethods.Value.DuckDBGetInterval(this)),
@@ -89,9 +92,14 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
         // A timestamp is a DateTime, or the instant at UTC when it is read as DateTimeOffset, as the column reader
         // gives it. GetTimestampValue builds a DateTime of kind Unspecified, which an offset of zero accepts.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        static T CastTimestamp(DateTime value) => typeof(T) == typeof(DateTimeOffset) || typeof(T) == typeof(DateTimeOffset?)
+        static T CastTimestamp(DateTime value) => Is<DateTimeOffset>()
             ? Cast(new DateTimeOffset(value, TimeSpan.Zero))
             : Cast(value);
+
+        // Whether T is TTarget or its nullable, so that an alternative type can be asked for in either form. The JIT
+        // folds it to a constant for each T.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static bool Is<TTarget>() where TTarget : struct => typeof(T) == typeof(TTarget) || typeof(T) == typeof(TTarget?);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]

@@ -125,7 +125,7 @@ internal sealed partial class MapVectorDataReader
 
                 if (!keyReader.IsValid(childOffset))
                 {
-                    ThrowNullKey(keyReader.ColumnName);
+                    throw MapContainsNullKey(keyReader.ColumnName);
                 }
 
                 var key = keyReader.ReadValidValue<TKey>(childOffset);
@@ -140,7 +140,7 @@ internal sealed partial class MapVectorDataReader
                 }
                 else
                 {
-                    ThrowNullValue(valueReader.ColumnName);
+                    throw MapContainsNullValue(valueReader.ColumnName);
                 }
             }
 
@@ -161,7 +161,7 @@ internal sealed partial class MapVectorDataReader
 
                 if (!keyReader.IsValid(childOffset))
                 {
-                    ThrowNullKey(keyReader.ColumnName);
+                    throw MapContainsNullKey(keyReader.ColumnName);
                 }
 
                 var key = keyReader.ReadValidValue<TKey>(childOffset);

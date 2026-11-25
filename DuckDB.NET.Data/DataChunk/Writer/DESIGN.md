@@ -51,7 +51,8 @@ everything here avoids" in `../Reader/DESIGN.md`.
 ### 2. The appender row checks the column and gets the writer in one step
 
 - **What:** `DuckDBAppenderRow.GetCurrentWriter()` compares the column index with the number of writers,
-  unsigned, and returns the writer. The message and the throw are in `ThrowColumnOutOfRange()`. (`241a35c`)
+  unsigned, and returns the writer. The message is built in `ColumnOutOfRange()`, which returns the exception for
+  the check to throw. (`241a35c`; the helper threw the exception itself until the throw helpers were unified)
 - **Why:** the check was a method of its own with the interpolated message in it, so it was a call for every
   value, and the array access after it had a second bounds check.
 - **Measured:** `AppendValueInternalStruct<int>` 94 bytes of code instead of 119, with no call for the check;
@@ -556,8 +557,8 @@ between two runs.
   check was a rule only these two integer types had.
 - **Any other column refuses them,** with the `InvalidOperationException` of the base class. This is not the rule of
   the other types, which write their bytes whatever the column (see "Behaviour"): 16 bytes do not fit the slot of a
-  narrower column and would overwrite the next value or run past the vector. A `BigInteger` still does that, and in a
-  VARINT column, which also gets `NumericVectorDataWriter`, writes a `DuckDBHugeInt` into a string slot.
+  narrower column and would overwrite the next value or run past the vector. A `BigInteger` is refused the same way.
+  Before 2.0 it was written as 16 bytes too, and in a VARINT column it wrote a `DuckDBHugeInt` into a string slot.
 - **Why the appender row lowers the priority of two overloads:** `AppendValue(UInt128?)` made every int or long
   constant argument ambiguous (CS0121): `AppendValue(1)` converts to `UInt128` through `byte`, and C# has no rule that
   prefers `sbyte` to `UInt128`. `[OverloadResolutionPriority(-1)]` on `AppendValue(UInt128?)` and
@@ -580,9 +581,9 @@ between two runs.
   parameter (`DuckDBTime` or `DuckDBTimeNs`), the mirror of `TimeVectorDataReader<TStorage>`. It takes a
   `TimeOnly`, a `DuckDBTimeOnly` and a `DateTime` (its time of day), turns each into ticks from midnight, and
   `Store` is the one place where the units differ, a test of `TStorage` that the JIT folds. It replaced
-  `TimeNsVectorDataWriter` and took TIME out of `DateTimeVectorDataWriter`, which keeps DATE, TIMETZ and the
-  timestamps. A TIME goes through `DateTimeExtensions.ToDuckDBTime(long)`, as the three `ToDuckDBTime` extensions
-  that parameters use do, so the division by ten is written once.
+  `TimeNsVectorDataWriter` and took TIME out of `DateTimeVectorDataWriter`, which kept DATE, TIMETZ and the
+  timestamps (split in three by decision 19). A TIME goes through `DateTimeExtensions.ToDuckDBTime(long)`, as the
+  three `ToDuckDBTime` extensions that parameters use do, so the division by ten is written once.
 - **Why:** `DateTimeVectorDataWriter.AppendDateTime` tested the column for DATE and for TIME on every `DateTime`
   written to a timestamp column, and a TIME_NS had a class of its own while a TIME did not.
 - **What it refuses that used to be stored:** a `TimeOnly` or `DuckDBTimeOnly` in a DATE, TIMETZ or timestamp
@@ -602,6 +603,38 @@ between two runs.
 - **Pinned by:** `TemporalWriteConversionTests` (`ATimeIsRefusedInAColumnOfAnotherDateOrTimeType`,
   `ADateIsRefusedInATimeColumn`, `ATimeIsRefusedInADateColumnOfATableFunction`,
   `DateTimeAppendedToATimeIsItsTimeOfDay`).
+
+### 19. DATE, TIMETZ and the timestamps have a writer each
+
+- **What:** `DateTimeVectorDataWriter` is split in three, one for each way the values are stored.
+  `DateVectorDataWriter` (DATE, 4 bytes) takes a `DateOnly`, a `DuckDBDateOnly` and a `DateTime` (its date).
+  `TimeTzVectorDataWriter` (TIMETZ, 8 bytes) takes a `DateTimeOffset`. `TimestampVectorDataWriter` (TIMESTAMP,
+  TIMESTAMP_S, _MS, _NS and TIMESTAMPTZ, 8 bytes) takes a `DateTime`, and a `DateTimeOffset` in a TIMESTAMPTZ only.
+  Each method stores what the shared class stored for its column.
+- **Why:** the shared class wrote a `DateOnly` or `DuckDBDateOnly` as a 4-byte DATE whatever the column. In a TIMETZ
+  or timestamp column, row `r` went to byte `4r` of an 8-byte vector: two dates to a slot, every value wrong
+  (2024-01-01 in a TIMESTAMP read back as 1972-09-07 11:38:54.966027), and slots 1024 to 2047 of each chunk left
+  with whatever was in the memory, which was stored. A TIMETZ read back from it could fail in DuckDB with
+  `INTERNAL Error: FormatTwoDigits`. A `DateTime` in a TIMETZ column was stored as a timestamp, whose bytes read back
+  as a time and an offset no one wrote. Nothing was written past the vector, so none of it failed.
+- **Refused, as decision 18 refused a time:** a `DateOnly` or `DuckDBDateOnly` in a TIMETZ or timestamp column, and a
+  `DateTime` in a TIMETZ column, with the `InvalidOperationException` of the base class, in a row, as a list item and
+  in the output of a function. Not converted to midnight: in a TIMESTAMPTZ that needs a time zone, and nothing could
+  have used what was stored, so no code relies on it. The mapped appender already refused all of them when it was
+  created.
+- **The column tests that are left:** one, `ColumnType == DuckDBType.TimestampTz` in
+  `TimestampVectorDataWriter.AppendDateTimeOffset`, on the `DateTimeOffset` path only. The shared class tested for
+  DATE on every `DateTime` and for TIMETZ and TIMESTAMPTZ on every `DateTimeOffset`.
+- **Measured** on the Azure VM (AMD EPYC 9V45, Linux, .NET 10, DuckDB 2.0.1), `DateAppenderBenchmark`, against the
+  build before (`ce7264b`), per-process medians of 4 launches: a `DateTime` into TIMESTAMP 1.00, into DATE 1.00, a
+  `DateOnly` into DATE 0.99, a `DateTimeOffset` into TIMESTAMPTZ 1.01, DATE and TIMESTAMP columns in turn
+  (`AppendDateTimeToDateAndTimestamp`, where the call to the writer now sees two classes) 1.00; the INTEGER and TIME
+  controls 1.00 and 0.99. The fix costs nothing measurable. The appends compile to 19 to 213 bytes with no calls
+  but `DateTime.Ticks`; the TIMETZ test is gone from the `DateTimeOffset` path. Results in
+  `azure/results/2.0-run/temporal-split`.
+- **Pinned by:** `TemporalWriteConversionTests` (`ADateIsRefusedInATimeTzOrTimestampColumn`,
+  `ADateTimeIsRefusedInATimeTzColumn`, `ADateIsRefusedInATimestampColumnOfATableFunction`), and for what is still
+  stored the conversion tests of decision 6 and `DuckDBManagedAppenderTests.TemporalValues`.
 
 ## Costs that are known and not yet removed
 
@@ -650,8 +683,10 @@ between two runs.
   into an INTEGER column stores garbage. The mapped appender checks types when it is created. A value of the right
   type that is out of range is another matter: a decimal is checked against the width of its column (decision 10).
   A writer refuses a type it has no method for, so since decision 18 a time is refused in a date or timestamp
-  column and a date in a TIME column. A `DateOnly` in a TIMETZ or timestamp column, and a `DateTime` in a TIMETZ
-  column, still store the bytes of the other type.
+  column and a date in a TIME column, and since decision 19 a date in a TIMETZ or timestamp column and a `DateTime`
+  in a TIMETZ column. An integer or floating-point number of up to 8 bytes still stores its bytes whatever the
+  width of the column, and one wider than the column runs past the vector (a `long` in an INTEGER column, from row
+  1024 on). `Int128` and `UInt128` (decision 17) and `BigInteger` are refused in a narrower column.
 - **A `DateTime` appended to a TIME or TIME_NS column stores its time of day,** as a TIME parameter does and as a
   TIME read as `DateTime` gives it back. Until 2.0 a TIME stored the microseconds of the whole timestamp, more
   than a day, which no one could have used.
@@ -663,9 +698,6 @@ between two runs.
 - **The expression of a column of a table function is not evaluated when the query does not read the column**
   (decision 14). A table function registered with a method that takes an `object` is still called for every
   row, and decides itself what to write.
-- **A typed scalar function with no nullable parameter is called for a NULL in a column.** DuckDB answers a
-  constant NULL itself; for a column it passes every row. A value-type parameter then fails with "value is null"
-  and a `string` parameter gets `null`.
 
 ## Rules for changing this code
 
@@ -673,7 +705,8 @@ between two runs.
    through an interface in a loop.
 2. Test a type parameter as `typeof(T) == typeof(X)`, or `typeof(T).IsValueType`, with nothing else in the
    condition. The JIT folds those; it does not fold a pattern test of a nullable value, which boxes it.
-3. Put a message and its `throw` in a method of their own, as `ThrowColumnOutOfRange` is.
+3. Build a message in a method of its own that returns the exception, as `ColumnOutOfRange` does, and throw it
+   where the check is: `throw ColumnOutOfRange();`.
 4. A conversion must store what it stored before. Compare the build before with the build after on real values,
    and keep the tests that compare with DuckDB.
 5. Measure against the previous build in the same run, with a case that must not change as the control, and on

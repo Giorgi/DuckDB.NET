@@ -788,14 +788,18 @@ public class TableFunctionExtensionsTests(DuckDBDatabaseFixture db) : DuckDBTest
     {
         var expected = DateTime.Parse(expectedUtc, System.Globalization.CultureInfo.InvariantCulture);
 
-        // Every case registers its own function, because the cases share the connection.
-        var name = $"ext_instant_{argument.Split(' ')[0].ToLowerInvariant()}";
-        Connection.RegisterTableFunction(name,
+        // Its own connection, set to UTC: DuckDB casts a timestamp without a zone to TIMESTAMPTZ in the session's zone,
+        // which is otherwise the zone of the machine.
+        using var connection = new DuckDBConnection("DataSource=:memory:");
+        connection.Open();
+        connection.Execute("SET TimeZone = 'UTC'");
+
+        connection.RegisterTableFunction("ext_instant",
             (DateTimeOffset at) => new[] { at },
             at => new { UtcTicks = at.UtcTicks, OffsetMinutes = (int)at.Offset.TotalMinutes });
 
         // Ticks, because a DateTime result column keeps only microseconds.
-        var row = Connection.QuerySingle<(long, int)>($"SELECT * FROM {name}({argument})");
+        var row = connection.QuerySingle<(long, int)>($"SELECT * FROM ext_instant({argument})");
 
         row.Should().Be((expected.Ticks, 0));
     }
