@@ -134,6 +134,8 @@ public sealed class DuckDBArrowAppender : IDisposable
     /// <summary>
     /// Does nothing: every batch is in the table once it is appended, so there is nothing left to drop.
     /// </summary>
+    [Obsolete("Clear does nothing: each batch is inserted when it is appended, so there is nothing left to drop. " +
+              "To undo appended batches, append them in a transaction and roll it back.")]
     public void Clear()
     {
         EnsureUsable();

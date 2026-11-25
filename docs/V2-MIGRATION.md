@@ -357,7 +357,8 @@ V2 has no appender. `DuckDBAppender` keeps its API and writes its rows into `Exe
        costs nothing measurable next to the 14 ms an in-memory instance takes to open.
      - **What changed from V1:** a batch is in the table when `AppendBatch` returns, with no flush; a batch that fails,
        a constraint included, is thrown by its own `AppendBatch`, drops only itself and faults the appender, where V1
-       checked constraints at a flush and dropped everything since the last one; `Clear` does nothing. `AppendStream`
+       checked constraints at a flush and dropped everything since the last one; `Clear` does nothing, and is
+       `[Obsolete]`. `AppendStream`
        and `AppendStreamAsync` insert batch by batch, as before. Changed tests: `Clear_KeepsAppendedBatches`,
        `AppendBatch_ConstraintFailureKeepsEarlierBatches` and `AppendBatch_ConstraintFailureFailsTheBatchThatBreaksIt`
        (were `Clear_DropsAppendedBatches`, `AppendBatch_ConstraintFailureAtFlushDropsEarlierBatches` and
