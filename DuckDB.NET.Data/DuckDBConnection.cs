@@ -64,20 +64,22 @@ public partial class DuckDBConnection : DbConnection
     }
 
     /// <summary>
-    /// Returns the native connection object that can be used to call DuckDB C API functions.
+    /// The native connection, a <c>duckdb_v2_connection_handle</c> of DuckDB's C API V2 (<c>duckdb_v2.h</c>), for calling
+    /// that API directly.
     /// </summary>
     /// <remarks>
-    /// Not available on this branch: the connection is opened through DuckDB's C API V2, whose handles cannot be used
-    /// with the V1 functions in <see cref="NativeMethods"/>. What replaces it is decided at the end of the migration
-    /// (docs/V2-MIGRATION.md).
+    /// The handle belongs to this connection: it is valid only while the connection is open, and must not be destroyed.
+    /// Do not use it while a command of this connection runs, or while a data reader of it is open: DuckDB allows one
+    /// open result per connection.
     /// </remarks>
-    public DuckDBNativeConnection NativeConnection
+    /// <exception cref="InvalidOperationException">The connection is not open.</exception>
+    public IntPtr NativeConnection
     {
         get
         {
-            _ = V2Connection;
-            throw new NotSupportedException("The V1 native connection is not available: this build of DuckDB.NET opens connections " +
-                                            "through DuckDB's C API V2, and this operation has not been migrated yet (docs/V2-MIGRATION.md).");
+            // A closed connection still holds its reference, whose handle is destroyed: the state decides, not the reference.
+            EnsureConnectionOpen();
+            return V2Connection.DangerousGetHandle();
         }
     }
 

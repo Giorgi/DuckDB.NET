@@ -12,13 +12,11 @@ namespace DuckDB.NET.Benchmarks;
 // Arrow path itself. The batches are built once in GlobalSetup, so building them is not measured.
 // - AppendBatches: DuckDBArrowAppender into INTEGER columns, the types match exactly.
 // - AppendBatchesWithCast: the same int32 data into BIGINT columns, so DuckDB casts every column.
-// - NativeCalls: the same C API calls as AppendBatches, made directly, so the difference is the wrapper's overhead.
 // Batches longer than 2048 rows with a cast need an engine with duckdb/duckdb#27664; DuckDB v2.0.0 fails them.
 // Only builds that have DuckDBArrowAppender can run it (ARROW_APPENDER, set in the project file), so every job of a
 // run must be such a build. The default config of Program.cs adds the 1.5.6 package as a baseline job, which does
 // not have it: until the baseline is such a version, run it with jobs that all are (azure/vm-2.0.sh with
-// NO_PACKAGE=1 and one packed commit). No method is the baseline, so the job baseline stays the only one; compare
-// NativeCalls with the others by their times.
+// NO_PACKAGE=1 and one packed commit). No method is the baseline, so the job baseline stays the only one.
 [MemoryDiagnoser]
 public class ArrowAppenderBenchmark
 {
@@ -109,74 +107,6 @@ public class ArrowAppenderBenchmark
         foreach (var batch in batches)
         {
             appender.AppendBatch(batch);
-        }
-    }
-
-    [Benchmark]
-    public unsafe void NativeCalls()
-    {
-        var nativeConnection = connection.NativeConnection;
-
-        Check(NativeMethods.Appender.DuckDBAppenderCreateExt(nativeConnection, null, null, "bench_int", out var appender), appender);
-
-        using (appender)
-        {
-            var cSchema = CArrowSchema.Create();
-            DuckDBArrowConvertedSchema convertedSchema;
-
-            try
-            {
-                CArrowSchemaExporter.ExportSchema(batches[0].Schema, cSchema);
-                using var schemaError = NativeMethods.Arrow.DuckDBSchemaFromArrow(nativeConnection, (IntPtr)cSchema, out convertedSchema);
-                ThrowIfError(schemaError);
-            }
-            finally
-            {
-                CArrowSchema.Free(cSchema);
-            }
-
-            using (convertedSchema)
-            {
-                foreach (var batch in batches)
-                {
-                    var cArray = CArrowArray.Create();
-
-                    try
-                    {
-                        CArrowArrayExporter.ExportRecordBatch(batch, cArray);
-
-                        using var error = NativeMethods.Arrow.DuckDBDataChunkFromArrow(nativeConnection, (IntPtr)cArray, convertedSchema, out var chunk);
-                        using (chunk)
-                        {
-                            ThrowIfError(error);
-                            Check(NativeMethods.Appender.DuckDBAppendDataChunk(appender, chunk), appender);
-                        }
-                    }
-                    finally
-                    {
-                        CArrowArray.Free(cArray);
-                    }
-                }
-            }
-
-            Check(NativeMethods.Appender.DuckDBAppenderClose(appender), appender);
-        }
-    }
-
-    private static void Check(DuckDBState state, Native.DuckDBAppender appender)
-    {
-        if (state != DuckDBState.Success)
-        {
-            using var error = NativeMethods.Appender.DuckDBAppenderErrorData(appender);
-            throw new InvalidOperationException(error.Message);
-        }
-    }
-
-    private static void ThrowIfError(DuckDBErrorData error)
-    {
-        if (error.HasError)
-        {
-            throw new InvalidOperationException(error.Message);
         }
     }
 }

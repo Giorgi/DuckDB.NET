@@ -167,7 +167,8 @@ dotnet run -c Release -f net10.0 --project DuckDB.NET.Benchmarks -- --filter "*N
 - **`DuckDBMappedAppender<T, TMap>`:** the type-checked alternative (`CreateAppender<T, TMap>(table)`). A
   `DuckDBAppenderMap<T>` subclass declares the columns with `Map`, `DefaultValue` and `NullValue`, and type
   mismatches are reported when the appender is created. See `AppenderMap-Usage.md`.
-- **`DuckDBArrowAppender`:** appends Apache Arrow record batches and streams (`CreateArrowAppender(table)`, then
+- **`DuckDBArrowAppender`** (on `nightly-vnext` not migrated yet: `CreateArrowAppender` throws, and what follows is
+  develop's V1 design): appends Apache Arrow record batches and streams (`CreateArrowAppender(table)`, then
   `AppendBatch`, `AppendStream` or `AppendStreamAsync`) through `duckdb_schema_from_arrow`,
   `duckdb_data_chunk_from_arrow` and `duckdb_append_data_chunk`. It does not use the vector writers. It is a separate
   type on purpose, so rows and batches cannot be mixed on one appender. Columns are matched by position, and DuckDB

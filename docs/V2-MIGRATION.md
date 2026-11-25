@@ -48,8 +48,8 @@ that take none of those handles keep working next to V2, for example `duckdb_con
   then). Since then the whole suite runs, and a test that cannot pass yet is skipped with a reason from
   `DuckDB.NET.Test/V2/V2Skip.cs`: the Arrow appender, materialized results (a skipped `InlineData(false)` row of
   a `useStreamingMode` theory), and two threads on one connection. A skip goes when what it names is done.
-- Code that is not migrated yet still compiles against V1, and fails when it runs: `DuckDBConnection.NativeConnection`,
-  the V1 handle every unmigrated path goes through, throws `NotSupportedException`.
+- Code that is not migrated yet throws `NotSupportedException`: `CreateArrowAppender`, and `UseStreamingMode =
+  false`.
 
 ## Stage 0: groundwork
 
@@ -92,8 +92,12 @@ No behaviour change.
   `V2SharedInstanceTests`, and `DuplicateNotInMemoryConnectionError`) were removed. Its removal belongs in the
   release notes.
 - `ServerVersion` uses `library_version`, and `GetQueryProgress` uses `connection_progress_get`.
-- `DuckDBConnection.NativeConnection` (public, a V1 handle) throws `NotSupportedException` on an open connection:
-  a V2 connection has no V1 handle. Whether it goes, or what replaces it, is decided in stage 8.
+- `DuckDBConnection.NativeConnection` was a V1 handle (`DuckDBNativeConnection`), which a V2 connection does not
+  have, and `duckdb_v2.h` has nothing to make one from. It is now the connection's `duckdb_v2_connection_handle`, as an
+  `IntPtr` (the V2 handle classes stay internal with the bindings): valid while the connection is open, not to be
+  destroyed, and not to be used while a command or reader of the connection runs. It throws
+  `InvalidOperationException` on a connection that is not open, which checks the state, not the reference: a closed
+  connection keeps its reference, whose handle is destroyed. `V2NativeConnectionTests` pins it.
 - Found on the nightly library (`V2OpenTests`):
   - `access_mode=READ_ONLY` still works as a startup option; a read-only open of a missing file fails and does not
     create it.
@@ -265,7 +269,7 @@ V2 has no appender. `DuckDBAppender` keeps its API and writes its rows into `Exe
 - Not handled: a table with generated columns (`SELECT *` includes them, an INSERT cannot write them), and
   `preserve_insertion_order = false`, under which the INSERT need not keep the order of the buffer.
 - `V2AppenderTests` pins the default patterns over chunk boundaries, a row of only defaults, the flush at 204,800
-  rows, a failed flush, an open reader, quoted names and a missing table. `DuckDBArrowAppender` stays on V1 until
+  rows, a failed flush, an open reader, quoted names and a missing table. `DuckDBArrowAppender` is not migrated: see
   stage 7. 4292 test cases are marked V2-ready.
 
 ## Later stages
@@ -335,32 +339,34 @@ V2 has no appender. `DuckDBAppender` keeps its API and writes its rows into `Exe
      (`V2ArrowResultTests`); the C stream that `arrow_result_to_arrow_c_stream` makes would report only EIO.
      `UseStreamingMode = false` throws, as for readers. `UdfExceptionStore` and the V1 result extensions are gone.
    - **`DuckDBArrowAppender`:** V2's Arrow importer needs a context with an active transaction, which only callbacks
-     have, so it has no direct path.
+     have, so it has no direct path. Until its design is decided, `CreateArrowAppender` throws `NotSupportedException`
+     on an open connection and the class is a shell whose members throw; its V1 code is gone (it is on `develop`).
+     `ArrowAppenderBenchmark.NativeCalls`, which made its V1 calls directly, went with it.
 8. Cleanup: the connection string builder enumerates the options through V2, Data stops using V1, the fate of the V1
    declarations in Bindings is decided, and CI runs the whole test suite again.
 
 ## V1 code that is gone
 
-Everything of the V1 C API that nothing outside the tests used is removed from the bindings: 249 of the 293
+Everything of the V1 C API that nothing outside the tests used is removed from the bindings: 265 of the 293
 `NativeMethods` declarations, `DuckDBValue`, `DuckDBLogicalType`, `DuckDBConfig`, `DuckDBExtractedStatements`,
 `DuckDBArrowOptions`, `DuckDBClientContext`, `DuckDBBignum`, `DuckDBBlob`, `DuckDBResultType` and
-`DuckDBNativeConnection.Interrupt`. They were public in `DuckDB.NET.Bindings`, so this is a breaking change of that
+`DuckDBNativeConnection.Interrupt`, and, once the Arrow appender stopped using them, the V1 appender, Arrow,
+data chunk and error data functions with their handles (`DuckDBAppender`, `DuckDBDataChunk`,
+`DuckDBArrowConvertedSchema`, `DuckDBErrorData`), `DuckDBStateExtensions`, `DuckDBCallerOwnedStringMarshaller` and
+`duckdb_free`. They were public in `DuckDB.NET.Bindings`, so this is a breaking change of that
 package for the release notes. Tests that tested the removed code went with it: `AppenderTests` and `QueryTests` (the
 V1 appender and query API), `DuckDBValueGetValueTests`, and `TimeNsDuckDBValueIsReadWithTimeOnlyPrecision`
 (`DuckDBValue`); `V2ValueReaderTests` pins the parameter conversions on V2.
 
 What is left, and why:
 
-- **The V1 Arrow appender** (`DuckDBArrowAppender`, not migrated yet): the appender functions it calls, the Arrow
-  conversions, `duckdb_destroy_data_chunk`, the error data, and the handles `DuckDBNativeConnection`,
-  `DuckDBAppender`, `DuckDBDataChunk`, `DuckDBArrowConvertedSchema` and `DuckDBErrorData`.
 - **The configuration options** for the connection string builder (`duckdb_config_count`, `duckdb_get_config_flag`;
   V2's list misses the extension settings, see the gaps below).
 - **The date and timestamp conversions** of `DuckDBDateOnly` and `DuckDBTimestamp`, which the readers, writers and
-  parameters use (`duckdb_from_date`, `duckdb_to_date`, `duckdb_from_timestamp`, `duckdb_to_timestamp`), and
-  `duckdb_free` for the string marshaller.
+  parameters use (`duckdb_from_date`, `duckdb_to_date`, `duckdb_from_timestamp`, `duckdb_to_timestamp`).
 - **The low-level sample** in `DuckDB.NET.Samples` (`duckdb_open`, `duckdb_connect`, `duckdb_query`, `duckdb_prepare`,
-  `duckdb_bind_int32`, ...).
+  `duckdb_bind_int32`, ...), with the handles `DuckDBDatabase`, `DuckDBNativeConnection` and
+  `DuckDBPreparedStatement`.
 - **References for tests:** `duckdb_to_time`, `duckdb_create_time_tz`, the five `duckdb_is_finite_*` functions and
   `duckdb_library_version`, which the tests check the provider's conversions, infinity values and version against.
   Only the tests use them; V2 has no equivalent but `library_version`.
