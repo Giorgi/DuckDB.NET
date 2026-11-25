@@ -402,6 +402,29 @@ for what does not exist or does not fit, checked against it on v2.1.0-alpha57631
 timestamp gives 0 for such a date and for a sum that does not fit or is one of the two infinities, while the time of
 day is not checked. `DuckDBDateConversionTests` pins them against V1's functions.
 
+## SuppressGCTransition
+
+The V2 bindings are generated, so `[SuppressGCTransition]` goes on through `--with-suppressgctransition` in
+`scripts/generate-v2-bindings.sh`, which lists the 19 functions and why. Each of the 174 V2 functions DuckDB.NET calls
+was read in DuckDB's source (`src/main/capi/v2`, fork commit f09095c, the header of v2.1.0-alpha57631):
+
+- Every entry point checks its arguments for null and runs its body in `WithErrorHandler`, which on success returns
+  without allocating; only a failure allocates an error info. So the success path decides.
+- **Marked:** what is called per chunk or per column and is a field or pointer read: the chunk and vector accessors,
+  `logical_type_get_id`, the scalar and table function exec accessors, and `value_get_uint`/`_bigint`/`_varchar` for
+  type parameters (DECIMAL width and scale are UINTEGER, an ARRAY size BIGINT, ENUM entries VARCHAR, so the getter
+  always matches the value's type; a mismatched getter casts, which can allocate).
+- **Never:** `vector_reference`, `data_chunk_destroy`, `arrow_importer_append` and `arrow_importer_destroy` can drop the
+  last reference to an imported Arrow array, whose release is Apache.Arrow's, managed code. `value_create_decimal`
+  reads the `max_decimal_width` setting, which can take a database-wide mutex. Nothing that parses, executes,
+  fetches, registers, flattens, appends to a column data collection or interrupts.
+- **Left out because they can allocate**, as V1 left its "Maybe" functions out: `arena_allocate`, `vector_set_size`,
+  `vector_get_data_mutable`, `vector_flat_get_validity_mutable`, `vector_get_arena` and the `value_create_*` functions.
+- Safe functions called only per bind, statement or registration are left out: they would gain nothing.
+- Measured on .NET 10, Linux x64, 20 million calls of `logical_type_get_id`: 2.85 ns to 2.10 ns a direct call. Through
+  a `delegate* managed` pointer to the P/Invoke, as `DuckDBV2ValueReader` calls its getters, 6.8 ns to 3.8 ns: the
+  attribute takes effect there too. A `delegate* unmanaged[Cdecl]` pointer to the export costs as much as a direct call.
+
 ## Named parameters and defaults
 
 Decided for table functions (stage 6), and to apply to scalar functions when they get named parameters: V2 scalar

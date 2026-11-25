@@ -263,15 +263,18 @@ internal static unsafe partial class NativeMethodsV2
     public static extern DUCKDB_V2_ERROR duckdb_v2_data_chunk_clear([NativeTypeName("duckdb_v2_data_chunk_handle")] _duckdb_v2_data_chunk* chunk, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    [SuppressGCTransition]
     public static extern DUCKDB_V2_ERROR duckdb_v2_data_chunk_get_size([NativeTypeName("duckdb_v2_data_chunk_handle")] _duckdb_v2_data_chunk* chunk, [NativeTypeName("idx_t *")] ulong* out_size, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    [SuppressGCTransition]
     public static extern DUCKDB_V2_ERROR duckdb_v2_data_chunk_get_capacity([NativeTypeName("duckdb_v2_data_chunk_handle")] _duckdb_v2_data_chunk* chunk, [NativeTypeName("idx_t *")] ulong* out_capacity, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
     public static extern DUCKDB_V2_ERROR duckdb_v2_data_chunk_get_vector_count([NativeTypeName("duckdb_v2_data_chunk_handle")] _duckdb_v2_data_chunk* chunk, [NativeTypeName("idx_t *")] ulong* out_count, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    [SuppressGCTransition]
     public static extern DUCKDB_V2_ERROR duckdb_v2_data_chunk_get_vector([NativeTypeName("duckdb_v2_data_chunk_handle")] _duckdb_v2_data_chunk* chunk, [NativeTypeName("idx_t")] ulong index, [NativeTypeName("duckdb_v2_vector_handle *")] _duckdb_v2_vector** out_vector, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
@@ -1253,6 +1256,7 @@ internal static unsafe partial class NativeMethodsV2
     public static extern DUCKDB_V2_ERROR duckdb_v2_logical_type_is_equal([NativeTypeName("duckdb_v2_logical_type_handle")] _duckdb_v2_logical_type* left, [NativeTypeName("duckdb_v2_logical_type_handle")] _duckdb_v2_logical_type* right, bool* result, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    [SuppressGCTransition]
     public static extern DUCKDB_V2_ERROR duckdb_v2_logical_type_get_id([NativeTypeName("duckdb_v2_logical_type_handle")] _duckdb_v2_logical_type* type, DUCKDB_V2_LOGICAL_TYPE_ID* out_id, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
@@ -1430,6 +1434,7 @@ internal static unsafe partial class NativeMethodsV2
     public static extern DUCKDB_V2_ERROR duckdb_v2_scalar_function_init_set_init_data([NativeTypeName("duckdb_v2_scalar_function_init_info_handle")] _duckdb_v2_scalar_function_init_info* info, duckdb_v2_opaque* data, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    [SuppressGCTransition]
     public static extern DUCKDB_V2_ERROR duckdb_v2_scalar_function_exec_get_user_data([NativeTypeName("duckdb_v2_scalar_function_exec_info_handle")] _duckdb_v2_scalar_function_exec_info* info, void** data, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
@@ -1439,15 +1444,19 @@ internal static unsafe partial class NativeMethodsV2
     public static extern DUCKDB_V2_ERROR duckdb_v2_scalar_function_exec_get_init_data([NativeTypeName("duckdb_v2_scalar_function_exec_info_handle")] _duckdb_v2_scalar_function_exec_info* info, void** data, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    [SuppressGCTransition]
     public static extern DUCKDB_V2_ERROR duckdb_v2_scalar_function_exec_get_row_count([NativeTypeName("duckdb_v2_scalar_function_exec_info_handle")] _duckdb_v2_scalar_function_exec_info* info, [NativeTypeName("idx_t *")] ulong* count, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    [SuppressGCTransition]
     public static extern DUCKDB_V2_ERROR duckdb_v2_scalar_function_exec_get_arg_count([NativeTypeName("duckdb_v2_scalar_function_exec_info_handle")] _duckdb_v2_scalar_function_exec_info* info, [NativeTypeName("idx_t *")] ulong* positional_fixed, [NativeTypeName("idx_t *")] ulong* positional_variadic, [NativeTypeName("idx_t *")] ulong* named_fixed, [NativeTypeName("idx_t *")] ulong* named_variadic, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    [SuppressGCTransition]
     public static extern DUCKDB_V2_ERROR duckdb_v2_scalar_function_exec_get_arg([NativeTypeName("duckdb_v2_scalar_function_exec_info_handle")] _duckdb_v2_scalar_function_exec_info* info, [NativeTypeName("idx_t")] ulong index, [NativeTypeName("duckdb_v2_vector_handle *")] _duckdb_v2_vector** vector, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    [SuppressGCTransition]
     public static extern DUCKDB_V2_ERROR duckdb_v2_scalar_function_exec_get_result([NativeTypeName("duckdb_v2_scalar_function_exec_info_handle")] _duckdb_v2_scalar_function_exec_info* info, [NativeTypeName("duckdb_v2_vector_handle *")] _duckdb_v2_vector** vector, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
@@ -1505,12 +1514,15 @@ internal static unsafe partial class NativeMethodsV2
     public static extern DUCKDB_V2_ERROR duckdb_v2_statement_iterator_destroy([NativeTypeName("duckdb_v2_statement_iterator_handle *")] _duckdb_v2_statement_iterator** iterator);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    [SuppressGCTransition]
     public static extern DUCKDB_V2_ERROR duckdb_v2_vector_get_vector_type([NativeTypeName("duckdb_v2_vector_handle")] _duckdb_v2_vector* vector, DUCKDB_V2_VECTOR_TYPE* out_type, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    [SuppressGCTransition]
     public static extern DUCKDB_V2_ERROR duckdb_v2_vector_get_logical_type([NativeTypeName("duckdb_v2_vector_handle")] _duckdb_v2_vector* vector, [NativeTypeName("duckdb_v2_logical_type_handle *")] _duckdb_v2_logical_type** out_type, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    [SuppressGCTransition]
     public static extern DUCKDB_V2_ERROR duckdb_v2_vector_get_view([NativeTypeName("duckdb_v2_vector_handle")] _duckdb_v2_vector* vector, duckdb_v2_vector_view* out_view, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
@@ -1559,6 +1571,7 @@ internal static unsafe partial class NativeMethodsV2
     public static extern DUCKDB_V2_ERROR duckdb_v2_vector_get_child_count([NativeTypeName("duckdb_v2_vector_handle")] _duckdb_v2_vector* vector, [NativeTypeName("idx_t *")] ulong* out_count, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    [SuppressGCTransition]
     public static extern DUCKDB_V2_ERROR duckdb_v2_vector_get_child([NativeTypeName("duckdb_v2_vector_handle")] _duckdb_v2_vector* vector, [NativeTypeName("idx_t")] ulong index, [NativeTypeName("duckdb_v2_vector_handle *")] _duckdb_v2_vector** out_child, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
@@ -1712,15 +1725,18 @@ internal static unsafe partial class NativeMethodsV2
     public static extern DUCKDB_V2_ERROR duckdb_v2_table_function_exec_get_user_data([NativeTypeName("duckdb_v2_table_function_exec_info_handle")] _duckdb_v2_table_function_exec_info* info, void** data, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    [SuppressGCTransition]
     public static extern DUCKDB_V2_ERROR duckdb_v2_table_function_exec_get_bind_data([NativeTypeName("duckdb_v2_table_function_exec_info_handle")] _duckdb_v2_table_function_exec_info* info, void** data, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    [SuppressGCTransition]
     public static extern DUCKDB_V2_ERROR duckdb_v2_table_function_exec_get_global_state([NativeTypeName("duckdb_v2_table_function_exec_info_handle")] _duckdb_v2_table_function_exec_info* info, void** data, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
     public static extern DUCKDB_V2_ERROR duckdb_v2_table_function_exec_get_local_state([NativeTypeName("duckdb_v2_table_function_exec_info_handle")] _duckdb_v2_table_function_exec_info* info, void** data, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    [SuppressGCTransition]
     public static extern DUCKDB_V2_ERROR duckdb_v2_table_function_exec_get_output_chunk([NativeTypeName("duckdb_v2_table_function_exec_info_handle")] _duckdb_v2_table_function_exec_info* info, [NativeTypeName("duckdb_v2_data_chunk_handle *")] _duckdb_v2_data_chunk** chunk, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
@@ -1922,6 +1938,7 @@ internal static unsafe partial class NativeMethodsV2
     public static extern DUCKDB_V2_ERROR duckdb_v2_value_get_usmallint([NativeTypeName("duckdb_v2_value_handle")] _duckdb_v2_value* value, [NativeTypeName("uint16_t *")] ushort* @out, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    [SuppressGCTransition]
     public static extern DUCKDB_V2_ERROR duckdb_v2_value_get_uint([NativeTypeName("duckdb_v2_value_handle")] _duckdb_v2_value* value, [NativeTypeName("uint32_t *")] uint* @out, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
@@ -1940,12 +1957,14 @@ internal static unsafe partial class NativeMethodsV2
     public static extern DUCKDB_V2_ERROR duckdb_v2_value_get_int([NativeTypeName("duckdb_v2_value_handle")] _duckdb_v2_value* value, [NativeTypeName("int32_t *")] int* @out, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    [SuppressGCTransition]
     public static extern DUCKDB_V2_ERROR duckdb_v2_value_get_bigint([NativeTypeName("duckdb_v2_value_handle")] _duckdb_v2_value* value, [NativeTypeName("int64_t *")] long* @out, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
     public static extern DUCKDB_V2_ERROR duckdb_v2_value_get_hugeint([NativeTypeName("duckdb_v2_value_handle")] _duckdb_v2_value* value, duckdb_v2_hugeint_t* @out, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    [SuppressGCTransition]
     public static extern DUCKDB_V2_ERROR duckdb_v2_value_get_varchar([NativeTypeName("duckdb_v2_value_handle")] _duckdb_v2_value* value, [NativeTypeName("const char **")] sbyte** @out, [NativeTypeName("idx_t *")] ulong* out_length, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
