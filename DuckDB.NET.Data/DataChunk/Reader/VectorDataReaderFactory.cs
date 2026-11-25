@@ -11,11 +11,12 @@ internal static class VectorDataReaderFactory
         return columnType switch
         {
             DuckDBType.Uuid => new GuidVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
-            DuckDBType.Date => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
-            DuckDBType.Time => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
-            DuckDBType.TimeTz => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.Date => new DateVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.Time => new TimeVectorDataReader<DuckDBTime>(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.TimeNs => new TimeVectorDataReader<DuckDBTimeNs>(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.TimeTz => new TimeTzVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.Interval => new IntervalVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
-            DuckDBType.Timestamp => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.Timestamp => new TimestampVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
 
             DuckDBType.Boolean => new BooleanVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
 
@@ -28,10 +29,10 @@ internal static class VectorDataReaderFactory
             DuckDBType.Enum => new EnumVectorDataReader(vector, dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.Struct => new StructVectorDataReader(vector, dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.Decimal => new DecimalVectorDataReader(vector, dataPointer, validityMaskPointer, columnType, columnName),
-            DuckDBType.TimestampS => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
-            DuckDBType.TimestampMs => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
-            DuckDBType.TimestampNs => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
-            DuckDBType.TimestampTz => new DateTimeVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.TimestampS => new TimestampVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.TimestampMs => new TimestampVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.TimestampNs => new TimestampVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
+            DuckDBType.TimestampTz => new TimestampVectorDataReader(dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.TinyInt => new NumericVectorDataReader<sbyte>(dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.SmallInt => new NumericVectorDataReader<short>(dataPointer, validityMaskPointer, columnType, columnName),
             DuckDBType.Integer => new NumericVectorDataReader<int>(dataPointer, validityMaskPointer, columnType, columnName),

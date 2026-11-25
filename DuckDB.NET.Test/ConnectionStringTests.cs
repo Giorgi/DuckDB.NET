@@ -539,7 +539,7 @@ public class ConnectionStringTests
 
         // duckdb_get_config_flag reports the options of the native library in use; all of them should be reachable
         // apart from the handful that cannot be applied when the database is opened.
-        var configCount = NativeMethods.Configuration.DuckDBConfigCount();
+        var configCount = (int)NativeMethods.Configuration.DuckDBConfigCount();
 
         configCount.Should().BeGreaterThan(100);
         properties.Count.Should().BeGreaterThan(configCount - 20);
@@ -554,13 +554,11 @@ public class ConnectionStringTests
     [Theory]
     [InlineData("arrow_output_list_view", "Arrow")]
     [InlineData("profiling_mode", "Profiling")]
-    [InlineData("enable_http_logging", "Logging")]      // logging wins over the http segment
     [InlineData("logging_level", "Logging")]
     [InlineData("http_proxy_username", "Network")]      // network wins over the username segment
     [InlineData("default_secret_storage", "Security")]  // security wins over the storage segment
     [InlineData("autoinstall_extension_repository", "Extensions")]
     [InlineData("wal_autocheckpoint", "Storage")]
-    [InlineData("block_allocator_memory", "Resources")] // allocator wins over the block segment
     [InlineData("streaming_buffer_size", "Resources")]
     [InlineData("nested_loop_join_threshold", "Optimizer")]
     [InlineData("prefer_range_joins", "Optimizer")]     // plural segment
@@ -575,6 +573,19 @@ public class ConnectionStringTests
         var properties = TypeDescriptor.GetProperties(new DuckDBConnectionStringBuilder());
 
         properties.Find(option, false)!.Category.Should().Be(expectedCategory);
+    }
+
+    // The allocator segment wins over the block segment. DuckDB 2.0 calls such an option block_allocator_memory; DuckDB's
+    // main branch replaced it with enable_block_allocator (duckdb/duckdb#27520), so the test takes whichever exists.
+    [Fact]
+    public void AllocatorWinsOverTheBlockSegment()
+    {
+        var properties = TypeDescriptor.GetProperties(new DuckDBConnectionStringBuilder());
+
+        var option = properties.Find("block_allocator_memory", false) ?? properties.Find("enable_block_allocator", false);
+
+        option.Should().NotBeNull();
+        option!.Category.Should().Be("Resources");
     }
 
     [Fact]

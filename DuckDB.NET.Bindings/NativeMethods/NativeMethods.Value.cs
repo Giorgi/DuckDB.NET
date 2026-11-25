@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 namespace DuckDB.NET.Native;
@@ -11,10 +12,29 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial void DuckDBDestroyValue(ref IntPtr config);
 
+        // Ends the string at its first NUL character; null crashes the process. The priority keeps null binding here.
         // Maybe [SuppressGCTransition]: new Value + strdup — two small allocations
+        [OverloadResolutionPriority(1)]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_varchar", StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-        public static partial DuckDBValue DuckDBCreateVarchar(string? value);
+        public static partial DuckDBValue DuckDBCreateVarchar(string value);
+
+        // UTF-8 bytes, NUL characters included; the length is the span's. DuckDB copies them. Bytes that are not valid
+        // UTF-8 give an invalid value (IsInvalid), which must not be bound.
+        public static unsafe DuckDBValue DuckDBCreateVarchar(ReadOnlySpan<byte> utf8)
+        {
+            // An empty span may have no address; DuckDB still gets a valid pointer.
+            byte empty = 0;
+
+            fixed (byte* pointer = utf8)
+            {
+                return DuckDBCreateVarcharLength(utf8.IsEmpty ? &empty : pointer, (ulong)utf8.Length);
+            }
+        }
+
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_varchar_length")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        private static unsafe partial DuckDBValue DuckDBCreateVarcharLength(byte* value, ulong length);
 
         // Maybe [SuppressGCTransition]: duckdb_create_* — each creates one heap-allocated Value object
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_bool")]
@@ -85,6 +105,10 @@ public partial class NativeMethods
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_time")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBValue DuckDBCreateTime(DuckDBTime value);
+
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_time_ns")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBValue DuckDBCreateTimeNs(DuckDBTimeNs value);
 
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_create_time_tz_value")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
@@ -185,6 +209,10 @@ public partial class NativeMethods
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBTime DuckDBGetTime(DuckDBValue value);
 
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_time_ns")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBTimeNs DuckDBGetTimeNs(DuckDBValue value);
+
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_get_time_tz")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBTimeTzStruct DuckDBGetTimeTz(DuckDBValue value);
@@ -239,6 +267,7 @@ public partial class NativeMethods
         [return: MarshalAs(UnmanagedType.I1)]
         public static partial bool DuckDBIsNullValue(DuckDBValue value);
 
+        [SuppressMessage("Reliability", "S3869", Justification = "SetChildValues keeps the child values alive as long as the list value.")]
         public static DuckDBValue DuckDBCreateListValue(DuckDBLogicalType logicalType, DuckDBValue[] values, int count)
         {
             var duckDBValue = DuckDBCreateListValue(logicalType, values.Select(item => item.DangerousGetHandle()).ToArray(), count);
@@ -248,6 +277,7 @@ public partial class NativeMethods
             return duckDBValue;
         }
 
+        [SuppressMessage("Reliability", "S3869", Justification = "SetChildValues keeps the child values alive as long as the array value.")]
         public static DuckDBValue DuckDBCreateArrayValue(DuckDBLogicalType logicalType, DuckDBValue[] values, int count)
         {
             var duckDBValue = DuckDBCreateArrayValue(logicalType, values.Select(item => item.DangerousGetHandle()).ToArray(), count);

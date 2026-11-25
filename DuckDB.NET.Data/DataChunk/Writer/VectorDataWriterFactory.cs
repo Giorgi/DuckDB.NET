@@ -10,11 +10,12 @@ internal static class VectorDataWriterFactory
         return columnType switch
         {
             DuckDBType.Uuid => new GuidVectorDataWriter(vector, dataPointer, columnType),
-            DuckDBType.Date => new DateTimeVectorDataWriter(vector, dataPointer, columnType),
-            DuckDBType.Time => new DateTimeVectorDataWriter(vector, dataPointer, columnType),
-            DuckDBType.TimeTz => new DateTimeVectorDataWriter(vector, dataPointer, columnType),
+            DuckDBType.Date => new DateVectorDataWriter(vector, dataPointer, columnType),
+            DuckDBType.Time => new TimeVectorDataWriter<DuckDBTime>(vector, dataPointer, columnType),
+            DuckDBType.TimeNs => new TimeVectorDataWriter<DuckDBTimeNs>(vector, dataPointer, columnType),
+            DuckDBType.TimeTz => new TimeTzVectorDataWriter(vector, dataPointer, columnType),
             DuckDBType.Interval => new IntervalVectorDataWriter(vector, dataPointer, columnType),
-            DuckDBType.Timestamp => new DateTimeVectorDataWriter(vector, dataPointer, columnType),
+            DuckDBType.Timestamp => new TimestampVectorDataWriter(vector, dataPointer, columnType),
                 
             DuckDBType.Boolean => new BooleanVectorDataWriter(vector, dataPointer, columnType),
 
@@ -27,10 +28,10 @@ internal static class VectorDataWriterFactory
             DuckDBType.Enum => new EnumVectorDataWriter(vector, dataPointer, logicalType, columnType),
             DuckDBType.Struct => throw new NotImplementedException($"Writing {columnType} to data chunk is not yet supported"),
             DuckDBType.Decimal => new DecimalVectorDataWriter(vector, dataPointer, logicalType, columnType),
-            DuckDBType.TimestampS => new DateTimeVectorDataWriter(vector, dataPointer, columnType),
-            DuckDBType.TimestampMs => new DateTimeVectorDataWriter(vector, dataPointer, columnType),
-            DuckDBType.TimestampNs => new DateTimeVectorDataWriter(vector, dataPointer, columnType),
-            DuckDBType.TimestampTz => new DateTimeVectorDataWriter(vector, dataPointer, columnType),
+            DuckDBType.TimestampS => new TimestampVectorDataWriter(vector, dataPointer, columnType),
+            DuckDBType.TimestampMs => new TimestampVectorDataWriter(vector, dataPointer, columnType),
+            DuckDBType.TimestampNs => new TimestampVectorDataWriter(vector, dataPointer, columnType),
+            DuckDBType.TimestampTz => new TimestampVectorDataWriter(vector, dataPointer, columnType),
             _ => new NumericVectorDataWriter(vector, dataPointer, columnType)
         };
     }

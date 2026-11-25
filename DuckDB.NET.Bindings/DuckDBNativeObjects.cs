@@ -77,10 +77,20 @@ public enum DuckDBType
     TimestampTz = 31,
     // ANY type
     Any = 34,
-    // duckdb_varint
+    // duckdb_bignum (named VARINT before DuckDB 1.4)
     VarInt = 35,
     // SQLNULL type
     SqlNull = 36,
+    // string literal type, only useful as logical type
+    StringLiteral = 37,
+    // integer literal type, only useful as logical type
+    IntegerLiteral = 38,
+    // duckdb_time_ns
+    TimeNs = 39,
+    // GEOMETRY type, WKB blob
+    Geometry = 40,
+    // VARIANT type
+    Variant = 41,
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -134,6 +144,24 @@ public struct DuckDBDate
 public struct DuckDBTime
 {
     public long Micros { get; set; }
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct DuckDBTimeNs
+{
+    public long Nanos { get; set; }
+
+    /// <summary>Creates a time from .NET ticks (100-nanosecond units).</summary>
+    public static DuckDBTimeNs FromTicks(long ticks) => new() { Nanos = ticks * 100 };
+
+    /// <summary>Gets the time in .NET ticks (100-nanosecond units), truncated from nanoseconds.</summary>
+    public readonly long Ticks => Nanos / 100;
+
+    /// <summary>Gets the time in microseconds, truncated from nanoseconds.</summary>
+    public readonly long Microseconds => Nanos / 1_000;
+
+    /// <summary>Splits the time into hour, minute, second and microsecond, dropping what is below a microsecond.</summary>
+    public readonly DuckDBTimeOnly ToDuckDBTimeOnly() => NativeMethods.DateTimeHelpers.DuckDBFromTime(new DuckDBTime { Micros = Microseconds });
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -197,13 +225,57 @@ public readonly struct DuckDBListEntry(ulong offset, ulong length)
     public ulong Length { get; } = length;
 }
 
+/// <summary>
+/// DuckDB's 16-byte string value (duckdb_string_t). A string of up to 12 bytes is kept inside the value; a longer
+/// one is pointed to. Both start with the length. Read it in place, through a pointer into the vector: for a short
+/// string, <see cref="Data"/> points into the value itself, so on a copy it is valid only while the copy lives.
+/// </summary>
+[StructLayout(LayoutKind.Explicit)]
 public struct DuckDBString
 {
-    public _value_e__Union value;
+    // The union of duckdb_string_t: both halves start at the same byte.
+    [FieldOffset(0)]
+    private DuckDBStringPointer pointer;
+
+    [FieldOffset(0)]
+    private DuckDBStringInlined inlined;
 
     private const int InlineStringMaxLength = 12;
 
-    public readonly int Length => (int)value.inlined.length;
+    /// <summary>
+    /// Builds a string that is kept inside the value: the UTF-8 bytes of <paramref name="value"/>, then zeros.
+    /// Returns false, with a default value, when they take more than 12 bytes. Write such a string through DuckDB,
+    /// with its length.
+    /// </summary>
+    public static unsafe bool TryCreateInlined(ReadOnlySpan<char> value, out DuckDBString result)
+    {
+        // Starts as zeros: DuckDB compares and hashes a short string by its length and all 12 bytes, so the bytes
+        // after the string have to be zero.
+        result = default;
+
+        if (value.Length > InlineStringMaxLength)
+        {
+            return false;
+        }
+
+        fixed (sbyte* data = result.inlined.Data)
+        {
+            var bytes = new Span<byte>(data, InlineStringMaxLength);
+
+            // Characters of more than one byte, more than 12 bytes together.
+            if (!Encoding.UTF8.TryGetBytes(value, bytes, out var length))
+            {
+                result = default;
+                return false;
+            }
+
+            result.inlined.Length = (uint)length;
+        }
+
+        return true;
+    }
+
+    public readonly int Length => (int)inlined.Length;
 
     public readonly unsafe sbyte* Data
     {
@@ -211,43 +283,38 @@ public struct DuckDBString
         {
             if (Length <= InlineStringMaxLength)
             {
-                fixed (sbyte* pointerToFirst = value.inlined.inlined)
+                fixed (sbyte* pointerToFirst = inlined.Data)
                 {
                     return pointerToFirst;
                 }
             }
             else
             {
-                return value.pointer.ptr;
+                return pointer.Data;
             }
         }
     }
+}
 
-    [StructLayout(LayoutKind.Explicit)]
-    public partial struct _value_e__Union
-    {
-        [FieldOffset(0)]
-        public DuckDBStringPointer pointer;
+// A DuckDBString of up to 12 bytes, kept inside the value: the length, then the bytes. The bytes after the string
+// must be zero, because DuckDB compares and hashes a short string by its 12 bytes whole; TryCreateInlined makes sure.
+[StructLayout(LayoutKind.Sequential)]
+internal unsafe struct DuckDBStringInlined
+{
+    public uint Length;
 
-        [FieldOffset(0)]
-        public DuckDBStringInlined inlined;
+    public fixed sbyte Data[12];
+}
 
-        public unsafe partial struct DuckDBStringPointer
-        {
-            public uint length;
+// A DuckDBString of more than 12 bytes: the length, the first 4 bytes, and a pointer to the whole string.
+[StructLayout(LayoutKind.Sequential)]
+internal unsafe struct DuckDBStringPointer
+{
+    public uint Length;
 
-            public fixed sbyte prefix[4];
+    public fixed sbyte Prefix[4];
 
-            public sbyte* ptr;
-        }
-
-        public unsafe partial struct DuckDBStringInlined
-        {
-            public uint length;
-
-            public fixed sbyte inlined[12];
-        }
-    }
+    public sbyte* Data;
 }
 
 [StructLayout(LayoutKind.Sequential)]

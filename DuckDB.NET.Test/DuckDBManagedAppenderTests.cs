@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Reflection;
 using DuckDB.NET.Data.Common;
 using FluentAssertions.Common;
 
@@ -121,9 +122,9 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
 
         using (var appender = Connection.CreateAppender("blobAppenderTest"))
         {
-            appender.CreateRow().AppendValue(1).AppendValue(bytes).EndRow();
-            appender.CreateRow().AppendValue(10).AppendValue(span).EndRow();
-            appender.CreateRow().AppendValue(2).AppendValue((byte[])null).EndRow();
+            appender.CreateRow().AppendValue((int?)1).AppendValue(bytes).EndRow();
+            appender.CreateRow().AppendValue((int?)10).AppendValue(span).EndRow();
+            appender.CreateRow().AppendValue((int?)2).AppendValue((byte[])null).EndRow();
         }
 
         Command.CommandText = "Select b from blobAppenderTest";
@@ -149,7 +150,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
     [Fact]
     public void EmptyByteArrayIsEmptyBlobAndDefaultSpanIsNull()
     {
-        // Only a BLOB column, ordered by rowid: an integer literal such as AppendValue(1) binds to the byte? overload,
+        // Only a BLOB column, ordered by rowid: an integer literal such as AppendValue(1) binds to the sbyte? overload,
         // which the low-level appender would write into one byte of an INTEGER slot.
         Command.CommandText = "CREATE TABLE blobAppenderEmptyTest(b blob)";
         Command.ExecuteNonQuery();
@@ -454,6 +455,108 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         }
     }
 
+    // Pins that a DateOnly, TimeOnly, DuckDBDateOnly or DuckDBTimeOnly argument, nullable or not, compiles through the
+    // row interface (the DuckDB types convert only explicitly to DateOnly and TimeOnly, so each binds to its own
+    // overload) and that each stores the right value. Which conversion path a value takes cannot be seen from the
+    // values it stores, except for a value DateOnly or TimeOnly cannot hold: an infinity and 24:00:00 would throw if
+    // they went through the conversion.
+    [Fact]
+    public void DateAndTimeValuesThroughTheRowInterface()
+    {
+        Command.CommandText = "CREATE TABLE managedAppenderDateTimeOnly(a DATE, b TIME, c DATE, d TIME)";
+        Command.ExecuteNonQuery();
+
+        var date = new DateOnly(2024, 2, 29);
+        var time = new TimeOnly(13, 14, 15, 123);
+        DuckDBDateOnly duckDBDate = new DateOnly(1969, 7, 20);
+        DuckDBTimeOnly duckDBTime = new TimeOnly(20, 17, 40);
+        DateOnly? nullDate = null;
+        TimeOnly? nullTime = null;
+        DuckDBDateOnly? nullDuckDBDate = null;
+        DuckDBTimeOnly? nullDuckDBTime = null;
+
+        using (var appender = Connection.CreateAppender("managedAppenderDateTimeOnly"))
+        {
+            // The calls go through the interface, which is what CreateRow returns.
+            IDuckDBAppenderRow row = appender.CreateRow();
+            row.AppendValue(date).AppendValue(time).AppendValue(duckDBDate).AppendValue(duckDBTime).EndRow();
+
+            row = appender.CreateRow();
+            row.AppendValue((DateOnly?)date).AppendValue((TimeOnly?)time)
+               .AppendValue((DuckDBDateOnly?)duckDBDate).AppendValue((DuckDBTimeOnly?)duckDBTime).EndRow();
+
+            row = appender.CreateRow();
+            row.AppendValue(nullDate).AppendValue(nullTime).AppendValue(nullDuckDBDate).AppendValue(nullDuckDBTime).EndRow();
+
+            row = appender.CreateRow();
+            row.AppendValue(date).AppendValue(time).AppendValue(DuckDBDateOnly.PositiveInfinity)
+               .AppendValue(new DuckDBTimeOnly(24, 0, 0)).EndRow();
+        }
+
+        Command.CommandText = "SELECT a, b, c, d FROM managedAppenderDateTimeOnly ORDER BY rowid";
+        using var reader = Command.ExecuteReader();
+
+        for (var i = 0; i < 2; i++)
+        {
+            reader.Read().Should().BeTrue();
+            reader.GetFieldValue<DateOnly>(0).Should().Be(date);
+            reader.GetFieldValue<TimeOnly>(1).Should().Be(time);
+            reader.GetFieldValue<DateOnly>(2).Should().Be(new DateOnly(1969, 7, 20));
+            reader.GetFieldValue<TimeOnly>(3).Should().Be(new TimeOnly(20, 17, 40));
+        }
+
+        reader.Read().Should().BeTrue();
+        for (var column = 0; column < 4; column++)
+        {
+            reader.IsDBNull(column).Should().BeTrue();
+        }
+
+        reader.Read().Should().BeTrue();
+        reader.GetFieldValue<DuckDBDateOnly>(2).IsPositiveInfinity.Should().BeTrue();
+        reader.GetFieldValue<DuckDBTimeOnly>(3).Should().Be(new DuckDBTimeOnly(24, 0, 0));
+
+        reader.Read().Should().BeFalse();
+    }
+
+    // An implicit conversion from DuckDBDateOnly to DateOnly, or from DuckDBTimeOnly to TimeOnly, would make
+    // AppendValue(DateOnly?) and AppendValue(DuckDBDateOnly?) ambiguous for a non-nullable argument, and it can throw.
+    [Fact]
+    public void DuckDBDateAndTimeConvertOnlyExplicitlyToDateOnlyAndTimeOnly()
+    {
+        static IEnumerable<string> Operators(Type from, Type to) =>
+            from.GetMethods().Where(m => m.Name.StartsWith("op_") && m.ReturnType == to && m.GetParameters().Single().ParameterType == from).Select(m => m.Name);
+
+        Operators(typeof(DuckDBDateOnly), typeof(DateOnly)).Should().Equal("op_Explicit");
+        Operators(typeof(DuckDBTimeOnly), typeof(TimeOnly)).Should().Equal("op_Explicit");
+    }
+
+    // The stored values cannot show which overload a call reached: a DateOnly sent to AppendValue(DuckDBDateOnly?)
+    // stores the same date, only through the slower conversion. A recording row shows the overload itself.
+    [Fact]
+    public void DateAndTimeValuesReachTheOverloadOfTheirOwnType()
+    {
+        var row = DispatchProxy.Create<IDuckDBAppenderRow, RecordingAppenderRow>();
+        var recording = (RecordingAppenderRow)(object)row;
+
+        row.AppendValue(new DateOnly(2024, 2, 29));
+        row.AppendValue(new TimeOnly(13, 14, 15));
+        row.AppendValue(new DuckDBDateOnly(2024, 2, 29));
+        row.AppendValue(new DuckDBTimeOnly(13, 14, 15));
+
+        recording.ParameterTypes.Should().Equal(typeof(DateOnly?), typeof(TimeOnly?), typeof(DuckDBDateOnly?), typeof(DuckDBTimeOnly?));
+    }
+
+    public class RecordingAppenderRow : DispatchProxy
+    {
+        public List<Type> ParameterTypes { get; } = [];
+
+        protected override object Invoke(MethodInfo targetMethod, object[] args)
+        {
+            ParameterTypes.Add(targetMethod.GetParameters().Single().ParameterType);
+            return this;
+        }
+    }
+
     [Fact]
     public void EnumValues()
     {
@@ -563,7 +666,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
             var row = appender.CreateRow();
             row
                 .AppendValue(false)
-                .AppendValue(1)
+                .AppendValue((sbyte?)1)
                 .AppendValue(Guid.NewGuid())
                 .EndRow();
         }).Should().Throw<InvalidOperationException>();
@@ -791,8 +894,8 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
 
         using (var appender = Connection.CreateAppender("tbl"))
         {
-            appender.CreateRow().AppendValue((int?)2).AppendValue(2).AppendDefault().EndRow();
-            appender.CreateRow().AppendDefault().AppendValue(2).AppendDefault().EndRow();
+            appender.CreateRow().AppendValue((int?)2).AppendValue((int?)2).AppendDefault().EndRow();
+            appender.CreateRow().AppendDefault().AppendValue((int?)2).AppendDefault().EndRow();
         }
 
         Command.CommandText = "Select * from tbl";
@@ -1577,7 +1680,7 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         {
             for (int i = 0; i < 10_000; i++)
             {
-                appender.CreateRow().AppendValue((int?)2).AppendValue(2).AppendDefault().EndRow();
+                appender.CreateRow().AppendValue((int?)2).AppendValue((int?)2).AppendDefault().EndRow();
             }
 
             appender.Clear();
@@ -1599,14 +1702,14 @@ public class DuckDBManagedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBa
         {
             for (int i = 0; i < 10_000; i++)
             {
-                appender.CreateRow().AppendValue((int?)2).AppendValue(2).AppendDefault().EndRow();
+                appender.CreateRow().AppendValue((int?)2).AppendValue((int?)2).AppendDefault().EndRow();
             }
 
             appender.Clear();
 
             for (int i = 0; i < 5_000; i++)
             {
-                appender.CreateRow().AppendValue((int?)3).AppendValue(3).AppendDefault().EndRow();
+                appender.CreateRow().AppendValue((int?)3).AppendValue((int?)3).AppendDefault().EndRow();
             }
         }
 

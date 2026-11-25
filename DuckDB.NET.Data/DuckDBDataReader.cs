@@ -1,5 +1,7 @@
 ﻿using DuckDB.NET.Data.DataChunk.Reader;
+using DuckDB.NET.Data.PreparedStatement;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
 
@@ -20,16 +22,17 @@ public sealed class DuckDBDataReader : DbDataReader
     private ulong rowsReadFromCurrentChunk;
 
     private bool closed;
+    private int recordsAffected = -1;
     private bool hasRows;
     private bool streamingResult;
     private bool streamEnded;
     private long currentChunkIndex;
 
-    private readonly IEnumerator<DuckDBResult> resultEnumerator;
+    private readonly IEnumerator<StatementResult> resultEnumerator;
     private VectorDataReaderBase[] vectorReaders = [];
     private Dictionary<string, int> columnMapping = [];
 
-    internal DuckDBDataReader(DuckDBCommand command, IEnumerable<DuckDBResult> queryResults, CommandBehavior behavior)
+    internal DuckDBDataReader(DuckDBCommand command, IEnumerable<StatementResult> queryResults, CommandBehavior behavior)
     {
         this.command = command;
         this.behavior = behavior;
@@ -52,7 +55,12 @@ public sealed class DuckDBDataReader : DbDataReader
     {
         while (resultEnumerator.MoveNext())
         {
-            var result = resultEnumerator.Current;
+            var (result, statementType) = resultEnumerator.Current;
+            if (DuckDBCommand.CountsRows(statementType))
+            {
+                recordsAffected = Math.Max(recordsAffected, 0) + (int)DuckDBCommand.GetRowsAffected(ref result);
+            }
+
             if (NativeMethods.Query.DuckDBResultReturnType(result) == DuckDBResultType.QueryResult)
             {
                 // Release the previous result set before replacing it: nothing else holds it, and a materialized
@@ -167,9 +175,39 @@ public sealed class DuckDBDataReader : DbDataReader
         return GetFieldValue<byte>(ordinal);
     }
 
+    /// <summary>
+    /// IDataRecord.GetBytes: reads "from the specified column offset into the buffer as an array, starting at the given
+    /// buffer offset", and "If you pass a buffer that is null, GetBytes returns the length of the row in bytes."
+    /// </summary>
     public override long GetBytes(int ordinal, long dataOffset, byte[]? buffer, int bufferOffset, int length)
     {
-        throw new NotImplementedException();
+        using var stream = GetStream(ordinal);
+        if (buffer is null)
+        {
+            return stream.Length;
+        }
+
+        ValidateBufferArguments(dataOffset, buffer.Length, bufferOffset, length);
+        if (dataOffset >= stream.Length)
+        {
+            return 0;
+        }
+
+        stream.Position = dataOffset;
+        var count = (int)Math.Min(length, stream.Length - dataOffset);
+        var read = 0;
+        while (read < count)
+        {
+            var chunk = stream.Read(buffer, bufferOffset + read, count - read);
+            if (chunk == 0)
+            {
+                break;
+            }
+
+            read += chunk;
+        }
+
+        return read;
     }
 
     public override char GetChar(int ordinal)
@@ -177,9 +215,44 @@ public sealed class DuckDBDataReader : DbDataReader
         throw new NotSupportedException();
     }
 
+    /// <summary>
+    /// IDataRecord.GetChars: reads characters "from the specified column offset into the buffer as an array, starting at
+    /// the given buffer offset", and "If you pass a buffer that is null, GetChars returns the length of the field in
+    /// characters."
+    /// </summary>
     public override long GetChars(int ordinal, long dataOffset, char[]? buffer, int bufferOffset, int length)
     {
-        throw new NotSupportedException();
+        CheckRowRead();
+
+        if (buffer != null)
+        {
+            ValidateBufferArguments(dataOffset, buffer.Length, bufferOffset, length);
+        }
+
+        if (vectorReaders[ordinal] is not StringVectorDataReader reader)
+        {
+            throw new NotSupportedException($"GetChars is not supported for {vectorReaders[ordinal].DuckDBType} columns");
+        }
+
+        return reader.GetChars(rowsReadFromCurrentChunk - 1, dataOffset, buffer, bufferOffset, length);
+    }
+
+    private static void ValidateBufferArguments(long dataOffset, int bufferLength, int bufferOffset, int length)
+    {
+        if (dataOffset < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(dataOffset), dataOffset, "The data offset cannot be negative.");
+        }
+
+        if (bufferOffset < 0 || bufferOffset > bufferLength)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bufferOffset), bufferOffset, "The buffer offset must be within the buffer.");
+        }
+
+        if (length < 0 || length > bufferLength - bufferOffset)
+        {
+            throw new ArgumentOutOfRangeException(nameof(length), length, "The length must fit in the buffer after the buffer offset.");
+        }
     }
 
     public override string GetDataTypeName(int ordinal)
@@ -202,11 +275,13 @@ public sealed class DuckDBDataReader : DbDataReader
         return GetFieldValue<double>(ordinal);
     }
 
+    [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties)]
     public override Type GetFieldType(int ordinal)
     {
         return vectorReaders[ordinal].ClrType;
     }
 
+    [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties)]
     public override Type GetProviderSpecificFieldType(int ordinal)
     {
         return vectorReaders[ordinal].ProviderSpecificClrType;
@@ -249,7 +324,19 @@ public sealed class DuckDBDataReader : DbDataReader
             return index;
         }
 
-        throw new DuckDBException($"Column with name {name} was not found.");
+        // IDataRecord.GetOrdinal: "performs a case-sensitive lookup first. If it fails, a second case-insensitive search
+        // is made. GetOrdinal is kana-width insensitive. If the index of the named field is not found, an
+        // IndexOutOfRangeException is thrown."
+        var compareInfo = CultureInfo.InvariantCulture.CompareInfo;
+        for (var i = 0; i < vectorReaders.Length; i++)
+        {
+            if (compareInfo.Compare(vectorReaders[i].ColumnName, name, CompareOptions.IgnoreCase | CompareOptions.IgnoreKanaType | CompareOptions.IgnoreWidth) == 0)
+            {
+                return i;
+            }
+        }
+
+        throw new IndexOutOfRangeException($"Column with name {name} was not found.");
     }
 
     public override string GetString(int ordinal)
@@ -292,17 +379,22 @@ public sealed class DuckDBDataReader : DbDataReader
 
     public override int GetValues(object[] values)
     {
+        ArgumentNullException.ThrowIfNull(values);
         CheckRowRead();
 
         var offset = rowsReadFromCurrentChunk - 1;
 
-        for (var i = 0; i < FieldCount; i++)
+        // IDataRecord.GetValues: "You can pass an Object array that contains fewer than the number of columns that are
+        // contained in the resulting row. Only the amount of data the Object array holds is copied to the array."
+        var count = Math.Min(values.Length, FieldCount);
+
+        for (var i = 0; i < count; i++)
         {
             var reader = vectorReaders[i];
             values[i] = reader.IsValid(offset) ? reader.GetValue(offset) : DBNull.Value;
         }
 
-        return FieldCount;
+        return count;
     }
 
     public override Stream GetStream(int ordinal)
@@ -323,7 +415,11 @@ public sealed class DuckDBDataReader : DbDataReader
 
     public override object this[string name] => GetValue(GetOrdinal(name));
 
-    public override int RecordsAffected => -1;
+    /// <summary>
+    /// The rows inserted, updated, deleted, or copied by the statements read so far; -1 when none of them reports an
+    /// affected-row count. DbDataReader.RecordsAffected: "-1 for SELECT statements; 0 if no rows were affected".
+    /// </summary>
+    public override int RecordsAffected => recordsAffected;
 
     public override bool HasRows => hasRows;
 
@@ -432,14 +528,13 @@ public sealed class DuckDBDataReader : DbDataReader
     {
         if (rowsReadFromCurrentChunk <= 0)
         {
-            ThrowNoRowRead();
+            throw NoRowRead();
         }
     }
 
-    [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void ThrowNoRowRead()
+    private static InvalidOperationException NoRowRead()
     {
-        throw new InvalidOperationException("No row has been read");
+        return new InvalidOperationException("No row has been read");
     }
 }

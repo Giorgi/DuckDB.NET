@@ -18,24 +18,7 @@ internal sealed unsafe class StringVectorDataWriter(IntPtr vector, void* vectorD
 
     internal override bool AppendString(string value, ulong rowIndex)
     {
-        if (value.Length > InlineLength)
-        {
-            return AppendLongString(value, rowIndex);
-        }
-
-        // Starts as zeros, and DuckDB compares the 12 bytes whole: the bytes after the string have to be zero.
-        DuckDBString._value_e__Union.DuckDBStringInlined inline = default;
-        var bytes = new Span<byte>(inline.inlined, InlineLength);
-
-        if (!Encoding.UTF8.TryGetBytes(value, bytes, out var length))
-        {
-            // Characters of more than one byte, more than 12 bytes together.
-            return AppendLongString(value, rowIndex);
-        }
-
-        inline.length = (uint)length;
-
-        if (bytes[..length].Contains((byte)0))
+        if (value.Length > InlineLength || !DuckDBString.TryCreateInlined(value, out var inline))
         {
             return AppendLongString(value, rowIndex);
         }
@@ -55,14 +38,6 @@ internal sealed unsafe class StringVectorDataWriter(IntPtr vector, void* vectorD
             : rented = ArrayPool<byte>.Shared.Rent(Encoding.UTF8.GetByteCount(value));
 
         var length = Encoding.UTF8.GetBytes(value, buffer);
-
-        // The string ends at its first NUL character, as it did when DuckDB measured it as a C string.
-        var terminator = buffer[..length].IndexOf((byte)0);
-
-        if (terminator >= 0)
-        {
-            length = terminator;
-        }
 
         fixed (byte* pointer = buffer)
         {

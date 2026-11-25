@@ -17,7 +17,8 @@ public readonly struct DuckDBTimeOnly(byte hour, byte min, byte sec, int microse
 
     public int Microsecond { get; } = microsecond;
 
-    public long Ticks => DateTimeExtensions.GetTicks(Hour, Min, Sec, Microsecond);
+    // Qualified because DuckDB.ExtensionKit compiles this file together with DuckDB.NET.Data's DateTimeExtensions.
+    public long Ticks => Extensions.DateTimeExtensions.GetTicks(Hour, Min, Sec, Microsecond);
 
     // The time on the first day a DateTime holds, 0001-01-01
     public DateTime ToDateTime() => new DateTime(Ticks);
@@ -44,7 +45,8 @@ public readonly struct DuckDBTimeOnly(byte hour, byte min, byte sec, int microse
         return new DuckDBTimeOnly((byte)timeOnly.Hour, (byte)timeOnly.Minute, (byte)timeOnly.Second, microsecond);
     }
 
-    public static implicit operator TimeOnly(DuckDBTimeOnly time) => new(time.Ticks);
+    // Explicit since 2.0: TIME holds 24:00:00, which TimeOnly cannot, so the conversion can throw.
+    public static explicit operator TimeOnly(DuckDBTimeOnly time) => new(time.Ticks);
 
     public static implicit operator DuckDBTimeOnly(TimeOnly time) => FromTimeOnly(time);
 }

@@ -1,4 +1,5 @@
 using DuckDB.NET.Data.Mapping;
+using System.Globalization;
 
 namespace DuckDB.NET.Test;
 
@@ -340,6 +341,21 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
         }
     }
 
+    public class TimeNsMappedTimes
+    {
+        public TimeOnly Time { get; set; }
+        public DuckDBTimeOnly DuckDBTime { get; set; }
+    }
+
+    public class TimeNsMappedTimesMap : DuckDBAppenderMap<TimeNsMappedTimes>
+    {
+        public TimeNsMappedTimesMap()
+        {
+            Map(x => x.Time);
+            Map(x => x.DuckDBTime);
+        }
+    }
+
     [Fact]
     public void MappedAppender_SupportsDuckDBDateOnlyAndTimeOnly()
     {
@@ -385,6 +401,27 @@ public class DuckDBMappedAppenderTests(DuckDBDatabaseFixture db) : DuckDBTestBas
         reader.GetFieldValue<DuckDBDateOnly>(0).IsNegativeInfinity.Should().BeTrue();
         reader.GetFieldValue<DuckDBTimeOnly>(1).Should().Be(records[2].Time);
         reader.GetString(4).Should().Be("-infinity");
+    }
+
+    [Fact]
+    public void MappedAppender_AcceptsTimeOnlyTypesForTimeNsColumns()
+    {
+        Command.CommandText = "CREATE TABLE mapped_time_ns (time TIME_NS, duck_db_time TIME_NS)";
+        Command.ExecuteNonQuery();
+
+        var time = new TimeOnly(12, 34, 56).Add(TimeSpan.FromTicks(1_234_567));
+        var record = new TimeNsMappedTimes { Time = time, DuckDBTime = new DuckDBTimeOnly(24, 0, 0) };
+        using (var appender = Connection.CreateAppender<TimeNsMappedTimes, TimeNsMappedTimesMap>("mapped_time_ns"))
+        {
+            appender.AppendRecords([record]);
+        }
+
+        var expectedTime = time.ToString("HH:mm:ss.fffffff", CultureInfo.InvariantCulture);
+        Command.CommandText = $"SELECT time = TIME_NS '{expectedTime}', duck_db_time = TIME_NS '24:00:00' FROM mapped_time_ns";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+        reader.GetBoolean(0).Should().BeTrue();
+        reader.GetBoolean(1).Should().BeTrue();
     }
 
     public class BigNumbers

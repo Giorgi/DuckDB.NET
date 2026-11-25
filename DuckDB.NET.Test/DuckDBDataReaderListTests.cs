@@ -22,7 +22,38 @@ public class DuckDBDataReaderListTests(DuckDBDatabaseFixture db) : DuckDBTestBas
         using var reader = Command.ExecuteReader();
         reader.Read();
         reader.Invoking(r => r.GetFieldValue<List<object>>(0)).Should().Throw<InvalidCastException>();
-        reader.Invoking(r => r.GetFieldValue<System.Collections.ArrayList>(0)).Should().Throw<InvalidCastException>();
+        reader.Invoking(r => r.GetFieldValue<System.Collections.ArrayList>(0)).Should().Throw<InvalidCastException>()
+              .WithMessage("Cannot read column * as ArrayList*");
+
+        // A generic collection that is not an IList.
+        reader.Invoking(r => r.GetFieldValue<HashSet<int>>(0)).Should().Throw<InvalidCastException>()
+              .WithMessage("Cannot read column * as HashSet*: it is not an IList.");
+    }
+
+    [Fact]
+    public void ReadListIntoATypeThatCannotHoldItIsRefused()
+    {
+        Command.CommandText = "SELECT [1, 2]";
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        // Interfaces and abstract classes cannot be created; they threw MissingMethodException before 2.0.
+        reader.Invoking(r => r.GetFieldValue<IEnumerable<int>>(0)).Should().ThrowExactly<InvalidCastException>()
+              .WithMessage("Cannot read column * as IEnumerable*: it is an interface or an abstract class.");
+        reader.Invoking(r => r.GetFieldValue<IReadOnlyList<int>>(0)).Should().ThrowExactly<InvalidCastException>();
+        reader.Invoking(r => r.GetFieldValue<ICollection<int>>(0)).Should().ThrowExactly<InvalidCastException>();
+        reader.Invoking(r => r.GetFieldValue<IList<int>>(0)).Should().ThrowExactly<InvalidCastException>();
+
+        // The same for a list read as a struct field.
+        Command.CommandText = "SELECT {'Items': [1, 2]}";
+        using var structReader = Command.ExecuteReader();
+        structReader.Read();
+        structReader.Invoking(r => r.GetFieldValue<ItemsAsEnumerable>(0)).Should().ThrowExactly<InvalidCastException>();
+    }
+
+    public class ItemsAsEnumerable
+    {
+        public IEnumerable<int> Items { get; set; }
     }
 
     [Fact]

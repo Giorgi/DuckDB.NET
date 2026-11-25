@@ -53,7 +53,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.GetOrdinal("key").Should().Be(0);
         reader.GetOrdinal("value").Should().Be(1);
 
-        reader.Invoking(dataReader => dataReader.GetOrdinal("Random")).Should().Throw<DuckDBException>();
+        reader.Invoking(dataReader => dataReader.GetOrdinal("Random")).Should().Throw<IndexOutOfRangeException>();
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.GetOrdinal("key").Should().Be(1);
         reader.GetOrdinal("value").Should().Be(0);
 
-        reader.Invoking(dataReader => dataReader.GetOrdinal("Random")).Should().Throw<DuckDBException>();
+        reader.Invoking(dataReader => dataReader.GetOrdinal("Random")).Should().Throw<IndexOutOfRangeException>();
     }
 
     [Fact]
@@ -616,10 +616,10 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     [Fact]
     public void ReadDecimalSchemaWithoutTableRow()
     {
-        Command.CommandText = "CREATE TABLE decimaltbl(foo decimal(10,2));";
+        Command.CommandText = "CREATE TABLE decimaltbl_empty(foo decimal(10,2));";
         Command.ExecuteNonQuery();
 
-        Command.CommandText = "SELECT foo FROM decimaltbl";
+        Command.CommandText = "SELECT foo FROM decimaltbl_empty";
         using var reader = Command.ExecuteReader();
 
         var schemaTable = reader.GetSchemaTable();
@@ -637,7 +637,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
                           SELECT 1
                           UNION ALL
                           SELECT x+1 FROM cnt
-                           where x < 300000
+                           where x < 10000000
                     ) select * from cnt;";
 
         var source = new CancellationTokenSource(1000);
@@ -656,7 +656,7 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
                       SELECT 1
                       UNION ALL
                       SELECT x+1 FROM cnt
-                       where x < 300000
+                       where x < 10000000
                 ) select * from cnt;";
 
         using var source = new CancellationTokenSource(TimeSpan.FromMilliseconds(1000));
@@ -753,6 +753,37 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
     }
 
     [Fact]
+    public void GetCharsReadsLargeUtf8ValuesInUtf16Chunks()
+    {
+        var expected = string.Concat(Enumerable.Repeat("aéქართული😀𐐷", 2_000));
+        Command.CommandText = "SELECT ?::VARCHAR";
+        Command.Parameters.Add(new DuckDBParameter(expected));
+
+        using var reader = Command.ExecuteReader();
+        reader.Read();
+
+        reader.GetChars(0, 0, null, 0, 0).Should().Be(expected.Length);
+
+        var buffer = new char[1_024];
+        var result = new StringBuilder(expected.Length);
+        for (var dataOffset = 0L; dataOffset < expected.Length;)
+        {
+            var read = reader.GetChars(0, dataOffset, buffer, 0, buffer.Length);
+            result.Append(buffer, 0, (int)read);
+            dataOffset += read;
+        }
+
+        result.ToString().Should().Be(expected);
+
+        var surrogateOffset = expected.IndexOf("😀", StringComparison.Ordinal) + 1;
+        var splitBuffer = new char[1];
+        reader.GetChars(0, surrogateOffset, splitBuffer, 0, 1).Should().Be(1);
+        splitBuffer[0].Should().Be(expected[surrogateOffset]);
+        reader.GetChars(0, surrogateOffset + 1, splitBuffer, 0, 1).Should().Be(1);
+        splitBuffer[0].Should().Be(expected[surrogateOffset + 1]);
+    }
+
+    [Fact]
     public void ReadHugeIntAsDuckDBHugeInt()
     {
         Command.CommandText = "SELECT 170141183460469231731687303715884105727::HUGEINT, (-170141183460469231731687303715884105728)::HUGEINT, (-5)::HUGEINT, " +
@@ -786,9 +817,9 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.GetProviderSpecificValue(4).Should().BeOfType<DuckDBUHugeInt>().Which.ToBigInteger().Should().Be(new BigInteger(42));
         reader.GetProviderSpecificValue(5).Should().Be(DBNull.Value);
 
-        // Reading as BigInteger is unchanged.
-        reader.GetValue(0).Should().Be(DuckDBHugeInt.HugeIntMaxValue);
-        reader.GetValue(3).Should().Be(DuckDBUHugeInt.HugeIntMaxValue);
+        // The default types are Int128 and UInt128 (2.0); reading as BigInteger is unchanged.
+        reader.GetValue(0).Should().Be(Int128.MaxValue);
+        reader.GetValue(3).Should().Be(UInt128.MaxValue);
         reader.GetFieldValue<BigInteger>(0).Should().Be(DuckDBHugeInt.HugeIntMaxValue);
         reader.GetFieldValue<BigInteger>(3).Should().Be(DuckDBUHugeInt.HugeIntMaxValue);
     }
@@ -818,5 +849,151 @@ public class DuckDBDataReaderTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db
         reader.Invoking(r => r.GetFieldValue<uint>(1)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Int32 to UInt32 in column negative");
         reader.Invoking(r => r.GetFieldValue<ulong>(1)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Int32 to UInt64 in column negative");
         reader.Invoking(r => r.GetFieldValue<byte>(2)).Should().Throw<InvalidCastException>().WithMessage("Cannot cast from Int16 to Byte in column small");
+    }
+
+    // https://learn.microsoft.com/dotnet/api/system.data.idatarecord.getordinal: "GetOrdinal performs a case-sensitive
+    // lookup first. If it fails, a second case-insensitive search is made. GetOrdinal is kana-width insensitive. If the
+    // index of the named field is not found, an IndexOutOfRangeException is thrown."
+    [Fact]
+    public void GetOrdinalFallsBackToACaseInsensitiveMatch()
+    {
+        Command.CommandText = "SELECT 1 AS Id, 2 AS id, 3 AS \"Name\"";
+        using var reader = Command.ExecuteReader();
+
+        reader.GetOrdinal("Id").Should().Be(0);
+        reader.GetOrdinal("id").Should().Be(1, "an exact match wins over a case-insensitive one");
+        reader.GetOrdinal("NAME").Should().Be(2);
+        reader.GetOrdinal("ｎａｍｅ").Should().Be(2, "the lookup is width insensitive");
+    }
+
+    [Fact]
+    public void GetOrdinalThrowsIndexOutOfRangeForAnUnknownName()
+    {
+        Command.CommandText = "SELECT 1 AS Id";
+        using var reader = Command.ExecuteReader();
+
+        reader.Invoking(r => r.GetOrdinal("missing")).Should().Throw<IndexOutOfRangeException>();
+    }
+
+    // https://learn.microsoft.com/dotnet/api/system.data.idatarecord.getbytes: reads "from the specified column offset
+    // into the buffer as an array, starting at the given buffer offset"; "If you pass a buffer that is null, GetBytes
+    // returns the length of the row in bytes."
+    [Fact]
+    public void GetBytesReadsABlobWholeOrInParts()
+    {
+        Command.CommandText = "SELECT '\\x01\\x02\\x03\\x04'::BLOB";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        reader.GetBytes(0, 0, null, 0, 0).Should().Be(4);
+
+        var whole = new byte[6];
+        reader.GetBytes(0, 0, whole, 0, 6).Should().Be(4);
+        whole.Should().Equal(1, 2, 3, 4, 0, 0);
+
+        var part = new byte[5];
+        reader.GetBytes(0, 1, part, 2, 2).Should().Be(2);
+        part.Should().Equal(0, 0, 2, 3, 0);
+
+        reader.GetBytes(0, 4, part, 0, 1).Should().Be(0, "there is nothing past the end of the value");
+    }
+
+    // https://learn.microsoft.com/dotnet/api/system.data.idatarecord.getchars: "If you pass a buffer that is null,
+    // GetChars returns the length of the field in characters."
+    [Fact]
+    public void GetCharsReadsAStringWholeOrInParts()
+    {
+        Command.CommandText = "SELECT 'ab¢d'";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        reader.GetChars(0, 0, null, 0, 0).Should().Be(4, "the length is in characters, not UTF-8 bytes");
+
+        var whole = new char[6];
+        reader.GetChars(0, 0, whole, 0, 6).Should().Be(4);
+        whole.Should().Equal('a', 'b', '¢', 'd', '\0', '\0');
+
+        var part = new char[5];
+        reader.GetChars(0, 1, part, 2, 2).Should().Be(2);
+        part.Should().Equal('\0', '\0', 'b', '¢', '\0');
+
+        reader.GetChars(0, 4, part, 0, 1).Should().Be(0);
+    }
+
+    // GetChars keeps the decoded value of its last call. Rows past 2048 are in another chunk, where the kept value
+    // must not be used.
+    [Fact]
+    public void GetCharsReadsEveryRowWholeInPartsAndAgain()
+    {
+        Command.CommandText = "SELECT CASE i % 4 WHEN 0 THEN 'row ' || i WHEN 1 THEN repeat('é', i % 50) " +
+                              "WHEN 2 THEN 'ქართული ' || i || ' 🦆' ELSE '' END FROM range(5000) t(i)";
+        using var reader = Command.ExecuteReader();
+
+        var rows = 0;
+        var part = new char[3];
+        while (reader.Read())
+        {
+            var expected = reader.GetString(0);
+
+            reader.GetChars(0, 0, null, 0, 0).Should().Be(expected.Length, "the length is counted before the value is read");
+
+            var result = new StringBuilder();
+            long read;
+            for (var dataOffset = 0L; (read = reader.GetChars(0, dataOffset, part, 0, part.Length)) > 0; dataOffset += read)
+            {
+                result.Append(part, 0, (int)read);
+            }
+
+            result.ToString().Should().Be(expected);
+            reader.GetChars(0, 0, null, 0, 0).Should().Be(expected.Length, "the length comes from the kept value");
+
+            if (expected.Length > 0)
+            {
+                reader.GetChars(0, 0, part, 0, 1).Should().Be(1, "reading from the start again uses the kept value");
+                part[0].Should().Be(expected[0]);
+            }
+
+            rows++;
+        }
+
+        rows.Should().Be(5000);
+    }
+
+    [Fact]
+    public void GetBytesAndGetCharsRejectOffsetsOutsideTheBuffer()
+    {
+        Command.CommandText = "SELECT '\\x01\\x02'::BLOB, 'ab'";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        reader.Invoking(r => r.GetBytes(0, -1, new byte[2], 0, 2)).Should().Throw<ArgumentOutOfRangeException>();
+        reader.Invoking(r => r.GetBytes(0, 0, new byte[2], 3, 1)).Should().Throw<ArgumentOutOfRangeException>();
+        reader.Invoking(r => r.GetBytes(0, 0, new byte[2], 1, 2)).Should().Throw<ArgumentOutOfRangeException>();
+        reader.Invoking(r => r.GetChars(1, -1, new char[2], 0, 2)).Should().Throw<ArgumentOutOfRangeException>();
+        reader.Invoking(r => r.GetChars(1, 0, new char[2], 1, 2)).Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    // https://learn.microsoft.com/dotnet/api/system.data.idatarecord.getvalues: "You can pass an Object array that
+    // contains fewer than the number of columns that are contained in the resulting row. Only the amount of data the
+    // Object array holds is copied to the array. You can also pass an Object array whose length is more than the
+    // number of columns that are contained in the resulting row."
+    [Fact]
+    public void GetValuesCopiesOnlyWhatTheArrayHolds()
+    {
+        Command.CommandText = "SELECT 1 AS a, 2 AS b, 3 AS c";
+        using var reader = Command.ExecuteReader();
+        reader.Read().Should().BeTrue();
+
+        reader.GetValues(new object[0]).Should().Be(0);
+        reader.Invoking(r => r.GetValues(null!)).Should().Throw<ArgumentNullException>();
+
+        var shorter = new object[2];
+        reader.GetValues(shorter).Should().Be(2);
+        shorter.Should().Equal(1, 2);
+
+        var longer = new object[5];
+        reader.GetValues(longer).Should().Be(3);
+        longer.Take(3).Should().Equal(1, 2, 3);
+        longer.Skip(3).Should().AllSatisfy(value => value.Should().BeNull());
     }
 }

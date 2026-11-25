@@ -166,6 +166,7 @@ public class IntervalTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
         Command.CommandText = "SELECT ?;";
         Command.Parameters.Add(new DuckDBParameter(DbType.Time, value));
 
-        Command.Invoking(c => c.ExecuteScalar()).Should().Throw<ArgumentOutOfRangeException>();
+        Command.Invoking(c => c.ExecuteScalar()).Should().Throw<InvalidCastException>()
+            .WithMessage("Cannot cast from TimeSpan to TimeOnly for parameter $1 (DbType.Time): the value is out of range");
     }
 }

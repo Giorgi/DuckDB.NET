@@ -5,6 +5,15 @@ namespace DuckDB.NET.Test.Parameters;
 
 public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase(db)
 {
+    // https://learn.microsoft.com/dotnet/api/system.data.common.dbparameter.direction: "The default is Input."
+    [Fact]
+    public void ParameterDirectionDefaultsToInput()
+    {
+        new DuckDBParameter().Direction.Should().Be(ParameterDirection.Input);
+        new DuckDBParameter("name", 42).Direction.Should().Be(ParameterDirection.Input);
+        Command.CreateParameter().Direction.Should().Be(ParameterDirection.Input);
+    }
+
     [Theory]
     [InlineData("SELECT ?1::INT;")]
     [InlineData("SELECT ?::INT;")]
@@ -47,10 +56,10 @@ public class ParameterCollectionTests(DuckDBDatabaseFixture db) : DuckDBTestBase
     }
 
     [Fact]
-    public void PrepareCommandNoOperationTest()
+    public void PrepareCommandReportsAnUnknownTable()
     {
         Command.CommandText = "SELECT ? FROM nowhere";
-        Command.Invoking(dbCommand => dbCommand.Prepare()).Should().NotThrow();
+        Command.Invoking(dbCommand => dbCommand.Prepare()).Should().Throw<DuckDBException>();
     }
 
     [Fact]

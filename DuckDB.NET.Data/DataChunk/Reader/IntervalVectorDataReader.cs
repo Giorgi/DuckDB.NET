@@ -24,12 +24,12 @@ internal sealed class IntervalVectorDataReader : VectorDataReaderBase
         return base.GetValidValue<T>(offset);
     }
 
-    internal override object GetValue(ulong offset, Type targetType)
+    internal override object GetValueCore(ulong offset, Type targetType)
     {
         return DuckDBType switch
         {
             DuckDBType.Interval => GetInterval(offset, targetType),
-            _ => base.GetValue(offset, targetType)
+            _ => base.GetValueCore(offset, targetType)
         };
     }
 

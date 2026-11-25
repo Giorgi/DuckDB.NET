@@ -2,17 +2,23 @@
 
 namespace DuckDB.NET.Data.DataChunk.Reader;
 
-// HUGEINT, UHUGEINT and VARINT: the columns whose .NET type is BigInteger.
+// HUGEINT, UHUGEINT and VARINT. Their .NET types are Int128, UInt128 and BigInteger (the first two were BigInteger
+// before 2.0); HUGEINT and UHUGEINT still read as BigInteger.
 internal sealed class BigIntegerVectorDataReader : VectorDataReaderBase
 {
     private const int VarIntHeaderSize = 3;
 
     internal unsafe BigIntegerVectorDataReader(void* dataPointer, ulong* validityMaskPointer, DuckDBType columnType, string columnName) : base(dataPointer, validityMaskPointer, columnType, columnName)
     {
+        // The fast path of ReadValidValue loads a value of this type straight from the vector. DuckDB stores a HUGEINT
+        // as its lower and then its upper 64 bits, which on a little-endian machine are the 16 bytes of an Int128 (and
+        // of a UInt128 for UHUGEINT); GetHugeInt builds the same value from the two halves. These are the default
+        // types of the two columns since 2.0. Before, the fast path was for the DuckDB structs, which GetValidValue
+        // still reads without a box.
         StorageType = columnType switch
         {
-            DuckDBType.HugeInt => typeof(DuckDBHugeInt),
-            DuckDBType.UnsignedHugeInt => typeof(DuckDBUHugeInt),
+            DuckDBType.HugeInt => typeof(Int128),
+            DuckDBType.UnsignedHugeInt => typeof(UInt128),
             _ => null
         };
     }
@@ -24,6 +30,18 @@ internal sealed class BigIntegerVectorDataReader : VectorDataReaderBase
 
     protected override T GetValidValue<T>(ulong offset)
     {
+        // The DuckDB structs are what the vector holds. Without these lines they would go through the boxed path of the
+        // base class. A struct of the other column is refused there, as before.
+        if (typeof(T) == typeof(DuckDBHugeInt))
+        {
+            return DuckDBType == DuckDBType.HugeInt ? (T)(object)GetFieldData<DuckDBHugeInt>(offset) : base.GetValidValue<T>(offset);
+        }
+
+        if (typeof(T) == typeof(DuckDBUHugeInt))
+        {
+            return DuckDBType == DuckDBType.UnsignedHugeInt ? (T)(object)GetFieldData<DuckDBUHugeInt>(offset) : base.GetValidValue<T>(offset);
+        }
+
         if (!TypeExtensions.IsIntegralNumericType<T>())
         {
             return base.GetValidValue<T>(offset);
@@ -37,39 +55,30 @@ internal sealed class BigIntegerVectorDataReader : VectorDataReaderBase
         };
     }
 
-    internal override object GetValue(ulong offset, Type targetType)
+    // Every type is read with GetValidValue, so a list item, a map key or value and a struct field convert by the same
+    // rules as a column. The class is sealed, so these calls are bound directly.
+    internal override object GetValueCore(ulong offset, Type targetType)
     {
-        object value = DuckDBType switch
-        {
-            // The provider-specific type of these two is the DuckDB struct, which is what the vector holds.
-            DuckDBType.HugeInt => targetType == typeof(DuckDBHugeInt) ? GetFieldData<DuckDBHugeInt>(offset) : GetBigInteger(offset, false),
-            DuckDBType.UnsignedHugeInt => targetType == typeof(DuckDBUHugeInt) ? GetFieldData<DuckDBUHugeInt>(offset) : GetBigInteger(offset, true),
-            _ => GetVarInt<BigInteger>(offset)
-        };
+        // The .NET types of the three columns, which GetValue(ordinal) asks for: Int128 for HUGEINT, UInt128 for
+        // UHUGEINT, BigInteger for VARINT.
+        if (targetType == typeof(Int128))     return GetValidValue<Int128>(offset);
+        if (targetType == typeof(UInt128))    return GetValidValue<UInt128>(offset);
+        if (targetType == typeof(BigInteger)) return GetValidValue<BigInteger>(offset);
 
-        if (value.GetType() == targetType)
-        {
-            return value;
-        }
+        // The provider-specific type of HUGEINT and UHUGEINT is the DuckDB struct, which is what the vector holds.
+        if (targetType == typeof(DuckDBHugeInt) && DuckDBType == DuckDBType.HugeInt) return GetFieldData<DuckDBHugeInt>(offset);
+        if (targetType == typeof(DuckDBUHugeInt) && DuckDBType == DuckDBType.UnsignedHugeInt) return GetFieldData<DuckDBUHugeInt>(offset);
 
-        if (targetType.IsNumeric())
-        {
-            try
-            {
-                return Convert.ChangeType(value, targetType);
-            }
-            catch (OverflowException)
-            {
-                throw CannotCast(value.GetType(), targetType);
-            }
-        }
+        if (targetType == typeof(sbyte))  return GetValidValue<sbyte>(offset);
+        if (targetType == typeof(byte))   return GetValidValue<byte>(offset);
+        if (targetType == typeof(short))  return GetValidValue<short>(offset);
+        if (targetType == typeof(ushort)) return GetValidValue<ushort>(offset);
+        if (targetType == typeof(int))    return GetValidValue<int>(offset);
+        if (targetType == typeof(uint))   return GetValidValue<uint>(offset);
+        if (targetType == typeof(long))   return GetValidValue<long>(offset);
+        if (targetType == typeof(ulong))  return GetValidValue<ulong>(offset);
 
-        throw CannotCast(value.GetType(), targetType);
-    }
-
-    private BigInteger GetBigInteger(ulong offset, bool unsigned)
-    {
-        return unsigned ? GetFieldData<DuckDBUHugeInt>(offset).ToBigInteger() : GetFieldData<DuckDBHugeInt>(offset).ToBigInteger();
+        throw CannotCast(DuckDBType.ToString(), targetType);
     }
 
     // A HUGEINT is a 128-bit integer, which is what Int128 is, so an integer type is converted from that. The

@@ -121,17 +121,19 @@ internal sealed class PropertyMapping<T, TProperty> : IPropertyMapping<T>
             TimeSpan v => row.AppendValue(v),
             Guid v => row.AppendValue(v),
             BigInteger v => row.AppendValue(v),
-            DuckDBDateOnly v => row.AppendValue((DuckDBDateOnly?)v),
-            DuckDBTimeOnly v => row.AppendValue((DuckDBTimeOnly?)v),
-            DateOnly v => row.AppendValue((DateOnly?)v),
-            TimeOnly v => row.AppendValue((TimeOnly?)v),
+            Int128 v => row.AppendValue(v),
+            UInt128 v => row.AppendValue(v),
+            DuckDBDateOnly v => row.AppendValue(v),
+            DuckDBTimeOnly v => row.AppendValue(v),
+            DateOnly v => row.AppendValue(v),
+            TimeOnly v => row.AppendValue(v),
 
             _ => throw new NotSupportedException($"Type {typeof(TProperty).Name} is not supported for appending")
         };
     }
 
-    // Every AppendValue overload takes a nullable, so the value is passed on as it is. typeof(TProperty) is a
-    // constant for the JIT, which keeps the one matching line.
+    // Every type here has an AppendValue overload that takes its nullable, so the value is passed on as it is.
+    // typeof(TProperty) is a constant for the JIT, which keeps the one matching line.
     private static void AppendNullable(DuckDBAppenderRow row, ref TProperty value)
     {
         if (typeof(TProperty) == typeof(bool?)) row.AppendValue(Unsafe.As<TProperty, bool?>(ref value));
@@ -151,6 +153,8 @@ internal sealed class PropertyMapping<T, TProperty> : IPropertyMapping<T>
         else if (typeof(TProperty) == typeof(TimeSpan?)) row.AppendValue(Unsafe.As<TProperty, TimeSpan?>(ref value));
         else if (typeof(TProperty) == typeof(Guid?)) row.AppendValue(Unsafe.As<TProperty, Guid?>(ref value));
         else if (typeof(TProperty) == typeof(BigInteger?)) row.AppendValue(Unsafe.As<TProperty, BigInteger?>(ref value));
+        else if (typeof(TProperty) == typeof(Int128?)) row.AppendValue(Unsafe.As<TProperty, Int128?>(ref value));
+        else if (typeof(TProperty) == typeof(UInt128?)) row.AppendValue(Unsafe.As<TProperty, UInt128?>(ref value));
         else if (typeof(TProperty) == typeof(DuckDBDateOnly?)) row.AppendValue(Unsafe.As<TProperty, DuckDBDateOnly?>(ref value));
         else if (typeof(TProperty) == typeof(DuckDBTimeOnly?)) row.AppendValue(Unsafe.As<TProperty, DuckDBTimeOnly?>(ref value));
         else if (typeof(TProperty) == typeof(DateOnly?)) row.AppendValue(Unsafe.As<TProperty, DateOnly?>(ref value));

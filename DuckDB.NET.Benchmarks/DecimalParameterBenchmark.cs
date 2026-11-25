@@ -105,6 +105,59 @@ public class DecimalParameterBenchmark
         }
     }
 
+    // The same INSERTs after Prepare(): the command keeps one prepared statement, so they skip parsing and preparing.
+    [Benchmark]
+    public void InsertDecimalsPrepared()
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "INSERT INTO bench VALUES ($1, $2, $3, $4)";
+
+        for (var i = 0; i < 4; i++)
+        {
+            command.Parameters.Add(new DuckDBParameter());
+        }
+
+        command.Prepare();
+
+        for (var i = 0; i < Executions; i++)
+        {
+            var value = values[i % ValueCount];
+
+            for (var p = 0; p < 4; p++)
+            {
+                command.Parameters[p].Value = value;
+            }
+
+            command.ExecuteNonQuery();
+        }
+    }
+
+    [Benchmark]
+    public void InsertLongsPrepared()
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "INSERT INTO bench_longs VALUES ($1, $2, $3, $4)";
+
+        for (var i = 0; i < 4; i++)
+        {
+            command.Parameters.Add(new DuckDBParameter());
+        }
+
+        command.Prepare();
+
+        for (var i = 0; i < Executions; i++)
+        {
+            long value = i;
+
+            for (var p = 0; p < 4; p++)
+            {
+                command.Parameters[p].Value = value;
+            }
+
+            command.ExecuteNonQuery();
+        }
+    }
+
     // One parameter of 10,000 decimals for a list column, 20 times.
     [Benchmark]
     public void InsertDecimalLists()

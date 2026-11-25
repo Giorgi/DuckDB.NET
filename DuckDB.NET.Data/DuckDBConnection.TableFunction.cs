@@ -13,12 +13,11 @@ public record ColumnInfo(string Name, Type Type);
 /// </summary>
 /// <param name="Value">The number of rows.</param>
 /// <param name="IsExact">
-/// Passed to DuckDB as it is. With DuckDB 1.5 and older the meaning is the reverse of the name: <c>false</c>, the
-/// default, makes <paramref name="Value"/> the most rows the function can return, and <c>true</c> makes it an
-/// estimate only. DuckDB relies on a maximum: a function that returns more rows than that can get a wrong
-/// <c>sum</c>. So with DuckDB 1.5 pass <c>false</c> only when the function never returns more than
-/// <paramref name="Value"/> rows, and <c>true</c> for a guess. DuckDB 2.0 corrects this: there <c>true</c> sets
-/// the maximum and <c>false</c> is an estimate, and a maximum that is too small can also remove a <c>LIMIT</c>.
+/// <c>false</c>, the default: <paramref name="Value"/> is an estimate, which the optimizer uses for planning only.
+/// <c>true</c>: the function returns exactly <paramref name="Value"/> rows, and DuckDB also takes it as the most
+/// rows the function can return. DuckDB relies on that maximum: a function that returns more rows than it said can
+/// get a wrong <c>sum</c>, or a <c>LIMIT</c> that is not applied. So pass <c>true</c> only for a count that is
+/// certain.
 /// </param>
 public record CardinalityHint(ulong Value, bool IsExact = false);
 
@@ -184,18 +183,17 @@ partial class DuckDBConnection
                 NativeMethods.TableFunction.DuckDBBindAddResultColumn(info, columnInfo.Name, logicalType);
             }
 
-            // The number of rows of an array is known without reading it and cannot change, so DuckDB is told
-            // it when the function gives no number of its own. Only for an array: DuckDB 1.5 takes the number
-            // as the most rows the function can return (there duckdb_bind_set_cardinality sets the maximum
-            // when is_exact is false, and only the estimate when it is true; DuckDB 2.0 has it the other way
-            // round), and a sum over more rows than that is wrong. Any other collection can be longer when it
-            // is read than it is now. The length of an array is true as a maximum and as an estimate.
-            var cardinality = tableFunctionData.Cardinality;
-
-            if (cardinality is null && tableFunctionData.Data is Array array)
+            // When the function gives no number of its own and its data is a collection, DuckDB is told the
+            // collection's count. The length of an array cannot change before the scan reads it, so it is exact,
+            // which DuckDB also takes as the most rows there are. Any other collection can be longer when it is
+            // read than now, so its count is only an estimate, which DuckDB uses for planning only.
+            var cardinality = tableFunctionData.Cardinality ?? tableFunctionData.Data switch
             {
-                cardinality = new CardinalityHint((ulong)array.LongLength);
-            }
+                Array array => new CardinalityHint((ulong)array.LongLength, IsExact: true),
+                ICollection collection => new CardinalityHint((ulong)collection.Count),
+                IReadOnlyCollection<object> collection => new CardinalityHint((ulong)collection.Count),
+                _ => null
+            };
 
             if (cardinality is not null)
             {

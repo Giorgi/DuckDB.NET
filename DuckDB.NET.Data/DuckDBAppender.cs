@@ -1,6 +1,7 @@
 ﻿using DuckDB.NET.Data.Common;
 using DuckDB.NET.Data.DataChunk.Writer;
 using DuckDB.NET.Data.Extensions;
+using System.Diagnostics.CodeAnalysis;
 namespace DuckDB.NET.Data;
 
 /// <summary>
@@ -26,6 +27,7 @@ public class DuckDBAppender : IDisposable
     private DuckDBAppenderRow? reusableRow;
     private DuckDBAppenderRow? currentRow;
 
+    [SuppressMessage("Reliability", "S3869", Justification = "The logicalTypes field keeps the logical types alive as long as the appender.")]
     internal DuckDBAppender(Native.DuckDBAppender appender, string qualifiedTableName)
     {
         nativeAppender = appender;

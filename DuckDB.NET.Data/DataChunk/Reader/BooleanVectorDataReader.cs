@@ -24,11 +24,11 @@ internal sealed class BooleanVectorDataReader : VectorDataReaderBase
         return (T)(object)value; //JIT will optimize the casts at least for not nullable T
     }
 
-    internal override object GetValue(ulong offset, Type targetType)
+    internal override object GetValueCore(ulong offset, Type targetType)
     {
         if (DuckDBType != DuckDBType.Boolean)
         {
-            return base.GetValue(offset, targetType);
+            return base.GetValueCore(offset, targetType);
         }
 
         // A boolean has two values, so the two boxes are made once and shared.

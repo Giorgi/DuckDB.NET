@@ -19,20 +19,28 @@ on:
   schedule:
       - cron: "15 */12 * * *"
 
+# Concurrency groups are shared by all workflows, so the group names the workflow: with the branch alone, a
+# Build run and a CodeQL run of the same push cancelled each other.
 concurrency:
-  group: ${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+# No permissions by default; each job asks for what it needs.
+permissions: {}
 
 jobs:
   build:
+    permissions:
+      contents: read
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-14]
+        os: [ubuntu-latest, windows-latest, macos-15]
         arch: ['amd64']
       fail-fast: false
 
     name: Build library (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     env:
       ReleaseVersion: ${{ inputs.version }}
     steps:
@@ -43,25 +51,43 @@ jobs:
         echo "BuildBranch=nightly-builds" >> $env:GITHUB_ENV
         
     # Nightly native libraries: artifacts.duckdb.org/<branch>/, where 'latest' is DuckDB's main branch.
-    # Tracks the v2.0 release branch until DuckDB 2.0 ships; switch back to 'latest' after that.
     - name: Set Env
       if: startsWith(github.ref_name, 'nightly') || startsWith(env.BuildBranch, 'nightly')
       run: |
-        echo "DuckDbArtifactRoot=https://artifacts.duckdb.org/v2.0-cyanoptera" >> "$GITHUB_ENV"
+        echo "DuckDbArtifactRoot=https://artifacts.duckdb.org/latest" >> "$GITHUB_ENV"
         echo "NightlyBuild=true" >> "$GITHUB_ENV"
-        echo "DuckDbArtifactRoot=https://artifacts.duckdb.org/v2.0-cyanoptera" >> $env:GITHUB_ENV
+        echo "DuckDbArtifactRoot=https://artifacts.duckdb.org/latest" >> $env:GITHUB_ENV
         echo "NightlyBuild=true" >> $env:GITHUB_ENV
     
     - name: Checkout
-      uses: actions/checkout@v6
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 0
         ref: ${{ env.BuildBranch }}
 
+    # The workspace of a hosted Windows runner is on D:, the NuGet cache and temporary files are on the slower C:.
+    # With both on D: the build took 37 s instead of about 92 s, in 9 runs against 7.
+    - name: Use the D drive for the NuGet cache and temporary files
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force 'D:\nuget\packages', 'D:\tmp' | Out-Null
+        'NUGET_PACKAGES=D:\nuget\packages' >> $env:GITHUB_ENV
+        'TEMP=D:\tmp' >> $env:GITHUB_ENV
+        'TMP=D:\tmp' >> $env:GITHUB_ENV
+
     - name: Setup .NET Core SDK
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
       with:
         global-json-file: global.json
+
+    # Saved to the cache only by runs of the repository's own branches, never by a pull request.
+    - name: Get the DuckDB native libraries
+      if: env.NightlyBuild != 'true'
+      uses: ./.github/actions/duckdb-natives
+      with:
+        token: ${{ github.token }}
+        save: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
 
     - name: Build
       run: dotnet build --configuration Release /p:BuildType=Full
@@ -91,14 +117,43 @@ jobs:
         "@
         "DuckDBVersion=$([DuckDBLibrary]::Version)" >> $env:GITHUB_ENV
 
-    - name: Run tests (DuckDB ${{ env.DuckDBVersion }})
+    # The connection stress tests took 272 of about 300 s of the tests on Windows. They run when code that opens,
+    # shares or closes the native database changed, for every push to main or a tag, for scheduled and manual runs,
+    # and whenever there is no earlier commit to compare with.
+    - name: Decide whether to run the connection stress tests
+      shell: bash
+      env:
+        EVENT: ${{ github.event_name }}
+        REF: ${{ github.ref }}
+        BEFORE: ${{ github.event.before }}
+        PR_BASE: ${{ github.event.pull_request.base.sha }}
+      run: |
+        base=""
+        if [ "$EVENT" = "pull_request" ]; then base="$PR_BASE"; fi
+        if [ "$EVENT" = "push" ] && [ "$REF" != "refs/heads/main" ] && [[ "$REF" != refs/tags/* ]]; then base="$BEFORE"; fi
+        if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+          echo "Connection stress tests run: $EVENT on $REF, or no earlier commit to compare with"
+          exit 0
+        fi
+        paths='^(DuckDB\.NET\.Data/Connection/|DuckDB\.NET\.Data/DuckDBConnection\.cs$|DuckDB\.NET\.Data/DuckDBDataReader\.cs$|DuckDB\.NET\.Data/DuckDBCommand\.cs$|DuckDB\.NET\.Data/PreparedStatement/|DuckDB\.NET\.Bindings/DuckDBWrapperObjects\.cs$|DuckDB\.NET\.Bindings/Bindings\.csproj$|DuckDB\.NET\.Test/DuckDBConnectionTests\.cs$|\.github/workflows/ci\.yml$)'
+        changed=$(git diff --name-only "$base" HEAD | grep -E "$paths" || true)
+        if [ -n "$changed" ]; then
+          echo "Connection stress tests run, because of:"
+          echo "$changed"
+        else
+          echo "TestFilter=Stress!=Connection" >> "$GITHUB_ENV"
+          echo "Connection stress tests skipped: no connection code changed since $base"
+        fi
+
+    - name: Run tests (DuckDB ${{ env.DuckDBVersion }}, connection stress tests ${{ env.TestFilter && 'skipped' || 'included' }})
       env:
         CoverletOutputFormat: lcov
-      run: dotnet test --configuration Release --verbosity normal --logger GitHubActions /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:BuildType=Full /p:DoesNotReturnAttribute="DoesNotReturnAttribute"
+      run: dotnet test --configuration Release --verbosity normal --logger "GitHubActions;summary-include-passed=false;summary-include-skipped=false" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:BuildType=Full /p:DoesNotReturnAttribute="DoesNotReturnAttribute" ${{ env.TestFilter && format('--filter "{0}"', env.TestFilter) || '' }}
 
     - name: Upload coverage reports to Coveralls Parallel
-      uses: coverallsapp/github-action@v2
+      uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
       if: github.event_name != 'schedule'
+      continue-on-error: true
       with:
         github-token: ${{ secrets.github_token }}
         flag-name: run-${{ matrix.os }}
@@ -106,16 +161,13 @@ jobs:
         parallel: true
         format: lcov
 
-    - name: Upload coverage reports to Codecov
-      if: matrix.os == 'ubuntu-latest' && github.event_name != 'schedule'
-      uses: codecov/codecov-action@v6
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        slug: Giorgi/DuckDB.NET
-
+    # Not for nightly builds: a scheduled run builds nightly-builds but is a run of develop, so its packages
+    # would be uploaded under develop's name.
     - name: Upload Artifacts
-      if: matrix.os == 'ubuntu-latest' && github.event_name != 'pull_request' && github.actor == 'Giorgi'
-      uses: actions/upload-artifact@v7
+      if: >-
+        matrix.os == 'ubuntu-latest' && github.event_name != 'pull_request' && github.actor == 'Giorgi' &&
+        !startsWith(env.BuildBranch || github.ref_name, 'nightly')
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: nugetPackages-${{github.ref_name}}
         path: ./**/bin/Release/*.nupkg
@@ -126,10 +178,13 @@ jobs:
     needs: build
     name: Publish Packages
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      packages: write
     if: github.ref == 'refs/heads/develop' && github.event_name != 'pull_request' && github.event_name != 'schedule'
     steps:
     - name: Download nuget package artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
         name: nugetPackages-${{github.ref_name}}
 
@@ -137,7 +192,9 @@ jobs:
       run: ls -R
 
     - name: Prep packages
-      run: dotnet nuget add source --username Giorgi --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/Giorgi/index.json"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: dotnet nuget add source --username Giorgi --password "$GITHUB_TOKEN" --store-password-in-clear-text --name github "https://nuget.pkg.github.com/Giorgi/index.json"
 
     - name: Get package version
       run: |
@@ -146,16 +203,23 @@ jobs:
         echo "PackageVersion=${version#DuckDB.NET.Data.}" >> "$GITHUB_ENV"
 
     - name: Push package to GitHub packages (${{ env.PackageVersion }})
-      run: dotnet nuget push "**/*.nupkg" --api-key ${{ secrets.GITHUB_TOKEN }}  --source "github"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # A re-run pushes the same version again, which the feed refuses.
+      run: dotnet nuget push "**/*.nupkg" --api-key "$GITHUB_TOKEN" --source "github" --skip-duplicate
       
   Finish-Coveralls-Collection:
     needs: build
     name: Finish Coveralls Collection
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
     if: github.event_name != 'schedule'
     steps:
     - name: Coveralls Finished
-      uses: coverallsapp/github-action@v2
+      uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
+      continue-on-error: true
       with:
         github-token: ${{ secrets.github_token }}
         parallel-finished: true

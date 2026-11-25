@@ -11,6 +11,21 @@ public class DuckDBTimeOnlyTests
         ((DateTime)new DuckDBTimeOnly(1, 2, 3)).Should().Be(new DateTime(1, 1, 1, 1, 2, 3));
     }
 
+    // DuckDB adds up the parts in int64 with no check (Time::FromTime), and the ticks must agree with it, also for a
+    // microsecond count that an int times ten cannot hold. A TIME_NS write uses the ticks.
+    [Theory]
+    [InlineData(0, 0, 0, 214_748_365)]
+    [InlineData(0, 0, 0, 300_000_000)]
+    [InlineData(1, 2, 3, int.MaxValue)]
+    [InlineData(23, 59, 59, -300_000_000)]
+    [InlineData(0, 0, 0, int.MinValue)]
+    public void TicksAgreeWithDuckDBForLargeMicroseconds(byte hour, byte minute, byte second, int microsecond)
+    {
+        var time = new DuckDBTimeOnly(hour, minute, second, microsecond);
+
+        time.Ticks.Should().Be(NativeMethods.DateTimeHelpers.DuckDBToTime(time).Micros * TimeSpan.TicksPerMicrosecond);
+    }
+
     [Fact]
     public void TimesWithATimeZoneAreEqualWhenTimeAndOffsetAre()
     {

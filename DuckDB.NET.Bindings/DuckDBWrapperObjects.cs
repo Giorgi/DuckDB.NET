@@ -1,4 +1,6 @@
-﻿namespace DuckDB.NET.Native;
+﻿using System.Numerics;
+
+namespace DuckDB.NET.Native;
 
 public class DuckDBDatabase() : SafeHandleZeroOrMinusOneIsInvalid(true)
 {
@@ -73,6 +75,15 @@ public class DuckDBArrowOptions() : SafeHandleZeroOrMinusOneIsInvalid(true)
     protected override bool ReleaseHandle()
     {
         NativeMethods.Arrow.DuckDBDestroyArrowOptions(ref handle);
+        return true;
+    }
+}
+
+public class DuckDBArrowConvertedSchema() : SafeHandleZeroOrMinusOneIsInvalid(true)
+{
+    protected override bool ReleaseHandle()
+    {
+        NativeMethods.Arrow.DuckDBDestroyArrowConvertedSchema(ref handle);
         return true;
     }
 }
@@ -162,30 +173,54 @@ public class DuckDBValue() : SafeHandleZeroOrMinusOneIsInvalid(true), IDuckDBVal
 
             DuckDBType.Uuid => Cast(new Guid(NativeMethods.Value.DuckDBGetVarchar(this))),
 
-            DuckDBType.HugeInt => Cast(NativeMethods.Value.DuckDBGetHugeInt(this).ToBigInteger()),
-            DuckDBType.UnsignedHugeInt => Cast(NativeMethods.Value.DuckDBGetUHugeInt(this).ToBigInteger()),
+            // HUGEINT and UHUGEINT are produced as Int128 and UInt128, as the column readers give them, or as a
+            // BigInteger when one is asked for.
+            DuckDBType.HugeInt when Is<BigInteger>() => Cast(NativeMethods.Value.DuckDBGetHugeInt(this).ToBigInteger()),
+            DuckDBType.HugeInt => Cast(NativeMethods.Value.DuckDBGetHugeInt(this).ToInt128()),
+            DuckDBType.UnsignedHugeInt when Is<BigInteger>() => Cast(NativeMethods.Value.DuckDBGetUHugeInt(this).ToBigInteger()),
+            DuckDBType.UnsignedHugeInt => Cast(NativeMethods.Value.DuckDBGetUHugeInt(this).ToUInt128()),
 
             DuckDBType.Varchar => Cast(NativeMethods.Value.DuckDBGetVarchar(this)),
 
-            // DATE and TIME can be read as the .NET types or as the provider's own types. Cast reinterprets the value
-            // without a check, so the value has to be produced as exactly the requested type.
-            DuckDBType.Date when typeof(T) == typeof(DuckDBDateOnly) => Cast(DuckDBDateOnly.FromDuckDBDate(NativeMethods.Value.DuckDBGetDate(this))),
+            // DATE and TIME can be read as the .NET types or as the provider's own types.
+            DuckDBType.Date when Is<DuckDBDateOnly>() => Cast(DuckDBDateOnly.FromDuckDBDate(NativeMethods.Value.DuckDBGetDate(this))),
             DuckDBType.Date => Cast((DateOnly)DuckDBDateOnly.FromDuckDBDate(NativeMethods.Value.DuckDBGetDate(this))),
-            DuckDBType.Time when typeof(T) == typeof(DuckDBTimeOnly) => Cast(NativeMethods.DateTimeHelpers.DuckDBFromTime(NativeMethods.Value.DuckDBGetTime(this))),
+            DuckDBType.Time when Is<DuckDBTimeOnly>() => Cast(NativeMethods.DateTimeHelpers.DuckDBFromTime(NativeMethods.Value.DuckDBGetTime(this))),
             DuckDBType.Time => Cast((TimeOnly)NativeMethods.DateTimeHelpers.DuckDBFromTime(NativeMethods.Value.DuckDBGetTime(this))),
+            DuckDBType.TimeNs when Is<DuckDBTimeOnly>() => Cast(NativeMethods.Value.DuckDBGetTimeNs(this).ToDuckDBTimeOnly()),
+            DuckDBType.TimeNs => Cast(new TimeOnly(NativeMethods.Value.DuckDBGetTimeNs(this).Ticks)),
             DuckDBType.TimeTz => Cast(GetTimeTzValue()),
             DuckDBType.Interval => Cast((TimeSpan)NativeMethods.Value.DuckDBGetInterval(this)),
-            DuckDBType.Timestamp => Cast(GetTimestampValue(NativeMethods.Value.DuckDBGetTimestamp(this),DuckDBType.Timestamp)),
-            DuckDBType.TimestampS => Cast(GetTimestampValue(NativeMethods.Value.DuckDBGetTimestampS(this), DuckDBType.TimestampS)),
-            DuckDBType.TimestampMs => Cast(GetTimestampValue(NativeMethods.Value.DuckDBGetTimestampMs(this), DuckDBType.TimestampMs)),
-            DuckDBType.TimestampNs => Cast(GetTimestampValue(NativeMethods.Value.DuckDBGetTimestampNs(this), DuckDBType.TimestampNs)),
-            DuckDBType.TimestampTz => Cast(GetTimestampValue(NativeMethods.Value.DuckDBGetTimestamp(this), DuckDBType.TimestampTz)),
+            DuckDBType.Timestamp => CastTimestamp(GetTimestampValue(NativeMethods.Value.DuckDBGetTimestamp(this), DuckDBType.Timestamp)),
+            DuckDBType.TimestampS => CastTimestamp(GetTimestampValue(NativeMethods.Value.DuckDBGetTimestampS(this), DuckDBType.TimestampS)),
+            DuckDBType.TimestampMs => CastTimestamp(GetTimestampValue(NativeMethods.Value.DuckDBGetTimestampMs(this), DuckDBType.TimestampMs)),
+            DuckDBType.TimestampNs => CastTimestamp(GetTimestampValue(NativeMethods.Value.DuckDBGetTimestampNs(this), DuckDBType.TimestampNs)),
+            DuckDBType.TimestampTz => CastTimestamp(GetTimestampValue(NativeMethods.Value.DuckDBGetTimestamp(this), DuckDBType.TimestampTz)),
             _ => throw new NotImplementedException($"Cannot read value of type {typeof(T).FullName}")
         };
 
+        // The value as it was produced, or as object, a nullable or an interface of it. Any other type is refused: the
+        // value used to be reinterpreted as T, which read past it or took an integer for a reference.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        static T Cast<TSource>(TSource value) => Unsafe.As<TSource, T>(ref value);
+        static T Cast<TSource>(TSource value) => typeof(T) == typeof(TSource)
+            ? Unsafe.As<TSource, T>(ref value)
+            : value is T result ? result : throw CannotCast(typeof(TSource), typeof(T));
+
+        // A timestamp is a DateTime, or the instant at UTC when it is read as DateTimeOffset, as the column reader
+        // gives it. GetTimestampValue builds a DateTime of kind Unspecified, which an offset of zero accepts.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static T CastTimestamp(DateTime value) => Is<DateTimeOffset>()
+            ? Cast(new DateTimeOffset(value, TimeSpan.Zero))
+            : Cast(value);
+
+        // Whether T is TTarget or its nullable, so that an alternative type can be asked for in either form. The JIT
+        // folds it to a constant for each T.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static bool Is<TTarget>() where TTarget : struct => typeof(T) == typeof(TTarget) || typeof(T) == typeof(TTarget?);
     }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static InvalidCastException CannotCast(Type from, Type to) => new($"Cannot read a value of type {from.Name} as {to.Name}.");
 
     private DateTime GetTimestampValue(DuckDBTimestampStruct timestampStruct, DuckDBType duckDBType)
     {

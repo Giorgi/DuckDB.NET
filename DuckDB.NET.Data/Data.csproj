@@ -3,53 +3,41 @@
   <PropertyGroup>
     <Description>DuckDB ADO.NET Provider for C#.</Description>
     <PackageReleaseNotes>
-- Built on DuckDB v1.5.6
+- Updated to DuckDB v2.0.1
+
+Upgrading from 1.x: https://duckdb.net/docs/upgrade-to-2.0.html
+All changes: https://duckdb.net/docs/release-notes/2.0.html
 
 New features:
-- Read a TIME column as TimeSpan
-- Read FLOAT as double, DOUBLE as float, and both as decimal, in columns, list items, maps and structs
-- Read HUGEINT and UHUGEINT columns as DuckDBHugeInt and DuckDBUHugeInt with GetFieldValue and GetProviderSpecificValue
-- The mapped appender now accepts DuckDBDateOnly and DuckDBTimeOnly properties, and scalar functions accept them as parameters and results
-- BigInteger values can now be bound and appended to UHUGEINT columns as unsigned values, including through the mapped appender
-- A table function over an array now uses the length of the array as its cardinality hint when none is given
+- Int128 and UInt128 for HUGEINT and UHUGEINT, in reads, the appenders, functions and parameters (#370)
+- DuckDBCommand.Prepare() prepares the statement and keeps it on the connection
+- DuckDBArrowAppender appends Apache Arrow record batches and streams to a table
+- TIME_NS columns (#386, #387)
+- LIST, MAP and STRUCT columns are read without boxing, and the common element types work under Native AOT
+- GetBytes and GetChars (#377), GetSchema("DataTypes") (#364)
+- A table function over an array or a collection tells DuckDB its row count
+- A timestamp table function parameter can be read as DateTimeOffset (#397)
 
-Performance (measured against 1.5.6 on .NET 10 with a million rows; the gains are in moving values between DuckDB and .NET, so bulk appends, reading large results and queries that call C# functions benefit most, while queries dominated by DuckDB's own work change little):
-- Reading numbers and booleans through GetInt32, GetFieldValue&lt;T&gt; and the other typed getters 3.5 to 6 times faster, an integer column read as double 12 times faster
-- Reading short strings up to 1.35 times faster
-- Reading dates, times and timestamps 3 to 12 times faster, appending a DateTime 14 to 26 times faster
-- UUID, DECIMAL and HUGEINT reads 1.7 to 7 times faster
-- Typed scalar functions 5 to 8 times faster, 1.6 times with a string argument
-- Table functions 2.5 to 6 times faster
-- With projection pushdown, the columns a query does not read are no longer computed: a query that reads one column of a four-column table function is about 6 times faster, and the gain grows with the number of unread columns
-- LIST, STRUCT and MAP columns read into .NET types up to 6 times faster
-- Appending BigInteger, lists, strings, C# enums and through the mapped appender 1.3 to 4 times faster; numbers 1.2 to 1.4 times faster; decimals of up to 18 digits 1.3 to 2 times faster depending on the CPU, wider decimals more than twice as fast
-
-Memory (per million rows, against 1.5.6):
-- Appending no longer allocates for each value. 1.5.6 allocated about 750 bytes for every DateTime (2.9 GB for four TIMESTAMP columns), 756 MB for a record of mixed types in the mapped appender, 211 MB for lists of int?, 188 MB for C# enums and up to 315 MB for BigInteger; each is now about 0.1 MB
-- Scalar functions with nullable arguments or results, and table functions over structs or rows with nullable columns, no longer allocate for each row: 21 to 47 MB in 1.5.6, now about 0.1 MB
-- An integer read as double no longer allocates (375 MB for eight million values in 1.5.6), a DECIMAL wider than 18 digits is read without a BigInteger (107 MB, now none), and a large HUGEINT read as BigInteger allocates a third as much
-- LIST, STRUCT and MAP reads allocate up to 60% less, and GetValues 9 to 17% less
+Breaking changes:
+- HUGEINT and UHUGEINT are read as Int128 and UInt128 instead of BigInteger. sum() of an integer column is a HUGEINT, so cast its result to Int128
+- A BLOB is read as byte[] instead of Stream. GetStream still returns a stream
+- A FLOAT, DOUBLE or DECIMAL value with a fractional part, read as an integer type, throws InvalidCastException instead of being rounded
+- A DbType set on a parameter is kept when Value is assigned afterwards (#369), and decides the value. A value that doesn't fit the DbType, such as 2.5 with DbType.Int32, throws InvalidCastException
+- IDuckDBAppenderRow has new AppendValue overloads for Int128, UInt128, DateOnly and TimeOnly. With C# 12 an integer constant passed to AppendValue is ambiguous, so give it the type of its column, for example (int?)1
+- DuckDBDateOnly and DuckDBTimeOnly convert to DateOnly and TimeOnly only explicitly
+- A typed scalar function with no nullable parameter returns NULL for a NULL argument without being called. Declare the parameter string? or mark it [AllowNull] to be called
+- ExecuteNonQuery returns -1 for statements other than INSERT, UPDATE, DELETE, MERGE and COPY (#374)
+- CardinalityHint.IsExact = false is now an estimate, and true an exact count that DuckDB also takes as a maximum
+- Parameter values, list items, map entries and struct fields are converted more strictly. See the upgrade guide
 
 Fixes:
-- A Read() after the end of a streaming result, and the first Read() of an empty streaming result, no longer throw (#358)
-- Reading an ENUM column as a type other than string no longer reads past the stored value
-- Reading a BIT column as an unsupported type throws InvalidCastException instead of ending the process with a stack overflow
-- Negative intervals can be read as TimeSpan, bound and appended
-- A TIMETZ read as DateTimeOffset no longer throws for a time earlier in the day than its positive offset
-- -2^127 is accepted as a HUGEINT value, and the HUGEINT limits no longer fail under cultures with another minus sign
-- A decimal parameter is sent with the exact number of its digits; 1000 was sent as DECIMAL(3,0)
-- A list parameter that DuckDB cannot build is refused instead of crashing the process
-- The exception of a scalar function that throws in WHERE or HAVING is now the InnerException of the error
-- A table function projection that calls a constructor (a record or a tuple) is refused with a clear message instead of a NullReferenceException
-- The mapped appender disposes its appender when validation fails
-- DuckDBClientFactory.CanCreateCommandBuilder and CanCreateDataAdapter return false instead of throwing
+- A string with NUL characters is stored in full. It was cut at the first NUL
+- A BigInteger appended to a column other than HUGEINT or UHUGEINT throws. Its 16 bytes overwrote the values next to it
+- A date written to a TIME, TIMETZ or timestamp column, a time written to a DATE, TIMETZ or timestamp column, and a DateTime written to a TIMETZ column throw instead of storing wrong values. A DateTime appended to a TIME column stores its time of day
+- A STRUCT read into a C# struct gets the values of its fields
+- A byte[] returned by a scalar or table function is written to a BLOB column (#395)
 
-Behavior changes:
-- Appending a decimal too wide for its column throws instead of storing a value the column cannot hold
-- A TimeSpan parameter where DuckDB cannot infer the type is bound as an INTERVAL instead of as text; declare DbType.Time to bind it as a time
-- Looking up a missing parameter by name through DbParameterCollection throws IndexOutOfRangeException, as the typed indexer does
-- A TIMETZ read as DateTimeOffset is placed on 0001-01-02 instead of 0001-01-01
-- A BigInteger parameter where DuckDB cannot infer the type is bound as HUGEINT if it fits, as UHUGEINT up to 2^128 - 1 and as BIGNUM beyond, instead of throwing for values outside the HUGEINT range
+Thanks to Alaric Dailey (@alaricd) for his pull requests that brought DuckDB.NET's ADO.NET behaviour in line with the documented contracts, and to Michał Rusinek (@Mr444-dev) for TIME_NS support.
     </PackageReleaseNotes>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
@@ -79,6 +67,22 @@ Behavior changes:
 
   <ItemGroup>
     <ProjectReference Include="..\DuckDB.NET.Bindings\Bindings.csproj" />
+    <!-- Internal in each assembly, so Data compiles its own copy for net8.0. -->
+    <Compile Include="..\DuckDB.NET.Bindings\OverloadResolutionPriorityAttribute.cs" Link="Extensions\OverloadResolutionPriorityAttribute.cs" />
   </ItemGroup>
+
+  <!-- Data and Bindings ship together, and Data needs the Bindings of its own major version: Data 1.5.x, whose
+       dependency had no upper bound, failed with TypeLoadException under Bindings 2.0. NuGet takes a project
+       reference's version as a minimum, so the range is set on the item pack builds the dependency from. -->
+  <Target Name="LimitBindingsToThisMajorVersion" AfterTargets="_GetProjectReferenceVersions">
+    <PropertyGroup>
+      <_NextMajorVersion>$([MSBuild]::Add($(PackageVersion.Split('.')[0]), 1)).0.0</_NextMajorVersion>
+    </PropertyGroup>
+    <ItemGroup>
+      <_ProjectReferencesWithVersions Condition="'%(Filename)' == 'Bindings'">
+        <ProjectVersion>[%(ProjectVersion), $(_NextMajorVersion))</ProjectVersion>
+      </_ProjectReferencesWithVersions>
+    </ItemGroup>
+  </Target>
 
 </Project>

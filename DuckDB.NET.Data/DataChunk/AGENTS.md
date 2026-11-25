@@ -18,8 +18,14 @@ directions together, so a round trip does not show a mistake; the tests that com
   Such a call is looked up at run time on every value.
 - A test of a type parameter has the form `typeof(T) == typeof(X)`, or `typeof(T).IsValueType`, with no other
   condition. The JIT folds those. It does not fold a pattern test of a nullable value, which boxes it.
-- An exception is built in a helper such as `CannotCast` or `ThrowColumnOutOfRange`, never with an interpolated
-  string inline in a method that reads or writes.
+- An exception is built in a helper such as `CannotCast` or `ColumnOutOfRange`, never with an interpolated
+  string inline in a method that reads or writes. The helper is `NoInlining` and returns the exception, and the
+  caller throws it: `throw CannotCast(...)`. The `throw` at the call site tells the JIT that the block does not
+  return, so it moves it off the hot path whatever the helper looks like.
+- The one helper that throws the exception itself is `ThrowException<T>` in `VectorDataWriterBase`, because 27
+  default `Append...` methods return what it returns. It has `[DoesNotReturn]` and must never get `NoInlining`:
+  the JIT finds out that a method does not return only when it looks at it for inlining, and `NoInlining` stops it
+  looking. The call then stays on the hot path as an ordinary call.
 - A conversion returns or stores what it did before, unless the change is meant to change it. Compare the build
   before with the build after on real values.
 
@@ -31,7 +37,14 @@ directions together, so a round trip does not show a mistake; the tests that com
 - A line in `VectorDataReaderBase.ReadValidValue<T>` has the form `if (typeof(T) == typeof(X)) return ...;`.
 - A new reader class is registered in `VectorDataReaderFactory`, and overrides `Reset` if it has child readers.
 - Behaviour of numeric conversions is pinned by `DuckDB.NET.Test/NumericReaderConversionTests.cs`, and of dates
-  and times by `DuckDB.NET.Test/TemporalConversionTests.cs`.
+  and times by `DuckDB.NET.Test/TemporalConversionTests.cs`. That a column, a list item, a map key or value and a
+  struct field convert alike is pinned by `DuckDB.NET.Test/NumericReadPathAgreementTests.cs`.
+- `GetValueCore(offset, Type)` of the numeric, BigInteger, decimal and enum readers never converts by rules of its own:
+  the numeric, BigInteger and enum readers map the type to `GetValidValue<X>` of their own class, and the decimal
+  reader accepts and refuses the same types as its `GetValidValue<T>`. So the `object` path and the typed path agree.
+- `object` as the requested type means the column's own .NET type (`ClrType`). The base class does it, in
+  `ReadValidValue<T>` and in the non-virtual `GetValue(offset, Type)`; a reader's `GetValueCore` is never called with
+  `object` and needs no line for it. Pinned by `DuckDB.NET.Test/ObjectTargetReadTests.cs`.
 - The list, struct and map readers keep what they worked out for the last target type. A column read as different
   types in turn is pinned by `DuckDB.NET.Test/CompositeReadTargetTypeTests.cs`.
 

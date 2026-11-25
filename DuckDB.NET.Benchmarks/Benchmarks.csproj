@@ -2,9 +2,11 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <SonarQubeExclude>true</SonarQubeExclude>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Optimize>true</Optimize>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <BuildType>Full</BuildType>
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>..\keyPair.snk</AssemblyOriginatorKeyFile>
@@ -19,8 +21,15 @@
     <RestoreAdditionalProjectSources Condition="Exists('$(MSBuildThisFileDirectory)packages')">$(RestoreAdditionalProjectSources);$(MSBuildThisFileDirectory)packages</RestoreAdditionalProjectSources>
   </PropertyGroup>
 
+  <!-- ArrowAppenderBenchmark needs DuckDBArrowAppender, which only this repository and 2.x packages built from it have.
+       A 2.x package from before it was added fails to build with this symbol: leave that benchmark out of such runs. -->
+  <PropertyGroup Condition="'$(UseNuGet)' != 'true' Or $(DuckDBNuGetVersion.StartsWith('2.'))">
+    <DefineConstants>$(DefineConstants);ARROW_APPENDER</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
-    <PackageReference Include="BenchmarkDotNet" Version="0.15.4" />
+    <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
+    <PackageReference Include="Dapper" Version="2.1.89" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(UseNuGet)' != 'true'">

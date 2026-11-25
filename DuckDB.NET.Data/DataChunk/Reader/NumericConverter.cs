@@ -19,6 +19,8 @@ internal static class NumericConverter
         if (typeof(TResult) == typeof(uint))       return (TResult)(object)uint.CreateChecked(value);
         if (typeof(TResult) == typeof(long))       return (TResult)(object)long.CreateChecked(value);
         if (typeof(TResult) == typeof(ulong))      return (TResult)(object)ulong.CreateChecked(value);
+        if (typeof(TResult) == typeof(Int128))     return (TResult)(object)Int128.CreateChecked(value);
+        if (typeof(TResult) == typeof(UInt128))    return (TResult)(object)UInt128.CreateChecked(value);
         if (typeof(TResult) == typeof(float))      return (TResult)(object)float.CreateChecked(value);
         if (typeof(TResult) == typeof(double))     return (TResult)(object)double.CreateChecked(value);
         if (typeof(TResult) == typeof(decimal))    return (TResult)(object)decimal.CreateChecked(value);

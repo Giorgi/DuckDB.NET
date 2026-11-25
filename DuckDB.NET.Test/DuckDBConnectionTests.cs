@@ -7,6 +7,7 @@ public class DuckDBConnectionTests
 {
     [Fact]
     [Trait("Category", "Long Running")]
+    [Trait("Stress", "Connection")]
     public async Task ConnectionSpeed()
     {
         const int taskCount = 5;
@@ -52,30 +53,53 @@ public class DuckDBConnectionTests
         files.Dispose();
     }
 
+    // https://learn.microsoft.com/dotnet/api/system.data.common.dbconnection.close:
+    // "An application can call Close or CloseAsync more than one time. No exception is generated."
     [Fact]
     [Trait("Category", "Baseline")]
-    public async Task ExceptionOnDoubleClose()
+    public async Task CloseCanBeCalledMoreThanOnce()
     {
         using var dbInfo = DisposableFile.GenerateInTemp("db");
         await using var duckDBConnection = new DuckDBConnection(dbInfo.ConnectionString);
         await duckDBConnection.OpenAsync();
+        var stateChanges = 0;
+        duckDBConnection.StateChange += (_, _) => stateChanges++;
 
         await duckDBConnection.CloseAsync();
-        await duckDBConnection.Invoking(async connection => await connection.CloseAsync())
-            .Should().ThrowAsync<InvalidOperationException>();
+        await duckDBConnection.CloseAsync();
+        duckDBConnection.Close();
+
+        duckDBConnection.State.Should().Be(ConnectionState.Closed);
+        stateChanges.Should().Be(1, "only the first Close changes the state");
     }
 
     [Fact]
     [Trait("Category", "Baseline")]
-    public async Task ExceptionOnDisposeThenClose()
+    public async Task CloseNeverOpenedConnectionDoesNotThrow()
+    {
+        await using var duckDBConnection = new DuckDBConnection("DataSource=:memory:");
+        var stateChanges = 0;
+        duckDBConnection.StateChange += (_, _) => stateChanges++;
+
+        duckDBConnection.Close();
+        await duckDBConnection.CloseAsync();
+
+        duckDBConnection.State.Should().Be(ConnectionState.Closed);
+        stateChanges.Should().Be(0, "a connection that was never opened does not change state");
+    }
+
+    [Fact]
+    [Trait("Category", "Baseline")]
+    public async Task CloseAfterDisposeDoesNotThrow()
     {
         using var dbInfo = DisposableFile.GenerateInTemp("db");
         await using var duckDBConnection = new DuckDBConnection(dbInfo.ConnectionString);
         await duckDBConnection.OpenAsync();
 
         await duckDBConnection.DisposeAsync();
-        await duckDBConnection.Invoking(async connection => await connection.CloseAsync())
-            .Should().ThrowAsync<InvalidOperationException>();
+        await duckDBConnection.CloseAsync();
+
+        duckDBConnection.State.Should().Be(ConnectionState.Closed);
     }
 
     /// <summary>
@@ -84,6 +108,7 @@ public class DuckDBConnectionTests
     /// <returns></returns>
     [Fact]
     [Trait("Category", "Long Running")]
+    [Trait("Stress", "Connection")]
     public async Task MultiThreadedStress()
     {
         //with 1 task per file, should be good mix of reusing connections

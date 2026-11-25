@@ -17,16 +17,16 @@ dotnet build --configuration Release /p:BuildType=Full
 # Run all tests (CI also adds /p:CollectCoverage=true /p:CoverletOutputFormat=lcov)
 dotnet test DuckDB.NET.Test/Test.csproj --configuration Release /p:BuildType=Full
 
-# One class, one test, or everything except the slow VARINT parameter tests
+# One class, one test, or everything except the slow VARINT parameter tests and the connection stress tests
 dotnet test DuckDB.NET.Test/Test.csproj --filter "FullyQualifiedName~DuckDB.NET.Test.TableFunctionTests"
 dotnet test DuckDB.NET.Test/Test.csproj --filter "FullyQualifiedName~DuckDB.NET.Test.TableFunctionTests.TestTableFunction"
-dotnet test DuckDB.NET.Test/Test.csproj --filter "FullyQualifiedName!~VarintTest"
+dotnet test DuckDB.NET.Test/Test.csproj --filter "FullyQualifiedName!~VarintTest&Stress!=Connection"
 
 # Packages: the plain packages need a separately installed native library; /p:BuildType=Full produces the .Full variants
 dotnet pack DuckDB.NET.Data/Data.csproj --configuration Release /p:BuildType=Full
 
-# Benchmarks
-dotnet run -c Release --project DuckDB.NET.Benchmarks
+# Benchmarks: each one runs against the released NuGet package and against this working tree
+dotnet run -c Release -f net10.0 --project DuckDB.NET.Benchmarks -- --filter "*NumericAppenderBenchmark*"
 ```
 
 ### Native libraries
@@ -34,28 +34,38 @@ dotnet run -c Release --project DuckDB.NET.Benchmarks
 - The `DownloadNativeLibs` target in `Bindings.csproj` (with `DownloadNativeLibs.targets`) downloads the DuckDB
   release zips into `DuckDB.NET.Bindings/obj/runtimes/<rid>/native`. The test project always triggers this download,
   whatever `BuildType` is.
+- **In CI,** except nightly builds, the Build, CodeQL and Sonar workflows fill `obj/runtimes` first with `.github/actions/duckdb-natives`: from
+  the Actions cache (keyed by OS and DuckDB release), or downloaded with the workflow's token. Anonymous release
+  downloads failed with 504 for hours on 2026-11-09. Only pushes and manual runs save to the cache, never pull requests.
 - **The cache is version-blind:** a platform is downloaded only if its folder is missing. After changing the DuckDB
   version, delete `DuckDB.NET.Bindings/obj/runtimes`, rebuild, and confirm the version with `SELECT version()`.
 - **Nightly builds:** `/p:NightlyBuild=true /p:DuckDbArtifactRoot=https://artifacts.duckdb.org/<branch>` downloads
   DuckDB's `duckdb-shared-libs-<platform>.tar.gz` instead. `<branch>` is a DuckDB branch name, and `latest` means
   DuckDB's `main`. CI does this on the schedule: it uses the workflow file from `develop`, builds the code of the
-  `nightly-builds` branch, and currently tracks `v2.0-cyanoptera` until DuckDB 2.0 ships.
+  `nightly-builds` branch, and tracks `latest`.
 
 ## DuckDB version and releases
 
-- **Current target: DuckDB v1.5.6.** The version is set in `DuckDB.NET.Bindings/Bindings.csproj`
+- **Current target: DuckDB v2.0.1.** The version is set in `DuckDB.NET.Bindings/Bindings.csproj`
   (`DuckDbArtifactRoot`). The "Updated to DuckDB vX" line in the `PackageReleaseNotes` of both `Bindings.csproj` and
-  `Data.csproj` also needs updating. Every `LibraryImport` names its `EntryPoint`, so after an update, compare those
-  names with the library's exports to catch removed functions.
+  `Data.csproj` also needs updating; a release on the same DuckDB version says "Built on DuckDB vX". Every
+  `LibraryImport` names its `EntryPoint`, so after an update, compare those names with the library's exports to
+  catch removed functions.
 - **Package version:** comes from git tags through GitVersion (`GitVersion.yml`). DuckDB.NET versions follow the
-  DuckDB version (tag `1.5.6`).
+  DuckDB version (tag `1.5.6`). A second release on the same DuckDB version gets a fourth part (`1.5.6.1`), which
+  GitVersion cannot express: it ignores such a tag and works out the previous version again. Run the "Build"
+  workflow by hand on `main` with that version in its `version` input; it reaches MSBuild as `ReleaseVersion`
+  (`Directory.Build.props`), which sets the package and assembly versions. Check the packages with a dry run of the
+  `NuGet` workflow before step 4.
 - **Release steps:**
   1. Update the release notes in both project files.
   2. Merge `develop` into `main` and tag.
   3. Wait for the "Build" run on `main` to succeed.
   4. Start the `NuGet` workflow (`.github/workflows/NuGet.yml`, manual) on `main`. It publishes the
-     `nugetPackages-main` artifact of the latest *successful* main build, so starting it earlier publishes an old
-     build. Pushes to `develop` publish to GitHub Packages only.
+     `nugetPackages-main` artifact only if it comes from a successful Build run of the commit it runs on; otherwise
+     it stops and says why. A push that changes only Markdown files or `NuGet.yml` starts no Build, so start the
+     Build workflow by hand then. The `dry-run` input finds and downloads the packages without publishing them.
+     Pushes to `develop` publish to GitHub Packages only.
 
 ## Architecture
 
@@ -88,9 +98,14 @@ dotnet run -c Release --project DuckDB.NET.Benchmarks
 
 ### Commands and results
 
-- **Execution:** `DuckDBCommand` calls `PreparedStatement.PrepareMultiple`, an iterator that extracts the statements
-  and prepares and executes one statement per `MoveNext()`. Parameters are converted by `DuckDBTypeMap` and
-  `ClrToDuckDBConverter` (positional and named).
+- **Execution:** `DuckDBCommand.ExecuteStatements()` takes one of two paths. An unprepared command calls
+  `PreparedStatement.PrepareMultiple`, an iterator that extracts the statements and prepares and executes one
+  statement per `MoveNext()`. After `Prepare()`, a single-statement command executes a `PreparedStatementEntry` that
+  its connection keeps, keyed by text and shared by commands with that text, until `Close()`. Parameters are
+  converted by `DuckDBTypeMap` and `ClrToDuckDBConverter` (positional and named). **Before changing the execution
+  path, the statement store or a parameter conversion, read `DESIGN.md` in `PreparedStatement`:** it describes both
+  paths, the conversion order, what DuckDB 2.0 does with a prepared statement, and the rules that must hold
+  (iterators, rent/return, clearing bindings, destroying statements before the database goes).
 - **Result modes:** `UseStreamingMode` **defaults to `false`**, so results are materialized. `true` uses
   `duckdb_execute_prepared_streaming` and `duckdb_stream_fetch_chunk`.
 - **Errors:** every native result error goes through `DuckDBResultExtensions.ThrowOnError`. An interrupt becomes
@@ -134,10 +149,52 @@ dotnet run -c Release --project DuckDB.NET.Benchmarks
 - **`DuckDBMappedAppender<T, TMap>`:** the type-checked alternative (`CreateAppender<T, TMap>(table)`). A
   `DuckDBAppenderMap<T>` subclass declares the columns with `Map`, `DefaultValue` and `NullValue`, and type
   mismatches are reported when the appender is created. See `AppenderMap-Usage.md`.
+- **`DuckDBArrowAppender`:** appends Apache Arrow record batches and streams (`CreateArrowAppender(table)`, then
+  `AppendBatch`, `AppendStream` or `AppendStreamAsync`) through `duckdb_schema_from_arrow`,
+  `duckdb_data_chunk_from_arrow` and `duckdb_append_data_chunk`. It does not use the vector writers. It is a separate
+  type on purpose, so rows and batches cannot be mixed on one appender. Columns are matched by position, and DuckDB
+  casts each Arrow column to the column type, so unlike `DuckDBAppender` this path is type-checked. A failure after
+  the schema is converted faults the appender.
+  - **Ownership:** DuckDB takes ownership of the exported `ArrowArray` (it sets `release` to NULL), and destroying the
+    chunk releases it and unpins the managed buffers. Always free the `CArrowArray` in a `finally`.
+  - **Shape:** v2.0.0 does not check the array's shape, and `RecordBatch` does not check that its columns are as long
+    as the batch. A shorter column is read past its end (garbage, or a crash for strings), so the appender checks
+    every column's length before exporting. v2.0.1 validates the shape in `duckdb_data_chunk_from_arrow` (read in
+    its source, not run against it). Keep the check anyway.
+  - **One chunk per batch:** a batch goes to DuckDB as one chunk of any length, so a batch that fails to convert or
+    cast appends nothing. Constraints are different: DuckDB checks them only when the appender flushes (every
+    204,800 rows, and on close), and a failed flush drops every batch since the last flush. The XML docs say so,
+    pinned by the two `..._ConstraintFailure...` tests.
+  - **Engine:** one chunk per batch needs duckdb/duckdb#27664, which is in v2.0.1: DuckDB v2.0.0 cannot cast a chunk
+    longer than 2048 rows, and `AppendBatch_CastsColumnsInLongBatches` fails on it. On such an engine the appender
+    would have to append batches in `RecordBatch.Slice` pieces of 2048 rows, as the commit "Append Arrow record
+    batches with DuckDBArrowAppender" did; that cost 1.20x on 65536-row batches.
 - **UDFs:** scalar functions (`DuckDBConnection.ScalarFunction*.cs`) and table functions
   (`DuckDBConnection.TableFunction*.cs`) are registered through generic overloads for different parameter counts.
   Callbacks are pinned with `GCHandle`. A table function creates its data enumerator per scan init, not per bind,
   because DuckDB re-initializes scans without re-binding, for example in recursive CTEs.
+
+### Conversion rules: where to find what converts to what
+
+There is no single table. **For numeric conversions, the most asked about, start with the table in "Behaviour: what
+converts to what" in `DataChunk/Reader/DESIGN.md`** (every numeric column and ENUM against the integer types,
+`float`/`double`, `decimal` and `BigInteger`, the same on every read path) and `NumericReaderConversionTests`, which
+pins it. Each direction has its own place, and the tests are the reference where the text stops:
+
+- **Reading** (a column, list item, map key or value, struct field or function input read as a .NET type): the
+  "Behaviour: what converts to what" section near the end of `DataChunk/Reader/DESIGN.md`. Its table covers the
+  numeric columns and ENUM; bullets below it cover dates, times and timestamps, `object`, and the agreement of the
+  read paths. Other column types (BOOLEAN, UUID, VARCHAR, BLOB, BIT, INTERVAL) are not written down: read the
+  reader's `GetValidValue<T>` (`VectorDataReaderFactory` says which reader serves a column). Pinned by
+  `NumericReaderConversionTests`, `TemporalConversionTests`, `DuckDBDataReaderEnumTests`,
+  `NumericReadPathAgreementTests` and `ObjectTargetReadTests`.
+- **Writing** (the appender and function results): the decisions and "Behaviour that is kept on purpose" in
+  `DataChunk/Writer/DESIGN.md`; there is no table. Pinned by `TemporalWriteConversionTests`,
+  `DecimalWriteConversionTests`, `StringWriteConversionTests` and `EnumWriteConversionTests`. `DuckDBArrowAppender` is
+  not covered there: DuckDB's own Arrow type mapping and casts decide what converts, pinned by `ArrowAppenderTests`.
+- **Parameters** (a .NET value or `DbType` bound to a command): `PreparedStatement/ClrToDuckDBConverter.cs` and
+  `DuckDBTypeMap.cs`, with no written summary. Pinned by the tests in `DuckDB.NET.Test/Parameters`.
+- **For users:** `docs/type-mapping.md` in the docs repository. Update it when a conversion changes.
 
 ## Coding style
 
@@ -181,6 +238,15 @@ Rules for every new or changed test (both have caused tests that passed locally 
   the column.
 - **To check row order, use `ORDER BY rowid`** instead of adding an ordering column.
 - **Run a new test at least 5 times before committing.** One pass proves nothing.
+
+**What CI runs:**
+- **The connection stress tests** (`MultiThreadedStress`, `ConnectionSpeed`, trait `Stress=Connection`) took most of
+  the test time on Windows. CI leaves them out unless the change touches the code that opens, shares or closes the
+  native database: `Connection/`, `DuckDBConnection.cs`, `DuckDBDataReader.cs`, `DuckDBCommand.cs`,
+  `PreparedStatement/`, `DuckDBWrapperObjects.cs`, the DuckDB version in `Bindings.csproj`, `DuckDBConnectionTests.cs`
+  or `ci.yml`. They always run for `main`, tags, scheduled and manual runs. Run them locally only for such a change.
+- **On Windows** the NuGet cache and the temporary folder are moved to `D:`, where the workspace is; on `C:` the build
+  took about 2.5 times as long. Defender's real-time scanning is already off on the hosted runners.
 
 **Known flaky failure:** with DuckDB 1.5.x, a later-chunk error test can fail with `OperationCanceledException`.
 A worker-thread error sets the interrupt flag, and a streaming fetch can report that flag instead of the real error.

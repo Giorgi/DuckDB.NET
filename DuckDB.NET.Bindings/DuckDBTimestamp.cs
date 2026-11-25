@@ -80,5 +80,5 @@ public readonly struct DuckDBTimestamp(DuckDBDateOnly date, DuckDBTimeOnly time)
     public override int GetHashCode() => HashCode.Combine(Date, Time);
 
     public static implicit operator DateTime(DuckDBTimestamp timestamp) => timestamp.ToDateTime();
-    public static implicit operator DuckDBTimestamp(DateTime timestamp) => DuckDBTimestamp.FromDateTime(timestamp);
+    public static implicit operator DuckDBTimestamp(DateTime timestamp) => FromDateTime(timestamp);
 }

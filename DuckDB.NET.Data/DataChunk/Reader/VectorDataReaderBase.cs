@@ -126,6 +126,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
         if (typeof(T) == typeof(Guid))     return (T)(object)ReadGuid(offset);
         if (typeof(T) == typeof(string))   return (T)(object)ReadString(offset);
         if (typeof(T) == typeof(Stream))   return (T)(object)ReadStream(offset);
+        if (typeof(T) == typeof(object))   return (T)GetValueCore(offset, ClrType);
 
         return GetValidValue<T>(offset);
     }
@@ -133,10 +134,17 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
     public object GetValue(ulong offset)
     {
         if (!IsValid(offset)) return null!;
-        return GetValue(offset, ClrType);
+        return GetValueCore(offset, ClrType);
     }
 
-    internal virtual object GetValue(ulong offset, Type targetType)
+    // The value as targetType, which is known only at run time: a list item, a map key or value, a struct field read
+    // into a property without dynamic code. object means the column's own .NET type, as GetFieldValue<object> and
+    // GetValue(ordinal) give it, for every reader; ReadValidValue<object> does the same on the typed path.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal object GetValue(ulong offset, Type targetType) => GetValueCore(offset, targetType == typeof(object) ? ClrType : targetType);
+
+    // What each reader converts. Called with any type but object.
+    internal virtual object GetValueCore(ulong offset, Type targetType)
     {
         return DuckDBType switch
         {
@@ -145,7 +153,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
         };
     }
 
-    internal object GetProviderSpecificValue(ulong offset) => GetValue(offset, ProviderSpecificClrType);
+    internal object GetProviderSpecificValue(ulong offset) => GetValueCore(offset, ProviderSpecificClrType);
 
     protected virtual Type GetColumnType()
     {
@@ -167,21 +175,26 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
             DuckDBType.Interval => typeof(TimeSpan),
             DuckDBType.Date => typeof(DateOnly),
             DuckDBType.Time => typeof(TimeOnly),
+            DuckDBType.TimeNs => typeof(TimeOnly),
             DuckDBType.TimeTz => typeof(DateTimeOffset),
-            DuckDBType.HugeInt => typeof(BigInteger),
-            DuckDBType.UnsignedHugeInt => typeof(BigInteger),
+            // The exact types of the two columns (BigInteger before 2.0). VARINT has no bound and stays BigInteger.
+            DuckDBType.HugeInt => typeof(Int128),
+            DuckDBType.UnsignedHugeInt => typeof(UInt128),
             DuckDBType.Varchar => typeof(string),
             DuckDBType.Decimal => typeof(decimal),
             DuckDBType.TimestampS => typeof(DateTime),
             DuckDBType.TimestampMs => typeof(DateTime),
             DuckDBType.TimestampNs => typeof(DateTime),
-            DuckDBType.Blob => typeof(Stream),
+            // A copy (Stream before 2.0). The stream points into the chunk, so a stream from GetValue or
+            // ExecuteScalar read freed memory once the reader moved on. GetStream and GetFieldValue<Stream> still give one.
+            DuckDBType.Blob => typeof(byte[]),
             DuckDBType.Enum => typeof(string),
             DuckDBType.Uuid => typeof(Guid),
             DuckDBType.Struct => typeof(Dictionary<string, object>),
             DuckDBType.Bit => typeof(string),
             DuckDBType.TimestampTz => typeof(DateTime),
             DuckDBType.VarInt => typeof(BigInteger),
+            DuckDBType.SqlNull => typeof(object),
             _ => throw new ArgumentException($"Unrecognised type {DuckDBType} ({(int)DuckDBType}) for column {ColumnName}")
         };
     }
@@ -206,6 +219,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
             DuckDBType.Interval => typeof(DuckDBInterval),
             DuckDBType.Date => typeof(DuckDBDateOnly),
             DuckDBType.Time => typeof(DuckDBTimeOnly),
+            DuckDBType.TimeNs => typeof(DuckDBTimeOnly),
             DuckDBType.TimeTz => typeof(DuckDBTimeTz),
             DuckDBType.HugeInt => typeof(DuckDBHugeInt),
             DuckDBType.UnsignedHugeInt => typeof(DuckDBUHugeInt),
@@ -214,13 +228,14 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
             DuckDBType.TimestampS => typeof(DuckDBTimestamp),
             DuckDBType.TimestampMs => typeof(DuckDBTimestamp),
             DuckDBType.TimestampNs => typeof(DuckDBTimestamp),
-            DuckDBType.Blob => typeof(Stream),
+            DuckDBType.Blob => typeof(byte[]),
             DuckDBType.Enum => typeof(string),
             DuckDBType.Uuid => typeof(Guid),
             DuckDBType.Struct => typeof(Dictionary<string, object>),
             DuckDBType.Bit => typeof(string),
             DuckDBType.TimestampTz => typeof(DuckDBTimestamp),
             DuckDBType.VarInt => typeof(BigInteger),
+            DuckDBType.SqlNull => typeof(object),
             _ => throw new ArgumentException($"Unrecognised type {DuckDBType} ({(int)DuckDBType}) for column {ColumnName}")
         };
     }
@@ -235,6 +250,19 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private protected InvalidCastException CannotCast(string from, Type to) => new($"Cannot cast from {from} to {to.Name} in column {ColumnName}");
+
+    // A FLOAT, DOUBLE or DECIMAL with a fraction, read as an integer type.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private protected InvalidCastException CannotCastFraction(Type to) => new($"Cannot cast a value with a non-zero fractional part to {to.Name} in column {ColumnName}");
+
+    // A DATE or timestamp outside the range of the .NET type it is read as. The reader of an argument of a
+    // user-defined function has no column name.
+    private protected ArgumentOutOfRangeException OutOfRange(Type targetType, string advice)
+    {
+        var value = ColumnName.Length == 0 ? "Value" : $"Value in column {ColumnName}";
+
+        return new ArgumentOutOfRangeException($"{value} is outside the range of System.{targetType.Name}. {advice}".TrimEnd(), (Exception?)null);
+    }
 
     /// <summary>
     /// Updates the data and validity pointers for a new chunk without recreating the reader.
@@ -293,7 +321,7 @@ internal class VectorDataReaderBase : IDisposable, IDuckDBDataReader
             if (underlyingType is null) return null!;
 
             var known = Known<bool>() ?? Known<byte>() ?? Known<sbyte>() ?? Known<short>() ?? Known<ushort>()
-                        ?? Known<int>() ?? Known<uint>() ?? Known<long>() ?? Known<ulong>()
+                        ?? Known<int>() ?? Known<uint>() ?? Known<long>() ?? Known<ulong>() ?? Known<Int128>() ?? Known<UInt128>()
                         ?? Known<float>() ?? Known<double>() ?? Known<decimal>() ?? Known<BigInteger>()
                         ?? Known<DateTime>() ?? Known<DateOnly>() ?? Known<TimeOnly>() ?? Known<TimeSpan>() ?? Known<DateTimeOffset>()
                         ?? Known<Guid>()

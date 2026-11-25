@@ -22,6 +22,11 @@ public partial class NativeMethods
         public static partial string DuckDBPrepareError(DuckDBPreparedStatement preparedStatement);
 
         [SuppressGCTransition]
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_prepared_statement_type")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBStatementType DuckDBPreparedStatementType(DuckDBPreparedStatement preparedStatement);
+
+        [SuppressGCTransition]
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_nparams")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial long DuckDBParams(DuckDBPreparedStatement preparedStatement);
@@ -30,6 +35,11 @@ public partial class NativeMethods
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_value")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial DuckDBState DuckDBBindValue(DuckDBPreparedStatement preparedStatement, long index, DuckDBValue val);
+
+        // Maybe [SuppressGCTransition]: clears the map of bound values, freeing each value
+        [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_clear_bindings")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial DuckDBState DuckDBClearBindings(DuckDBPreparedStatement preparedStatement);
 
         // Maybe [SuppressGCTransition]: linear search + std::string construction (small allocation)
         [LibraryImport(DuckDbLibrary, EntryPoint = "duckdb_bind_parameter_index", StringMarshalling = StringMarshalling.Utf8)]

@@ -72,7 +72,20 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
 
     public IDuckDBAppenderRow AppendValue(Guid? value) => AppendValueInternalStruct(value);
 
+    // The priority of BigInteger? and UInt128? is lowered so that an int or long constant, AppendValue(1), binds to
+    // the overload it bound to before UInt128? was added (sbyte? for 1), and is not ambiguous. A constant converts to
+    // UInt128 through byte, ushort, uint or ulong, and C# has no rule that prefers sbyte, short, int or long to
+    // UInt128. Both are lowered so that a UInt128 argument still binds to UInt128? and not to BigInteger?, to which
+    // it converts as well. C# 12 ignores the attribute: there such a constant is ambiguous and needs its type.
+    [OverloadResolutionPriority(-1)]
     public IDuckDBAppenderRow AppendValue(BigInteger? value) => AppendValueInternalStruct(value);
+
+    // The exact types of HUGEINT and UHUGEINT. Like the other integers, the bytes are stored without a check, so either
+    // goes into the other column too, reinterpreted.
+    public IDuckDBAppenderRow AppendValue(Int128? value) => AppendValueInternalStruct(value);
+
+    [OverloadResolutionPriority(-1)]
+    public IDuckDBAppenderRow AppendValue(UInt128? value) => AppendValueInternalStruct(value);
 
     #region Append Signed Int
 
@@ -100,6 +113,7 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
 
     #region Append Enum
 
+    [SuppressMessage("Reliability", "S2583", Justification = "TEnum can be System.Enum itself, a class, and then the value can be null.")]
     public IDuckDBAppenderRow AppendValue<TEnum>(TEnum? value) where TEnum : Enum
     {
         var writer = GetCurrentWriter();
@@ -136,6 +150,9 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
     #endregion
 
     #region Append Temporal
+
+    // DateOnly converts implicitly to DuckDBDateOnly and only explicitly back, so a DateOnly argument binds to the
+    // DateOnly? overload and a DuckDBDateOnly argument to the DuckDBDateOnly? one. The same holds for TimeOnly.
     public IDuckDBAppenderRow AppendValue(DateOnly? value) => AppendValueInternalStruct(value);
 
     public IDuckDBAppenderRow AppendValue(TimeOnly? value) => AppendValueInternalStruct(value);
@@ -162,7 +179,7 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
     {
         GetCurrentWriter();
 
-        var state = NativeMethods.Appender.DuckDBAppendDefaultToChunk(nativeAppender, dataChunk, ValueCount, ChunkRowIndex);
+        var state = NativeMethods.Appender.DuckDBAppendDefaultToChunk(nativeAppender, dataChunk, (ulong)ValueCount, ChunkRowIndex);
 
         if (state == DuckDBState.Error)
         {
@@ -220,7 +237,7 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
 
     // Returns the writer of the column the next value goes to, or throws when the row already has a value for
     // every column. The unsigned comparison on locals lets the JIT drop its own bounds check on the array, and
-    // the throw lives in a separate method so that this one is small enough to be inlined.
+    // the message is built in a separate method so that this one is small enough to be inlined.
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private VectorDataWriterBase GetCurrentWriter()
     {
@@ -229,16 +246,16 @@ public class DuckDBAppenderRow : IDuckDBAppenderRow
 
         if ((uint)index >= (uint)writers.Length)
         {
-            ThrowColumnOutOfRange();
+            throw ColumnOutOfRange();
         }
 
         return writers[index];
     }
 
-    [DoesNotReturn]
-    private void ThrowColumnOutOfRange()
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private IndexOutOfRangeException ColumnOutOfRange()
     {
-        throw new IndexOutOfRangeException($"The table {qualifiedTableName} has {vectorWriters.Length} columns but you are trying to append value for column {ValueCount + 1}");
+        return new IndexOutOfRangeException($"The table {qualifiedTableName} has {vectorWriters.Length} columns but you are trying to append value for column {ValueCount + 1}");
     }
 }
 
@@ -252,7 +269,12 @@ public interface IDuckDBAppenderRow
     IDuckDBAppenderRow AppendValue(string? value);
     IDuckDBAppenderRow AppendValue(decimal? value);
     IDuckDBAppenderRow AppendValue(Guid? value);
+    // Lowered for the reason given on DuckDBAppenderRow.AppendValue(BigInteger?).
+    [OverloadResolutionPriority(-1)]
     IDuckDBAppenderRow AppendValue(BigInteger? value);
+    IDuckDBAppenderRow AppendValue(Int128? value);
+    [OverloadResolutionPriority(-1)]
+    IDuckDBAppenderRow AppendValue(UInt128? value);
     IDuckDBAppenderRow AppendValue(sbyte? value);
     IDuckDBAppenderRow AppendValue(short? value);
     IDuckDBAppenderRow AppendValue(int? value);
@@ -264,6 +286,8 @@ public interface IDuckDBAppenderRow
     IDuckDBAppenderRow AppendValue<TEnum>(TEnum? value) where TEnum : Enum;
     IDuckDBAppenderRow AppendValue(float? value);
     IDuckDBAppenderRow AppendValue(double? value);
+    IDuckDBAppenderRow AppendValue(DateOnly? value);
+    IDuckDBAppenderRow AppendValue(TimeOnly? value);
     IDuckDBAppenderRow AppendValue(DuckDBDateOnly? value);
     IDuckDBAppenderRow AppendValue(DuckDBTimeOnly? value);
     IDuckDBAppenderRow AppendValue(DateTime? value);

@@ -1,12 +1,14 @@
 ﻿using BenchmarkDotNet.Attributes;
 using DuckDB.NET.Data;
+using DuckDB.NET.Native;
 
 namespace DuckDB.NET.Benchmarks;
 
 // Four columns of one date or time type per benchmark. Up to 1.5.6-alpha.28, every date and timestamp appended
 // allocated several hundred bytes, so the Allocated column matters here as much as the time.
-// IDuckDBAppenderRow has no DateOnly or TimeOnly overload (one is planned for 2.0), so AppendDateOnlyToDate and
-// AppendTimeOnlyToTime write through the implicit conversions to DuckDBDateOnly and DuckDBTimeOnly.
+// IDuckDBAppenderRow has DateOnly and TimeOnly overloads since 2.0. Against a 1.5 package, AppendDateOnlyToDate and
+// AppendTimeOnlyToTime compile to the overloads of DuckDBDateOnly and DuckDBTimeOnly, through the implicit
+// conversions, so the two jobs of one run compare the two paths.
 [MemoryDiagnoser]
 public class DateAppenderBenchmark
 {
@@ -48,8 +50,22 @@ public class DateAppenderBenchmark
     [IterationSetup(Targets = [nameof(AppendDateTimeToDate), nameof(AppendDateOnlyToDate)])]
     public void DateSetup() => CreateTable("DATE");
 
-    [IterationSetup(Target = nameof(AppendTimeOnlyToTime))]
+    [IterationSetup(Targets = [nameof(AppendTimeOnlyToTime), nameof(AppendDuckDBTimeOnlyToTime), nameof(AppendDateTimeToTime)])]
     public void TimeSetup() => CreateTable("TIME");
+
+    [IterationSetup(Targets = [nameof(AppendTimeOnlyToTimeNs), nameof(AppendDateTimeToTimeNs)])]
+    public void TimeNsSetup() => CreateTable("TIME_NS");
+
+    [IterationSetup(Target = nameof(AppendIntegersControl))]
+    public void IntegerSetup() => CreateTable("INTEGER");
+
+    [IterationSetup(Target = nameof(AppendDateTimeToDateAndTimestamp))]
+    public void DateAndTimestampSetup()
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "DROP TABLE IF EXISTS bench; CREATE TABLE bench (a DATE, b TIMESTAMP, c DATE, d TIMESTAMP);";
+        command.ExecuteNonQuery();
+    }
 
     [Benchmark]
     public void AppendDateTimeToTimestamp()
@@ -116,6 +132,95 @@ public class DateAppenderBenchmark
         for (var i = 0; i < RowCount; i++)
         {
             appender.AppendRow((TimeOnly?)TimeOnly.FromDateTime(Start.AddSeconds(i % 3600)), static (row, value) =>
+            {
+                row.AppendValue(value).AppendValue(value).AppendValue(value).AppendValue(value);
+            });
+        }
+    }
+
+    [Benchmark]
+    public void AppendDuckDBTimeOnlyToTime()
+    {
+        using var appender = connection.CreateAppender("bench");
+
+        for (var i = 0; i < RowCount; i++)
+        {
+            var seconds = i % 3600;
+            appender.AppendRow((DuckDBTimeOnly?)new DuckDBTimeOnly(12, (byte)(seconds / 60), (byte)(seconds % 60), i % 1_000_000), static (row, value) =>
+            {
+                row.AppendValue(value).AppendValue(value).AppendValue(value).AppendValue(value);
+            });
+        }
+    }
+
+    [Benchmark]
+    public void AppendDateTimeToTime()
+    {
+        using var appender = connection.CreateAppender("bench");
+
+        for (var i = 0; i < RowCount; i++)
+        {
+            appender.AppendRow((DateTime?)Start.AddSeconds(i), static (row, value) =>
+            {
+                row.AppendValue(value).AppendValue(value).AppendValue(value).AppendValue(value);
+            });
+        }
+    }
+
+    // The two TIME_NS benchmarks need a 2.0 build: 1.5.6 does not write the type.
+    [Benchmark]
+    public void AppendTimeOnlyToTimeNs()
+    {
+        using var appender = connection.CreateAppender("bench");
+
+        for (var i = 0; i < RowCount; i++)
+        {
+            appender.AppendRow((TimeOnly?)TimeOnly.FromDateTime(Start.AddSeconds(i % 3600)), static (row, value) =>
+            {
+                row.AppendValue(value).AppendValue(value).AppendValue(value).AppendValue(value);
+            });
+        }
+    }
+
+    [Benchmark]
+    public void AppendDateTimeToTimeNs()
+    {
+        using var appender = connection.CreateAppender("bench");
+
+        for (var i = 0; i < RowCount; i++)
+        {
+            appender.AppendRow((DateTime?)Start.AddSeconds(i), static (row, value) =>
+            {
+                row.AppendValue(value).AppendValue(value).AppendValue(value).AppendValue(value);
+            });
+        }
+    }
+
+    // DATE and TIMESTAMP columns in turn: since DATE and the timestamps have writers of their own, the call that
+    // appends a DateTime sees two classes in one row instead of one.
+    [Benchmark]
+    public void AppendDateTimeToDateAndTimestamp()
+    {
+        using var appender = connection.CreateAppender("bench");
+
+        for (var i = 0; i < RowCount; i++)
+        {
+            appender.AppendRow((DateTime?)Start.AddSeconds(i), static (row, value) =>
+            {
+                row.AppendValue(value).AppendValue(value).AppendValue(value).AppendValue(value);
+            });
+        }
+    }
+
+    // A control: an INTEGER column is written by a writer that no change to the date and time writers touches.
+    [Benchmark]
+    public void AppendIntegersControl()
+    {
+        using var appender = connection.CreateAppender("bench");
+
+        for (var i = 0; i < RowCount; i++)
+        {
+            appender.AppendRow((int?)i, static (row, value) =>
             {
                 row.AppendValue(value).AppendValue(value).AppendValue(value).AppendValue(value);
             });

@@ -26,6 +26,7 @@ public class ScalarFunctionNullableTypesTests(DuckDBDatabaseFixture db) : DuckDB
                 CASE WHEN i % 3 = 0 THEN NULL ELSE (i / 7)::DOUBLE END AS f64,
                 CASE WHEN i % 3 = 0 THEN NULL ELSE (i / 7)::DECIMAL(38, 18) END AS dec,
                 CASE WHEN i % 3 = 0 THEN NULL ELSE i::HUGEINT * 1701411834604692317316873037158841::HUGEINT END AS huge,
+                CASE WHEN i % 3 = 0 THEN NULL ELSE i::UHUGEINT * 3402823669209384634633746074317682::UHUGEINT END AS uhuge,
                 CASE WHEN i % 3 = 0 THEN NULL ELSE ('00000000-0000-0000-0000-' || lpad(i::VARCHAR, 12, '0'))::UUID END AS id,
                 CASE WHEN i % 3 = 0 THEN NULL ELSE TIMESTAMP '2024-01-01' + INTERVAL (i * 3601) SECOND END AS ts,
                 CASE WHEN i % 3 = 0 THEN NULL ELSE INTERVAL (i) DAY + INTERVAL (i * 1000) MICROSECOND END AS iv,
@@ -48,6 +49,8 @@ public class ScalarFunctionNullableTypesTests(DuckDBDatabaseFixture db) : DuckDB
         Check<double>("f64");
         Check<decimal>("dec");
         Check<BigInteger>("huge");
+        Check<Int128>("huge");
+        Check<UInt128>("uhuge");
         Check<Guid>("id");
         Check<DateTime>("ts");
         Check<TimeSpan>("iv");

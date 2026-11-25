@@ -4,9 +4,14 @@ using DuckDB.NET.Data;
 namespace DuckDB.NET.Benchmarks;
 
 // One small command per call, the way an application or Dapper uses the provider: a constant query, a lookup of one
-// row by an INTEGER or a VARCHAR parameter, positional and named, and a page of rows read with the typed getters.
-// Every command is parsed and planned each time it runs, so most of the time is DuckDB's. ReusedCommand keeps one
-// command and changes the value of its parameter; Prepare() does nothing in 1.5.6.
+// row by an INTEGER or a VARCHAR parameter, positional and named, an expression, a one-row insert, and a page of rows
+// read with the typed getters. Every new command is parsed and prepared each time it runs, so most of the time is
+// DuckDB's. The Reused* benchmarks keep one prepared command and change the value of its parameters: since 2.0,
+// Prepare() keeps the statement, so they skip the parse and the prepare. In the released package before 2.0,
+// Prepare() does nothing, so the same benchmarks measure an unprepared command there; that package also runs an older
+// DuckDB engine, so what Prepare() saves is read inside one job: SelectExpression against ReusedExpression, InsertRow
+// against ReusedInsert, SelectByIntParameter against ReusedCommand. On DuckDB 2.0 a statement that reads a table is
+// still planned on every execution (duckdb#24696); the expression and the insert are not.
 [MemoryDiagnoser]
 public class CommandBenchmark
 {
@@ -14,6 +19,8 @@ public class CommandBenchmark
 
     private DuckDBConnection connection = null!;
     private DuckDBCommand reusedCommand = null!;
+    private DuckDBCommand reusedExpression = null!;
+    private DuckDBCommand reusedInsert = null!;
     private int next;
 
     [GlobalSetup]
@@ -30,16 +37,32 @@ public class CommandBenchmark
                               $"FROM range({TableRows}) t(i);";
         command.ExecuteNonQuery();
 
+        command.CommandText = "CREATE TABLE log (id INTEGER, message VARCHAR)";
+        command.ExecuteNonQuery();
+
         reusedCommand = connection.CreateCommand();
         reusedCommand.CommandText = "SELECT name FROM items WHERE id = $1";
         reusedCommand.Parameters.Add(new DuckDBParameter(0));
         reusedCommand.Prepare();
+
+        reusedExpression = connection.CreateCommand();
+        reusedExpression.CommandText = "SELECT $1::INTEGER + 1";
+        reusedExpression.Parameters.Add(new DuckDBParameter(0));
+        reusedExpression.Prepare();
+
+        reusedInsert = connection.CreateCommand();
+        reusedInsert.CommandText = "INSERT INTO log VALUES ($1, $2)";
+        reusedInsert.Parameters.Add(new DuckDBParameter(0));
+        reusedInsert.Parameters.Add(new DuckDBParameter("message"));
+        reusedInsert.Prepare();
     }
 
     [GlobalCleanup]
     public void Cleanup()
     {
         reusedCommand.Dispose();
+        reusedExpression.Dispose();
+        reusedInsert.Dispose();
         connection.Dispose();
     }
 
@@ -86,6 +109,39 @@ public class CommandBenchmark
     {
         reusedCommand.Parameters[0].Value = NextId();
         return reusedCommand.ExecuteScalar();
+    }
+
+    [Benchmark]
+    public object? SelectExpression()
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT $1::INTEGER + 1";
+        command.Parameters.Add(new DuckDBParameter(NextId()));
+        return command.ExecuteScalar();
+    }
+
+    [Benchmark]
+    public object? ReusedExpression()
+    {
+        reusedExpression.Parameters[0].Value = NextId();
+        return reusedExpression.ExecuteScalar();
+    }
+
+    [Benchmark]
+    public int InsertRow()
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "INSERT INTO log VALUES ($1, $2)";
+        command.Parameters.Add(new DuckDBParameter(NextId()));
+        command.Parameters.Add(new DuckDBParameter("message"));
+        return command.ExecuteNonQuery();
+    }
+
+    [Benchmark]
+    public int ReusedInsert()
+    {
+        reusedInsert.Parameters[0].Value = NextId();
+        return reusedInsert.ExecuteNonQuery();
     }
 
     // A page of 100 rows, every column read.
