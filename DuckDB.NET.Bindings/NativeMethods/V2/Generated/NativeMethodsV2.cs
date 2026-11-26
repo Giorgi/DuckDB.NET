@@ -2136,6 +2136,9 @@ internal static unsafe partial class NativeMethodsV2
     public static extern DUCKDB_V2_ERROR duckdb_v2_value_get_child([NativeTypeName("duckdb_v2_value_handle")] _duckdb_v2_value* value, [NativeTypeName("idx_t")] ulong index, [NativeTypeName("duckdb_v2_value_handle *")] _duckdb_v2_value** out_child, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+    public static extern DUCKDB_V2_ERROR duckdb_v2_value_variant_to_value([NativeTypeName("duckdb_v2_value_handle")] _duckdb_v2_value* value, [NativeTypeName("duckdb_v2_value_handle *")] _duckdb_v2_value** out_value, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
+
+    [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
     public static extern DUCKDB_V2_ERROR duckdb_v2_value_cast([NativeTypeName("duckdb_v2_factory_handle")] _duckdb_v2_factory* factory, [NativeTypeName("duckdb_v2_value_handle")] _duckdb_v2_value* value, [NativeTypeName("duckdb_v2_logical_type_handle")] _duckdb_v2_logical_type* target_type, [NativeTypeName("duckdb_v2_value_handle *")] _duckdb_v2_value** out_value, [NativeTypeName("duckdb_v2_error_info_handle *")] _duckdb_v2_error_info** err);
 
     [DllImport("duckdb", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
