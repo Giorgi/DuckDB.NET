@@ -78,6 +78,9 @@ public class DuckDBConnectionStringBuilder : DbConnectionStringBuilder
 
     static DuckDBConnectionStringBuilder()
     {
+        // V1's option list, on purpose: it needs no database and has the settings of autoloadable extensions
+        // (s3_region, for one). V2 lists only core options and those of loaded extensions, and only from an instance:
+        // https://github.com/duckdb/duckdb/issues/29447. These are the last V1 functions the provider calls.
         var configCount = NativeMethods.Configuration.DuckDBConfigCount();
 
         for (nuint index = 0; index < configCount; index++)

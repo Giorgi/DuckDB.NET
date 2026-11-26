@@ -504,10 +504,12 @@ they allow constants only.
 
 ## Gaps to raise with DuckDB before V2 is stable
 
-- The option list: `config_get_option_count` lists the core options and those of loaded extensions, so the
-  connection string builder keeps V1's `duckdb_config_count`/`duckdb_get_config_flag` (no connection needed), which
-  also list the settings of autoloadable extensions (`EXTENSION_SETTINGS`, about 150, e.g. `s3_region`). On V2's
-  list alone, a connection string with such a setting would be refused.
+- The option list, raised as https://github.com/duckdb/duckdb/issues/29447: `config_get_option_count` lists the core
+  options and those of loaded extensions, and only from an instance, so the connection string builder keeps V1's
+  `duckdb_config_count`/`duckdb_get_config_flag` (no database needed), which also list the settings of autoloadable
+  extensions since duckdb/duckdb#14021 (the fix of #12542). On v2.1.0-alpha57631 V1 lists 402 options and V2 220; the
+  182 missing include `s3_region`, `http_timeout` and `pg_debug_show_queries`. On V2's list alone, a connection string
+  with such a setting would be refused. These are the last V1 functions the Data project calls.
 
 - A way to get a V2 handle from a V1 connection, which would allow a gradual migration.
 - Appender helpers: default values and column lists.
